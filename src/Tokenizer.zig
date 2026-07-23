@@ -42,6 +42,7 @@ pub const Tokenizer = struct {
     pub fn next(self: *Tokenizer) Token {
         var state: State = .start;
         var state_start: usize = undefined;
+        var quoted_char: u8 = undefined;
 
         while (true) : (self.pos += 1) {
             const c = self.input[self.pos];
@@ -59,7 +60,8 @@ pub const Tokenizer = struct {
                     },
                     '"', '\'' => {
                         state = .quoted;
-                        state_start = self.pos;
+                        state_start = self.pos+1;
+                        quoted_char = c;
                     },
                     '#' => state = .comment,
                     ':', '=' => {
@@ -128,6 +130,21 @@ pub const Tokenizer = struct {
                     } },
                     else => {},
                 },
+                // Quoted string handling
+                .quoted => switch (c) {
+                    else =>{
+                        if (c == quoted_char) {
+                            return .{ .tag = .string, .loc = .{
+                                .start = state_start,
+                                .end = self.pos,
+                            } };
+                        }
+                    },
+                    0 => return .{ .tag = .string, .loc = .{
+                        .start = state_start,
+                        .end = self.pos,
+                    } },
+                },
                 // End of file reached
                 .eof => return .{
                     .tag = if (self.pos == self.input.len) .eof else .invalid,
@@ -135,9 +152,6 @@ pub const Tokenizer = struct {
                         .start = self.pos,
                         .end = self.pos,
                     },
-                },
-                else => {
-                    log.debug("state={s} pos={d} c={c}", .{ @tagName(state), self.pos, c });
                 },
             }
         }
@@ -217,4 +231,22 @@ test "single slash is a legal unquoted string character" {
     const tok = t.next();
     try testing.expectEqual(Token.Tag.string, tok.tag);
     try testing.expectEqualStrings("a/b", t.input[tok.loc.start..tok.loc.end]);
+}
+
+test "quoted string variants" {
+    const inputs = [_][:0]const u8{
+        "\"abc\"",
+        "'abc'",
+        "\"abc",
+        "'abc",
+    };
+
+    for (inputs) |input| {
+        var t = Tokenizer.init(input);
+        errdefer std.debug.print("failed on input: \"{s}\"\n", .{input});
+
+        const tok = t.next();
+        try testing.expectEqual(Token.Tag.string, tok.tag);
+        try testing.expectEqualStrings("abc", t.input[tok.loc.start..tok.loc.end]);
+    }
 }
