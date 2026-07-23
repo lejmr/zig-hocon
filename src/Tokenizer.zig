@@ -192,7 +192,7 @@ test "unquoted string terminates before each reserved character" {
     const inputs = [_][:0]const u8{
         "a$", "a\"", "a{",  "a}", "a[", "a]", "a:", "a=",
         "a,", "a+",  "a#",  "a`", "a^", "a?", "a!", "a@",
-        "a*", "a&",  "a\\",
+        "a*", "a&",  "a\\", "a ", "a\t", "a\n", "a\r",
     };
 
     for (inputs) |input| {
