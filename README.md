@@ -21,14 +21,17 @@ Requires Zig **0.16.0** or newer.
 Tracks HOCON spec coverage as the tokenizer/parser get built out. Checked
 items are implemented and tested; unchecked items are planned.
 
-- [ ] Tokenizer
-  - [ ] Objects `{ }`
-  - [ ] Arrays `[ ]`
-  - [ ] Strings (quoted, unquoted, triple-quoted/multi-line)
-  - [ ] Numbers
-  - [ ] Booleans / null
-  - [ ] Comments (`#` and `//`)
-  - [ ] Key paths (`a.b.c`)
+- [x] Tokenizer
+  - [x] Objects `{ }`
+  - [x] Arrays `[ ]`
+  - [x] Strings
+    - [x] Unquoted
+    - [x] Quoted (escaped `\"` handled; content returned raw, unescaping is the parser's job; `\\"` — escaped backslash right before the closing quote — not yet handled)
+    - [x] Triple-quoted / multi-line
+  - [x] Numbers (tokenize as plain strings, no dedicated type; leading `+` not yet supported)
+  - [x] Booleans / null (work implicitly as unquoted strings, no dedicated type)
+  - [x] Comments (`#` and `//`)
+  - [x] Key paths (`a.b.c`)
 - [ ] Parser
   - [ ] Object merging (duplicate keys merge instead of overwrite)
   - [ ] Object concatenation

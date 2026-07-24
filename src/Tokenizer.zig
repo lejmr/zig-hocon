@@ -174,11 +174,13 @@ pub const Tokenizer = struct {
                 // Quoted string handling
                 .quoted => switch (c) {
                     '"' => {
-                        self.pos += 1;
-                        return .{ .tag = .quoted_string, .loc = .{
-                            .start = state_start,
-                            .end = self.pos - 1,
-                        } };
+                        if (self.input[self.pos - 1] != '\\') {
+                            self.pos += 1;
+                            return .{ .tag = .quoted_string, .loc = .{
+                                .start = state_start,
+                                .end = self.pos - 1,
+                            } };
+                        }
                     },
                     0 => return .{ .tag = .invalid, .loc = .{
                         .start = state_start,
@@ -334,6 +336,14 @@ test "empty quoted string" {
     try testing.expectEqualStrings("", t.input[tok.loc.start..tok.loc.end]);
 }
 
+test "escaped quote inside quoted string does not terminate it" {
+    // source: "he said \"hi\""  (raw, unescaped content expected back)
+    var t = Tokenizer.init("\"he said \\\"hi\\\"\"");
+    const tok = t.next();
+    try testing.expectEqual(Token.Tag.quoted_string, tok.tag);
+    try testing.expectEqualStrings("he said \\\"hi\\\"", t.input[tok.loc.start..tok.loc.end]);
+}
+
 test "multiline string" {
     var t = Tokenizer.init("\"\"\"a \"quoted\" text\nsecond line\"\"\"");
     const tok = t.next();
@@ -423,6 +433,19 @@ test "unquoted string can start with - or ." {
         try testing.expectEqual(Token.Tag.string, tok.tag);
         try testing.expectEqualStrings(input, t.input[tok.loc.start..tok.loc.end]);
     }
+}
+
+test "key path stays a single token, dot is not split off" {
+    var t = Tokenizer.init("a.b.c = 1");
+    const key = t.next();
+    try testing.expectEqual(Token.Tag.string, key.tag);
+    try testing.expectEqualStrings("a.b.c", t.input[key.loc.start..key.loc.end]);
+
+    try testing.expectEqual(Token.Tag.assignment, t.next().tag);
+
+    const value = t.next();
+    try testing.expectEqual(Token.Tag.string, value.tag);
+    try testing.expectEqualStrings("1", t.input[value.loc.start..value.loc.end]);
 }
 
 test "single quote is a legal unquoted string character" {
