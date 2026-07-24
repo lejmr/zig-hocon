@@ -16,6 +16,7 @@ const Token = struct {
 
         string,
         quoted_string,
+        multiline_string,
         newline,
         comma,
         assignment, // = or :
@@ -34,6 +35,7 @@ pub const Tokenizer = struct {
         comment,
         word,
         quoted,
+        multiline,
         eof,
     };
 
@@ -44,7 +46,6 @@ pub const Tokenizer = struct {
     pub fn next(self: *Tokenizer) Token {
         var state: State = .start;
         var state_start: usize = undefined;
-        var quoted_char: u8 = undefined;
 
         while (true) : (self.pos += 1) {
             const c = self.input[self.pos];
@@ -58,12 +59,26 @@ pub const Tokenizer = struct {
                         state = .word;
                         state_start = self.pos;
                     },
-                    '"', '\'' => {
-                        state = .quoted;
+                    '"' => {
+                        if (self.input[self.pos + 1] == '"' and self.input[self.pos + 2] == '"') {
+                            self.pos += 2;
+                            state = .multiline;
+                        } else {
+                            state = .quoted;
+                        }
                         state_start = self.pos + 1;
-                        quoted_char = c;
                     },
                     '#' => state = .comment,
+                    '/' => {
+                        if (self.input[self.pos + 1] == '/') {
+                            self.pos += 1; // Skip the second slash
+                            state = .comment;
+                        } else {
+                            // Single slash starts a legal unquoted string
+                            state = .word;
+                            state_start = self.pos;
+                        }
+                    },
                     ':', '=' => {
                         self.pos += 1;
                         return .{ .tag = .assignment, .loc = .{ .start = self.pos - 1, .end = self.pos } };
@@ -108,7 +123,7 @@ pub const Tokenizer = struct {
                     } },
                 },
                 .word => switch (c) {
-                    '`', '^', '?', '!', '@', '*', '&', '\\', '$', '"', '\'', '{', '}', '[', ']', ',', '+', '#', '\t', '\n', '\r' => return .{
+                    '`', '^', '?', '!', '@', '*', '&', '\\', '$', '"', '{', '}', '[', ']', ',', '+', '#', '\t', '\n', '\r' => return .{
                         .tag = .string,
                         .loc = .{ .start = state_start, .end = self.pos },
                     },
@@ -158,12 +173,31 @@ pub const Tokenizer = struct {
                 },
                 // Quoted string handling
                 .quoted => switch (c) {
-                    else => {
-                        if (c == quoted_char) {
-                            self.pos += 1;
-                            return .{ .tag = .quoted_string, .loc = .{
+                    '"' => {
+                        self.pos += 1;
+                        return .{ .tag = .quoted_string, .loc = .{
+                            .start = state_start,
+                            .end = self.pos - 1,
+                        } };
+                    },
+                    0 => return .{ .tag = .invalid, .loc = .{
+                        .start = state_start,
+                        .end = self.pos,
+                    } },
+                    else => {},
+                },
+                // Triple-quoted """multiline""" string handling
+                .multiline => switch (c) {
+                    '"' => {
+                        if (self.input[self.pos + 1] == '"' and self.input[self.pos + 2] == '"') {
+                            // Per spec the string ends at the last possible
+                            // triple quote: extra quotes belong to the content
+                            var end = self.pos;
+                            while (self.input[end + 3] == '"') end += 1;
+                            self.pos = end + 3;
+                            return .{ .tag = .multiline_string, .loc = .{
                                 .start = state_start,
-                                .end = self.pos - 1,
+                                .end = end,
                             } };
                         }
                     },
@@ -171,6 +205,7 @@ pub const Tokenizer = struct {
                         .start = state_start,
                         .end = self.pos,
                     } },
+                    else => {},
                 },
                 // End of file reached
                 .eof => return .{
@@ -261,6 +296,23 @@ test "unquoted string terminates before line comment //" {
     try testing.expectEqualStrings("a", t.input[tok.loc.start..tok.loc.end]);
 }
 
+test "// comment at token start is skipped" {
+    var t = Tokenizer.init("a = b // comment\nc");
+    try testing.expectEqual(Token.Tag.string, t.next().tag);
+    try testing.expectEqual(Token.Tag.assignment, t.next().tag);
+    try testing.expectEqual(Token.Tag.string, t.next().tag);
+    try testing.expectEqual(Token.Tag.newline, t.next().tag);
+    try testing.expectEqual(Token.Tag.string, t.next().tag);
+    try testing.expectEqual(Token.Tag.eof, t.next().tag);
+}
+
+test "unquoted string can start with a single slash" {
+    var t = Tokenizer.init("/usr/local ");
+    const tok = t.next();
+    try testing.expectEqual(Token.Tag.string, tok.tag);
+    try testing.expectEqualStrings("/usr/local", t.input[tok.loc.start..tok.loc.end]);
+}
+
 test "single slash is a legal unquoted string character" {
     var t = Tokenizer.init("a/b");
     const tok = t.next();
@@ -268,26 +320,50 @@ test "single slash is a legal unquoted string character" {
     try testing.expectEqualStrings("a/b", t.input[tok.loc.start..tok.loc.end]);
 }
 
-test "quoted string variants" {
-    const inputs = [_][:0]const u8{
-        "\"abc\"",
-        "'abc'",
-    };
+test "quoted string" {
+    var t = Tokenizer.init("\"abc\"");
+    const tok = t.next();
+    try testing.expectEqual(Token.Tag.quoted_string, tok.tag);
+    try testing.expectEqualStrings("abc", t.input[tok.loc.start..tok.loc.end]);
+}
 
-    for (inputs) |input| {
-        var t = Tokenizer.init(input);
-        errdefer std.debug.print("failed on input: \"{s}\"\n", .{input});
+test "empty quoted string" {
+    var t = Tokenizer.init("\"\"");
+    const tok = t.next();
+    try testing.expectEqual(Token.Tag.quoted_string, tok.tag);
+    try testing.expectEqualStrings("", t.input[tok.loc.start..tok.loc.end]);
+}
 
-        const tok = t.next();
-        try testing.expectEqual(.quoted_string, tok.tag);
-        try testing.expectEqualStrings("abc", t.input[tok.loc.start..tok.loc.end]);
-    }
+test "multiline string" {
+    var t = Tokenizer.init("\"\"\"a \"quoted\" text\nsecond line\"\"\"");
+    const tok = t.next();
+    try testing.expectEqual(Token.Tag.multiline_string, tok.tag);
+    try testing.expectEqualStrings("a \"quoted\" text\nsecond line", t.input[tok.loc.start..tok.loc.end]);
+    try testing.expectEqual(Token.Tag.eof, t.next().tag);
+}
+
+test "multiline string ends at the last possible triple quote" {
+    // """a"""" -> content is a" per the HOCON spec
+    var t = Tokenizer.init("\"\"\"a\"\"\"\"");
+    const tok = t.next();
+    try testing.expectEqual(Token.Tag.multiline_string, tok.tag);
+    try testing.expectEqualStrings("a\"", t.input[tok.loc.start..tok.loc.end]);
+    try testing.expectEqual(Token.Tag.eof, t.next().tag);
+}
+
+test "empty multiline string" {
+    var t = Tokenizer.init("\"\"\"\"\"\"");
+    const tok = t.next();
+    try testing.expectEqual(Token.Tag.multiline_string, tok.tag);
+    try testing.expectEqualStrings("", t.input[tok.loc.start..tok.loc.end]);
+    try testing.expectEqual(Token.Tag.eof, t.next().tag);
 }
 
 test "unterminated quoted string is invalid" {
     const inputs = [_][:0]const u8{
         "\"abc",
-        "'abc",
+        "\"\"\"abc",
+        "\"\"\"abc\"\"",
     };
 
     for (inputs) |input| {
@@ -349,16 +425,11 @@ test "unquoted string can start with - or ." {
     }
 }
 
-test "single quote terminates an unquoted word like double quote does" {
-    var t = Tokenizer.init("a'b'");
-
-    const word = t.next();
-    try testing.expectEqual(Token.Tag.string, word.tag);
-    try testing.expectEqualStrings("a", t.input[word.loc.start..word.loc.end]);
-
-    const quoted = t.next();
-    try testing.expectEqual(Token.Tag.quoted_string, quoted.tag);
-    try testing.expectEqualStrings("b", t.input[quoted.loc.start..quoted.loc.end]);
+test "single quote is a legal unquoted string character" {
+    var t = Tokenizer.init("a'b' ");
+    const tok = t.next();
+    try testing.expectEqual(Token.Tag.string, tok.tag);
+    try testing.expectEqualStrings("a'b'", t.input[tok.loc.start..tok.loc.end]);
 }
 
 test "full sequence" {
@@ -367,6 +438,10 @@ test "full sequence" {
         \\a = b
         \\obj { x = "y" }
         \\ arr = [1, 2, 3]
+        \\d = """
+        \\ this is my 
+        \\ multiline string
+        \\ """
     );
     const expected = [_]Token.Tag{
         .newline,
@@ -390,11 +465,15 @@ test "full sequence" {
         .comma,
         .string,
         .r_bracket,
+        .newline,
+        .string,
+        .assignment,
+        .multiline_string,
         .eof,
     };
     for (expected) |tag| {
         //std.debug.print("** Stepping onto {} \n", .{tag});
-        errdefer std.debug.print("failed on input: \"{s}\"\n", .{t.input[t.pos..]});
+        errdefer std.debug.print("failed {} on input: \"{s}\"\n", .{ tag, t.input[t.pos..] });
         try testing.expectEqual(tag, t.next().tag);
     }
 }
