@@ -2,13 +2,13 @@ const std = @import("std");
 const log = std.log;
 const testing = std.testing;
 
-const Token = struct {
+pub const Token = struct {
     tag: Tag,
     loc: Loc,
 
-    const Loc = struct { start: usize, end: usize };
+    pub const Loc = struct { start: usize, end: usize };
 
-    const Tag = enum {
+    pub const Tag = enum {
         l_brace,
         r_brace,
         l_bracket,
