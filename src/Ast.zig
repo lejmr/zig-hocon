@@ -50,10 +50,9 @@ pub const Parser = struct {
         // string_rhs,
     };
 
-    const Errors = error{
-        unexpected_token,
-        end_game,
-    };
+    /// Written out rather than inferred (`!Node`): `parseInternal` recurses, and
+    /// an inferred error set cannot be resolved when it depends on itself.
+    pub const Error = error{UnexpectedToken} || std.mem.Allocator.Error;
 
     pub fn init(allocator: std.mem.Allocator, t: *Tokenizer.Tokenizer) Parser {
         return Parser{ .gpa = allocator, .t = &PeakingTokenizer{
@@ -62,11 +61,11 @@ pub const Parser = struct {
         } };
     }
 
-    fn parse(self: *Parser) !Node {
-        return self.parseInternal(.eof);
+    fn parse(self: *Parser) Error!Node {
+        return self.parseInternal(.eof, .root);
     }
 
-    fn parseStrings(self: *Parser) !Node {
+    fn parseStrings(self: *Parser) Error!Node {
         var token: Tokenizer.Token = undefined;
         var key_quoted: bool = false;
         var key_loc: [2]usize = .{ 0, 0 };
@@ -88,17 +87,18 @@ pub const Parser = struct {
                         continue :states .string_lhs;
                     },
                     .assignment => continue :states .string_rhs,
-                    else => return Errors.unexpected_token,
+                    else => return Error.UnexpectedToken,
                 }
             },
             .string_rhs => {
-                token = self.t.next();
+                token = self.t.peek();
                 switch (token.tag) {
                     .string, .quoted_string => {
+                        _ = self.t.next();
                         try values.append(self.gpa, token);
                         continue :states .string_rhs;
                     },
-                    .newline, .eof => {
+                    else => {
                         const children = try self.gpa.alloc(Node, 2);
                         const start = values.items[0].loc.start;
                         const end = values.getLast().loc.end;
@@ -114,25 +114,35 @@ pub const Parser = struct {
                         };
                         return Node{ .kind = .assignment, .children = children };
                     },
-                    else => return Errors.unexpected_token,
                 }
             },
         };
     }
 
-    fn parseInternal(self: *Parser, ending: Tokenizer.Token.Tag) !Node {
+    fn parseInternal(self: *Parser, ending: Tokenizer.Token.Tag, containerType: Node.NodeKind) Error!Node {
         var objects: std.ArrayList(Node) = .empty;
         while (self.t.peek().tag != ending) {
-            const node = try switch (self.t.peek().tag) {
-                .string, .quoted_string => self.parseStrings(),
-                else => Errors.unexpected_token,
+            const node: ?Node = switch (self.t.peek().tag) {
+                .newline, .comma => blk: {
+                    _ = self.t.next();
+                    break :blk null;
+                },
+                .string, .quoted_string => try self.parseStrings(),
+                .l_brace => blk: {
+                    _ = self.t.next();
+                    break :blk try self.parseInternal(.r_brace, .block);
+                },
+                else => return Error.UnexpectedToken,
             };
 
-            try objects.append(self.gpa, node);
+            if (node != null) {
+                try objects.append(self.gpa, node.?);
+            }
         }
 
+        _ = self.t.next();
         return Node{
-            .kind = .root,
+            .kind = containerType,
             .children = try objects.toOwnedSlice(self.gpa),
         };
     }
@@ -140,6 +150,24 @@ pub const Parser = struct {
 
 const std = @import("std");
 const testing = std.testing;
+
+/// Prints the whole token stream for `input`, one token per line. `expectAst`
+/// runs this on failure, so a red test shows straight away whether the problem is
+/// in the tokenizer or in the parser.
+fn dumpTokens(input: [:0]const u8) void {
+    var t = Tokenizer.Tokenizer.init(input);
+    std.debug.print("tokens for \"{s}\":\n", .{input});
+    while (true) {
+        const tok = t.next();
+        std.debug.print("  {s:<16} @{d}..{d} \"{s}\"\n", .{
+            @tagName(tok.tag),
+            tok.loc.start,
+            tok.loc.end,
+            input[tok.loc.start..tok.loc.end],
+        });
+        if (tok.tag == .eof or tok.tag == .invalid) break;
+    }
+}
 
 /// Renders `node` as a one-line s-expression, e.g. `root(assign(value(a), value(b)))`.
 /// Leaf text is `node.value` verbatim, so quotes are kept: `a = "b"` dumps as
@@ -178,7 +206,10 @@ fn dump(node: Node, allocator: std.mem.Allocator) ![]u8 {
 /// `expected`. This is the single point coupling the tests to the parser API —
 /// if the signature changes, only this function needs updating.
 fn expectAst(input: [:0]const u8, expected: []const u8) !void {
-    errdefer std.debug.print("failed on input: \"{s}\"\n", .{input});
+    errdefer {
+        std.debug.print("failed on input: \"{s}\"\n", .{input});
+        dumpTokens(input);
+    }
 
     var arena = std.heap.ArenaAllocator.init(testing.allocator);
     defer arena.deinit();
@@ -203,4 +234,12 @@ test "assignment with =" {
     try expectAst("a = b", "root(assign(value(a), value(b)))");
     try expectAst("a: b", "root(assign(value(a), value(b)))");
     try expectAst("a = b\nc: d", "root(assign(value(a), value(b)), assign(value(c), value(d)))");
+    try expectAst("{a = b}", "root(block(assign(value(a), value(b))))");
+    try expectAst("{a = b\nc: d}", "root(block(assign(value(a), value(b)), assign(value(c), value(d))))");
+    try expectAst("{a = b, c: d}", "root(block(assign(value(a), value(b)), assign(value(c), value(d))))");
+}
+
+test "complex structures with arrays" {
+    try expectAst("a: {c: d}", "root(assign(value(a), block(assign(value(c), value(d)))))");
+    //try expectAst("{a = b, c: [1,2,3]}", "root(block(assign(value(a), value(b)), assign(value(c), array(1,2,3))))");
 }

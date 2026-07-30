@@ -1,0 +1,22 @@
+#!/bin/sh
+# Reference HOCON oracle: Lightbend/typesafe config, the implementation the spec
+# is written against. Bootstraps itself — downloads the jar and compiles Oracle
+# on first run.
+set -e
+DIR=$(cd "$(dirname "$0")" && pwd)
+VERSION=1.4.5
+JAR="$DIR/config.jar"
+
+# /usr/bin/java is only Apple's stub; the real JDK lives in the Homebrew prefix.
+if ! java -version >/dev/null 2>&1; then
+    PATH="/opt/homebrew/opt/openjdk/bin:$PATH"
+    export PATH
+fi
+
+[ -f "$JAR" ] || curl -sSLf -o "$JAR" \
+    "https://repo1.maven.org/maven2/com/typesafe/config/$VERSION/config-$VERSION.jar"
+
+[ "$DIR/Oracle.class" -nt "$DIR/Oracle.java" ] 2>/dev/null ||
+    javac -cp "$JAR" -d "$DIR" "$DIR/Oracle.java"
+
+exec java -cp "$JAR:$DIR" Oracle "$@"

@@ -1,0 +1,3 @@
+config.jar
+*.class
+venv/
