@@ -41,12 +41,21 @@ items are implemented and tested; unchecked items are planned.
   - [ ] Arrays (tokenized, not yet parsed)
   - [ ] Quoted values distinguishable from unquoted ones in the tree
         (needed to tell `a = "1"` from `a = 1`)
+  - [ ] Path expressions as keys — `a.b.c = 1` nests, and an element may be
+        quoted to contain a dot (`"a"."b" = c`, currently rejected)
+  - [ ] Quoted and unquoted parts mixed in one key (`"a" b = c` should give the
+        key `a b`; today it yields `a" b`)
   - [ ] Object merging (duplicate keys merge instead of overwrite)
   - [ ] Object concatenation
   - [ ] Array concatenation
   - [ ] String concatenation (unquoted string juxtaposition) — partially done:
         adjacent unquoted strings join (`a = milos kozak`), mixing in quoted ones
         (`a = "x" y`) does not yet
+  - [ ] Building a value out of several string/quoted parts. The result is not a
+        substring of the input, so it cannot stay a span: quotes are dropped but
+        the whitespace *between* the parts is kept verbatim, and escapes inside
+        quoted parts are expanded. `a = milos     "kozak"` is `milos     kozak`,
+        `a = milos"kozak"` is `miloskozak`, `a = "x\ny"` holds a real newline.
   - [ ] `include` directives (file, url, required)
   - [ ] Substitutions (`${a.b.c}`, `${?a.b.c}`)
   - [ ] Duration unit values (`10s`, `5m`, ...)

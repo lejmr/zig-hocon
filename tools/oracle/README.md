@@ -32,16 +32,25 @@ implementation the HOCON spec was written against.
 useful for checking that we stay compatible with configs that work today, not
 for deciding what is correct. Confirmed divergences:
 
-| input | java | pyhocon |
-|---|---|---|
-| `"a" b = c` | `{"a b":"c"}` | error |
-| `"a"."b" = c` | `{"a":{"b":"c"}}` | error |
-| `a = b\tc` | `{"a":"b\tc"}` — tab kept | `{"a":"b   c"}` — tab expanded |
-| `a = b:c` | error — `:` is reserved | `{"a":"b:c"}` |
-| `a = b\\c` | error — `\` is reserved | `{"a":"b\\c"}` |
-| `,a = b` | error | `{"a":"b"}` |
-| `a = b,,c = d` | error | `{"a":"b","c":"d"}` |
+| input | java | pyhocon | zig-hocon (this repo) | what the spec says |
+|---|---|---|---|---|
+| `"a" b = c` | `{"a b":"c"}` | error | ⚠️ `assign(value(a" b), …)` — **wrong**, key mangled | **java.** A key is a path expression, and a path element may be a quoted or an unquoted string; adjacent ones concatenate like any value. |
+| `"a"."b" = c` | `{"a":{"b":"c"}}` | error | `UnexpectedToken` — path expressions not implemented | **java.** Path elements are separated by `.` and each may be quoted, which is the documented way to put a `.` inside a single key. |
+| `a = b\tc` | `{"a":"b\tc"}` — tab kept | `{"a":"b   c"}` — tab expanded | ✅ `value(b\tc)` — matches java | **java.** Whitespace between simple values is preserved verbatim in value concatenation; nothing licenses rewriting a tab. |
+| `a = b:c` | error — `:` is reserved | `{"a":"b:c"}` | ✅ `UnexpectedToken` | **java.** `:` is in the list of characters forbidden in unquoted strings (``$ " { } [ ] : = , + # ` ^ ? ! @ * & \``). |
+| `a = b\\c` | error — `\` is reserved | `{"a":"b\\c"}` | ✅ `UnexpectedToken` | **java.** `\` is on the same forbidden list. |
+| `,a = b` | error | `{"a":"b"}` | accepted — deliberately lenient | **java.** A comma *separates* elements, and only a trailing one is explicitly permitted — a leading comma has nothing to separate. |
+| `a = b,,c = d` | error | `{"a":"b","c":"d"}` | accepted — deliberately lenient | **java.** Same rule: `,` and newline are separators, not filler, so a doubled comma is not covered. |
 
-Where the two disagree, follow java; where java is stricter, being lenient like
-pyhocon is the safer choice for migration — a config that parses today should
-keep parsing.
+The zig-hocon column is what the parser does *today*, produced by dumping the ast
+for each input — not what it is meant to do. ✅ means the behaviour is settled,
+⚠️ means it is a bug, and the rest is unimplemented or a deliberate leniency.
+
+The spec is written against java, so on every divergence found so far it backs
+java and pyhocon is simply wrong.
+
+That does not make java the target in every case. Where java is *stricter*, being
+lenient like pyhocon is the safer choice for migration — a config that parses
+today should keep parsing, and none of the leniencies above can produce a
+different value, only accept an input that could have been rejected. Where the
+two produce **different output** for the same input (the tab row), follow java.
