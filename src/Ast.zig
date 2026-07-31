@@ -87,6 +87,19 @@ pub const Parser = struct {
                         continue :states .string_lhs;
                     },
                     .assignment => continue :states .string_rhs,
+                    // `a { … }` — the `=` before a block may be omitted. The brace
+                    // was already consumed by the `next()` above, unlike in
+                    // `.string_rhs`, which peeks.
+                    .l_brace => {
+                        const children = try self.gpa.alloc(Node, 2);
+                        children[0] = .{
+                            .kind = .value,
+                            .value = self.t.t.input[key_loc[0]..key_loc[1]],
+                            .children = &.{},
+                        };
+                        children[1] = try self.parseInternal(.r_brace, .block);
+                        return Node{ .kind = .assignment, .children = children };
+                    },
                     else => return Error.UnexpectedToken,
                 }
             },
@@ -97,6 +110,17 @@ pub const Parser = struct {
                         _ = self.t.next();
                         try values.append(self.gpa, token);
                         continue :states .string_rhs;
+                    },
+                    .l_brace => {
+                        _ = self.t.next();
+                        const children = try self.gpa.alloc(Node, 2);
+                        children[0] = .{
+                            .kind = .value,
+                            .value = self.t.t.input[key_loc[0]..key_loc[1]],
+                            .children = &.{},
+                        };
+                        children[1] = try self.parseInternal(.r_brace, .block);
+                        return Node{ .kind = .assignment, .children = children };
                     },
                     else => {
                         const children = try self.gpa.alloc(Node, 2);
@@ -230,6 +254,8 @@ fn expectAst(input: [:0]const u8, expected: []const u8) !void {
     try testing.expectEqualStrings(expected, got);
 }
 
+// java ✓ · pyhocon ✓ · spec ✓ — all six inputs agree on both oracles.
+// `:` and `=` are interchangeable; `,` and newline are interchangeable separators.
 test "assignment with =" {
     try expectAst("a = b", "root(assign(value(a), value(b)))");
     try expectAst("a: b", "root(assign(value(a), value(b)))");
@@ -239,7 +265,55 @@ test "assignment with =" {
     try expectAst("{a = b, c: d}", "root(block(assign(value(a), value(b)), assign(value(c), value(d))))");
 }
 
-test "complex structures with arrays" {
+// java ✓ · pyhocon ✓ · spec ✓ — all seven inputs agree on both oracles,
+// including the empty block (`a = {}` -> {"a":{}}).
+test "nested blocks" {
+    try expectAst("a = {b = c}", "root(assign(value(a), block(assign(value(b), value(c)))))");
     try expectAst("a: {c: d}", "root(assign(value(a), block(assign(value(c), value(d)))))");
-    //try expectAst("{a = b, c: [1,2,3]}", "root(block(assign(value(a), value(b)), assign(value(c), array(1,2,3))))");
+    try expectAst("a = {}", "root(assign(value(a), block()))");
+    try expectAst("a = {b = {c = d}}", "root(assign(value(a), block(assign(value(b), block(assign(value(c), value(d)))))))");
+    try expectAst("a = {b = c}\nd = e", "root(assign(value(a), block(assign(value(b), value(c)))), assign(value(d), value(e)))");
+    try expectAst("a = {b = c, d = e}", "root(assign(value(a), block(assign(value(b), value(c)), assign(value(d), value(e)))))");
+    try expectAst("{a = {b = c}}", "root(block(assign(value(a), block(assign(value(b), value(c))))))");
 }
+
+// java ✓ · pyhocon ✓ · spec ✓ — both `#` and `//` start a comment, a comment
+// terminates the value on its line, and runs of blank lines collapse.
+test "separators and comments are not nodes" {
+    try expectAst("", "root()");
+    try expectAst("\na = b\n", "root(assign(value(a), value(b)))");
+    try expectAst("a = b\n\nc = d", "root(assign(value(a), value(b)), assign(value(c), value(d)))");
+    try expectAst("# comment\na = b", "root(assign(value(a), value(b)))");
+    try expectAst("// comment\na = b", "root(assign(value(a), value(b)))");
+    try expectAst("a = b # comment\nc = d", "root(assign(value(a), value(b)), assign(value(c), value(d)))");
+}
+
+// java ✓ · pyhocon ✓ · spec ✓ — unquoted strings may contain spaces on both
+// sides of the assignment; interior whitespace is kept verbatim, the trailing
+// run is dropped.
+//   'a = milos   kozak' -> {"a":"milos   kozak"}
+//   'a b = c'           -> {"a b":"c"}
+// Careful: a tab is NOT the same case — java keeps `a = b\tc` as "b\tc", pyhocon
+// expands it to spaces. Follow java when that test gets written.
+test "multi-word keys and values" {
+    try expectAst("a = milos kozak", "root(assign(value(a), value(milos kozak)))");
+    try expectAst("a = milos   kozak", "root(assign(value(a), value(milos   kozak)))");
+    try expectAst("a b = c", "root(assign(value(a b), value(c)))");
+}
+
+// java ✓ · pyhocon ✓ · spec ✓ — 'a {b = c}' -> {"a":{"b":"c"}} on both oracles.
+test "the = before a block may be omitted" {
+    try expectAst("a {b = c}", "root(assign(value(a), block(assign(value(b), value(c)))))");
+}
+
+// java ✓ · pyhocon ✓ · spec ✓ — the input itself is uncontroversial
+// ('a = "b"' -> {"a":"b"} on both oracles); what is unresolved is our own ast.
+//
+// Blocked on a tokenizer decision, not on the parser: Tokenizer.zig:69 and :181
+// report `quoted_string` locs *without* the surrounding quotes, so `a = "b"` and
+// `a = b` build an identical tree. Type inference later needs to tell `a = "1"`
+// (string) from `a = 1` (number), so the quotes have to survive into the ast —
+// either by widening the loc, or by flagging the node as quoted.
+// test "quoted value keeps its quotes" {
+//     try expectAst("a = \"b\"", "root(assign(value(a), value(\"b\")))");
+// }

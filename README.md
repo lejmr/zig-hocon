@@ -33,12 +33,22 @@ items are implemented and tested; unchecked items are planned.
   - [x] Comments (`#` and `//`)
   - [x] Key paths (`a.b.c`)
 - [ ] Parser
+  - [x] Assignments (`=` and `:` are interchangeable)
+  - [x] Objects, nested to any depth, including the empty object and the omitted
+        `=` before a block (`a { b = c }`)
+  - [x] Newlines and commas as interchangeable member separators
+  - [x] Comments and blank lines skipped
+  - [ ] Arrays (tokenized, not yet parsed)
+  - [ ] Quoted values distinguishable from unquoted ones in the tree
+        (needed to tell `a = "1"` from `a = 1`)
   - [ ] Object merging (duplicate keys merge instead of overwrite)
   - [ ] Object concatenation
   - [ ] Array concatenation
-  - [ ] String concatenation (unquoted string juxtaposition)
-  - [ ] Substitutions (`${a.b.c}`, `${?a.b.c}`)
+  - [ ] String concatenation (unquoted string juxtaposition) — partially done:
+        adjacent unquoted strings join (`a = milos kozak`), mixing in quoted ones
+        (`a = "x" y`) does not yet
   - [ ] `include` directives (file, url, required)
+  - [ ] Substitutions (`${a.b.c}`, `${?a.b.c}`)
   - [ ] Duration unit values (`10s`, `5m`, ...)
   - [ ] Memory size unit values (`512K`, `1G`, ...)
   - [ ] Environment variable fallback for substitutions
@@ -48,6 +58,20 @@ items are implemented and tested; unchecked items are planned.
   - [ ] Parse from file
   - [ ] Typed accessors (string/int/float/bool/array/object)
   - [ ] Config merging across multiple sources (`with_fallback`-style)
+
+## Reference oracles
+
+Disputed behaviour is settled by running it, not by reading the spec from
+memory. `tools/oracle/` holds two reference implementations behind one interface:
+
+```sh
+printf 'a = milos kozak\n' | tools/oracle/hocon-java   # Lightbend typesafe/config
+printf 'a = milos kozak\n' | tools/oracle/hocon-py     # pyhocon
+```
+
+`hocon-java` is the authority; `hocon-py` shows what the implementation this
+project replaces would do. See [tools/oracle/README.md](tools/oracle/README.md)
+for the input format and the list of confirmed divergences between the two.
 
 ## Contributing
 
