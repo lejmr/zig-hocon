@@ -1,5 +1,13 @@
 {
     "version": "2.0.0",
+    "inputs": [
+        {
+            "id": "testFilter",
+            "type": "promptString",
+            "description": "Only build tests whose name contains…",
+            "default": "arrays"
+        }
+    ],
     "tasks": [
         {
             "label": "zig fmt",
@@ -17,6 +25,29 @@
                 "isDefault": true
             },
             "problemMatcher": ["$gcc"]
+        },
+        {
+            // --test-no-exec compiles the test binary without running it, which is
+            // what the debugger needs. `zig build test` runs it itself and leaves
+            // the binary at an unstable path under .zig-cache.
+            "label": "build test binary",
+            "type": "shell",
+            "command": "zig test src/root.zig -femit-bin=zig-out/bin/test --test-no-exec",
+            "problemMatcher": ["$gcc"],
+            "presentation": {
+                "reveal": "silent",
+                "clear": true
+            }
+        },
+        {
+            "label": "build filtered test binary",
+            "type": "shell",
+            "command": "zig test src/root.zig -femit-bin=zig-out/bin/test-filtered --test-no-exec --test-filter '${input:testFilter}'",
+            "problemMatcher": ["$gcc"],
+            "presentation": {
+                "reveal": "silent",
+                "clear": true
+            }
         }
     ]
 }

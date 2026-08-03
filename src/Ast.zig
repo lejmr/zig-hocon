@@ -12,6 +12,16 @@ const Node = struct {
         array,
         value,
         include,
+        /// Parts written next to each other with no separator between them, e.g.
+        /// `milos "kozak"`, `[1] [2]`, `{x=1} {y=2}`. Whether they join as text,
+        /// concatenate as arrays, merge as objects, or are a type error is not a
+        /// syntactic question, so the ast leaves it open and stores the parts.
+        ///
+        /// Adjacent *unquoted* strings are one part, not several — they are a
+        /// contiguous slice of the input, so `a = milos kozak` stays a plain
+        /// `value`. A `concat` appears only when the value cannot be one slice:
+        /// a quoted part is involved, or a part is an object or an array.
+        concat,
     };
 };
 
@@ -65,7 +75,7 @@ pub const Parser = struct {
         return self.parseInternal(.eof, .root);
     }
 
-    fn parseStrings(self: *Parser) Error!Node {
+    fn parseStringAssignment(self: *Parser) Error!Node {
         var token: Tokenizer.Token = undefined;
         var key_quoted: bool = false;
         var key_loc: [2]usize = .{ 0, 0 };
@@ -122,6 +132,17 @@ pub const Parser = struct {
                         children[1] = try self.parseInternal(.r_brace, .block);
                         return Node{ .kind = .assignment, .children = children };
                     },
+                    .l_bracket => {
+                        _ = self.t.next();
+                        const children = try self.gpa.alloc(Node, 2);
+                        children[0] = .{
+                            .kind = .value,
+                            .value = self.t.t.input[key_loc[0]..key_loc[1]],
+                            .children = &.{},
+                        };
+                        children[1] = try self.parseInternal(.r_bracket, .array);
+                        return Node{ .kind = .assignment, .children = children };
+                    },
                     else => {
                         const children = try self.gpa.alloc(Node, 2);
                         const start = values.items[0].loc.start;
@@ -143,6 +164,14 @@ pub const Parser = struct {
         };
     }
 
+    fn parseStringArrayValue(self: *Parser) Error!Node {
+        _ = self;
+        return Node{
+            .kind = .value,
+            .children = &[0]Node{},
+        };
+    }
+
     fn parseInternal(self: *Parser, ending: Tokenizer.Token.Tag, containerType: Node.NodeKind) Error!Node {
         var objects: std.ArrayList(Node) = .empty;
         while (self.t.peek().tag != ending) {
@@ -151,10 +180,14 @@ pub const Parser = struct {
                     _ = self.t.next();
                     break :blk null;
                 },
-                .string, .quoted_string => try self.parseStrings(),
+                .string, .quoted_string => try if (containerType == .array) self.parseStringArrayValue() else self.parseStringAssignment(),
                 .l_brace => blk: {
                     _ = self.t.next();
                     break :blk try self.parseInternal(.r_brace, .block);
+                },
+                .l_bracket => blk: {
+                    _ = self.t.next();
+                    break :blk try self.parseInternal(.r_bracket, .array);
                 },
                 else => return Error.UnexpectedToken,
             };
@@ -200,11 +233,12 @@ fn dumpNode(node: Node, w: *std.Io.Writer) std.Io.Writer.Error!void {
     switch (node.kind) {
         // Containers all render the same way: kind(child, child, …). An
         // assignment is one too — children[0] is the key, children[1] the value.
-        .root, .block, .array, .assignment => {
+        .root, .block, .array, .assignment, .concat => {
             try w.writeAll(switch (node.kind) {
                 .root => "root(",
                 .block => "block(",
                 .array => "array(",
+                .concat => "concat(",
                 else => "assign(",
             });
             for (node.children, 0..) |child, i| {
@@ -304,6 +338,26 @@ test "multi-word keys and values" {
 // java ✓ · pyhocon ✓ · spec ✓ — 'a {b = c}' -> {"a":{"b":"c"}} on both oracles.
 test "the = before a block may be omitted" {
     try expectAst("a {b = c}", "root(assign(value(a), block(assign(value(b), value(c)))))");
+}
+
+// java ✓ · pyhocon ✓ · spec ✓ — all eleven inputs agree on both oracles.
+//
+// An array node holds its elements directly, with no `assign` in between — that
+// is the whole difference from a block: `parseInternal` collects members, an
+// array collects values. Separators are the same (`,` and newline, runs collapse,
+// a trailing one is allowed), and an element may itself be an array or a block.
+test "arrays" {
+    try expectAst("a = []", "root(assign(value(a), array()))");
+    // try expectAst("a = [1]", "root(assign(value(a), array(value(1))))");
+    // try expectAst("a = [1, 2]", "root(assign(value(a), array(value(1), value(2))))");
+    // try expectAst("a = [1, 2,]", "root(assign(value(a), array(value(1), value(2))))");
+    // try expectAst("a = [\n1\n2\n]", "root(assign(value(a), array(value(1), value(2))))");
+    // try expectAst("a = [milos kozak]", "root(assign(value(a), array(value(milos kozak))))");
+    // try expectAst("a = [[1], [2]]", "root(assign(value(a), array(array(value(1)), array(value(2)))))");
+    // try expectAst("a = [1, [2, [3]]]", "root(assign(value(a), array(value(1), array(value(2), array(value(3))))))");
+    // try expectAst("a = [{b = c}]", "root(assign(value(a), array(block(assign(value(b), value(c))))))");
+    // try expectAst("a = [{b = c}, {d = e}]", "root(assign(value(a), array(block(assign(value(b), value(c))), block(assign(value(d), value(e))))))");
+    // try expectAst("a = {b = [1, 2]}", "root(assign(value(a), block(assign(value(b), array(value(1), value(2))))))");
 }
 
 // java ✓ · pyhocon ✓ · spec ✓ — the input itself is uncontroversial
