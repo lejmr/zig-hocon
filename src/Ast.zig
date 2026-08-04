@@ -13,12 +13,12 @@ const Node = struct {
         value,
         include,
         /// Parts written next to each other with no separator between them, e.g.
-        /// `milos "kozak"`, `[1] [2]`, `{x=1} {y=2}`. Whether they join as text,
+        /// `grumpy "wombat"`, `[1] [2]`, `{x=1} {y=2}`. Whether they join as text,
         /// concatenate as arrays, merge as objects, or are a type error is not a
         /// syntactic question, so the ast leaves it open and stores the parts.
         ///
         /// Adjacent *unquoted* strings are one part, not several — they are a
-        /// contiguous slice of the input, so `a = milos kozak` stays a plain
+        /// contiguous slice of the input, so `a = grumpy wombat` stays a plain
         /// `value`. A `concat` appears only when the value cannot be one slice:
         /// a quoted part is involved, or a part is an object or an array.
         concat,
@@ -75,100 +75,156 @@ pub const Parser = struct {
         return self.parseInternal(.eof, .root);
     }
 
+    /// member := value ( ('=' | ':') value | object )
+    ///
+    /// Exactly one assignment and one value: `a = b = c` is not legal HOCON. The
+    /// `=` may be omitted, but only directly before a block — `a [1]` is an error
+    /// while `a {x=1}` is not (both verified against tools/oracle/hocon-java).
     fn parseStringAssignment(self: *Parser) Error!Node {
-        var token: Tokenizer.Token = undefined;
-        var key_quoted: bool = false;
-        var key_loc: [2]usize = .{ 0, 0 };
-        var values: std.ArrayList(Tokenizer.Token) = .empty;
-        defer values.deinit(self.gpa);
+        const key = try self.parseStringValue();
 
-        return states: switch (StringStates.start) {
-            .start => {
-                token = self.t.next();
-                key_quoted = if (token.tag == .string) false else true;
-                key_loc = .{ token.loc.start, token.loc.end };
-                continue :states .string_lhs;
-            },
-            .string_lhs => {
-                token = self.t.next();
-                switch (token.tag) {
-                    .string => {
-                        key_loc[1] = token.loc.end;
-                        continue :states .string_lhs;
-                    },
-                    .assignment => continue :states .string_rhs,
-                    // `a { … }` — the `=` before a block may be omitted. The brace
-                    // was already consumed by the `next()` above, unlike in
-                    // `.string_rhs`, which peeks.
-                    .l_brace => {
-                        const children = try self.gpa.alloc(Node, 2);
-                        children[0] = .{
-                            .kind = .value,
-                            .value = self.t.t.input[key_loc[0]..key_loc[1]],
-                            .children = &.{},
-                        };
-                        children[1] = try self.parseInternal(.r_brace, .block);
-                        return Node{ .kind = .assignment, .children = children };
-                    },
-                    else => return Error.UnexpectedToken,
-                }
-            },
-            .string_rhs => {
-                token = self.t.peek();
-                switch (token.tag) {
-                    .string, .quoted_string => {
-                        _ = self.t.next();
-                        try values.append(self.gpa, token);
-                        continue :states .string_rhs;
-                    },
-                    .l_brace => {
-                        _ = self.t.next();
-                        const children = try self.gpa.alloc(Node, 2);
-                        children[0] = .{
-                            .kind = .value,
-                            .value = self.t.t.input[key_loc[0]..key_loc[1]],
-                            .children = &.{},
-                        };
-                        children[1] = try self.parseInternal(.r_brace, .block);
-                        return Node{ .kind = .assignment, .children = children };
-                    },
-                    .l_bracket => {
-                        _ = self.t.next();
-                        const children = try self.gpa.alloc(Node, 2);
-                        children[0] = .{
-                            .kind = .value,
-                            .value = self.t.t.input[key_loc[0]..key_loc[1]],
-                            .children = &.{},
-                        };
-                        children[1] = try self.parseInternal(.r_bracket, .array);
-                        return Node{ .kind = .assignment, .children = children };
-                    },
-                    else => {
-                        const children = try self.gpa.alloc(Node, 2);
-                        const start = values.items[0].loc.start;
-                        const end = values.getLast().loc.end;
-                        children[0] = .{
-                            .kind = .value,
-                            .value = self.t.t.input[key_loc[0]..key_loc[1]],
-                            .children = &.{},
-                        };
-                        children[1] = .{
-                            .kind = .value,
-                            .value = self.t.t.input[start..end],
-                            .children = &.{},
-                        };
-                        return Node{ .kind = .assignment, .children = children };
-                    },
-                }
-            },
+        if (self.t.peek().tag != .l_brace) {
+            if (self.t.next().tag != .assignment) return Error.UnexpectedToken;
+        }
+
+        const children = try self.gpa.alloc(Node, 2);
+        children[0] = key;
+        children[1] = try self.parseParts();
+        return .{ .kind = .assignment, .children = children };
+    }
+
+    /// One value: the parts written next to each other with no separator in
+    /// between. A part is text, a block or an array; `=` is deliberately not one,
+    /// so `a = b = c` ends the value here and the caller reports the stray `=`.
+    ///
+    /// Lives here rather than inside `parseStringValue` so that the text scanner
+    /// stays text-only. Array elements will want the same loop, which is why it
+    /// is its own function.
+    fn parseParts(self: *Parser) Error!Node {
+        var parts: std.ArrayList(Node) = .empty;
+        defer parts.deinit(self.gpa);
+
+        while (true) {
+            const part: Node = switch (self.t.peek().tag) {
+                .string, .quoted_string => try self.parseStringValue(),
+                .l_brace => blk: {
+                    _ = self.t.next();
+                    break :blk try self.parseInternal(.r_brace, .block);
+                },
+                .l_bracket => blk: {
+                    _ = self.t.next();
+                    break :blk try self.parseInternal(.r_bracket, .array);
+                },
+                else => break,
+            };
+            // `parseStringValue` already returns a concat when the text itself is
+            // several parts; splice those in rather than nesting concat in concat.
+            if (part.kind == .concat) {
+                try parts.appendSlice(self.gpa, part.children);
+            } else {
+                try parts.append(self.gpa, part);
+            }
+        }
+
+        return switch (parts.items.len) {
+            0 => Error.UnexpectedToken,
+            1 => parts.items[0],
+            else => .{ .kind = .concat, .children = try parts.toOwnedSlice(self.gpa) },
         };
     }
 
-    fn parseStringArrayValue(self: *Parser) Error!Node {
-        _ = self;
-        return Node{
+    /// Appends `input[start..end]` as a value part, preceded by the whitespace
+    /// separating it from the part before — `prev_end` tracks where that one
+    /// stopped. Keeping the gap as its own part means a part is always exactly
+    /// the text of its token, with one representation instead of two.
+    fn appendPart(
+        self: *Parser,
+        parts: *std.ArrayList(Node),
+        prev_end: *?usize,
+        start: usize,
+        end: usize,
+    ) Error!void {
+        const input = self.t.t.input;
+        if (prev_end.*) |gap_start| {
+            if (gap_start < start) try parts.append(self.gpa, .{
+                .kind = .value,
+                .children = &.{},
+                .value = input[gap_start..start],
+            });
+        }
+        try parts.append(self.gpa, .{
             .kind = .value,
-            .children = &[0]Node{},
+            .children = &.{},
+            .value = input[start..end],
+        });
+        prev_end.* = end;
+    }
+
+    /// Parses one value: everything written next to each other with no separator
+    /// in between. Used on both sides of an assignment — a key follows the same
+    /// concatenation rules as a value, so `grumpy "wombat" = 1` has the key
+    /// `grumpy wombat` (verified against tools/oracle/hocon-java).
+    ///
+    /// Consumes tokens only for as long as they are parts. Anything else — a
+    /// separator, a closing brace, `=`, `.eof`, an invalid character — ends the
+    /// value and is left for the caller, which is the one that knows whether it
+    /// is legal there. That keeps the rule positive: there is no list of
+    /// terminators to keep in sync, only a list of what a part can be.
+    ///
+    /// Returns, depending on how many parts were found:
+    ///   - 0  `Error.UnexpectedToken`, e.g. for `a = ` with nothing after it
+    ///   - 1  that part itself, so the common `a = b` stays flat
+    ///   - 2+ a `.concat` holding them, since what they do together (join as
+    ///        text, merge as objects, concatenate as arrays, or fail as a type
+    ///        error) depends on their types and belongs to evaluation
+    ///
+    /// A run of adjacent unquoted strings counts as *one* part: it is a single
+    /// contiguous slice of the input, so `grumpy wombat` stays a plain `.value`.
+    /// The whitespace between two parts becomes a part of its own, and quoted
+    /// parts keep their quotes, so joining the parts end to end reproduces the
+    /// source and `"1"` stays distinguishable from `1`.
+    ///
+    fn parseStringValue(self: *Parser) Error!Node {
+        var parts: std.ArrayList(Node) = .empty;
+        defer parts.deinit(self.gpa);
+
+        // Where the last emitted part stopped, so the next gap can be sliced.
+        var prev_end: ?usize = null;
+        // A run of adjacent unquoted strings is one part: it is one contiguous
+        // slice of the input, so it is only emitted once the run ends.
+        var run: ?[2]usize = null;
+
+        while (true) {
+            const token = self.t.peek();
+            switch (token.tag) {
+                .string => {
+                    _ = self.t.next();
+                    if (run) |*r| {
+                        r[1] = token.loc.end;
+                    } else {
+                        run = .{ token.loc.start, token.loc.end };
+                    }
+                },
+                .quoted_string => {
+                    _ = self.t.next();
+                    if (run) |r| {
+                        try self.appendPart(&parts, &prev_end, r[0], r[1]);
+                        run = null;
+                    }
+                    // The tokenizer reports the loc of the content only, so widen
+                    // it by one on each side to keep the quotes in the tree —
+                    // later phases need `"1"` to stay distinguishable from `1`.
+                    try self.appendPart(&parts, &prev_end, token.loc.start - 1, token.loc.end + 1);
+                },
+                else => break,
+            }
+        }
+        if (run) |r| try self.appendPart(&parts, &prev_end, r[0], r[1]);
+
+        return switch (parts.items.len) {
+            0 => Error.UnexpectedToken,
+            1 => parts.items[0],
+            else => Node{ .kind = .concat, .children = try parts.toOwnedSlice(self.gpa) },
         };
     }
 
@@ -180,7 +236,7 @@ pub const Parser = struct {
                     _ = self.t.next();
                     break :blk null;
                 },
-                .string, .quoted_string => try if (containerType == .array) self.parseStringArrayValue() else self.parseStringAssignment(),
+                .string, .quoted_string => try if (containerType == .array) self.parseStringValue() else self.parseStringAssignment(),
                 .l_brace => blk: {
                     _ = self.t.next();
                     break :blk try self.parseInternal(.r_brace, .block);
@@ -288,6 +344,78 @@ fn expectAst(input: [:0]const u8, expected: []const u8) !void {
     try testing.expectEqualStrings(expected, got);
 }
 
+fn expectString(input: [:0]const u8, expected: []const u8) !void {
+    errdefer {
+        std.debug.print("failed on input: \"{s}\"\n", .{input});
+    }
+
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+
+    const t = Tokenizer.Tokenizer.init(input);
+
+    var p = Parser{
+        .gpa = arena.allocator(),
+        .t = .{
+            .gpa = arena.allocator(),
+            .t = t,
+        },
+    };
+
+    const node = try p.parseStringValue();
+
+    const got = try dump(node, testing.allocator);
+    defer testing.allocator.free(got);
+
+    try testing.expectEqualStrings(expected, got);
+}
+
+// java ✓ · pyhocon ✓ · spec ✓ — joining the parts end to end reproduces what the
+// oracles return:
+//   'a = x "y"'   -> {"a":"x y"}       'a = "a""b"'  -> {"a":"ab"}
+//   'a = "a" "b"' -> {"a":"a b"}       'a = x  '     -> {"a":"x"}
+//
+// One rule for the shape: **a part is exactly the text of its token, and the
+// whitespace between two parts is a part of its own.** Nothing is folded into a
+// neighbour, so `x "y"` has a single representation rather than one rule for
+// "gap after an unquoted run" and another for "gap between two quoted strings".
+//
+// A gap part is emitted only when there is a gap — an empty `value()` carries
+// nothing and every later phase would have to skip it. Gaps only ever appear
+// between text parts: whitespace plays no role in merging objects or
+// concatenating arrays, so `{x=1} {y=2}` gives `concat(block(…), block(…))`.
+//
+// Adjacent *unquoted* strings stay one part, being one contiguous slice of the
+// input — `grumpy wombat` is `value(grumpy wombat)`, not two parts and a gap.
+test "validate parse string functionality" {
+    try expectString("x", "value(x)");
+    try expectString("\"x\"", "value(\"x\")");
+    try expectString("grumpy wombat", "value(grumpy wombat)");
+
+    // Trailing whitespace is not part of the value.
+    try expectString("x  ", "value(x)");
+
+    // A quoted part with nothing after it — the pending run must not be left
+    // half-open, or the terminator branch reads an end that was never set.
+    try expectString("x \"y\"", "concat(value(x), value( ), value(\"y\"))");
+    try expectString("\"x\" y", "concat(value(\"x\"), value( ), value(y))");
+
+    try expectString("\"a\"\"b\"", "concat(value(\"a\"), value(\"b\"))");
+    try expectString("\"a\" \"b\"", "concat(value(\"a\"), value( ), value(\"b\"))");
+    try expectString("x\"y\"", "concat(value(x), value(\"y\"))");
+
+    // Bigger examples
+    try expectString("grumpy wombat {additional = true}", "value(grumpy wombat)");
+    try expectString(
+        "grumpy wombat    \"caffeinated but polite\"   send help",
+        "concat(value(grumpy wombat), value(    ), value(\"caffeinated but polite\"), value(   ), value(send help))",
+    );
+    try expectString(
+        "grumpy wombat    \"caffeinated but polite\"   send help    ",
+        "concat(value(grumpy wombat), value(    ), value(\"caffeinated but polite\"), value(   ), value(send help))",
+    );
+}
+
 // java ✓ · pyhocon ✓ · spec ✓ — all six inputs agree on both oracles.
 // `:` and `=` are interchangeable; `,` and newline are interchangeable separators.
 test "assignment with =" {
@@ -325,13 +453,13 @@ test "separators and comments are not nodes" {
 // java ✓ · pyhocon ✓ · spec ✓ — unquoted strings may contain spaces on both
 // sides of the assignment; interior whitespace is kept verbatim, the trailing
 // run is dropped.
-//   'a = milos   kozak' -> {"a":"milos   kozak"}
+//   'a = grumpy   wombat' -> {"a":"grumpy   wombat"}
 //   'a b = c'           -> {"a b":"c"}
 // Careful: a tab is NOT the same case — java keeps `a = b\tc` as "b\tc", pyhocon
 // expands it to spaces. Follow java when that test gets written.
 test "multi-word keys and values" {
-    try expectAst("a = milos kozak", "root(assign(value(a), value(milos kozak)))");
-    try expectAst("a = milos   kozak", "root(assign(value(a), value(milos   kozak)))");
+    try expectAst("a = grumpy wombat", "root(assign(value(a), value(grumpy wombat)))");
+    try expectAst("a = grumpy   wombat", "root(assign(value(a), value(grumpy   wombat)))");
     try expectAst("a b = c", "root(assign(value(a b), value(c)))");
 }
 
@@ -348,16 +476,16 @@ test "the = before a block may be omitted" {
 // a trailing one is allowed), and an element may itself be an array or a block.
 test "arrays" {
     try expectAst("a = []", "root(assign(value(a), array()))");
-    // try expectAst("a = [1]", "root(assign(value(a), array(value(1))))");
-    // try expectAst("a = [1, 2]", "root(assign(value(a), array(value(1), value(2))))");
-    // try expectAst("a = [1, 2,]", "root(assign(value(a), array(value(1), value(2))))");
-    // try expectAst("a = [\n1\n2\n]", "root(assign(value(a), array(value(1), value(2))))");
-    // try expectAst("a = [milos kozak]", "root(assign(value(a), array(value(milos kozak))))");
-    // try expectAst("a = [[1], [2]]", "root(assign(value(a), array(array(value(1)), array(value(2)))))");
-    // try expectAst("a = [1, [2, [3]]]", "root(assign(value(a), array(value(1), array(value(2), array(value(3))))))");
-    // try expectAst("a = [{b = c}]", "root(assign(value(a), array(block(assign(value(b), value(c))))))");
-    // try expectAst("a = [{b = c}, {d = e}]", "root(assign(value(a), array(block(assign(value(b), value(c))), block(assign(value(d), value(e))))))");
-    // try expectAst("a = {b = [1, 2]}", "root(assign(value(a), block(assign(value(b), array(value(1), value(2))))))");
+    try expectAst("a = [1]", "root(assign(value(a), array(value(1))))");
+    try expectAst("a = [1, 2]", "root(assign(value(a), array(value(1), value(2))))");
+    try expectAst("a = [1, 2,]", "root(assign(value(a), array(value(1), value(2))))");
+    try expectAst("a = [\n1\n2\n]", "root(assign(value(a), array(value(1), value(2))))");
+    try expectAst("a = [grumpy wombat]", "root(assign(value(a), array(value(grumpy wombat))))");
+    try expectAst("a = [[1], [2]]", "root(assign(value(a), array(array(value(1)), array(value(2)))))");
+    try expectAst("a = [1, [2, [3]]]", "root(assign(value(a), array(value(1), array(value(2), array(value(3))))))");
+    try expectAst("a = [{b = c}]", "root(assign(value(a), array(block(assign(value(b), value(c))))))");
+    try expectAst("a = [{b = c}, {d = e}]", "root(assign(value(a), array(block(assign(value(b), value(c))), block(assign(value(d), value(e))))))");
+    try expectAst("a = {b = [1, 2]}", "root(assign(value(a), block(assign(value(b), array(value(1), value(2))))))");
 }
 
 // java ✓ · pyhocon ✓ · spec ✓ — the input itself is uncontroversial
@@ -368,6 +496,6 @@ test "arrays" {
 // `a = b` build an identical tree. Type inference later needs to tell `a = "1"`
 // (string) from `a = 1` (number), so the quotes have to survive into the ast —
 // either by widening the loc, or by flagging the node as quoted.
-// test "quoted value keeps its quotes" {
-//     try expectAst("a = \"b\"", "root(assign(value(a), value(\"b\")))");
-// }
+test "quoted value keeps its quotes" {
+    try expectAst("a = \"b\"", "root(assign(value(a), value(\"b\")))");
+}

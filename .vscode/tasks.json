@@ -5,7 +5,7 @@
             "id": "testFilter",
             "type": "promptString",
             "description": "Only build tests whose name contains…",
-            "default": "arrays"
+            "default": "validate parse string functionality"
         }
     ],
     "tasks": [
