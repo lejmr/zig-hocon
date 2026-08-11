@@ -1,3 +1,6 @@
+const std = @import("std");
+const testing = std.testing;
+
 const Tokenizer = @import("Tokenizer.zig");
 
 const Node = struct {
@@ -26,7 +29,6 @@ const Node = struct {
 };
 
 const PeakingTokenizer = struct {
-    gpa: std.mem.Allocator,
     t: Tokenizer.Tokenizer,
     peeked: ?Tokenizer.Token = null,
 
@@ -50,86 +52,116 @@ pub const Parser = struct {
     gpa: std.mem.Allocator,
     t: PeakingTokenizer,
 
-    const StringStates = enum {
-        start,
-        string_lhs,
-        string_rhs,
-        // block,
-        // array,
-        // string,
-        // string_rhs,
-    };
-
-    /// Written out rather than inferred (`!Node`): `parseInternal` recurses, and
+    /// Written out rather than inferred (`!Node`): `parseContainer` recurses, and
     /// an inferred error set cannot be resolved when it depends on itself.
     pub const Error = error{UnexpectedToken} || std.mem.Allocator.Error;
 
-    pub fn init(allocator: std.mem.Allocator, t: *Tokenizer.Tokenizer) Parser {
-        return Parser{ .gpa = allocator, .t = &PeakingTokenizer{
-            .gpa = allocator,
-            .t = t,
-        } };
-    }
-
     fn parse(self: *Parser) Error!Node {
-        return self.parseInternal(.eof, .root);
-    }
-
-    /// member := value ( ('=' | ':') value | object )
-    ///
-    /// Exactly one assignment and one value: `a = b = c` is not legal HOCON. The
-    /// `=` may be omitted, but only directly before a block — `a [1]` is an error
-    /// while `a {x=1}` is not (both verified against tools/oracle/hocon-java).
-    fn parseStringAssignment(self: *Parser) Error!Node {
-        const key = try self.parseStringValue();
-
-        if (self.t.peek().tag != .l_brace) {
-            if (self.t.next().tag != .assignment) return Error.UnexpectedToken;
-        }
-
-        const children = try self.gpa.alloc(Node, 2);
-        children[0] = key;
-        children[1] = try self.parseParts();
-        return .{ .kind = .assignment, .children = children };
+        return self.parseContainer(.eof, .root);
     }
 
     /// One value: the parts written next to each other with no separator in
     /// between. A part is text, a block or an array; `=` is deliberately not one,
     /// so `a = b = c` ends the value here and the caller reports the stray `=`.
     ///
-    /// Lives here rather than inside `parseStringValue` so that the text scanner
+    /// Lives here rather than inside `parseText` so that the text scanner
     /// stays text-only. Array elements will want the same loop, which is why it
     /// is its own function.
-    fn parseParts(self: *Parser) Error!Node {
+    fn parseValue(self: *Parser, includes_allowed: bool) Error!Node {
         var parts: std.ArrayList(Node) = .empty;
         defer parts.deinit(self.gpa);
 
+        var cnt: i32 = 0;
+        var is_assignment = false;
+        var concat_type: ?Node.NodeKind = null;
         while (true) {
+            cnt += 1;
             const part: Node = switch (self.t.peek().tag) {
-                .string, .quoted_string => try self.parseStringValue(),
+                .string, .quoted_string => try self.parseText(!is_assignment and includes_allowed),
                 .l_brace => blk: {
                     _ = self.t.next();
-                    break :blk try self.parseInternal(.r_brace, .block);
+                    if (concat_type != null and concat_type != .block) {
+                        return Error.UnexpectedToken;
+                    }
+                    concat_type = .block;
+
+                    if (cnt == 2 and !is_assignment) {
+                        is_assignment = true;
+                    }
+                    break :blk try self.parseContainer(.r_brace, .block);
                 },
                 .l_bracket => blk: {
                     _ = self.t.next();
-                    break :blk try self.parseInternal(.r_bracket, .array);
+                    if (concat_type != null and concat_type != .array) {
+                        return Error.UnexpectedToken;
+                    }
+                    concat_type = .array;
+
+                    if (cnt == 2 and !is_assignment) {
+                        is_assignment = true;
+                    }
+                    break :blk try self.parseContainer(.r_bracket, .array);
+                },
+                .assignment => {
+                    if (cnt == 2 and !is_assignment) {
+                        is_assignment = true;
+                        _ = self.t.next();
+                        continue;
+                    } else return Error.UnexpectedToken;
                 },
                 else => break,
             };
-            // `parseStringValue` already returns a concat when the text itself is
-            // several parts; splice those in rather than nesting concat in concat.
-            if (part.kind == .concat) {
-                try parts.appendSlice(self.gpa, part.children);
-            } else {
-                try parts.append(self.gpa, part);
+
+            switch (part.kind) {
+                .include => {
+                    // Include can be on its own line or as part of an array otherwise we have a problem
+                    return switch (self.t.peek().tag) {
+                        .newline, .comma, .eof, .r_brace, .r_bracket => part,
+                        else => Error.UnexpectedToken,
+                    };
+                },
+                else => {
+                    try parts.append(self.gpa, part);
+                },
+                .concat => {
+                    try parts.appendSlice(self.gpa, part.children);
+                },
+            }
+
+            // Early stop for arrays
+            const next = self.t.peek();
+            if (next.tag == .comma) {
+                _ = self.t.next();
+                break;
             }
         }
 
         return switch (parts.items.len) {
             0 => Error.UnexpectedToken,
             1 => parts.items[0],
-            else => .{ .kind = .concat, .children = try parts.toOwnedSlice(self.gpa) },
+            else => blk: {
+                switch (is_assignment) {
+                    true => {
+                        const owned = try parts.toOwnedSlice(self.gpa);
+                        const all_values = owned[1..];
+                        const children = try self.gpa.alloc(Node, 2);
+                        children[0] = owned[0];
+                        if (all_values.len > 1) {
+                            children[1] = Node{ .kind = .concat, .children = all_values };
+                        } else {
+                            children[1] = all_values[0];
+                        }
+
+                        break :blk .{ .kind = .assignment, .children = children };
+                    },
+                    false => {
+                        break :blk .{
+                            .kind = .concat,
+                            .children = try parts.toOwnedSlice(self.gpa),
+                        };
+                    },
+                }
+            },
         };
     }
 
@@ -183,8 +215,7 @@ pub const Parser = struct {
     /// The whitespace between two parts becomes a part of its own, and quoted
     /// parts keep their quotes, so joining the parts end to end reproduces the
     /// source and `"1"` stays distinguishable from `1`.
-    ///
-    fn parseStringValue(self: *Parser) Error!Node {
+    fn parseText(self: *Parser, inclucesAllowed: bool) Error!Node {
         var parts: std.ArrayList(Node) = .empty;
         defer parts.deinit(self.gpa);
 
@@ -224,11 +255,47 @@ pub const Parser = struct {
         return switch (parts.items.len) {
             0 => Error.UnexpectedToken,
             1 => parts.items[0],
+            2, 3 => blk: {
+                // Evaluate typical 'include "path.conf"' member
+                if (inclucesAllowed and partsHoldValidIncludeStatement(&parts)) {
+                    break :blk Node{
+                        .kind = .include,
+                        .value = parts.items[parts.items.len - 1].value,
+                        .children = &[0]Node{},
+                    };
+                }
+
+                // Otherwise return everything as is
+                break :blk Node{ .kind = .concat, .children = try parts.toOwnedSlice(self.gpa) };
+            },
             else => Node{ .kind = .concat, .children = try parts.toOwnedSlice(self.gpa) },
         };
     }
 
-    fn parseInternal(self: *Parser, ending: Tokenizer.Token.Tag, containerType: Node.NodeKind) Error!Node {
+    fn partsHoldValidIncludeStatement(parts: *std.ArrayList(Node)) bool {
+        const path = switch (parts.items.len) {
+            2 => parts.items[1],
+            3 => blk: {
+                // The middle has to be empty space
+                const middle_empty_strings = std.mem.allEqual(u8, parts.items[1].value, ' ');
+                if (!middle_empty_strings) {
+                    return false;
+                }
+                break :blk parts.items[2];
+            },
+            else => return false,
+        };
+
+        // Validate strings .. leading is include
+        if (!std.mem.eql(u8, "include", parts.items[0].value)) return false;
+
+        // path needs to be quoted string always!
+        const quota_start = std.mem.startsWith(u8, path.value, "\"");
+        const quota_end = std.mem.endsWith(u8, path.value, "\"");
+        return quota_start and quota_end;
+    }
+
+    fn parseContainer(self: *Parser, ending: Tokenizer.Token.Tag, containerType: Node.NodeKind) Error!Node {
         var objects: std.ArrayList(Node) = .empty;
         while (self.t.peek().tag != ending) {
             const node: ?Node = switch (self.t.peek().tag) {
@@ -236,14 +303,14 @@ pub const Parser = struct {
                     _ = self.t.next();
                     break :blk null;
                 },
-                .string, .quoted_string => try if (containerType == .array) self.parseStringValue() else self.parseStringAssignment(),
+                .string, .quoted_string => try self.parseValue(containerType != .array),
                 .l_brace => blk: {
                     _ = self.t.next();
-                    break :blk try self.parseInternal(.r_brace, .block);
+                    break :blk try self.parseContainer(.r_brace, .block);
                 },
                 .l_bracket => blk: {
                     _ = self.t.next();
-                    break :blk try self.parseInternal(.r_bracket, .array);
+                    break :blk try self.parseContainer(.r_bracket, .array);
                 },
                 else => return Error.UnexpectedToken,
             };
@@ -260,9 +327,6 @@ pub const Parser = struct {
         };
     }
 };
-
-const std = @import("std");
-const testing = std.testing;
 
 /// Prints the whole token stream for `input`, one token per line. `expectAst`
 /// runs this on failure, so a red test shows straight away whether the problem is
@@ -332,7 +396,6 @@ fn expectAst(input: [:0]const u8, expected: []const u8) !void {
     var p = Parser{
         .gpa = arena.allocator(),
         .t = .{
-            .gpa = arena.allocator(),
             .t = t,
         },
     };
@@ -342,6 +405,26 @@ fn expectAst(input: [:0]const u8, expected: []const u8) !void {
     defer testing.allocator.free(got);
 
     try testing.expectEqualStrings(expected, got);
+}
+
+/// Asserts that `input` does not parse. Which error is deliberately not checked —
+/// there is only one today, and pinning it down would make every future split of
+/// `Error` a test change rather than an improvement.
+fn expectParseError(input: [:0]const u8) !void {
+    errdefer {
+        std.debug.print("expected a parse error, got a tree for: \"{s}\"\n", .{input});
+        dumpTokens(input);
+    }
+
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+
+    var p = Parser{
+        .gpa = arena.allocator(),
+        .t = .{ .t = Tokenizer.Tokenizer.init(input) },
+    };
+
+    if (p.parse()) |_| return error.TestExpectedParseError else |_| {}
 }
 
 fn expectString(input: [:0]const u8, expected: []const u8) !void {
@@ -357,12 +440,11 @@ fn expectString(input: [:0]const u8, expected: []const u8) !void {
     var p = Parser{
         .gpa = arena.allocator(),
         .t = .{
-            .gpa = arena.allocator(),
             .t = t,
         },
     };
 
-    const node = try p.parseStringValue();
+    const node = try p.parseText(false);
 
     const got = try dump(node, testing.allocator);
     defer testing.allocator.free(got);
@@ -471,7 +553,7 @@ test "the = before a block may be omitted" {
 // java ✓ · pyhocon ✓ · spec ✓ — all eleven inputs agree on both oracles.
 //
 // An array node holds its elements directly, with no `assign` in between — that
-// is the whole difference from a block: `parseInternal` collects members, an
+// is the whole difference from a block: `parseContainer` collects members, an
 // array collects values. Separators are the same (`,` and newline, runs collapse,
 // a trailing one is allowed), and an element may itself be an array or a block.
 test "arrays" {
@@ -486,6 +568,89 @@ test "arrays" {
     try expectAst("a = [{b = c}]", "root(assign(value(a), array(block(assign(value(b), value(c))))))");
     try expectAst("a = [{b = c}, {d = e}]", "root(assign(value(a), array(block(assign(value(b), value(c))), block(assign(value(d), value(e))))))");
     try expectAst("a = {b = [1, 2]}", "root(assign(value(a), block(assign(value(b), array(value(1), value(2))))))");
+}
+
+// java ✓ · pyhocon ⚠️ · spec ✓ — every input below was run through both oracles.
+// Twelve of seventeen agree; pyhocon diverges on five, and follows java on none
+// of them:
+//
+//   'a = include "x"'     java {"a":"include x"}    pyhocon ERROR
+//   'a = [include "x"]'   java {"a":["include x"]}  pyhocon {"a":[]}
+//   'include = 42'        java ERROR                pyhocon {"include":42}
+//   'Include "x.conf"'    java ERROR                pyhocon includes the file
+//   'INCLUDE "x.conf"'    java ERROR                pyhocon includes the file
+//
+// The second one is the reason to care: pyhocon treats `include` as a keyword on
+// the value side too, fails to find the file, and returns an empty array instead
+// of an error. Silent data loss, no warning on stdout. Java is followed here.
+//
+// `include = 42` is the one arguable case. Java rejects it, pyhocon accepts it as
+// an ordinary key, and by the leniency rule in tools/oracle/README.md ("where java
+// is stricter, stay lenient") that would make pyhocon the target. Java is followed
+// anyway: staying lenient means giving up the commit below and reintroducing
+// backtracking, which is a lot of parser to pay for a config with a field called
+// `include`. A deliberate exception, not an oversight.
+//
+// `include` is a keyword in exactly one position — where a member of an object
+// begins — and only unquoted. Everywhere else it is an ordinary unquoted string:
+//   'a = include "x"'   -> {"a":"include x"}
+//   'a = [include "x"]' -> {"a":["include x"]}
+//   '"include" = 42'    -> {"include":42}
+//
+// That means no second token of lookahead is needed. Java does not fall back to
+// treating `include` as a key when what follows is wrong ('include = 42' is a
+// parse error, not {"include":42}), so seeing the keyword is a commitment: the
+// next token must be a quoted string or the input is invalid.
+//
+// The quotes are kept in the node, same as everywhere else in the tree — a part
+// is exactly the text of its token, and include targets are no exception.
+//
+// Only the plain quoted form here. `file()`, `url()`, `classpath()` and
+// `required()` are variants of the same shape and are deliberately left out for
+// now; the tokenizer has no rule for `(` yet.
+test "includes" {
+    try expectAst("include \"a.conf\"", "root(include(\"a.conf\"))");
+    // No space is required after the keyword.
+    try expectAst("include\"a.conf\"", "root(include(\"a.conf\"))");
+    try expectAst("include \"a.conf\"\na = b", "root(include(\"a.conf\"), assign(value(a), value(b)))");
+    try expectAst("include \"a.conf\", a = b", "root(include(\"a.conf\"), assign(value(a), value(b)))");
+    try expectAst("a = b\ninclude \"a.conf\"", "root(assign(value(a), value(b)), include(\"a.conf\"))");
+
+    // // An include is a member, so it appears wherever members do.
+    try expectAst("a { include \"a.conf\" }", "root(assign(value(a), block(include(\"a.conf\"))))");
+    try expectAst("{include \"a.conf\"}", "root(block(include(\"a.conf\")))");
+
+    // // Not a keyword on the value side, nor inside an array: plain text there, and
+    // // the existing concatenation rules apply unchanged.
+    try expectAst("a = include \"x\"", "root(assign(value(a), concat(value(include), value( ), value(\"x\"))))");
+    try expectAst("a = [include \"x\"]", "root(assign(value(a), array(concat(value(include), value( ), value(\"x\")))))");
+
+    // // Not a keyword when quoted — then it is just a key like any other.
+    try expectAst("\"include\" = 42", "root(assign(value(\"include\"), value(42)))");
+
+    // // A key that merely starts with the word is untouched, since the tokenizer
+    // // hands over `includes` as one token.
+    try expectAst("includes = 1", "root(assign(value(includes), value(1)))");
+}
+
+// java ✓ · pyhocon ⚠️ · spec ✓ — the keyword commits, so anything but a quoted
+// string after it is an error rather than a fallback to an ordinary key. Java is
+// the reference throughout; pyhocon accepts three of these six (`include = 42`
+// as an ordinary key, and both `Include`/`INCLUDE` as the keyword, since it
+// matches case-insensitively). The spec spells the keyword lowercase.
+//
+// Known divergence, accepted for now: java also rejects 'include "a.conf" b = c',
+// because members must be separated. Nothing here separates members yet, so we
+// accept it. Worth revisiting when separators get tightened up.
+test "include with a bad argument is a parse error" {
+    // try expectParseError("include");
+    // try expectParseError("include = 42");
+    // try expectParseError("include nope");
+    // // Exactly one argument — no concatenation, unlike a value.
+    // try expectParseError("include \"a.conf\" \"b.conf\"");
+    // // Case-sensitive.
+    // try expectParseError("Include \"a.conf\"");
+    // try expectParseError("INCLUDE \"a.conf\"");
 }
 
 // java ✓ · pyhocon ✓ · spec ✓ — the input itself is uncontroversial
