@@ -1,0 +1,144 @@
+#!/bin/sh
+# Nicer console output for `zig test`. Passing tests collapse to a tree; anything
+# else — failure blocks, leaked `std.debug.print` output — is passed through
+# verbatim, because that is the part worth reading.
+#
+#   tools/zt                 all tests, collapsed
+#   tools/zt -v              list every test name
+#   tools/zt include         only tests whose name contains "include"
+#
+# Zig knows nothing about test structure: it hands the runner flat names like
+# `Ast.test.include.bad argument`. The first segment is the module, `test` is
+# inserted by the compiler, and everything after it is the name as written. So a
+# test named "include.bad argument" folds under `include`, and one without a dot
+# stays directly under its module. The grouping is a naming convention, nothing
+# more, and can be adopted one test at a time.
+#
+# Deliberately not a custom test runner: this touches neither build.zig nor the
+# build graph, so `zig build test` keeps behaving exactly as before.
+set -e
+DIR=$(cd "$(dirname "$0")/.." && pwd)
+
+VERBOSE=0
+[ "$1" = "-v" ] && { VERBOSE=1; shift; }
+
+if [ -n "$1" ]; then
+    set -- --test-filter "$1"
+fi
+
+# Where each `test "…"` is declared, so a failing leaf can be printed as
+# `src/Ast.zig:476`. Zed makes that cmd-clickable in its terminal, which lands the
+# cursor in the test — with the gutter Run/Debug button right there. Paths stay
+# relative to the repo root for exactly that reason.
+# (A temp file, not `awk -v`: BSD awk rejects a newline inside a -v value.)
+INDEX=$(mktemp)
+trap 'rm -f "$INDEX"' EXIT
+(cd "$DIR" && grep -n '^test "' src/*.zig) > "$INDEX" || true
+
+# `zig test` exits non-zero on a failing test; keep going so the summary prints.
+OUT=$(zig test "$DIR/src/root.zig" "$@" 2>&1) || true
+
+printf '%s\n' "$OUT" | awk -v verbose="$VERBOSE" -v index_file="$INDEX" '
+    BEGIN {
+        # "src/Ast.zig:476:test "value.text parts" {" -> loc["Ast", "value.text parts"]
+        while ((getline l < index_file) > 0) {
+            path = l; sub(/:.*$/, "", path)
+            rest = l; sub(/^[^:]*:/, "", rest)
+            ln = rest;  sub(/:.*$/, "", ln)
+            nm = rest;  sub(/^[0-9]+:test "/, "", nm); sub(/"[^"]*$/, "", nm)
+            mod = path; sub(/^.*\//, "", mod); sub(/\.zig$/, "", mod)
+            loc[mod SUBSEP nm] = path ":" ln
+        }
+        close(index_file)
+    }
+
+    # state: "ok" | "fail" | "skip"
+    function record(mod, grp, name, state,    k, at) {
+        k = mod SUBSEP grp
+        if (!(mod in modseen)) { modseen[mod] = 1; modorder[++mods] = mod }
+        if (!(k in grpseen))   { grpseen[k] = 1; grporder[mod, ++ngrp[mod]] = grp }
+        at = loc[mod SUBSEP (grp == "" ? name : grp "." name)]
+
+        # Failing and skipped leaves are always named — one is what broke, the
+        # other is the todo list. Passing ones only under -v: a green group is a
+        # single number, and which tests it holds is not the point of a test run.
+        if (state == "ok") {
+            pass[k]++
+            if (verbose) names[k] = names[k] "\n" sprintf("\033[2m      %-28s %s\033[0m", name, at)
+        } else if (state == "skip") {
+            skip[k]++
+            skipped[k] = skipped[k] "\n" sprintf("\033[33m      %-28s\033[0m \033[2m%s\033[0m", name, at)
+        } else {
+            fail[k]++
+            failed[k] = failed[k] "\n" sprintf("\033[31m      %-28s\033[0m \033[2m%s\033[0m", name, at)
+        }
+    }
+    # Split "Ast.test.include.bad argument" into module / group / name.
+    function split_name(line,    mod, rest, grp) {
+        mod = line; sub(/\.test\..*$/, "", mod)
+        rest = line; sub(/^[^.]*\.test\.?/, "", rest)
+        # A group prefix is one bare word before the first dot. Requiring that
+        # keeps prose names with a dot in them ("can start with - or .") whole.
+        grp = ""
+        if (rest ~ /^[A-Za-z0-9_+-]+\./) { grp = rest; sub(/\..*$/, "", grp); sub(/^[^.]*\./, "", rest) }
+        return mod SUBSEP grp SUBSEP rest
+    }
+
+    # "12/33 Ast.test.arrays...OK" — and the same shape with ...SKIP.
+    /^[0-9]+\/[0-9]+ .*\.\.\.(OK|SKIP)$/ {
+        line = $0
+        state = (line ~ /SKIP$/) ? "skip" : "ok"
+        sub(/^[0-9]+\/[0-9]+ /, "", line)
+        sub(/\.\.\.(OK|SKIP)$/, "", line)
+        split(split_name(line), p, SUBSEP)
+        record(p[1], p[2], p[3], state)
+        next
+    }
+    # A failing test opens with the same counter but no trailing "...OK".
+    /^[0-9]+\/[0-9]+ / {
+        line = $0
+        sub(/^[0-9]+\/[0-9]+ /, "", line)
+        # Zig appends the failure reason — and anything the test printed from an
+        # errdefer — to this same line. The name ends at the "...".
+        sub(/\.\.\..*$/, "", line)
+        split(split_name(line), p, SUBSEP)
+        record(p[1], p[2], p[3], "fail")
+    }
+    /^All [0-9]+ tests passed\.$/ { next }
+    /^[0-9]+ passed; [0-9]+ skipped; [0-9]+ failed\.$/ { next }
+    { detail = detail $0 "\n" }
+
+    function mark(f, s) { return f ? "\033[31m✗\033[0m" : (s ? "\033[33m⊘\033[0m" : "\033[32m✓\033[0m") }
+    # (p + 0) rather than p: an untouched counter is the empty string in awk.
+    function tally(p, f, s) {
+        return (f ? (p + 0) "/" (p + f) : "" (p + 0)) (s ? sprintf("  \033[33m⊘%d\033[0m", s) : "")
+    }
+
+    END {
+        for (i = 1; i <= mods; i++) {
+            m = modorder[i]
+
+            # Module header, with its own totals rolled up from every group.
+            mp = 0; mf = 0; ms = 0
+            for (j = 1; j <= ngrp[m]; j++) {
+                k = m SUBSEP grporder[m, j]
+                mp += pass[k]; mf += fail[k]; ms += skip[k]
+            }
+            printf "%s %-14s %s\n", mark(mf, ms), m, tally(mp, mf, ms)
+            # A green module is one line. What failed or is still parked gets
+            # unfolded — plus everything, when -v asks for it.
+            if (!mf && !ms && !verbose) continue
+
+            for (j = 1; j <= ngrp[m]; j++) {
+                g = grporder[m, j]
+                k = m SUBSEP g
+                if (!fail[k] && !skip[k] && !verbose) continue
+                if (g != "") printf "  %s %-12s %s\n", mark(fail[k], skip[k]), g, tally(pass[k], fail[k], skip[k])
+                if (fail[k]) printf "%s\n", substr(failed[k], 2)
+                if (skip[k]) printf "%s\n", substr(skipped[k], 2)
+                if (verbose && names[k] != "") printf "%s\n", substr(names[k], 2)
+            }
+        }
+        if (detail != "") printf "\n%s", detail
+    }
+'

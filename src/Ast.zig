@@ -60,24 +60,60 @@ pub const Parser = struct {
         return self.parseContainer(.eof, .root);
     }
 
+    /// One member of an object: a key, a separator, and a value. Only
+    /// `parseContainer` calls this, and only where a member may begin — which is
+    /// what makes the separator *required* rather than something to guess at
+    /// afterwards from the parts that happened to show up.
+    ///
+    /// The key side is text only: `${b} = 1`, `[a] = 1` and `{a} = 1` are all
+    /// errors, so this is `parseText` rather than `parseValue`.
+    ///
+    /// Newlines are skipped on both sides of the separator. While the parser is
+    /// waiting for `=` or for the value there is nothing complete for a newline
+    /// to end, so `a\n= b` and `a =\n\nb` are both fine. Everywhere else a
+    /// newline does end the member, which is why `a\nb = c` is an error: the
+    /// separator is still required once the newlines are gone.
+    fn parseMember(self: *Parser) Error!Node {
+        const key = try self.parseText();
+
+        while (self.t.peek().tag == .newline) _ = self.t.next();
+        switch (self.t.peek().tag) {
+            .assignment => {
+                _ = self.t.next();
+                while (self.t.peek().tag == .newline) _ = self.t.next();
+            },
+            // `a {b = c}` .. the separator may be omitted before a block, but
+            // only before a block — java rejects `a [1, 2]`.
+            .l_brace => {},
+            else => return Error.UnexpectedToken,
+        }
+
+        const children = try self.gpa.alloc(Node, 2);
+        children[0] = key;
+        children[1] = try self.parseValue();
+        return Node{ .kind = .assignment, .children = children };
+    }
+
     /// One value: the parts written next to each other with no separator in
     /// between. A part is text, a block or an array; `=` is deliberately not one,
     /// so `a = b = c` ends the value here and the caller reports the stray `=`.
     ///
     /// Lives here rather than inside `parseText` so that the text scanner
-    /// stays text-only. Array elements will want the same loop, which is why it
-    /// is its own function.
-    fn parseValue(self: *Parser, includes_allowed: bool) Error!Node {
+    /// stays text-only. Array elements want the same loop, which is why it
+    /// is its own function — and why it knows nothing about keys or `=`.
+    ///
+    /// A newline ends the value, with no exceptions: the two places where one is
+    /// skipped (around `=`, and after the `include` keyword) are both places
+    /// where the parser has committed to something and is waiting for it, so
+    /// they live in `parseMember` and `parseInclude` instead.
+    fn parseValue(self: *Parser) Error!Node {
         var parts: std.ArrayList(Node) = .empty;
         defer parts.deinit(self.gpa);
 
-        var cnt: i32 = 0;
-        var is_assignment = false;
         var concat_type: ?Node.NodeKind = null;
         while (true) {
-            cnt += 1;
             const part: Node = switch (self.t.peek().tag) {
-                .string, .quoted_string => try self.parseText(!is_assignment and includes_allowed),
+                .string, .quoted_string => try self.parseText(),
                 .l_brace => blk: {
                     _ = self.t.next();
                     if (concat_type != null and concat_type != .block) {
@@ -85,9 +121,6 @@ pub const Parser = struct {
                     }
                     concat_type = .block;
 
-                    if (cnt == 2 and !is_assignment) {
-                        is_assignment = true;
-                    }
                     break :blk try self.parseContainer(.r_brace, .block);
                 },
                 .l_bracket => blk: {
@@ -97,29 +130,12 @@ pub const Parser = struct {
                     }
                     concat_type = .array;
 
-                    if (cnt == 2 and !is_assignment) {
-                        is_assignment = true;
-                    }
                     break :blk try self.parseContainer(.r_bracket, .array);
-                },
-                .assignment => {
-                    if (cnt == 2 and !is_assignment) {
-                        is_assignment = true;
-                        _ = self.t.next();
-                        continue;
-                    } else return Error.UnexpectedToken;
                 },
                 else => break,
             };
 
             switch (part.kind) {
-                .include => {
-                    // Include can be on its own line or as part of an array otherwise we have a problem
-                    return switch (self.t.peek().tag) {
-                        .newline, .comma, .eof, .r_brace, .r_bracket => part,
-                        else => Error.UnexpectedToken,
-                    };
-                },
                 else => {
                     try parts.append(self.gpa, part);
                 },
@@ -139,28 +155,9 @@ pub const Parser = struct {
         return switch (parts.items.len) {
             0 => Error.UnexpectedToken,
             1 => parts.items[0],
-            else => blk: {
-                switch (is_assignment) {
-                    true => {
-                        const owned = try parts.toOwnedSlice(self.gpa);
-                        const all_values = owned[1..];
-                        const children = try self.gpa.alloc(Node, 2);
-                        children[0] = owned[0];
-                        if (all_values.len > 1) {
-                            children[1] = Node{ .kind = .concat, .children = all_values };
-                        } else {
-                            children[1] = all_values[0];
-                        }
-
-                        break :blk .{ .kind = .assignment, .children = children };
-                    },
-                    false => {
-                        break :blk .{
-                            .kind = .concat,
-                            .children = try parts.toOwnedSlice(self.gpa),
-                        };
-                    },
-                }
+            else => Node{
+                .kind = .concat,
+                .children = try parts.toOwnedSlice(self.gpa),
             },
         };
     }
@@ -215,7 +212,7 @@ pub const Parser = struct {
     /// The whitespace between two parts becomes a part of its own, and quoted
     /// parts keep their quotes, so joining the parts end to end reproduces the
     /// source and `"1"` stays distinguishable from `1`.
-    fn parseText(self: *Parser, inclucesAllowed: bool) Error!Node {
+    fn parseText(self: *Parser) Error!Node {
         var parts: std.ArrayList(Node) = .empty;
         defer parts.deinit(self.gpa);
 
@@ -255,60 +252,88 @@ pub const Parser = struct {
         return switch (parts.items.len) {
             0 => Error.UnexpectedToken,
             1 => parts.items[0],
-            2, 3 => blk: {
-                // Evaluate typical 'include "path.conf"' member
-                if (inclucesAllowed and partsHoldValidIncludeStatement(&parts)) {
-                    break :blk Node{
-                        .kind = .include,
-                        .value = parts.items[parts.items.len - 1].value,
-                        .children = &[0]Node{},
-                    };
-                }
-
-                // Otherwise return everything as is
-                break :blk Node{ .kind = .concat, .children = try parts.toOwnedSlice(self.gpa) };
-            },
             else => Node{ .kind = .concat, .children = try parts.toOwnedSlice(self.gpa) },
         };
     }
 
-    fn partsHoldValidIncludeStatement(parts: *std.ArrayList(Node)) bool {
-        const path = switch (parts.items.len) {
-            2 => parts.items[1],
-            3 => blk: {
-                // The middle has to be empty space
-                const middle_empty_strings = std.mem.allEqual(u8, parts.items[1].value, ' ');
-                if (!middle_empty_strings) {
-                    return false;
-                }
-                break :blk parts.items[2];
-            },
-            else => return false,
-        };
-
-        // Validate strings .. leading is include
-        if (!std.mem.eql(u8, "include", parts.items[0].value)) return false;
-
-        // path needs to be quoted string always!
-        const quota_start = std.mem.startsWith(u8, path.value, "\"");
-        const quota_end = std.mem.endsWith(u8, path.value, "\"");
-        return quota_start and quota_end;
+    fn parseInclude(self: *Parser) Error!Node {
+        // Lets consume "include"
+        _ = self.t.next();
+        while (true) {
+            const next = self.t.peek();
+            switch (next.tag) {
+                .newline => {
+                    _ = self.t.next();
+                },
+                .quoted_string => {
+                    // Check what is after next = URI
+                    _ = self.t.next();
+                    const peeked = self.t.peek();
+                    switch (peeked.tag) {
+                        .newline, .comma, .eof, .r_brace, .r_bracket => {},
+                        else => return Error.UnexpectedToken,
+                    }
+                    // Return proper node
+                    return Node{
+                        .kind = .include,
+                        .value = self.t.t.input[next.loc.start - 1 .. next.loc.end + 1],
+                        .children = &[0]Node{},
+                    };
+                },
+                else => return Error.UnexpectedToken,
+            }
+        }
     }
 
     fn parseContainer(self: *Parser, ending: Tokenizer.Token.Tag, containerType: Node.NodeKind) Error!Node {
         var objects: std.ArrayList(Node) = .empty;
-        while (self.t.peek().tag != ending) {
-            const node: ?Node = switch (self.t.peek().tag) {
+        // A root that opens with `{` or `[` is the whole document: nothing may
+        // come before it and nothing after it. Only root needs this — inside a
+        // value `{x=1} {y=2}` concatenates happily.
+        var braced_root = false;
+        while (true) {
+            const token = self.t.peek();
+            if (token.tag == ending) break;
+
+            const node: ?Node = switch (token.tag) {
                 .newline, .comma => blk: {
                     _ = self.t.next();
                     break :blk null;
                 },
-                .string, .quoted_string => try self.parseValue(containerType != .array),
+                .string, .quoted_string => blk: {
+                    // Inside an array this is an element, so it is a plain value.
+                    if (containerType == .array) break :blk try self.parseValue();
+                    if (braced_root) return Error.UnexpectedToken;
+
+                    // `include` is a keyword only here, and only unquoted. Seeing
+                    // it commits: there is no falling back to a key of that name,
+                    // so one token of lookahead is enough.
+                    const value = self.t.t.input[token.loc.start..token.loc.end];
+                    if (token.tag == .string and std.mem.eql(u8, value, "include")) {
+                        break :blk try self.parseInclude();
+                    }
+
+                    break :blk try self.parseMember();
+                },
                 .l_brace => blk: {
+                    // A brace where a member begins has no key to attach itself
+                    // to .. `{ {a=1} }`. Merging two objects is a *value*, so it
+                    // happens in parseValue, not here.
+                    if (containerType == .block) return Error.UnexpectedToken;
+                    if (containerType == .root) {
+                        if (objects.items.len > 0) return Error.UnexpectedToken;
+                        braced_root = true;
+                    }
                     _ = self.t.next();
-                    break :blk try self.parseContainer(.r_brace, .block);
+                    const val = try self.parseContainer(.r_brace, .block);
+                    break :blk val;
                 },
                 .l_bracket => blk: {
+                    if (containerType == .block) return Error.UnexpectedToken;
+                    if (containerType == .root) {
+                        if (objects.items.len > 0) return Error.UnexpectedToken;
+                        braced_root = true;
+                    }
                     _ = self.t.next();
                     break :blk try self.parseContainer(.r_bracket, .array);
                 },
@@ -328,9 +353,9 @@ pub const Parser = struct {
     }
 };
 
-/// Prints the whole token stream for `input`, one token per line. `expectAst`
-/// runs this on failure, so a red test shows straight away whether the problem is
-/// in the tokenizer or in the parser.
+/// Prints the whole token stream for `input`, one token per line. `expectAll`
+/// runs this for a `.only` row, so a debugging session shows straight away
+/// whether the problem is in the tokenizer or in the parser.
 fn dumpTokens(input: [:0]const u8) void {
     var t = Tokenizer.Tokenizer.init(input);
     std.debug.print("tokens for \"{s}\":\n", .{input});
@@ -380,76 +405,120 @@ fn dump(node: Node, allocator: std.mem.Allocator) ![]u8 {
     return aw.toOwnedSlice();
 }
 
-/// Parses `input` and asserts that dumping the resulting tree renders exactly
-/// `expected`. This is the single point coupling the tests to the parser API —
-/// if the signature changes, only this function needs updating.
-fn expectAst(input: [:0]const u8, expected: []const u8) !void {
-    errdefer {
-        std.debug.print("failed on input: \"{s}\"\n", .{input});
-        dumpTokens(input);
+/// One row of a table test: an input and what the tree should dump as. `.err`
+/// instead of `.want` says the input must not parse at all.
+const Case = struct {
+    in: [:0]const u8,
+    want: ?[]const u8 = null,
+    err: bool = false,
+    focus: bool = false,
+
+    /// `.{ .in = "a = b", .want = "…" }` reads fine, but the shorthands read
+    /// better in a long table.
+    fn ok(in: [:0]const u8, want: []const u8) Case {
+        return .{ .in = in, .want = want };
+    }
+    fn bad(in: [:0]const u8) Case {
+        return .{ .in = in, .err = true };
     }
 
-    var arena = std.heap.ArenaAllocator.init(testing.allocator);
-    defer arena.deinit();
+    /// Debugging aid: mark a row `.only` and `expectAll` runs that one alone, so
+    /// a breakpoint inside the parser fires on the case you care about instead of
+    /// once per row. Works on both shapes — `.only(.bad("…"))`.
+    fn only(c: Case) Case {
+        var focused = c;
+        focused.focus = true;
+        return focused;
+    }
+};
 
-    const t = Tokenizer.Tokenizer.init(input);
-    var p = Parser{
-        .gpa = arena.allocator(),
-        .t = .{
-            .t = t,
-        },
-    };
-    const root = try p.parse();
-
-    const got = try dump(root, testing.allocator);
-    defer testing.allocator.free(got);
-
-    try testing.expectEqualStrings(expected, got);
+/// Runs every case and only then fails, listing each one as ✓ or ✗.
+///
+/// A plain `try expect…(…)` chain stops at the first mismatch, so a red test
+/// says nothing about the rows below it — which is what makes people comment
+/// them out one at a time. This runs all of them, so one run shows exactly which
+/// variants work and which do not.
+///
+/// Nothing is printed while every row passes: `zig build test` reports a passing
+/// test that wrote to stderr as a failed command.
+fn expectAll(cases: []const Case) !void {
+    return expectAllWith(cases, Parser.parse);
 }
 
-/// Asserts that `input` does not parse. Which error is deliberately not checked —
-/// there is only one today, and pinning it down would make every future split of
-/// `Error` a test change rather than an improvement.
-fn expectParseError(input: [:0]const u8) !void {
-    errdefer {
-        std.debug.print("expected a parse error, got a tree for: \"{s}\"\n", .{input});
-        dumpTokens(input);
-    }
-
-    var arena = std.heap.ArenaAllocator.init(testing.allocator);
-    defer arena.deinit();
-
-    var p = Parser{
-        .gpa = arena.allocator(),
-        .t = .{ .t = Tokenizer.Tokenizer.init(input) },
-    };
-
-    if (p.parse()) |_| return error.TestExpectedParseError else |_| {}
+/// The same table, run through `parseText` instead of the whole parser — for the
+/// rows that are about how text splits into parts, with no document around them.
+fn expectAllText(cases: []const Case) !void {
+    return expectAllWith(cases, Parser.parseText);
 }
 
-fn expectString(input: [:0]const u8, expected: []const u8) !void {
-    errdefer {
-        std.debug.print("failed on input: \"{s}\"\n", .{input});
+/// Writes `s` with its newlines and tabs escaped, so one case stays one line of
+/// the report even when the input spans several.
+fn writeEscaped(w: *std.Io.Writer, s: []const u8) std.Io.Writer.Error!void {
+    for (s) |c| switch (c) {
+        '\n' => try w.writeAll("\\n"),
+        '\t' => try w.writeAll("\\t"),
+        '\r' => try w.writeAll("\\r"),
+        else => try w.writeByte(c),
+    };
+}
+
+fn expectAllWith(cases: []const Case, comptime parseFn: fn (*Parser) Parser.Error!Node) !void {
+    var report = std.Io.Writer.Allocating.init(testing.allocator);
+    defer report.deinit();
+    const w = &report.writer;
+
+    var focused = false;
+    for (cases) |c| focused = focused or c.focus;
+
+    var failures: usize = 0;
+    for (cases) |c| {
+        if (focused and !c.focus) continue;
+
+        var arena = std.heap.ArenaAllocator.init(testing.allocator);
+        defer arena.deinit();
+
+        var p = Parser{
+            .gpa = arena.allocator(),
+            .t = .{ .t = Tokenizer.Tokenizer.init(c.in) },
+        };
+
+        var got: []const u8 = undefined;
+        var got_buf: ?[]u8 = null;
+        defer if (got_buf) |b| testing.allocator.free(b);
+
+        if (parseFn(&p)) |tree| {
+            got_buf = try dump(tree, testing.allocator);
+            got = got_buf.?;
+        } else |e| {
+            got = @errorName(e);
+        }
+
+        const passed = if (c.err) got_buf == null else got_buf != null and
+            std.mem.eql(u8, c.want.?, got);
+
+        try w.writeAll(if (passed) "  \x1b[32m✓\x1b[0m " else "  \x1b[31m✗\x1b[0m ");
+        try writeEscaped(w, c.in);
+        try w.writeByte('\n');
+        if (!passed) {
+            failures += 1;
+            try w.print("      want {s}\n", .{if (c.err) "a parse error" else c.want.?});
+            try w.print("      got  {s}\n", .{got});
+        }
     }
 
-    var arena = std.heap.ArenaAllocator.init(testing.allocator);
-    defer arena.deinit();
-
-    const t = Tokenizer.Tokenizer.init(input);
-
-    var p = Parser{
-        .gpa = arena.allocator(),
-        .t = .{
-            .t = t,
-        },
-    };
-
-    const node = try p.parseText(false);
-
-    const got = try dump(node, testing.allocator);
-    defer testing.allocator.free(got);
-
-    try testing.expectEqualStrings(expected, got);
+    // A focused run fails even when the row passes: `.only` skips coverage, so it
+    // must be impossible to leave behind in a green test.
+    if (focused) {
+        std.debug.print("\n{s}  focused on .only — remove it to run the whole table\n", .{report.written()});
+        // A focused run is a debugging session, so the token stream is worth
+        // having; printing it for every row of a full table would not be.
+        for (cases) |c| if (c.focus) dumpTokens(c.in);
+        return error.TestFocused;
+    }
+    if (failures != 0) {
+        std.debug.print("\n{s}  {d}/{d} cases failed\n", .{ report.written(), failures, cases.len });
+        return error.TestExpectedEqual;
+    }
 }
 
 // java ✓ · pyhocon ✓ · spec ✓ — joining the parts end to end reproduces what the
@@ -470,66 +539,74 @@ fn expectString(input: [:0]const u8, expected: []const u8) !void {
 // Adjacent *unquoted* strings stay one part, being one contiguous slice of the
 // input — `grumpy wombat` is `value(grumpy wombat)`, not two parts and a gap.
 test "validate parse string functionality" {
-    try expectString("x", "value(x)");
-    try expectString("\"x\"", "value(\"x\")");
-    try expectString("grumpy wombat", "value(grumpy wombat)");
+    try expectAllText(&.{
+        .ok("x", "value(x)"),
+        .ok("\"x\"", "value(\"x\")"),
+        .ok("grumpy wombat", "value(grumpy wombat)"),
 
-    // Trailing whitespace is not part of the value.
-    try expectString("x  ", "value(x)");
+        // Trailing whitespace is not part of the value.
+        .ok("x  ", "value(x)"),
 
-    // A quoted part with nothing after it — the pending run must not be left
-    // half-open, or the terminator branch reads an end that was never set.
-    try expectString("x \"y\"", "concat(value(x), value( ), value(\"y\"))");
-    try expectString("\"x\" y", "concat(value(\"x\"), value( ), value(y))");
+        // A quoted part with nothing after it — the pending run must not be left
+        // half-open, or the terminator branch reads an end that was never set.
+        .ok("x \"y\"", "concat(value(x), value( ), value(\"y\"))"),
+        .ok("\"x\" y", "concat(value(\"x\"), value( ), value(y))"),
 
-    try expectString("\"a\"\"b\"", "concat(value(\"a\"), value(\"b\"))");
-    try expectString("\"a\" \"b\"", "concat(value(\"a\"), value( ), value(\"b\"))");
-    try expectString("x\"y\"", "concat(value(x), value(\"y\"))");
+        .ok("\"a\"\"b\"", "concat(value(\"a\"), value(\"b\"))"),
+        .ok("\"a\" \"b\"", "concat(value(\"a\"), value( ), value(\"b\"))"),
+        .ok("x\"y\"", "concat(value(x), value(\"y\"))"),
 
-    // Bigger examples
-    try expectString("grumpy wombat {additional = true}", "value(grumpy wombat)");
-    try expectString(
-        "grumpy wombat    \"caffeinated but polite\"   send help",
-        "concat(value(grumpy wombat), value(    ), value(\"caffeinated but polite\"), value(   ), value(send help))",
-    );
-    try expectString(
-        "grumpy wombat    \"caffeinated but polite\"   send help    ",
-        "concat(value(grumpy wombat), value(    ), value(\"caffeinated but polite\"), value(   ), value(send help))",
-    );
+        // Bigger examples
+        .ok("grumpy wombat {additional = true}", "value(grumpy wombat)"),
+        .ok(
+            "grumpy wombat    \"caffeinated but polite\"   send help",
+            "concat(value(grumpy wombat), value(    ), value(\"caffeinated but polite\"), value(   ), value(send help))",
+        ),
+        .ok(
+            "grumpy wombat    \"caffeinated but polite\"   send help    ",
+            "concat(value(grumpy wombat), value(    ), value(\"caffeinated but polite\"), value(   ), value(send help))",
+        ),
+    });
 }
 
 // java ✓ · pyhocon ✓ · spec ✓ — all six inputs agree on both oracles.
 // `:` and `=` are interchangeable; `,` and newline are interchangeable separators.
 test "assignment with =" {
-    try expectAst("a = b", "root(assign(value(a), value(b)))");
-    try expectAst("a: b", "root(assign(value(a), value(b)))");
-    try expectAst("a = b\nc: d", "root(assign(value(a), value(b)), assign(value(c), value(d)))");
-    try expectAst("{a = b}", "root(block(assign(value(a), value(b))))");
-    try expectAst("{a = b\nc: d}", "root(block(assign(value(a), value(b)), assign(value(c), value(d))))");
-    try expectAst("{a = b, c: d}", "root(block(assign(value(a), value(b)), assign(value(c), value(d))))");
+    try expectAll(&.{
+        .ok("a = b", "root(assign(value(a), value(b)))"),
+        .ok("a: b", "root(assign(value(a), value(b)))"),
+        .ok("a = b\nc: d", "root(assign(value(a), value(b)), assign(value(c), value(d)))"),
+        .ok("{a = b}", "root(block(assign(value(a), value(b))))"),
+        .ok("{a = b\nc: d}", "root(block(assign(value(a), value(b)), assign(value(c), value(d))))"),
+        .ok("{a = b, c: d}", "root(block(assign(value(a), value(b)), assign(value(c), value(d))))"),
+    });
 }
 
 // java ✓ · pyhocon ✓ · spec ✓ — all seven inputs agree on both oracles,
 // including the empty block (`a = {}` -> {"a":{}}).
 test "nested blocks" {
-    try expectAst("a = {b = c}", "root(assign(value(a), block(assign(value(b), value(c)))))");
-    try expectAst("a: {c: d}", "root(assign(value(a), block(assign(value(c), value(d)))))");
-    try expectAst("a = {}", "root(assign(value(a), block()))");
-    try expectAst("a = {b = {c = d}}", "root(assign(value(a), block(assign(value(b), block(assign(value(c), value(d)))))))");
-    try expectAst("a = {b = c}\nd = e", "root(assign(value(a), block(assign(value(b), value(c)))), assign(value(d), value(e)))");
-    try expectAst("a = {b = c, d = e}", "root(assign(value(a), block(assign(value(b), value(c)), assign(value(d), value(e)))))");
-    try expectAst("{a = {b = c}}", "root(block(assign(value(a), block(assign(value(b), value(c))))))");
+    try expectAll(&.{
+        .ok("a = {b = c}", "root(assign(value(a), block(assign(value(b), value(c)))))"),
+        .ok("a: {c: d}", "root(assign(value(a), block(assign(value(c), value(d)))))"),
+        .ok("a = {}", "root(assign(value(a), block()))"),
+        .ok("a = {b = {c = d}}", "root(assign(value(a), block(assign(value(b), block(assign(value(c), value(d)))))))"),
+        .ok("a = {b = c}\nd = e", "root(assign(value(a), block(assign(value(b), value(c)))), assign(value(d), value(e)))"),
+        .ok("a = {b = c, d = e}", "root(assign(value(a), block(assign(value(b), value(c)), assign(value(d), value(e)))))"),
+        .ok("{a = {b = c}}", "root(block(assign(value(a), block(assign(value(b), value(c))))))"),
+    });
 }
 
 // java ✓ · pyhocon ✓ · spec ✓ — both `#` and `//` start a comment, a comment
 // terminates the value on its line, and runs of blank lines collapse.
 test "separators and comments are not nodes" {
-    try expectAst("", "root()");
-    try expectAst("\na = b\n", "root(assign(value(a), value(b)))");
-    try expectAst("a = b\n\nc = d", "root(assign(value(a), value(b)), assign(value(c), value(d)))");
-    try expectAst("# comment\na = b", "root(assign(value(a), value(b)))");
-    try expectAst("// comment\na = b", "root(assign(value(a), value(b)))");
-    try expectAst("a = b # comment\nc = d", "root(assign(value(a), value(b)), assign(value(c), value(d)))");
+    try expectAll(&.{
+        .ok("", "root()"),
+        .ok("\na = b\n", "root(assign(value(a), value(b)))"),
+        .ok("a = b\n\nc = d", "root(assign(value(a), value(b)), assign(value(c), value(d)))"),
+        .ok("# comment\na = b", "root(assign(value(a), value(b)))"),
+        .ok("// comment\na = b", "root(assign(value(a), value(b)))"),
+        .ok("a = b # comment\nc = d", "root(assign(value(a), value(b)), assign(value(c), value(d)))"),
+    });
 }
 
 // java ✓ · pyhocon ✓ · spec ✓ — unquoted strings may contain spaces on both
@@ -540,14 +617,18 @@ test "separators and comments are not nodes" {
 // Careful: a tab is NOT the same case — java keeps `a = b\tc` as "b\tc", pyhocon
 // expands it to spaces. Follow java when that test gets written.
 test "multi-word keys and values" {
-    try expectAst("a = grumpy wombat", "root(assign(value(a), value(grumpy wombat)))");
-    try expectAst("a = grumpy   wombat", "root(assign(value(a), value(grumpy   wombat)))");
-    try expectAst("a b = c", "root(assign(value(a b), value(c)))");
+    try expectAll(&.{
+        .ok("a = grumpy wombat", "root(assign(value(a), value(grumpy wombat)))"),
+        .ok("a = grumpy   wombat", "root(assign(value(a), value(grumpy   wombat)))"),
+        .ok("a b = c", "root(assign(value(a b), value(c)))"),
+    });
 }
 
 // java ✓ · pyhocon ✓ · spec ✓ — 'a {b = c}' -> {"a":{"b":"c"}} on both oracles.
 test "the = before a block may be omitted" {
-    try expectAst("a {b = c}", "root(assign(value(a), block(assign(value(b), value(c)))))");
+    try expectAll(&.{
+        .ok("a {b = c}", "root(assign(value(a), block(assign(value(b), value(c)))))"),
+    });
 }
 
 // java ✓ · pyhocon ✓ · spec ✓ — all eleven inputs agree on both oracles.
@@ -557,17 +638,30 @@ test "the = before a block may be omitted" {
 // array collects values. Separators are the same (`,` and newline, runs collapse,
 // a trailing one is allowed), and an element may itself be an array or a block.
 test "arrays" {
-    try expectAst("a = []", "root(assign(value(a), array()))");
-    try expectAst("a = [1]", "root(assign(value(a), array(value(1))))");
-    try expectAst("a = [1, 2]", "root(assign(value(a), array(value(1), value(2))))");
-    try expectAst("a = [1, 2,]", "root(assign(value(a), array(value(1), value(2))))");
-    try expectAst("a = [\n1\n2\n]", "root(assign(value(a), array(value(1), value(2))))");
-    try expectAst("a = [grumpy wombat]", "root(assign(value(a), array(value(grumpy wombat))))");
-    try expectAst("a = [[1], [2]]", "root(assign(value(a), array(array(value(1)), array(value(2)))))");
-    try expectAst("a = [1, [2, [3]]]", "root(assign(value(a), array(value(1), array(value(2), array(value(3))))))");
-    try expectAst("a = [{b = c}]", "root(assign(value(a), array(block(assign(value(b), value(c))))))");
-    try expectAst("a = [{b = c}, {d = e}]", "root(assign(value(a), array(block(assign(value(b), value(c))), block(assign(value(d), value(e))))))");
-    try expectAst("a = {b = [1, 2]}", "root(assign(value(a), block(assign(value(b), array(value(1), value(2))))))");
+    try expectAll(&.{
+        .ok("a = []", "root(assign(value(a), array()))"),
+        .ok("a = [1]", "root(assign(value(a), array(value(1))))"),
+        .ok("a = [1, 2]", "root(assign(value(a), array(value(1), value(2))))"),
+        .ok("a = [1, 2,]", "root(assign(value(a), array(value(1), value(2))))"),
+        .ok("a = [\n1\n2\n]", "root(assign(value(a), array(value(1), value(2))))"),
+        .ok("a = [grumpy wombat]", "root(assign(value(a), array(value(grumpy wombat))))"),
+        .ok("a = [[1], [2]]", "root(assign(value(a), array(array(value(1)), array(value(2)))))"),
+        .ok("a = [1, [2, [3]]]", "root(assign(value(a), array(value(1), array(value(2), array(value(3))))))"),
+        .ok("a = [{b = c}]", "root(assign(value(a), array(block(assign(value(b), value(c))))))"),
+        .ok("a = [{b = c}, {d = e}]", "root(assign(value(a), array(block(assign(value(b), value(c))), block(assign(value(d), value(e))))))"),
+        .ok("a = {b = [1, 2]}", "root(assign(value(a), block(assign(value(b), array(value(1), value(2))))))"),
+    });
+}
+
+// java ✓ · spec ✓ — an array as the whole document parses. Java rejects it as
+// `WrongType: has type LIST rather than object at file root` — a type error, not
+// a parse error — so the tree is well-formed and the rejection belongs to a
+// later phase. Kept out of "arrays" because it is about the document root
+// rather than about array syntax.
+test "arrays.a root array is a valid tree" {
+    try expectAll(&.{
+        .ok("[1, 2]", "root(array(value(1), value(2)))"),
+    });
 }
 
 // java ✓ · pyhocon ⚠️ · spec ✓ — every input below was run through both oracles.
@@ -608,29 +702,40 @@ test "arrays" {
 // Only the plain quoted form here. `file()`, `url()`, `classpath()` and
 // `required()` are variants of the same shape and are deliberately left out for
 // now; the tokenizer has no rule for `(` yet.
-test "includes" {
-    try expectAst("include \"a.conf\"", "root(include(\"a.conf\"))");
-    // No space is required after the keyword.
-    try expectAst("include\"a.conf\"", "root(include(\"a.conf\"))");
-    try expectAst("include \"a.conf\"\na = b", "root(include(\"a.conf\"), assign(value(a), value(b)))");
-    try expectAst("include \"a.conf\", a = b", "root(include(\"a.conf\"), assign(value(a), value(b)))");
-    try expectAst("a = b\ninclude \"a.conf\"", "root(assign(value(a), value(b)), include(\"a.conf\"))");
+test "include.happy path" {
+    try expectAll(&.{
+        .ok("include \"a.conf\"", "root(include(\"a.conf\"))"),
+        // No space is required after the keyword.
+        .ok("include\"a.conf\"", "root(include(\"a.conf\"))"),
+        .ok("include\n\n\"a.conf\"", "root(include(\"a.conf\"))"),
+        .ok("include \"a.conf\"\na = b", "root(include(\"a.conf\"), assign(value(a), value(b)))"),
+        .ok("include \"a.conf\", a = b", "root(include(\"a.conf\"), assign(value(a), value(b)))"),
+        .ok("a = b\ninclude \"a.conf\"", "root(assign(value(a), value(b)), include(\"a.conf\"))"),
 
-    // // An include is a member, so it appears wherever members do.
-    try expectAst("a { include \"a.conf\" }", "root(assign(value(a), block(include(\"a.conf\"))))");
-    try expectAst("{include \"a.conf\"}", "root(block(include(\"a.conf\")))");
+        // An include is a member, so it appears wherever members do.
+        .ok("a { include \"a.conf\" }", "root(assign(value(a), block(include(\"a.conf\"))))"),
+        .ok("{include \"a.conf\"}", "root(block(include(\"a.conf\")))"),
 
-    // // Not a keyword on the value side, nor inside an array: plain text there, and
-    // // the existing concatenation rules apply unchanged.
-    try expectAst("a = include \"x\"", "root(assign(value(a), concat(value(include), value( ), value(\"x\"))))");
-    try expectAst("a = [include \"x\"]", "root(assign(value(a), array(concat(value(include), value( ), value(\"x\")))))");
+        // Not a keyword on the value side, nor inside an array: plain text there,
+        // and the existing concatenation rules apply unchanged.
+        .ok("a = include \"x\"", "root(assign(value(a), concat(value(include), value( ), value(\"x\"))))"),
+        .ok("a = [include \"x\"]", "root(assign(value(a), array(concat(value(include), value( ), value(\"x\")))))"),
 
-    // // Not a keyword when quoted — then it is just a key like any other.
-    try expectAst("\"include\" = 42", "root(assign(value(\"include\"), value(42)))");
+        // With an unquoted argument it is not even a concatenation: `include foo`
+        // is one run of adjacent unquoted strings, so it stays a single part.
+        // This is the shape a leftover check in `parseText` used to reject.
+        .ok("a = include foo", "root(assign(value(a), value(include foo)))"),
+        .ok("a = [include foo]", "root(assign(value(a), array(value(include foo))))"),
+        .ok("a = include", "root(assign(value(a), value(include)))"),
+        .ok("foo = include bar baz", "root(assign(value(foo), value(include bar baz)))"),
 
-    // // A key that merely starts with the word is untouched, since the tokenizer
-    // // hands over `includes` as one token.
-    try expectAst("includes = 1", "root(assign(value(includes), value(1)))");
+        // Not a keyword when quoted — then it is just a key like any other.
+        .ok("\"include\" = 42", "root(assign(value(\"include\"), value(42)))"),
+
+        // A key that merely starts with the word is untouched, since the
+        // tokenizer hands over `includes` as one token.
+        .ok("includes = 1", "root(assign(value(includes), value(1)))"),
+    });
 }
 
 // java ✓ · pyhocon ⚠️ · spec ✓ — the keyword commits, so anything but a quoted
@@ -642,15 +747,133 @@ test "includes" {
 // Known divergence, accepted for now: java also rejects 'include "a.conf" b = c',
 // because members must be separated. Nothing here separates members yet, so we
 // accept it. Worth revisiting when separators get tightened up.
-test "include with a bad argument is a parse error" {
-    // try expectParseError("include");
-    // try expectParseError("include = 42");
-    // try expectParseError("include nope");
-    // // Exactly one argument — no concatenation, unlike a value.
-    // try expectParseError("include \"a.conf\" \"b.conf\"");
-    // // Case-sensitive.
-    // try expectParseError("Include \"a.conf\"");
-    // try expectParseError("INCLUDE \"a.conf\"");
+// Five of the six are not really about `include` at all: they end up as a bare
+// value where a member belongs, so the member rule below rejects them. Only
+// `include = 42` needs the keyword itself to commit.
+test "include.bad argument" {
+    try expectAll(&.{
+        .bad("include"),
+        .bad("include nope"),
+        // Exactly one argument — no concatenation, unlike a value.
+        .bad("include \"a.conf\" \"b.conf\""),
+        // Case-sensitive.
+        .bad("Include \"a.conf\""),
+        .bad("INCLUDE \"a.conf\""),
+    });
+}
+
+// Parked rather than commented out: `if (true) return error.SkipZigTest` leaves
+// the body compiling, so it cannot rot when something around it is renamed, and
+// `tools/zt` lists it as a todo instead of it silently vanishing from the run.
+//
+// The keyword commits — it is recognised from the first token where a member
+// begins, in `parseContainer`, rather than matched against the parts afterwards.
+// That is the whole reason this is an error instead of assign(value(include),
+// value(42)): once `parseInclude` has been entered there is no way back out.
+test "include.keyword commits" {
+    try expectAll(&.{
+        .bad("include = 42"),
+    });
+}
+
+// java ✓ · spec ✓ — a member of an object is an assignment or an include; a bare
+// value is a key with nothing after it.
+//   'a'            -> ERROR ... may not be followed by token: end of file
+//   'a = b\n{c=d}' -> ERROR       a bare block is not a member
+//   '{ {a=1} }'    -> ERROR       nor is it one inside another object
+// The one place a bare block is legal is as the whole document: '{a=1}' -> {"a":1}.
+//
+// '[1,2]' looks like it belongs here but does not: java reports `WrongType: has
+// type LIST rather than object at file root`, a type error rather than a parse
+// error, so the tree is fine and only the document is wrong. It is asserted as
+// a tree in "arrays" instead.
+test "member.a bare value is not a member" {
+    try expectAll(&.{
+        .bad("a"),
+        .bad("a b"),
+        .bad("\"a\""),
+        .bad("a = b\nc"),
+        .bad("{a = b\nc}"),
+        .bad("a = b\n{c=d}"),
+        .bad("{ {a=1} }"),
+
+        // Still fine: the braced root, and values inside an array.
+        .ok("{a = b}", "root(block(assign(value(a), value(b))))"),
+        .ok("a = [b, c]", "root(assign(value(a), array(value(b), value(c))))"),
+    });
+}
+
+// java ✓ · spec ✓ — when a document opens with `{` or `[`, that one value IS the
+// document. Nothing may follow it — not another member, not a concatenation, not
+// even on the same line:
+//   '{a = b}\n{c = d}' -> ERROR Document has trailing tokens after first object or array
+//   '{a = b} {c = d}'  -> ERROR       same, so concatenation is out too
+//   '[1] [2]'          -> ERROR
+//   '[1, 2]\n[3]'      -> ERROR
+//
+// This is the only rule where root differs from a block: inside a value,
+// 'a = {x:5} {y:6}' concatenates happily (see "nested blocks"). Root has no
+// implicit braces around it once an explicit one has opened.
+//
+// Parked: needs `parseContainer` to know that a root which started with a
+// brace or a bracket is finished after one member.
+test "member.a braced root is the whole document" {
+    try expectAll(&.{
+        .bad("{a = b}\n{c = d}"),
+        .bad("{a = b} {c = d}"),
+        .bad("[1] [2]"),
+        .bad("[1, 2]\n[3]"),
+        .bad("{a = 1}\nb = 2"),
+        .bad("a = b\n{c = d}"),
+
+        // A trailing newline is not "something after it": '{a = 1}\n' -> {"a":1}.
+        .ok("{a = 1}\n", "root(block(assign(value(a), value(1))))"),
+    });
+}
+
+// java ✓ · spec ✓ — every row below was run through tools/oracle/hocon-java.
+//
+// A newline separates members, but it does NOT end a member that is not finished
+// yet. While the parser is waiting for a separator or for a value, newlines are
+// skipped and the thing it was waiting for is still required:
+//
+//   'a\n\n= b'     -> {"a":"b"}       any number of them, before the separator
+//   'a b\n= c'     -> {"a b":"c"}     multi-word key, same thing
+//   'a =\n\n b'    -> {"a":"b"}       and before the value
+//   'a\nb = c'     -> ERROR  Key 'a' may not be followed by token: 'b'
+//   'a = b\nc'     -> ERROR  Key 'c' may not be followed by token: end of file
+//
+// That third error message is the tell: java did not treat `a` as complete at the
+// end of the line, it kept reading and complained about `b`. Once the member IS
+// complete the newline ends it as usual, which is why 'a = b\nc = d' stays two
+// members.
+//
+// Inside `[ ]` and `{ }` this already works, because those swallow newlines
+// explicitly. The gap is everywhere else.
+//
+// `include\n"a.conf"` is the same rule and not a special case: after the keyword
+// the parser is waiting for an argument, so newlines are skipped there too.
+//
+// Parked: this is its own piece of work — two places need "skip newlines, then
+// require what was expected" — rather than something to fold into another change.
+test "member.newline does not end an unfinished member" {
+    // if (true) return error.SkipZigTest;
+    try expectAll(&.{
+        .ok("a =\nb", "root(assign(value(a), value(b)))"),
+        .ok("a\n= b", "root(assign(value(a), value(b)))"),
+        .ok("a\n\n= b", "root(assign(value(a), value(b)))"),
+        .ok("a = \n\n b", "root(assign(value(a), value(b)))"),
+        .ok("a b\n= c", "root(assign(value(a b), value(c)))"),
+        .ok("include\n\"a.conf\"", "root(include(\"a.conf\"))"),
+
+        // A complete member still ends at the newline.
+        .ok("a = b\nc = d", "root(assign(value(a), value(b)), assign(value(c), value(d)))"),
+
+        // And an unfinished one that is never finished is still an error.
+        .bad("a\nb = c"),
+        .bad("a = b\nc"),
+        .bad("a = b c\n= d"),
+    });
 }
 
 // java ✓ · pyhocon ✓ · spec ✓ — the input itself is uncontroversial
@@ -662,5 +885,7 @@ test "include with a bad argument is a parse error" {
 // (string) from `a = 1` (number), so the quotes have to survive into the ast —
 // either by widening the loc, or by flagging the node as quoted.
 test "quoted value keeps its quotes" {
-    try expectAst("a = \"b\"", "root(assign(value(a), value(\"b\")))");
+    try expectAll(&.{
+        .ok("a = \"b\"", "root(assign(value(a), value(\"b\")))"),
+    });
 }

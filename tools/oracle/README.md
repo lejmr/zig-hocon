@@ -34,7 +34,7 @@ for deciding what is correct. Confirmed divergences:
 
 | input | java | pyhocon | zig-hocon (this repo) | what the spec says |
 |---|---|---|---|---|
-| `"a" b = c` | `{"a b":"c"}` | error | ⚠️ `assign(value(a" b), …)` — **wrong**, key mangled | **java.** A key is a path expression, and a path element may be a quoted or an unquoted string; adjacent ones concatenate like any value. |
+| `"a" b = c` | `{"a b":"c"}` | error | ✅ `assign(concat(value("a"), value( ), value(b)), value(c))` — matches java | **java.** A key is a path expression, and a path element may be a quoted or an unquoted string; adjacent ones concatenate like any value. |
 | `"a"."b" = c` | `{"a":{"b":"c"}}` | error | `UnexpectedToken` — path expressions not implemented | **java.** Path elements are separated by `.` and each may be quoted, which is the documented way to put a `.` inside a single key. |
 | `a = b\tc` | `{"a":"b\tc"}` — tab kept | `{"a":"b   c"}` — tab expanded | ✅ `value(b\tc)` — matches java | **java.** Whitespace between simple values is preserved verbatim in value concatenation; nothing licenses rewriting a tab. |
 | `a = b:c` | error — `:` is reserved | `{"a":"b:c"}` | ✅ `UnexpectedToken` | **java.** `:` is in the list of characters forbidden in unquoted strings (``$ " { } [ ] : = , + # ` ^ ? ! @ * & \``). |
@@ -43,7 +43,7 @@ for deciding what is correct. Confirmed divergences:
 | `a = b,,c = d` | error | `{"a":"b","c":"d"}` | accepted — deliberately lenient | **java.** Same rule: `,` and newline are separators, not filler, so a doubled comma is not covered. |
 | `a = include "x"` | `{"a":"include x"}` | error — tries to load `x` | ✅ `concat(value(include), …)` — matches java | **java.** `include` is a keyword only where a field starts. On the value side it is an ordinary unquoted string. |
 | `a = [include "x"]` | `{"a":["include x"]}` | `{"a":[]}` — **silently dropped** | ✅ matches java | **java.** Same rule. Note pyhocon loses the element with no error at all. |
-| `include = 42` | error | `{"include":42}` | ⚠️ `assign(value(include), value(42))` — include not implemented yet | **java.** The keyword commits: the spec has it followed by a quoted string or one of `file()`/`url()`/`classpath()`, with no fallback to a field named `include`. |
+| `include = 42` | error | `{"include":42}` | ✅ `UnexpectedToken` — matches java, the keyword commits | **java.** The keyword commits: the spec has it followed by a quoted string or one of `file()`/`url()`/`classpath()`, with no fallback to a field named `include`. |
 | `Include "x.conf"` | error | includes the file | ✅ `UnexpectedToken` — matches java | **java.** The spec spells the keyword lowercase; pyhocon matches case-insensitively. |
 
 The zig-hocon column is what the parser does *today*, produced by dumping the ast
