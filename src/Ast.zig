@@ -88,10 +88,7 @@ pub const Parser = struct {
             else => return Error.UnexpectedToken,
         }
 
-        const children = try self.gpa.alloc(Node, 2);
-        children[0] = key;
-        children[1] = try self.parseValue();
-        return Node{ .kind = .assignment, .children = children };
+        return prepareMemberNode(self.gpa, key, try self.parseValue());
     }
 
     /// One value: the parts written next to each other with no separator in
@@ -352,6 +349,56 @@ pub const Parser = struct {
         };
     }
 };
+
+/// Builds the member node for `key = value`, expanding a dotted key into the
+/// nesting it stands for: `a.b = 1` is `a { b = 1 }`, and both build the same
+/// tree on purpose.
+///
+/// Splitting belongs here rather than in evaluation, because the only thing
+/// carrying the difference between `a."b.c"` and `a.b.c` is which dots were
+/// quoted — and evaluation, which joins the parts into text, no longer has it.
+/// A multi-part key is left alone for now, dots and all.
+fn prepareMemberNode(gpa: std.mem.Allocator, key: Node, value: Node) Parser.Error!Node {
+    // if we are none quoted string then we can try to unnest the key
+    const is_not_quoted = std.mem.indexOfScalar(u8, key.value, '"') == null;
+    if (key.kind == .value and is_not_quoted) {
+        // Lets break into sections
+        const last_index = std.mem.lastIndexOfScalar(u8, key.value, '.');
+        if (last_index) |idx| {
+            // Unsupported situations
+            if (idx + 1 == key.value.len or idx == 0) return Parser.Error.UnexpectedToken;
+            if (key.value[idx - 1] == '.') return Parser.Error.UnexpectedToken;
+
+            // For the member object
+            const new_key = key.value[idx + 1 ..];
+            const new_member = Node{
+                .kind = .assignment,
+                .children = try gpa.dupe(
+                    Node,
+                    &.{
+                        Node{ .kind = .value, .value = new_key, .children = &.{} },
+                        value,
+                    },
+                ),
+            };
+
+            // Prepare recursive call
+            const pre = key.value[0..idx];
+            const new_value = Node{ .kind = .block, .children = try gpa.dupe(Node, &.{new_member}) };
+            return prepareMemberNode(
+                gpa,
+                Node{ .kind = .value, .value = pre, .children = &.{} },
+                new_value,
+            );
+        }
+    }
+
+    // Lets return at the end of recursion or in case of a complex key
+    return .{
+        .kind = .assignment,
+        .children = try gpa.dupe(Node, &.{ key, value }),
+    };
+}
 
 /// Prints the whole token stream for `input`, one token per line. `expectAll`
 /// runs this for a `.only` row, so a debugging session shows straight away
@@ -653,7 +700,9 @@ test "arrays" {
     });
 }
 
-// java ✓ · spec ✓ — an array as the whole document parses. Java rejects it as
+// java ✓ · pyhocon ✓ · spec ✓ — both oracles parse it; they disagree only on
+// whether the *document* is valid, which is exactly the point. An array as the
+// whole document parses. Java rejects it as
 // `WrongType: has type LIST rather than object at file root` — a type error, not
 // a parse error — so the tree is well-formed and the rejection belongs to a
 // later phase. Kept out of "arrays" because it is about the document root
@@ -776,8 +825,10 @@ test "include.keyword commits" {
     });
 }
 
-// java ✓ · spec ✓ — a member of an object is an assignment or an include; a bare
-// value is a key with nothing after it.
+// java ✓ · pyhocon ✓ · spec ✓ — all nine inputs agree on both oracles.
+//
+// A member of an object is an assignment or an include; a bare value is a key
+// with nothing after it.
 //   'a'            -> ERROR ... may not be followed by token: end of file
 //   'a = b\n{c=d}' -> ERROR       a bare block is not a member
 //   '{ {a=1} }'    -> ERROR       nor is it one inside another object
@@ -803,7 +854,10 @@ test "member.a bare value is not a member" {
     });
 }
 
-// java ✓ · spec ✓ — when a document opens with `{` or `[`, that one value IS the
+// java ✓ · pyhocon ✓ · spec ✓ — all seven inputs agree on both oracles; pyhocon
+// says "Expected end of text" where java says "Document has trailing tokens".
+//
+// When a document opens with `{` or `[`, that one value IS the
 // document. Nothing may follow it — not another member, not a concatenation, not
 // even on the same line:
 //   '{a = b}\n{c = d}' -> ERROR Document has trailing tokens after first object or array
@@ -831,7 +885,7 @@ test "member.a braced root is the whole document" {
     });
 }
 
-// java ✓ · spec ✓ — every row below was run through tools/oracle/hocon-java.
+// java ✓ · pyhocon ✓ · spec ✓ — all ten inputs agree on both oracles.
 //
 // A newline separates members, but it does NOT end a member that is not finished
 // yet. While the parser is waiting for a separator or for a value, newlines are
@@ -887,5 +941,122 @@ test "member.newline does not end an unfinished member" {
 test "quoted value keeps its quotes" {
     try expectAll(&.{
         .ok("a = \"b\"", "root(assign(value(a), value(\"b\")))"),
+    });
+}
+
+// java ✓ · pyhocon ⚠️ · spec ✓ — every input below through both oracles. Twelve
+// of eighteen agree; pyhocon diverges on six, all malformed paths, and every
+// time in the losing direction — it drops the empty element instead of saying
+// anything.
+//
+//   input             java                       pyhocon
+//   a.b = 1           {"a":{"b":1}}              same
+//   a.b.c = 1         {"a":{"b":{"c":1}}}        same
+//   a.b.c.d = 1       {"a":{"b":{"c":{"d":1}}}}  same
+//   a {b = 1}         {"a":{"b":1}}              same
+//   a.b {c = 1}       {"a":{"b":{"c":1}}}        same
+//   1.5 = x           {"1":{"5":"x"}}            same
+//   a. b = 1          {"a":{" b":1}}             same
+//   a .b = 1          {"a ":{"b":1}}             same
+//   "a.b" = 1         {"a.b":1}                  same
+//   a = b.c           {"a":"b.c"}                same
+//   a.b = 1\na.c = 2  {"a":{"b":1,"c":2}}        same
+//   .. = 1            ERROR BadPath              ERROR
+//   .a = 1            ERROR BadPath              {"a":1}
+//   a. = 1            ERROR BadPath              {"a":1}
+//   a..b = 1          ERROR BadPath              {"a":{"b":1}}
+//   ..a = 1           ERROR BadPath              {"a":1}
+//   a..b.c = 1        ERROR BadPath              {"a":{"b":{"c":1}}}
+//   a.b..c = 1        ERROR BadPath              {"a":{"b":{"c":1}}}
+//
+// Java is followed. The leniency rule in tools/oracle/README.md ("where java is
+// stricter, stay lenient") does not apply here: java's own message points at the
+// fix ('use quoted "" empty string if you want an empty element'), so accepting
+// the input silently would be guessing at what an empty path element meant.
+//
+// A key is a *path*: elements separated by `.`. Splitting it belongs here rather
+// than to evaluation, because the only thing carrying the difference between
+// `a."b.c"` and `a.b.c` is which dots were quoted — and evaluation, which joins
+// the parts into text, no longer has that. Same litmus test as everywhere else.
+//
+// The shape is the one `a {b = 1}` already produces, deliberately: the two spell
+// the same thing, so they should build the same tree. Evaluation then merges
+// 'a.b = 1' with 'a {c = 2}' without knowing they were written differently.
+//
+// Two rows need no code of their own. Adjacent unquoted strings are one
+// contiguous slice of the input, interior whitespace included, so 'a. b' really
+// is the text `a. b` and splitting it on the dot yields `a` and ` b` — which is
+// exactly what java reports.
+//
+// The four rows with an empty element away from the last dot ('..a', 'a..b.c',
+// 'a.b..c', '..') are the ones worth keeping: an implementation that peels one
+// element off the right and only checks that one would accept all four.
+test "key.a dotted key is a path" {
+    try expectAll(&.{
+        .ok("a.b = 1", "root(assign(value(a), block(assign(value(b), value(1)))))"),
+        .ok("a.b.c = 1", "root(assign(value(a), block(assign(value(b), block(assign(value(c), value(1)))))))"),
+
+        // The point of the shape: these two must dump identically.
+        .ok("a {b = 1}", "root(assign(value(a), block(assign(value(b), value(1)))))"),
+        .ok("a.b {c = 1}", "root(assign(value(a), block(assign(value(b), block(assign(value(c), value(1)))))))"),
+
+        // A number is just an unquoted string, so it splits like any other key.
+        .ok("1.5 = x", "root(assign(value(1), block(assign(value(5), value(x)))))"),
+
+        // Whitespace around a dot belongs to the element it touches.
+        .ok("a. b = 1", "root(assign(value(a), block(assign(value( b), value(1)))))"),
+        .ok("a .b = 1", "root(assign(value(a ), block(assign(value(b), value(1)))))"),
+
+        // Quoted: one element, not split.
+        .ok("\"a.b\" = 1", "root(assign(value(\"a.b\"), value(1)))"),
+
+        // Only keys are paths — a dot in a value is ordinary text.
+        .ok("a = b.c", "root(assign(value(a), value(b.c)))"),
+
+        // An empty element is a BadPath in java, whichever end it is on.
+        .bad(".a = 1"),
+        .bad("a. = 1"),
+        .bad("a..b = 1"),
+
+        // An empty element anywhere, not just next to the last dot — the check
+        // has to reach every element, not only the one being peeled off.
+        .bad("..a = 1"),
+        .bad("a..b.c = 1"),
+        .bad("a.b..c = 1"),
+        .bad(".. = 1"),
+
+        // Depth is not special-cased.
+        .ok(
+            "a.b.c.d = 1",
+            "root(assign(value(a), block(assign(value(b), block(assign(value(c), block(assign(value(d), value(1)))))))))",
+        ),
+
+        // Two paths sharing a prefix stay two members side by side. Merging them
+        // into {"a":{"b":1,"c":2}} is evaluation, not the parser.
+        .ok(
+            "a.b = 1\na.c = 2",
+            "root(assign(value(a), block(assign(value(b), value(1)))), assign(value(a), block(assign(value(c), value(2)))))",
+        ),
+    });
+}
+
+// java ⚠️ · pyhocon ⚠️ · spec ✓ — nobody agrees with us here, and for opposite
+// reasons: java splits these ('"a"."b" = 1' -> {"a":{"b":1}}, 'a "b c" d = f' ->
+// {"a b c d":"f"}), pyhocon rejects both outright. We keep the parts side by
+// side, which is neither — the state tools/oracle/README.md records as
+// unimplemented.
+//
+// A key made of several parts is left alone for now, so a dot
+// in one is not yet a separator. Java splits these too ('"a"."b" = 1' gives
+// {"a":{"b":1}}); we keep the parts side by side instead, which is the state
+// tools/oracle/README.md records as unimplemented.
+//
+// Asserted rather than left untested: the pass-through is what makes the split
+// safe to write as `key.kind == .value`, and a concat key that started splitting
+// by accident would otherwise fail somewhere far away.
+test "key.a multi-part key is not split yet" {
+    try expectAll(&.{
+        .ok("\"a\".\"b\" = 1", "root(assign(concat(value(\"a\"), value(.), value(\"b\")), value(1)))"),
+        .ok("a \"b c\" d = f", "root(assign(concat(value(a), value( ), value(\"b c\"), value( ), value(d)), value(f)))"),
     });
 }

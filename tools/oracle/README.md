@@ -44,6 +44,9 @@ for deciding what is correct. Confirmed divergences:
 | `a = include "x"` | `{"a":"include x"}` | error — tries to load `x` | ✅ `concat(value(include), …)` — matches java | **java.** `include` is a keyword only where a field starts. On the value side it is an ordinary unquoted string. |
 | `a = [include "x"]` | `{"a":["include x"]}` | `{"a":[]}` — **silently dropped** | ✅ matches java | **java.** Same rule. Note pyhocon loses the element with no error at all. |
 | `include = 42` | error | `{"include":42}` | ✅ `UnexpectedToken` — matches java, the keyword commits | **java.** The keyword commits: the spec has it followed by a quoted string or one of `file()`/`url()`/`classpath()`, with no fallback to a field named `include`. |
+| `.a = 1` | error — `BadPath` | `{"a":1}` — **empty element dropped** | ⏳ not implemented — keys are not split yet | **java.** A path element may be empty only if written as `""`; the error message says so outright. |
+| `a..b = 1` | error — `BadPath` | `{"a":{"b":1}}` — **silently** | ⏳ not implemented | **java.** Same rule, and pyhocon guesses at what the author meant. |
+| `a "b c" d = f` | `{"a b c d":"f"}` | error | ⚠️ `assign(concat(…), value(f))` — parts kept side by side, key not joined | **java.** A key is a path expression and adjacent elements concatenate exactly like a value. |
 | `Include "x.conf"` | error | includes the file | ✅ `UnexpectedToken` — matches java | **java.** The spec spells the keyword lowercase; pyhocon matches case-insensitively. |
 
 The zig-hocon column is what the parser does *today*, produced by dumping the ast
