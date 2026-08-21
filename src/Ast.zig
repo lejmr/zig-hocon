@@ -2,6 +2,8 @@ const std = @import("std");
 const testing = std.testing;
 
 const Tokenizer = @import("Tokenizer.zig");
+const table = @import("table.zig");
+const Case = table.Case;
 
 const Node = struct {
     kind: NodeKind,
@@ -25,19 +27,23 @@ const Node = struct {
         /// `value`. A `concat` appears only when the value cannot be one slice:
         /// a quoted part is involved, or a part is an object or an array.
         concat,
+        subst,
+        subst_optional,
     };
 };
 
 const PeakingTokenizer = struct {
     t: Tokenizer.Tokenizer,
     peeked: ?Tokenizer.Token = null,
+    last_end: usize = 0,
 
     fn next(self: *PeakingTokenizer) Tokenizer.Token {
-        if (self.peeked) |token| {
+        const token = if (self.peeked) |peeked| blk: {
             self.peeked = null;
-            return token;
-        }
-        return self.t.next();
+            break :blk peeked;
+        } else self.t.next();
+        self.last_end = token.loc.end;
+        return token;
     }
 
     fn peek(self: *PeakingTokenizer) Tokenizer.Token {
@@ -108,7 +114,21 @@ pub const Parser = struct {
         defer parts.deinit(self.gpa);
 
         var concat_type: ?Node.NodeKind = null;
+        // Where the previous part ended, so the whitespace before the next one
+        // can be sliced out. Null until the first part, which has nothing before
+        // it to be separated from.
+        var prev_end: ?usize = null;
+
         while (true) {
+            // Read before the switch, kept until after it: the gap belongs in
+            // front of the part, but the part is what decides there is one at
+            // all — a value that ends here leaves its trailing whitespace out.
+            const part_start = self.t.peek().loc.start;
+            const gap: ?[]const u8 = if (prev_end) |end|
+                if (end < part_start) self.t.t.input[end..part_start] else null
+            else
+                null;
+
             const part: Node = switch (self.t.peek().tag) {
                 .string, .quoted_string => try self.parseText(),
                 .l_brace => blk: {
@@ -129,8 +149,29 @@ pub const Parser = struct {
 
                     break :blk try self.parseContainer(.r_bracket, .array);
                 },
+                .dollar_brace_optional, .dollar_brace => |tag| blk: {
+                    _ = self.t.next();
+
+                    // The inside is a path expression, which is text — anything
+                    // else is rejected, and then the `}` is required.
+                    const path = try self.parseValue();
+                    if (!isPathText(path)) return Error.UnexpectedToken;
+                    if (self.t.next().tag != .r_brace) return Error.UnexpectedToken;
+
+                    break :blk Node{
+                        .kind = if (tag == .dollar_brace_optional) .subst_optional else .subst,
+                        .children = try self.gpa.dupe(Node, &.{path}),
+                    };
+                },
                 else => break,
             };
+
+            if (gap) |text| try parts.append(self.gpa, .{
+                .kind = .value,
+                .value = text,
+                .children = &.{},
+            });
+            prev_end = self.t.last_end;
 
             switch (part.kind) {
                 else => {
@@ -334,6 +375,10 @@ pub const Parser = struct {
                     _ = self.t.next();
                     break :blk try self.parseContainer(.r_bracket, .array);
                 },
+                .dollar_brace, .dollar_brace_optional => blk: {
+                    if (containerType != .array) return Error.UnexpectedToken;
+                    break :blk try self.parseValue();
+                },
                 else => return Error.UnexpectedToken,
             };
 
@@ -400,22 +445,17 @@ fn prepareMemberNode(gpa: std.mem.Allocator, key: Node, value: Node) Parser.Erro
     };
 }
 
-/// Prints the whole token stream for `input`, one token per line. `expectAll`
-/// runs this for a `.only` row, so a debugging session shows straight away
-/// whether the problem is in the tokenizer or in the parser.
-fn dumpTokens(input: [:0]const u8) void {
-    var t = Tokenizer.Tokenizer.init(input);
-    std.debug.print("tokens for \"{s}\":\n", .{input});
-    while (true) {
-        const tok = t.next();
-        std.debug.print("  {s:<16} @{d}..{d} \"{s}\"\n", .{
-            @tagName(tok.tag),
-            tok.loc.start,
-            tok.loc.end,
-            input[tok.loc.start..tok.loc.end],
-        });
-        if (tok.tag == .eof or tok.tag == .invalid) break;
-    }
+/// Whether `node` is the text a path expression is made of. The inside of
+/// `${…}` is a path, so a block, an array or a nested substitution in there is
+/// an error — java rejects all three with `BadPath`.
+fn isPathText(node: Node) bool {
+    return switch (node.kind) {
+        .value => true,
+        .concat => for (node.children) |child| {
+            if (!isPathText(child)) break false;
+        } else true,
+        else => false,
+    };
 }
 
 /// Renders `node` as a one-line s-expression, e.g. `root(assign(value(a), value(b)))`.
@@ -425,12 +465,14 @@ fn dumpNode(node: Node, w: *std.Io.Writer) std.Io.Writer.Error!void {
     switch (node.kind) {
         // Containers all render the same way: kind(child, child, …). An
         // assignment is one too — children[0] is the key, children[1] the value.
-        .root, .block, .array, .assignment, .concat => {
+        .root, .block, .array, .assignment, .concat, .subst, .subst_optional => {
             try w.writeAll(switch (node.kind) {
                 .root => "root(",
                 .block => "block(",
                 .array => "array(",
                 .concat => "concat(",
+                .subst => "subst(",
+                .subst_optional => "subst?(",
                 else => "assign(",
             });
             for (node.children, 0..) |child, i| {
@@ -444,128 +486,31 @@ fn dumpNode(node: Node, w: *std.Io.Writer) std.Io.Writer.Error!void {
     }
 }
 
-/// `dumpNode` into a freshly allocated string owned by the caller.
-fn dump(node: Node, allocator: std.mem.Allocator) ![]u8 {
-    var aw = std.Io.Writer.Allocating.init(allocator);
-    defer aw.deinit();
-    try dumpNode(node, &aw.writer);
-    return aw.toOwnedSlice();
+/// Builds the `table.Options.dump` for one entry point into the parser, so a
+/// table can be run through `parse` or through `parseText` alone.
+fn dumper(comptime parseFn: fn (*Parser) Parser.Error!Node) *const fn (std.mem.Allocator, [:0]const u8) anyerror![]u8 {
+    return &struct {
+        fn dump(gpa: std.mem.Allocator, in: [:0]const u8) anyerror![]u8 {
+            var p = Parser{ .gpa = gpa, .t = .{ .t = Tokenizer.Tokenizer.init(in) } };
+            const tree = try parseFn(&p);
+
+            var aw = std.Io.Writer.Allocating.init(gpa);
+            try dumpNode(tree, &aw.writer);
+            return aw.toOwnedSlice();
+        }
+    }.dump;
 }
 
-/// One row of a table test: an input and what the tree should dump as. `.err`
-/// instead of `.want` says the input must not parse at all.
-const Case = struct {
-    in: [:0]const u8,
-    want: ?[]const u8 = null,
-    err: bool = false,
-    focus: bool = false,
-
-    /// `.{ .in = "a = b", .want = "…" }` reads fine, but the shorthands read
-    /// better in a long table.
-    fn ok(in: [:0]const u8, want: []const u8) Case {
-        return .{ .in = in, .want = want };
-    }
-    fn bad(in: [:0]const u8) Case {
-        return .{ .in = in, .err = true };
-    }
-
-    /// Debugging aid: mark a row `.only` and `expectAll` runs that one alone, so
-    /// a breakpoint inside the parser fires on the case you care about instead of
-    /// once per row. Works on both shapes — `.only(.bad("…"))`.
-    fn only(c: Case) Case {
-        var focused = c;
-        focused.focus = true;
-        return focused;
-    }
-};
-
-/// Runs every case and only then fails, listing each one as ✓ or ✗.
-///
-/// A plain `try expect…(…)` chain stops at the first mismatch, so a red test
-/// says nothing about the rows below it — which is what makes people comment
-/// them out one at a time. This runs all of them, so one run shows exactly which
-/// variants work and which do not.
-///
-/// Nothing is printed while every row passes: `zig build test` reports a passing
-/// test that wrote to stderr as a failed command.
+/// Runs a table of cases through the whole parser. See `table.expectAll` for
+/// what the report looks like and what `.only` does.
 fn expectAll(cases: []const Case) !void {
-    return expectAllWith(cases, Parser.parse);
+    return table.expectAll(cases, .{ .dump = dumper(Parser.parse) });
 }
 
 /// The same table, run through `parseText` instead of the whole parser — for the
 /// rows that are about how text splits into parts, with no document around them.
 fn expectAllText(cases: []const Case) !void {
-    return expectAllWith(cases, Parser.parseText);
-}
-
-/// Writes `s` with its newlines and tabs escaped, so one case stays one line of
-/// the report even when the input spans several.
-fn writeEscaped(w: *std.Io.Writer, s: []const u8) std.Io.Writer.Error!void {
-    for (s) |c| switch (c) {
-        '\n' => try w.writeAll("\\n"),
-        '\t' => try w.writeAll("\\t"),
-        '\r' => try w.writeAll("\\r"),
-        else => try w.writeByte(c),
-    };
-}
-
-fn expectAllWith(cases: []const Case, comptime parseFn: fn (*Parser) Parser.Error!Node) !void {
-    var report = std.Io.Writer.Allocating.init(testing.allocator);
-    defer report.deinit();
-    const w = &report.writer;
-
-    var focused = false;
-    for (cases) |c| focused = focused or c.focus;
-
-    var failures: usize = 0;
-    for (cases) |c| {
-        if (focused and !c.focus) continue;
-
-        var arena = std.heap.ArenaAllocator.init(testing.allocator);
-        defer arena.deinit();
-
-        var p = Parser{
-            .gpa = arena.allocator(),
-            .t = .{ .t = Tokenizer.Tokenizer.init(c.in) },
-        };
-
-        var got: []const u8 = undefined;
-        var got_buf: ?[]u8 = null;
-        defer if (got_buf) |b| testing.allocator.free(b);
-
-        if (parseFn(&p)) |tree| {
-            got_buf = try dump(tree, testing.allocator);
-            got = got_buf.?;
-        } else |e| {
-            got = @errorName(e);
-        }
-
-        const passed = if (c.err) got_buf == null else got_buf != null and
-            std.mem.eql(u8, c.want.?, got);
-
-        try w.writeAll(if (passed) "  \x1b[32m✓\x1b[0m " else "  \x1b[31m✗\x1b[0m ");
-        try writeEscaped(w, c.in);
-        try w.writeByte('\n');
-        if (!passed) {
-            failures += 1;
-            try w.print("      want {s}\n", .{if (c.err) "a parse error" else c.want.?});
-            try w.print("      got  {s}\n", .{got});
-        }
-    }
-
-    // A focused run fails even when the row passes: `.only` skips coverage, so it
-    // must be impossible to leave behind in a green test.
-    if (focused) {
-        std.debug.print("\n{s}  focused on .only — remove it to run the whole table\n", .{report.written()});
-        // A focused run is a debugging session, so the token stream is worth
-        // having; printing it for every row of a full table would not be.
-        for (cases) |c| if (c.focus) dumpTokens(c.in);
-        return error.TestFocused;
-    }
-    if (failures != 0) {
-        std.debug.print("\n{s}  {d}/{d} cases failed\n", .{ report.written(), failures, cases.len });
-        return error.TestExpectedEqual;
-    }
+    return table.expectAll(cases, .{ .dump = dumper(Parser.parseText) });
 }
 
 // java ✓ · pyhocon ✓ · spec ✓ — joining the parts end to end reproduces what the
@@ -1058,5 +1003,132 @@ test "key.a multi-part key is not split yet" {
     try expectAll(&.{
         .ok("\"a\".\"b\" = 1", "root(assign(concat(value(\"a\"), value(.), value(\"b\")), value(1)))"),
         .ok("a \"b c\" d = f", "root(assign(concat(value(a), value( ), value(\"b c\"), value( ), value(d)), value(f)))"),
+    });
+}
+
+// java ✓ · pyhocon ✓ · spec ✓ — the oracle prints substitutions unresolved, so
+// these are read off java directly:
+//
+//   'a = ${b}'    -> {"a":${b}}        'a = ${?b}'   -> {"a":${?b}}
+//   'a = ${a.b}'  -> {"a":${a.b}}      'a = ${ a }'  -> {"a":${a}}
+//   'a = ${a b}'  -> {"a":${"a b"}}    'a = ${a"b"}' -> {"a":${ab}}
+//   'a = {x:${b}}'-> {"a":{"x":${b}}}  'a = [${b}]'  -> {"a":[${b}]}
+//
+// pyhocon can only be asked with `resolve:`, its oracle being unable to print an
+// unresolved substitution, and agrees wherever it can answer:
+// 'resolve:b=1\na = ${b}c' -> {"a":"1c"} on both.
+//
+// The inside of `${…}` is a *path expression* — the same thing a key is — so it
+// is `parseText` followed by a required `}`, and nothing more. Everything java
+// rejects falls out of that one sentence rather than needing a rule of its own:
+// `${}` has no parts, `${a` and `${a#c}` (the comment eats the brace) never
+// reach one, `${a\nb}` stops at the newline, and `${${a}}` stops at a token that
+// is not text.
+//
+// The path is NOT split on `.` yet: `${a.b}` keeps the whole text. Nothing is
+// lost by waiting — `${a."b.c"}` and `${a.b.c}` already dump differently — and
+// splitting wants doing once, for keys and substitutions together, which is why
+// `${.a}` and `${a..b}` are still accepted here where java says BadPath. See
+// tools/oracle/README.md.
+test "substitution" {
+    try expectAll(&.{
+        .ok("a = ${b}", "root(assign(value(a), subst(value(b))))"),
+        .ok("a = ${?b}", "root(assign(value(a), subst?(value(b))))"),
+        .ok("a = ${? b}", "root(assign(value(a), subst?(value(b))))"),
+
+        // Whitespace around the path is not part of it; whitespace inside is.
+        .ok("a = ${ a }", "root(assign(value(a), subst(value(a))))"),
+        .ok("a = ${a b}", "root(assign(value(a), subst(value(a b))))"),
+
+        // A path expression, so the same shapes a key can have.
+        .ok("a = ${a.b}", "root(assign(value(a), subst(value(a.b))))"),
+        .ok("a = ${\"a.b\"}", "root(assign(value(a), subst(value(\"a.b\"))))"),
+        .ok("a = ${a\"b\"}", "root(assign(value(a), subst(concat(value(a), value(\"b\")))))"),
+
+        // Nowhere but a value: not a key, not an include target, not text.
+        .bad("${a} = 1"),
+        .bad("a${b} = 1"),
+        .bad("include ${a}"),
+        .ok("a = \"${b}\"", "root(assign(value(a), value(\"${b}\")))"),
+
+        // `$` exists only as the start of `${`.
+        .bad("a = $b"),
+        .bad("a = b$c"),
+        .bad("a = $"),
+
+        // Every one of these is a java error, and all of them for the same
+        // reason: `parseText` then `}`.
+        .bad("a = ${}"),
+        .bad("a = ${ }"),
+        .bad("a = ${?}"),
+        .bad("a = ${a"),
+        .bad("a = ${a#c}"),
+        .bad("a = ${a\nb}"),
+        .bad("a = ${${a}}"),
+        .bad("a = ${a${b}}"),
+        // `?` is a reserved character anywhere but directly after `${`.
+        .bad("a = ${ ?a}"),
+        .bad("a = ${a?}"),
+    });
+}
+
+// java ✓ · pyhocon ✓ · spec ✓ — a substitution is one part among others, so the
+// concatenation rules that already exist apply unchanged:
+//
+//   'a = ${b}c'      -> {"a":${b}"c"}       'a = c${b}'   -> {"a":"c"${b}}
+//   'a = ${b}${c}'   -> {"a":${b}${c}}      'a = ${b} [1]'-> {"a":${b}[1]}
+//   'a = ${b} ${c}'  -> {"a":${b}" "${c}}   'a = [1] ${b}'-> {"a":[1]${b}}
+//
+// The gap rows are the point of this group. `${b} ${c}` and `${b}${c}` resolve
+// to different strings ("1 2" against "12"), so the whitespace between two parts
+// carries meaning and the tree has to keep it — which is why the gap part is
+// emitted between *any* two parts now, not only between text ones.
+//
+// Java drops the gap next to an object or a list ('${b} [1]' -> `${b}[1]`),
+// since nothing can concatenate as text there. We keep it, because dropping it
+// is a decision about what the parts mean — evaluation skips whitespace parts
+// when it merges objects or concatenates lists.
+test "substitution.is an ordinary part of a value" {
+    try expectAll(&.{
+        .ok("a = ${b}c", "root(assign(value(a), concat(subst(value(b)), value(c))))"),
+        .ok("a = c${b}", "root(assign(value(a), concat(value(c), subst(value(b)))))"),
+        .ok("a = ${b}${c}", "root(assign(value(a), concat(subst(value(b)), subst(value(c)))))"),
+        .ok("a = ${b} ${c}", "root(assign(value(a), concat(subst(value(b)), value( ), subst(value(c)))))"),
+        .ok("a = ${b} c", "root(assign(value(a), concat(subst(value(b)), value( ), value(c))))"),
+        .ok("a = ${a}${?b}", "root(assign(value(a), concat(subst(value(a)), subst?(value(b)))))"),
+
+        // A comment ends the value, exactly as it does without a substitution.
+        .ok("a = ${a} # c", "root(assign(value(a), subst(value(a))))"),
+
+        // Inside the containers, and next to them.
+        .ok("a = [${b}]", "root(assign(value(a), array(subst(value(b)))))"),
+        .ok("a = [${b}, ${c}]", "root(assign(value(a), array(subst(value(b)), subst(value(c)))))"),
+        .ok("a = {x:${b}}", "root(assign(value(a), block(assign(value(x), subst(value(b))))))"),
+        .ok("a = ${b}[1]", "root(assign(value(a), concat(subst(value(b)), array(value(1)))))"),
+        .ok("a = [1] ${b}", "root(assign(value(a), concat(array(value(1)), value( ), subst(value(b)))))"),
+        .ok("a = {x:1} ${b}", "root(assign(value(a), concat(block(assign(value(x), value(1))), value( ), subst(value(b)))))"),
+
+        // A newline still ends the value: `a = ${b}\n${c}` is two members, and
+        // the second one has no separator. (java: same error.)
+        .bad("a = ${b}\n${c}"),
+    });
+}
+
+// java ✓ · pyhocon ✓ · spec ✓ — the gap between two parts is a part of its own
+// wherever the parts are, not only inside `parseText`:
+//   'a = {x:5} {y:6}' -> {"a":{"x":5,"y":6}}   'a = [1] [2]' -> {"a":[1,2]}
+//   'a = {x=1} y'     -> {"a":{"x":1}}         java parses it and drops the text
+//                                              part when merging — a decision for
+//                                              evaluation, so the tree keeps it.
+// In the first three rows the whitespace plays no role,
+// but it does in 'a = ${b} ${c}', and one rule for both beats two rules split by
+// what the neighbours happen to be. Evaluation is where a whitespace part gets
+// ignored — merging objects, concatenating lists — not the parser.
+test "value.the gap between two parts is always a part" {
+    try expectAll(&.{
+        .ok("a = {x:5} {y:6}", "root(assign(value(a), concat(block(assign(value(x), value(5))), value( ), block(assign(value(y), value(6))))))"),
+        .ok("a = {x:5}{y:6}", "root(assign(value(a), concat(block(assign(value(x), value(5))), block(assign(value(y), value(6))))))"),
+        .ok("a = [1] [2]", "root(assign(value(a), concat(array(value(1)), value( ), array(value(2)))))"),
+        .ok("a = {x=1} y", "root(assign(value(a), concat(block(assign(value(x), value(1))), value( ), value(y))))"),
     });
 }

@@ -55,7 +55,10 @@ Not spec sections of their own, but needed to get there, and already done:
 
 - [ ] [Path expressions](https://github.com/lightbend/config/blob/main/HOCON.md#path-expressions)
 - [ ] [Paths as keys](https://github.com/lightbend/config/blob/main/HOCON.md#paths-as-keys)
-      — `a.b.c = 1` parses but stays one key instead of nesting
+      — an unquoted dotted key nests: `a.b.c = 1` builds the same tree as
+      `a { b { c = 1 } }`, and a malformed path (`.a`, `a.`, `a..b`) is the
+      error java calls `BadPath`. A key made of several parts is still left
+      alone, so `"a"."b" = 1` does not nest yet
 
 - [ ] [Duplicate keys and object merging](https://github.com/lightbend/config/blob/main/HOCON.md#duplicate-keys-and-object-merging)
       — the tree keeps duplicates side by side; merging them is evaluation
@@ -64,6 +67,12 @@ Not spec sections of their own, but needed to get there, and already done:
       `a = {x=1} {y=2}` together with the whitespace between them; which of the
       three kinds applies depends on their types and is decided in evaluation
 - [ ] [Substitutions](https://github.com/lightbend/config/blob/main/HOCON.md#substitutions) (`${a.b.c}`, `${?a.b.c}`)
+      — parsed, not resolved: `${…}` and `${?…}` become nodes of their own
+      wherever a value may stand, and everything java rejects at parse time is
+      rejected here too (`${}`, an unclosed `${a`, a newline or a nested `${`
+      inside the path, `?` anywhere but directly after `${`, and a substitution
+      where a key or an include target belongs). The path inside is kept as
+      text; splitting it on `.` waits for path expressions below
 
 - [ ] [Conversion of numerically-indexed objects to arrays](https://github.com/lightbend/config/blob/main/HOCON.md#conversion-of-numerically-indexed-objects-to-arrays)
 - [ ] [The `+=` field separator](https://github.com/lightbend/config/blob/main/HOCON.md#the--field-separator)
@@ -131,12 +140,17 @@ rather than the format.
 ### Implementation
 
 - [x] Tokenizer — objects, arrays, unquoted, quoted and triple-quoted strings,
-      comments, and the reserved characters that terminate an unquoted string.
-      Numbers, booleans and `null` are tokenized as plain strings; giving them
-      types belongs to evaluation. Known gaps: an escaped backslash right before
-      a closing quote (`\\"`), and a leading `+` on a number.
+      comments, the reserved characters that terminate an unquoted string, and
+      the substitution openers `${` and `${?`. Numbers, booleans and `null` are
+      tokenized as plain strings; giving them types belongs to evaluation. What
+      is *inside* `${…}` gets no special lexing — it is an ordinary token stream
+      closed by `}`. Known gaps: an escaped backslash right before a closing
+      quote (`\\"`), and a leading `+` on a number.
 - [x] Parser — source text to a syntax tree, covering the checked syntax items
-      above. Nested objects and arrays to any depth.
+      above. Nested objects and arrays to any depth. The tree keeps whatever
+      distinguishes two sources that mean different things — quotes, the
+      whitespace between two parts of a value, duplicate keys — and leaves what
+      it means to evaluation.
 - [ ] Evaluation — syntax tree to config values: concatenation, merging,
       substitutions, includes, type conversions.
 - [ ] Public API — parse from a string or a file, typed accessors, and a JSON
