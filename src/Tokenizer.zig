@@ -1,6 +1,8 @@
 const std = @import("std");
 const log = std.log;
 const testing = std.testing;
+const table = @import("table.zig");
+const Case = table.Case;
 
 pub const Token = struct {
     tag: Tag,
@@ -13,6 +15,8 @@ pub const Token = struct {
         r_brace,
         l_bracket,
         r_bracket,
+        dollar_brace_optional,
+        dollar_brace,
 
         string,
         quoted_string,
@@ -111,6 +115,28 @@ pub const Tokenizer = struct {
                     ']' => {
                         self.pos += 1;
                         return .{ .tag = .r_bracket, .loc = .{ .start = self.pos - 1, .end = self.pos } };
+                    },
+
+                    // substitution
+                    '$' => {
+                        // We have room for validating optional dolar braces
+                        if (self.pos + 3 <= self.input.len) {
+                            const dollar_str = self.input[self.pos .. self.pos + 3];
+                            const is_optional = std.mem.eql(u8, dollar_str, "${?");
+                            if (is_optional) {
+                                self.pos += 3;
+                                return .{ .tag = .dollar_brace_optional, .loc = .{ .start = self.pos - 3, .end = self.pos } };
+                            }
+                        }
+
+                        const dollar_str = self.input[self.pos .. self.pos + 2];
+                        const is_subst = std.mem.eql(u8, dollar_str, "${");
+                        if (is_subst) {
+                            self.pos += 2;
+                            return .{ .tag = .dollar_brace, .loc = .{ .start = self.pos - 2, .end = self.pos } };
+                        }
+
+                        return .{ .tag = .invalid, .loc = .{ .start = self.pos, .end = self.pos } };
                     },
 
                     // End of the file
@@ -222,6 +248,49 @@ pub const Tokenizer = struct {
         return .{ .tag = .string, .loc = .{ .start = self.pos, .end = self.pos } };
     }
 };
+
+/// Renders the whole token stream as one line: `string(a) assignment(=)
+/// string(b) eof`. Each token is its tag and the exact source slice its `loc`
+/// points at, so one expectation covers both what the tokenizer decided and
+/// where it thinks the token is — the two things a tokenizer test ever asserts.
+///
+/// The stream stops at `.eof` or `.invalid`; there is nothing meaningful after
+/// either, and `invalid(...)` in the middle of an expectation says exactly where
+/// the input stopped being lexable.
+fn dumpStream(gpa: std.mem.Allocator, in: [:0]const u8) anyerror![]u8 {
+    var aw = std.Io.Writer.Allocating.init(gpa);
+    const w = &aw.writer;
+
+    var t = Tokenizer.init(in);
+    while (true) {
+        const tok = t.next();
+        if (aw.written().len != 0) try w.writeByte(' ');
+        try w.writeAll(@tagName(tok.tag));
+        // `eof` and `invalid` are positions rather than text: neither carries a
+        // slice worth asserting, and pinning the one `invalid` happens to have
+        // would freeze an implementation detail into every table.
+        if (tok.tag != .eof and tok.tag != .invalid) {
+            try w.writeByte('(');
+            try table.writeEscaped(w, in[tok.loc.start..tok.loc.end]);
+            try w.writeByte(')');
+        }
+        if (tok.tag == .eof or tok.tag == .invalid) break;
+    }
+    return aw.toOwnedSlice();
+}
+
+/// Runs a table of cases through the tokenizer. Same runner and same `.only` as
+/// the parser tables in `Ast.zig`; only the rendering differs.
+fn expectAll(cases: []const Case) !void {
+    return table.expectAll(cases, .{ .dump = &dumpStream });
+}
+
+test "table runner renders a token stream" {
+    try expectAll(&.{
+        .ok("a=b", "string(a) assignment(=) string(b) eof"),
+        .ok("a = \"b\"\nc", "string(a) assignment(=) quoted_string(b) newline(\\n) string(c) eof"),
+    });
+}
 
 test "empty input yields eof" {
     var t = Tokenizer.init("");
@@ -448,6 +517,52 @@ test "key path stays a single token, dot is not split off" {
     try testing.expectEqualStrings("1", t.input[value.loc.start..value.loc.end]);
 }
 
+// java ✓ · pyhocon ✓ · spec ✓ — `${` opens a substitution and `}` closes it,
+// so the inside is an ordinary token stream and needs no state of its own:
+//
+//   'a = ${b}'   -> {"a":${b}}      'a = ${a.b}'  -> {"a":${a.b}}
+//   'a = ${?b}'  -> {"a":${?b}}     'a = ${ a }'  -> {"a":${a}}
+//
+// pyhocon is only checkable with `resolve:` — its oracle cannot print an
+// unresolved substitution — and agrees on every row it can answer:
+//   'resolve:b=1\na = ${b}c'  -> {"a":"1c"} on both.
+//
+// The `?` belongs to the opening token rather than being one of its own: java
+// accepts it *only* immediately after `${` ('a = ${ ?a}' and 'a = ${a?}' are
+// both errors, `?` being a reserved character), so lexing `${?` as one token is
+// exactly the rule. Whitespace after it is free — 'a = ${? a}' -> {"a":${?a}}.
+test "substitution" {
+    try expectAll(&.{
+        .ok("${b}", "dollar_brace(${) string(b) r_brace(}) eof"),
+
+        // The `?` belongs to the opening token; whitespace after it is free.
+        .ok("${?b}", "dollar_brace_optional(${?) string(b) r_brace(}) eof"),
+        .ok("${? b}", "dollar_brace_optional(${?) string(b) r_brace(}) eof"),
+
+        // Anywhere but directly after `${` it is what it always was: reserved.
+        .ok("${ ?a}", "dollar_brace(${) invalid"),
+        .ok("${a?}", "dollar_brace(${) string(a) invalid"),
+
+        // `$` exists only as the start of `${`, and it ends the word before it.
+        .ok("$b", "invalid"),
+        .ok("$", "invalid"),
+        .ok("$ {a}", "invalid"),
+        .ok("c${b}", "string(c) dollar_brace(${) string(b) r_brace(}) eof"),
+
+        // Nothing inside gets special lexing, which is what leaves the parser
+        // with "parse a path expression, then require `}`". Three java errors
+        // fall out of that: a newline inside a path (BadPath), a `#` that eats
+        // the closing brace ("Substitution ${ was not closed"), and — one level
+        // up — a quoted element staying a single token.
+        .ok("${\"a.b\"}", "dollar_brace(${) quoted_string(a.b) r_brace(}) eof"),
+        .ok("${a\nb}", "dollar_brace(${) string(a) newline(\\n) string(b) r_brace(}) eof"),
+        .ok("${a#c}", "dollar_brace(${) string(a) eof"),
+
+        // Inside quotes it is literal text: 'a = "${b}"' -> {"a":"${b}"}.
+        .ok("\"${b}\"", "quoted_string(${b}) eof"),
+    });
+}
+
 test "single quote is a legal unquoted string character" {
     var t = Tokenizer.init("a'b' ");
     const tok = t.next();
@@ -462,7 +577,7 @@ test "full sequence" {
         \\obj { x = "y" }
         \\ arr = [1, 2, 3]
         \\d = """
-        \\ this is my 
+        \\ this is my
         \\ multiline string
         \\ """
     );
