@@ -64,13 +64,13 @@ pub const Tokenizer = struct {
                         state_start = self.pos;
                     },
                     '"' => {
+                        state_start = self.pos;
                         if (self.input[self.pos + 1] == '"' and self.input[self.pos + 2] == '"') {
                             self.pos += 2;
                             state = .multiline;
                         } else {
                             state = .quoted;
                         }
-                        state_start = self.pos + 1;
                     },
                     '#' => state = .comment,
                     '/' => {
@@ -204,7 +204,7 @@ pub const Tokenizer = struct {
                             self.pos += 1;
                             return .{ .tag = .quoted_string, .loc = .{
                                 .start = state_start,
-                                .end = self.pos - 1,
+                                .end = self.pos,
                             } };
                         }
                     },
@@ -225,7 +225,7 @@ pub const Tokenizer = struct {
                             self.pos = end + 3;
                             return .{ .tag = .multiline_string, .loc = .{
                                 .start = state_start,
-                                .end = end,
+                                .end = self.pos,
                             } };
                         }
                     },
@@ -288,7 +288,7 @@ fn expectAll(cases: []const Case) !void {
 test "table runner renders a token stream" {
     try expectAll(&.{
         .ok("a=b", "string(a) assignment(=) string(b) eof"),
-        .ok("a = \"b\"\nc", "string(a) assignment(=) quoted_string(b) newline(\\n) string(c) eof"),
+        .ok("a = \"b\"\nc", "string(a) assignment(=) quoted_string(\"b\") newline(\\n) string(c) eof"),
     });
 }
 
@@ -395,14 +395,14 @@ test "quoted string" {
     var t = Tokenizer.init("\"abc\"");
     const tok = t.next();
     try testing.expectEqual(Token.Tag.quoted_string, tok.tag);
-    try testing.expectEqualStrings("abc", t.input[tok.loc.start..tok.loc.end]);
+    try testing.expectEqualStrings("\"abc\"", t.input[tok.loc.start..tok.loc.end]);
 }
 
 test "empty quoted string" {
     var t = Tokenizer.init("\"\"");
     const tok = t.next();
     try testing.expectEqual(Token.Tag.quoted_string, tok.tag);
-    try testing.expectEqualStrings("", t.input[tok.loc.start..tok.loc.end]);
+    try testing.expectEqualStrings("\"\"", t.input[tok.loc.start..tok.loc.end]);
 }
 
 test "escaped quote inside quoted string does not terminate it" {
@@ -410,14 +410,14 @@ test "escaped quote inside quoted string does not terminate it" {
     var t = Tokenizer.init("\"he said \\\"hi\\\"\"");
     const tok = t.next();
     try testing.expectEqual(Token.Tag.quoted_string, tok.tag);
-    try testing.expectEqualStrings("he said \\\"hi\\\"", t.input[tok.loc.start..tok.loc.end]);
+    try testing.expectEqualStrings("\"he said \\\"hi\\\"\"", t.input[tok.loc.start..tok.loc.end]);
 }
 
 test "multiline string" {
     var t = Tokenizer.init("\"\"\"a \"quoted\" text\nsecond line\"\"\"");
     const tok = t.next();
     try testing.expectEqual(Token.Tag.multiline_string, tok.tag);
-    try testing.expectEqualStrings("a \"quoted\" text\nsecond line", t.input[tok.loc.start..tok.loc.end]);
+    try testing.expectEqualStrings("\"\"\"a \"quoted\" text\nsecond line\"\"\"", t.input[tok.loc.start..tok.loc.end]);
     try testing.expectEqual(Token.Tag.eof, t.next().tag);
 }
 
@@ -426,7 +426,7 @@ test "multiline string ends at the last possible triple quote" {
     var t = Tokenizer.init("\"\"\"a\"\"\"\"");
     const tok = t.next();
     try testing.expectEqual(Token.Tag.multiline_string, tok.tag);
-    try testing.expectEqualStrings("a\"", t.input[tok.loc.start..tok.loc.end]);
+    try testing.expectEqualStrings("\"\"\"a\"\"\"\"", t.input[tok.loc.start..tok.loc.end]);
     try testing.expectEqual(Token.Tag.eof, t.next().tag);
 }
 
@@ -434,7 +434,7 @@ test "empty multiline string" {
     var t = Tokenizer.init("\"\"\"\"\"\"");
     const tok = t.next();
     try testing.expectEqual(Token.Tag.multiline_string, tok.tag);
-    try testing.expectEqualStrings("", t.input[tok.loc.start..tok.loc.end]);
+    try testing.expectEqualStrings("\"\"\"\"\"\"", t.input[tok.loc.start..tok.loc.end]);
     try testing.expectEqual(Token.Tag.eof, t.next().tag);
 }
 
@@ -554,12 +554,12 @@ test "substitution" {
         // fall out of that: a newline inside a path (BadPath), a `#` that eats
         // the closing brace ("Substitution ${ was not closed"), and — one level
         // up — a quoted element staying a single token.
-        .ok("${\"a.b\"}", "dollar_brace(${) quoted_string(a.b) r_brace(}) eof"),
+        .ok("${\"a.b\"}", "dollar_brace(${) quoted_string(\"a.b\") r_brace(}) eof"),
         .ok("${a\nb}", "dollar_brace(${) string(a) newline(\\n) string(b) r_brace(}) eof"),
         .ok("${a#c}", "dollar_brace(${) string(a) eof"),
 
         // Inside quotes it is literal text: 'a = "${b}"' -> {"a":"${b}"}.
-        .ok("\"${b}\"", "quoted_string(${b}) eof"),
+        .ok("\"${b}\"", "quoted_string(\"${b}\") eof"),
     });
 }
 

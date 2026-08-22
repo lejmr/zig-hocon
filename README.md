@@ -49,8 +49,10 @@ Not spec sections of their own, but needed to get there, and already done:
       inference needs to tell `a = "1"` from `a = 1`
 - [x] A value with nothing in it (`a =`) is a parse error rather than a crash
 
-- [ ] [Multi-line strings](https://github.com/lightbend/config/blob/main/HOCON.md#multi-line-strings)
-      — tokenized, but `a = """m"""` is not accepted as a value yet
+- [x] [Multi-line strings](https://github.com/lightbend/config/blob/main/HOCON.md#multi-line-strings)
+      — a text part like any other, on the key side and as an include path too;
+      the `"""` stay in the tree because escapes are literal inside them, which
+      is what tells `"""a\nb"""` from `"a\nb"`
 - [ ] [Includes](https://github.com/lightbend/config/blob/main/HOCON.md#includes) (file, url, classpath, required)
 
 - [ ] [Path expressions](https://github.com/lightbend/config/blob/main/HOCON.md#path-expressions)
@@ -91,10 +93,6 @@ Two constraints from the spec fix the rest of the order. An include has to be
 resolved before anything reads the values it contributes, and substitutions
 resolve against the *finished* object graph. Getting the second one wrong is a
 known pyhocon bug and one of the reasons this project exists.
-
-**Multi-line strings** first. The tokenizer already emits them, so it is one more
-tag in the list of things a value part can be — minutes of work, and it closes the
-last hole in what a value may look like.
 
 **Includes** next, as a tree operation: parse the referenced file and splice its
 root members in. Nothing here needs evaluation, which is why it can come this
@@ -144,8 +142,11 @@ rather than the format.
       the substitution openers `${` and `${?`. Numbers, booleans and `null` are
       tokenized as plain strings; giving them types belongs to evaluation. What
       is *inside* `${…}` gets no special lexing — it is an ordinary token stream
-      closed by `}`. Known gaps: an escaped backslash right before a closing
-      quote (`\\"`), and a leading `+` on a number.
+      closed by `}`. A token's `loc` covers the token, quotes included, rather
+      than its content: the tree keeps the raw text, so anything else would make
+      every reader add the quotes back — one of them, or three. Known gaps: an
+      escaped backslash right before a closing quote (`\\"`), and a leading `+`
+      on a number.
 - [x] Parser — source text to a syntax tree, covering the checked syntax items
       above. Nested objects and arrays to any depth. The tree keeps whatever
       distinguishes two sources that mean different things — quotes, the

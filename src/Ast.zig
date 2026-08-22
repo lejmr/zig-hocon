@@ -144,7 +144,7 @@ pub const Parser = struct {
                 null;
 
             const part: Node = switch (self.t.peek().tag) {
-                .string, .quoted_string => try self.parseText(),
+                .string, .quoted_string, .multiline_string => try self.parseText(),
                 .l_brace => blk: {
                     _ = self.t.next();
                     if (concat_type != null and concat_type != .block) {
@@ -285,16 +285,13 @@ pub const Parser = struct {
                         run = .{ token.loc.start, token.loc.end };
                     }
                 },
-                .quoted_string => {
+                .quoted_string, .multiline_string => {
                     _ = self.t.next();
                     if (run) |r| {
                         try self.appendPart(&parts, &prev_end, r[0], r[1]);
                         run = null;
                     }
-                    // The tokenizer reports the loc of the content only, so widen
-                    // it by one on each side to keep the quotes in the tree —
-                    // later phases need `"1"` to stay distinguishable from `1`.
-                    try self.appendPart(&parts, &prev_end, token.loc.start - 1, token.loc.end + 1);
+                    try self.appendPart(&parts, &prev_end, token.loc.start, token.loc.end);
                 },
                 else => break,
             }
@@ -317,7 +314,7 @@ pub const Parser = struct {
                 .newline => {
                     _ = self.t.next();
                 },
-                .quoted_string => {
+                .quoted_string, .multiline_string => {
                     // Check what is after next = URI
                     _ = self.t.next();
                     const peeked = self.t.peek();
@@ -328,7 +325,7 @@ pub const Parser = struct {
                     // Return proper node
                     return Node{
                         .kind = .include,
-                        .value = self.t.t.input[next.loc.start - 1 .. next.loc.end + 1],
+                        .value = self.t.t.input[next.loc.start..next.loc.end],
                         .children = &[0]Node{},
                     };
                 },
@@ -352,7 +349,7 @@ pub const Parser = struct {
                     _ = self.t.next();
                     break :blk null;
                 },
-                .string, .quoted_string => blk: {
+                .string, .quoted_string, .multiline_string => blk: {
                     // Inside an array this is an element, so it is a plain value.
                     if (containerType == .array) break :blk try self.parseValue();
                     if (braced_root) return Error.UnexpectedToken;
@@ -903,6 +900,44 @@ test "quoted value keeps its quotes" {
     });
 }
 
+// java ✓ · pyhocon ✓ · spec ✓ — a triple-quoted string is a text part, nothing
+// more, and java takes it everywhere a quoted one goes:
+//
+//   'a = """x"""'       -> {"a":"x"}       '"""a""" = 1'    -> {"a":1}
+//   'a = """x""" y'     -> {"a":"x y"}     'a = x """y"""'  -> {"a":"x y"}
+//   'a = """x"""${b}'   -> {"a":"x"${b}}   'a = ["""x"""]'  -> {"a":["x"]}
+//   'include """inc.conf"""'               -> spliced, same as the quoted form
+//   'a = """x"""\n"""y"""'                 -> ERROR, a newline still ends a value
+//
+// The tree keeps the `"""` for the same reason it keeps `"`, and here the stakes
+// are higher than telling `"1"` from `1` — the two forms treat escapes
+// differently, and only the delimiter says which is which:
+//
+//   'a = """a\\nb"""' -> {"a":"a\\nb"}   backslash-n, two characters
+//   'a = "a\\nb"'     -> {"a":"a\nb"}    a newline
+test "multiline string is an ordinary text part" {
+    try expectAll(&.{
+        .ok("a = \"\"\"m\"\"\"", "root(assign(value(a), value(\"\"\"m\"\"\")))"),
+        .ok("\"\"\"a\"\"\" = 1", "root(assign(value(\"\"\"a\"\"\"), value(1)))"),
+        .ok("a = [\"\"\"m\"\"\"]", "root(assign(value(a), array(value(\"\"\"m\"\"\"))))"),
+        .ok("a = {b = \"\"\"m\"\"\"}", "root(assign(value(a), block(assign(value(b), value(\"\"\"m\"\"\")))))"),
+
+        // Newlines inside belong to the string, not to the document.
+        .ok("a = \"\"\"x\ny\"\"\"", "root(assign(value(a), value(\"\"\"x\ny\"\"\")))"),
+        // Between two of them it still ends the value, so the second one starts
+        // a member with no separator.
+        .bad("a = \"\"\"x\"\"\"\n\"\"\"y\"\"\""),
+
+        // Concatenation, both directions, with the gap in between.
+        .ok("a = \"\"\"x\"\"\" y", "root(assign(value(a), concat(value(\"\"\"x\"\"\"), value( ), value(y))))"),
+        .ok("a = x \"\"\"y\"\"\"", "root(assign(value(a), concat(value(x), value( ), value(\"\"\"y\"\"\"))))"),
+        .ok("a = \"\"\"x\"\"\"${b}", "root(assign(value(a), concat(value(\"\"\"x\"\"\"), subst(value(b)))))"),
+
+        // An include path may be triple-quoted too.
+        .ok("include \"\"\"inc.conf\"\"\"", "root(include(\"\"\"inc.conf\"\"\"))"),
+    });
+}
+
 // java ✓ · pyhocon ⚠️ · spec ✓ — every input below through both oracles. Twelve
 // of eighteen agree; pyhocon diverges on six, all malformed paths, and every
 // time in the losing direction — it drops the empty element instead of saying
@@ -1144,5 +1179,21 @@ test "value.the gap between two parts is always a part" {
         .ok("a = {x:5}{y:6}", "root(assign(value(a), concat(block(assign(value(x), value(5))), block(assign(value(y), value(6))))))"),
         .ok("a = [1] [2]", "root(assign(value(a), concat(array(value(1)), value( ), array(value(2)))))"),
         .ok("a = {x=1} y", "root(assign(value(a), concat(block(assign(value(x), value(1))), value( ), value(y))))"),
+
+        // The gap on the other side of a text part — the direction that goes
+        // wrong on its own, because a text part knows where it *started* and
+        // using the next token's start as its end measures no gap at all.
+        //   'a = x ${b}' -> {"a":"x "${b}}    the space is part of the result
+        .ok("a = x ${b}", "root(assign(value(a), concat(value(x), value( ), subst(value(b)))))"),
+        .ok("a = x {y:1}", "root(assign(value(a), concat(value(x), value( ), block(assign(value(y), value(1))))))"),
+        .ok("a = x [1]", "root(assign(value(a), concat(value(x), value( ), array(value(1)))))"),
+
+        // And with a quoted part, where the gap used to swallow the closing
+        // quote: `Token.loc` reported the content, so the part ended one byte
+        // early. It covers the whole token now, which is also what lets
+        // `parseText` and `parseInclude` stop adding the quotes back by hand.
+        .ok("a = \"x\" ${b}", "root(assign(value(a), concat(value(\"x\"), value( ), subst(value(b)))))"),
+        .ok("a = \"x\" [1]", "root(assign(value(a), concat(value(\"x\"), value( ), array(value(1)))))"),
+        .ok("a = [1] \"x\"", "root(assign(value(a), concat(array(value(1)), value( ), value(\"x\"))))"),
     });
 }
