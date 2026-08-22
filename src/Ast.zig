@@ -27,7 +27,21 @@ const Node = struct {
         /// `value`. A `concat` appears only when the value cannot be one slice:
         /// a quoted part is involved, or a part is an object or an array.
         concat,
+        /// A substitution: `${a.b}`. `children[0]` is the path it refers to,
+        /// kept as the text it was written as — `${a."b.c"}` and `${a.b.c}`
+        /// stay distinguishable because splitting on `.` happens later, once
+        /// keys and substitutions can share one splitter.
+        ///
+        /// Only the *reference* is syntax; what it resolves to, and whether the
+        /// parts around it then join as text, merge as objects or concatenate
+        /// as lists, needs the finished document — so it stays here as a node
+        /// rather than being folded into the neighbouring text.
         subst,
+        /// The same, written `${?a.b}`. The difference is not "may be missing":
+        /// an unresolved optional substitution removes the *member it is part
+        /// of* rather than producing an empty value, so `a = ${?nope}` leaves no
+        /// `a` at all. Its own kind rather than a flag on `subst`, so a tree
+        /// dump cannot silently lose it.
         subst_optional,
     };
 };
