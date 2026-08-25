@@ -5,12 +5,12 @@ const Tokenizer = @import("Tokenizer.zig");
 const table = @import("table.zig");
 const Case = table.Case;
 
-const Node = struct {
+pub const Node = struct {
     kind: NodeKind,
     children: []Node,
     value: []const u8 = "",
 
-    const NodeKind = enum {
+    pub const NodeKind = enum {
         root,
         assignment,
         block,

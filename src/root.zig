@@ -4,4 +4,5 @@ const std = @import("std");
 test {
     _ = @import("Tokenizer.zig");
     _ = @import("Ast.zig");
+    _ = @import("Key.zig");
 }

@@ -152,6 +152,13 @@ rather than the format.
       distinguishes two sources that mean different things — quotes, the
       whitespace between two parts of a value, duplicate keys — and leaves what
       it means to evaluation.
+- [x] Memory — one arena owns the whole document, and everything the parser and
+      the value graph produce is allocated from it or borrowed from the source
+      text. Nothing has a `deinit` of its own: freeing is dropping the arena.
+      Two consequences worth knowing before writing a caller. The input text
+      must outlive the parsed document, since leaf values are slices into it.
+      And an individual string is not freeable on its own, so a non-arena
+      allocator leaks by construction rather than by accident.
 - [ ] Evaluation — syntax tree to config values: concatenation, merging,
       substitutions, includes, type conversions.
 - [ ] Public API — parse from a string or a file, typed accessors, and a JSON
