@@ -5,4 +5,5 @@ test {
     _ = @import("Tokenizer.zig");
     _ = @import("Ast.zig");
     _ = @import("Key.zig");
+    _ = @import("Value.zig");
 }
