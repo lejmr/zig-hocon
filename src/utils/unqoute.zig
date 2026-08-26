@@ -1,5 +1,5 @@
-const mem = @import("std").mem;
 const std = @import("std");
+const mem = std.mem;
 
 pub const Error = error{
     InvalidEscape,
@@ -10,46 +10,26 @@ pub const UnquotedText = struct {
     quoted: bool,
 };
 
-// Hocon uses JSON deserialization of strings hence to be compatible with other reference (java and pyhocon)
-// we need to implement the same logic, but in zig way which doesn't know anything about UTF-8.
+/// Takes the delimiter off and applies escapes, and says which delimiter it was:
+/// once the text is out, `a = "1"` and `a = 1` both read `1`, and only the flag
+/// tells them apart. A HOCON quoted string is a JSON string by definition, so
+/// `std.json` does that half — `\u`, surrogate pairs and all.
 pub fn unquote(gpa: mem.Allocator, in: []const u8) Error!UnquotedText {
     if (in.len >= 6 and mem.startsWith(u8, in, "\"\"\"") and mem.endsWith(u8, in, "\"\"\"")) {
         // Escapes stay literal inside a triple-quoted string.
+        return .{ .text = in[3 .. in.len - 3], .quoted = true };
+    }
+    if (in.len >= 2 and in[0] == '"' and in[in.len - 1] == '"') {
         return .{
-            .text = in[3 .. in.len - 3],
+            .text = std.json.parseFromSliceLeaky([]const u8, gpa, in, .{}) catch |err| switch (err) {
+                // Without this, a failed allocation would report a bad escape.
+                error.OutOfMemory => return error.OutOfMemory,
+                else => return Error.InvalidEscape,
+            },
             .quoted = true,
         };
     }
-    const quoted = in[0] == '"' and in[in.len - 1] == '"';
-    const body = if (in.len >= 2 and in[0] == '"' and in[in.len - 1] == '"')
-        in[1 .. in.len - 1]
-    else
-        in; // unquoted text arrives as it was written
-
-    var out: std.ArrayList(u8) = .empty;
-    defer out.deinit(gpa);
-
-    var i: usize = 0;
-    while (i < body.len) : (i += 1) {
-        if (body[i] != '\\') {
-            try out.append(gpa, body[i]);
-            continue;
-        }
-        // A backslash with nothing after it is an escape that never finished.
-        if (i + 1 >= body.len) return Error.InvalidEscape;
-        i += 1;
-        try out.append(gpa, switch (body[i]) {
-            'n' => '\n',
-            'r' => '\r',
-            't' => '\t',
-            'b' => 0x08,
-            'f' => 0x0C,
-            '"', '\\', '/' => body[i],
-            // 'u' => ... TODO
-            else => return Error.InvalidEscape,
-        });
-    }
-    return .{ .text = try out.toOwnedSlice(gpa), .quoted = quoted };
+    return .{ .text = in, .quoted = false }; // unquoted text arrives as it was written
 }
 
 // ---------------------------------------------------------------------------
@@ -129,8 +109,6 @@ test "unquote.a quote can be content" {
 //
 //   'a = "\z"'  -> ConfigException  backslash-z is not an escape
 //   'a = "x\"'  -> ConfigException  an escape that never finished
-//
-// `\u` is not implemented yet and lands in the same bucket for now.
 test "unquote.an escape that is not one is an error" {
     var arena = std.heap.ArenaAllocator.init(testing.allocator);
     defer arena.deinit();
@@ -138,13 +116,10 @@ test "unquote.an escape that is not one is an error" {
 
     try testing.expectError(Error.InvalidEscape, unquote(gpa, "\"a\\zb\""));
     try testing.expectError(Error.InvalidEscape, unquote(gpa, "\"a\\\""));
-    // A tripwire, not a rule: `\u` is the one escape java takes and this does
-    // not. When it starts working, this row fails and points at the group below.
-    try testing.expectError(Error.InvalidEscape, unquote(gpa, "\"\\u0041\""));
 }
 
-// java ✓ · pyhocon ⚠️ · spec ✓ — SKIPPED: `\u` is not implemented. Drop the
-// skip line to turn this group on. Each row is what java prints:
+// java ✓ · pyhocon ⚠️ · spec ✓ — `std.json` does the decoding, and this is
+// what it has to come out as. Each row is what java prints:
 //
 //   'a = "\u0041"'         -> {"a":"A"}        ascii, one byte out
 //   'a = "\u00e9"'         -> {"a":"é"}        two bytes of UTF-8 out
@@ -167,8 +142,6 @@ test "unquote.an escape that is not one is an error" {
 // encoding for one, so that row needs a decision — reject it, or carry WTF-8 —
 // before it can be a test.
 test "unquote.a unicode escape is UTF-16 in and UTF-8 out" {
-    if (true) return error.SkipZigTest;
-
     var arena = std.heap.ArenaAllocator.init(testing.allocator);
     defer arena.deinit();
     const gpa = arena.allocator();
