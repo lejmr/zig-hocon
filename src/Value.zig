@@ -5,8 +5,14 @@ const testing = std.testing;
 const Key = @import("Key.zig");
 const Ast = @import("Ast.zig");
 const Node = Ast.Node;
+const unqoute = @import("utils/unqoute.zig");
 
-pub const Error = error{UnsupportedNodeKind} || Key.Error;
+pub const Error = error{
+    UnsupportedNodeKind,
+    InvalidAssignment,
+    MixedTypes,
+    UnsupportedConcatenation,
+} || Key.Error || unqoute.Error;
 
 pub const Value = union(enum) {
     scalar: Scalar,
@@ -21,9 +27,29 @@ pub const Value = union(enum) {
     /// scalar, `.block` an object, `.array` a list, `.subst`/`.subst_optional`
     /// a ref. Anything else never stands where a value stands.
     pub fn fromNode(gpa: std.mem.Allocator, node: Node) Error!Value {
-        _ = gpa;
-        _ = node;
-        @panic("TODO");
+        return switch (node.kind) {
+            .value => .{ .scalar = try Scalar.fromNode(gpa, node) },
+            .block, .root => blk: {
+                var members: std.ArrayList(Member) = .empty;
+                for (node.children) |assignment| {
+                    if (assignment.kind != .assignment) return Error.UnsupportedNodeKind;
+                    if (assignment.children.len < 2) return Error.InvalidAssignment;
+                    const member = try Member.fromNode(gpa, assignment);
+                    try members.append(gpa, member);
+                }
+                break :blk .{ .object = try members.toOwnedSlice(gpa) };
+            },
+            .array => blk: {
+                var members: std.ArrayList(Value) = .empty;
+                for (node.children) |object| {
+                    const val = try Value.fromNode(gpa, object);
+                    try members.append(gpa, val);
+                }
+                break :blk .{ .array = try members.toOwnedSlice(gpa) };
+            },
+            .subst, .subst_optional => .{ .ref = try Ref.fromNode(gpa, node) },
+            else => Error.UnsupportedNodeKind,
+        };
     }
 };
 
@@ -32,12 +58,9 @@ const Scalar = struct {
     value: []const u8,
     quoted: bool,
 
-    /// `quoted` has to be read off the raw slice before the quotes come off:
-    /// afterwards `a = "1"` and `a = 1` are the same text.
     pub fn fromNode(gpa: std.mem.Allocator, node: Node) Error!Scalar {
-        _ = gpa;
-        _ = node;
-        @panic("TODO");
+        const ut = try unqoute.unquote(gpa, node.value);
+        return .{ .value = ut.text, .quoted = ut.quoted };
     }
 };
 const Member = struct {
@@ -46,9 +69,57 @@ const Member = struct {
 
     /// From an `.assignment`: `children[0]` is the key, `children[1]` the value.
     pub fn fromNode(gpa: std.mem.Allocator, node: Node) Error!Member {
-        _ = gpa;
-        _ = node;
-        @panic("TODO");
+        // Member can only by assignment type
+        if (node.kind != .assignment and node.children.len >= 2) return Error.UnsupportedNodeKind;
+
+        // Lets prepare key
+        const key_node = node.children[0];
+        if (key_node.kind != .value) return Error.UnsupportedNodeKind;
+
+        // Loads load the Value
+        const val = try Value.fromNode(gpa, node.children[1]);
+
+        // Prep value
+        // var values_to_splice: std.ArrayList(Node) = .empty;
+        // var values_pending: std.ArrayList(Node) = .empty;
+
+        // for (node.children[1..node.children.len]) |ch| {
+        //     const val = try Value.fromNode(gpa, ch);
+        //     if (values_to_splice.items.len > 0) {
+        //         const last_val = values_to_splice.items[values_to_splice.items.len];
+        //         const last_val_tag = std.meta.activeTag(last_val);
+        //         const cur_val_tag = std.meta.activeTag(val);
+
+        //         // Branching conditions
+        //         const collecting_pending = values_pending.items.len > 0;
+        //         values_pending.items.len > 0;
+        //         const different_tags = last_val_tag == cur_val_tag;
+        //         const is_there_ref = cur_val_tag == .ref or last_val_tag == .ref;
+
+        //         if (collecting_pending) {
+        //             try values_pending.append(gpa, ch);
+        //             continue;
+        //         }
+
+        //         if (different_tags) {
+        //             if (is_there_ref) {
+        //                 try values_pending.append(gpa, ch);
+        //                 continue;
+        //             }
+        //             return Error.UnsupportedConcatenation;
+        //         }
+        //     }
+        //     // Append if tags are same
+        //     values_to_splice.append(gpa, ch);
+        // }
+
+        // const primary_item = values_to_splice.items[0];
+        // const main_type = std.meta.activeTag(val);
+
+        return .{
+            .key = try Key.fromNode(gpa, key_node),
+            .value = val,
+        };
     }
 };
 const Ref = struct {
@@ -58,9 +129,22 @@ const Ref = struct {
     /// The child holds the path as it was written; split it on `.` here so
     /// `resolve` never parses. A quoted dot has no answer yet.
     pub fn fromNode(gpa: std.mem.Allocator, node: Node) Error!Ref {
-        _ = gpa;
-        _ = node;
-        @panic("TODO");
+        const key = try Key.fromNode(gpa, node.children[0]);
+        var key_list: std.ArrayList(Key) = .empty;
+        var it = std.mem.splitAny(u8, key.value, ".");
+        while (it.next()) |x| {
+            const part_key = try Key.fromNode(gpa, .{
+                .kind = .value,
+                .value = x,
+                .children = &[0]Node{},
+            });
+            try key_list.append(gpa, part_key);
+        }
+
+        return .{
+            .path = try key_list.toOwnedSlice(gpa),
+            .optional = if (node.kind == .subst_optional) true else false,
+        };
     }
 };
 // ---------------------------------------------------------------------------
