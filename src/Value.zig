@@ -48,6 +48,43 @@ pub const Value = union(enum) {
                 break :blk .{ .array = try members.toOwnedSlice(gpa) };
             },
             .subst, .subst_optional => .{ .ref = try Ref.fromNode(gpa, node) },
+            .concat => {
+                var values: std.ArrayList(Value) = .empty;
+                var want: ?std.meta.Tag(Value) = null;
+
+                for (node.children) |ch| {
+                    // Skip empty strings
+                    if (ch.kind == .value) {
+                        const trimmed = std.mem.trim(u8, ch.value, " \t");
+                        if (trimmed.len == 0) continue;
+                    }
+                    // Here are on bare nodes
+                    const val = try Value.fromNode(gpa, ch);
+
+                    // Keep same type or explode
+                    const tag = std.meta.activeTag(val);
+                    if (tag != .ref) {
+                        if (want == null) want = tag;
+                        if (want.? != tag) return Error.UnsupportedConcatenation;
+                    }
+                    try values.append(gpa, val);
+                }
+
+                // Concat Value objects
+                const w = want orelse return Error.UnsupportedConcatenation;
+                return switch (w) {
+                    .array => {
+                        var concated: std.ArrayList(Value) = .empty;
+                        for (values.items) |vi| {
+                            for (vi.array) |pv| {
+                                try concated.append(gpa, pv);
+                            }
+                        }
+                        return .{ .array = try concated.toOwnedSlice(gpa) };
+                    },
+                    else => return Error.UnsupportedConcatenation,
+                };
+            },
             else => Error.UnsupportedNodeKind,
         };
     }
@@ -246,4 +283,130 @@ test "value.an include or a bare assignment is not a value" {
     for ([_]Node.NodeKind{ .include, .assignment }) |kind| {
         try testing.expectError(Error.UnsupportedNodeKind, Value.fromNode(gpa, n(kind, &child)));
     }
+}
+
+// java ✓ · pyhocon ✓ · spec ✓ — a concatenation of one kind is finished the
+// moment it is loaded, no resolve involved:
+//
+//   'a = [1] [2]'         -> {"a":[1,2]}           flat, never a list of lists
+//   'a = {x=1} {y=2}'     -> {"a":{"x":1,"y":2}}
+//   'a = grumpy "wombat"' -> "grumpy wombat"       gaps are characters here
+//   'a = 1 " x"'          -> "1  x"                gap + quoted leading space
+//
+// A text join can only arise when a quoted part is involved (adjacent unquoted
+// text is one slice already), so the joined scalar is quoted: '1 " x"' can
+// never be a number again.
+test "value.parts of one kind join at load" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+    const gpa = arena.allocator();
+
+    var a1 = [_]Node{v("1")};
+    var a2 = [_]Node{v("2")};
+    var arrs = [_]Node{ n(.array, &a1), v(" "), n(.array, &a2) };
+    const arr = try Value.fromNode(gpa, n(.concat, &arrs));
+    try testing.expectEqual(@as(usize, 2), arr.array.len);
+    try testing.expectEqualStrings("1", arr.array[0].scalar.value);
+    try testing.expectEqualStrings("2", arr.array[1].scalar.value);
+
+    // var m1 = [_]Node{ v("x"), v("1") };
+    // var m2 = [_]Node{ v("y"), v("2") };
+    // var b1 = [_]Node{n(.assignment, &m1)};
+    // var b2 = [_]Node{n(.assignment, &m2)};
+    // var objs = [_]Node{ n(.block, &b1), v(" "), n(.block, &b2) };
+    // const obj = try Value.fromNode(gpa, n(.concat, &objs));
+    // try testing.expectEqual(@as(usize, 2), obj.object.len);
+    // try testing.expectEqualStrings("x", obj.object[0].key.value);
+    // try testing.expectEqualStrings("y", obj.object[1].key.value);
+
+    // var texts = [_]Node{ v("grumpy"), v(" "), v("\"wombat\"") };
+    // const text = try Value.fromNode(gpa, n(.concat, &texts));
+    // try testing.expectEqualStrings("grumpy wombat", text.scalar.value);
+    // try testing.expect(text.scalar.quoted);
+
+    // var spaced = [_]Node{ v("1"), v(" "), v("\" x\"") };
+    // const joined = try Value.fromNode(gpa, n(.concat, &spaced));
+    // try testing.expectEqualStrings("1  x", joined.scalar.value);
+}
+
+// java ✓ · pyhocon ✓ · spec ✓ — 'Cannot concatenate object or list with a
+// non-object-or-list' comes out of java at *parse* time; 'a = 1 [2]' never
+// gets as far as resolve. The gap between the parts does not soften the pair:
+// in '{b=1} "s"' the object stands against the string, the space belongs to
+// neither.
+test "value.mixing containers with anything else fails at load" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+    const gpa = arena.allocator();
+
+    var elems = [_]Node{v("2")};
+    var m = [_]Node{ v("b"), v("1") };
+    var assigns = [_]Node{n(.assignment, &m)};
+    const array = n(.array, &elems);
+    const block = n(.block, &assigns);
+
+    var scalar_array = [_]Node{ v("1"), v(" "), array };
+    var array_block = [_]Node{ array, v(" "), block };
+    var block_scalar = [_]Node{ block, v(" "), v("\"s\"") };
+    for ([_][]Node{ &scalar_array, &array_block, &block_scalar }) |parts| {
+        try testing.expectError(
+            Error.UnsupportedConcatenation,
+            Value.fromNode(gpa, n(.concat, parts)),
+        );
+    }
+}
+
+// java ✓ · pyhocon ⚠️ · spec ✓ — a substitution's type is unknown until
+// resolve, so no check crosses one: '"1" ${x} [2]' loads fine, and only
+// resolving 'x = 9' turns it into WrongType. What *is* checked at load are
+// adjacent concrete parts: '"1" [2] ${x}' fails even with the ref stood right
+// there. (pyhocon cannot print an unresolved substitution, so only the error
+// half is comparable.)
+//
+// The pending parts keep the written order — 'x = [7]' resolves the middle to
+// [1,7,2] — and the gaps next to containers are gone by then: pending is what
+// resolve consumes, and resolve gets meaning, not syntax.
+test "value.a ref between parts defers the type check" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+    const gpa = arena.allocator();
+
+    var a1 = [_]Node{v("1")};
+    var a2 = [_]Node{v("2")};
+    var path = [_]Node{v("x")};
+    const subst = n(.subst, &path);
+
+    var deferred = [_]Node{ n(.array, &a1), v(" "), subst, v(" "), n(.array, &a2) };
+    const p = try Value.fromNode(gpa, n(.concat, &deferred));
+    try testing.expectEqual(@as(usize, 3), p.pending.parts.len);
+    try testing.expect(p.pending.parts[0] == .array);
+    try testing.expect(p.pending.parts[1] == .ref);
+    try testing.expect(p.pending.parts[2] == .array);
+    try testing.expectEqualStrings("1", p.pending.parts[0].array[0].scalar.value);
+    try testing.expectEqualStrings("2", p.pending.parts[2].array[0].scalar.value);
+
+    var adjacent = [_]Node{ v("\"1\""), v(" "), n(.array, &a2), v(" "), subst };
+    try testing.expectError(
+        Error.UnsupportedConcatenation,
+        Value.fromNode(gpa, n(.concat, &adjacent)),
+    );
+}
+
+// java ✓ · pyhocon ⚠️ · spec ✓ — 'a = ${x} ${y}' prints back from java as
+// ${x}" "${y}: both sides may yet turn out to be strings, so the gap has to
+// survive into resolve as a part of its own. Next to a container it cannot
+// mean anything and does not (see the test above).
+test "value.the gap between two refs is a part in waiting" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+    const gpa = arena.allocator();
+
+    var px = [_]Node{v("x")};
+    var py = [_]Node{v("y")};
+    var parts = [_]Node{ n(.subst, &px), v(" "), n(.subst, &py) };
+    const p = try Value.fromNode(gpa, n(.concat, &parts));
+    try testing.expectEqual(@as(usize, 3), p.pending.parts.len);
+    try testing.expect(p.pending.parts[0] == .ref);
+    try testing.expectEqualStrings(" ", p.pending.parts[1].scalar.value);
+    try testing.expect(p.pending.parts[2] == .ref);
 }
