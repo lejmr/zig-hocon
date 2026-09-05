@@ -59,17 +59,12 @@ pub const Value = union(enum) {
                     const tag = std.meta.activeTag(val);
 
                     if (buffer) |*ebuffer| {
-                        if (ebuffer.* == .ref and val.isGap()) {
+                        if (ebuffer.* == .ref or tag == .ref) {
                             try values.append(gpa, ebuffer.*);
                             buffer = val;
                             continue;
                         }
 
-                        if (tag == .ref) {
-                            try values.append(gpa, ebuffer.*);
-                            buffer = val;
-                            continue;
-                        }
                         try ebuffer.update(gpa, val);
                     } else {
                         buffer = val;
@@ -111,8 +106,40 @@ pub const Value = union(enum) {
                 };
             },
             .object => {
-                const merged = try std.mem.concat(gpa, Member, &.{ self.object, other.object });
-                self.object = merged;
+                // Convert self block to hasmap
+                var map: std.StringArrayHashMapUnmanaged(Value) = .empty;
+                defer map.deinit(gpa);
+                for (self.object) |m| {
+                    if (map.getPtr(m.key.value)) |current_v| {
+                        if (current_v.* == .object and m.value == .object) {
+                            try current_v.update(gpa, m.value);
+                        } else {
+                            current_v.* = m.value;
+                        }
+                    } else {
+                        try map.put(gpa, m.key.value, m.value);
+                    }
+                }
+
+                // Update self about other
+                for (other.object) |oo| {
+                    if (map.getPtr(oo.key.value)) |current_v| {
+                        if (current_v.* == .object and oo.value == .object) {
+                            try current_v.update(gpa, oo.value);
+                        } else {
+                            current_v.* = oo.value;
+                        }
+                    } else {
+                        try map.put(gpa, oo.key.value, oo.value);
+                    }
+                }
+
+                // Convert to list of Members
+                var merged: std.ArrayList(Member) = .empty;
+                for (map.keys(), map.values()) |k, val| {
+                    try merged.append(gpa, .{ .key = .{ .value = k }, .value = val });
+                }
+                self.object = try merged.toOwnedSlice(gpa);
             },
             else => return Error.UnsupportedConcatenation,
         }
@@ -149,44 +176,6 @@ const Member = struct {
 
         // Loads load the Value
         const val = try Value.fromNode(gpa, node.children[1]);
-
-        // Prep value
-        // var values_to_splice: std.ArrayList(Node) = .empty;
-        // var values_pending: std.ArrayList(Node) = .empty;
-
-        // for (node.children[1..node.children.len]) |ch| {
-        //     const val = try Value.fromNode(gpa, ch);
-        //     if (values_to_splice.items.len > 0) {
-        //         const last_val = values_to_splice.items[values_to_splice.items.len];
-        //         const last_val_tag = std.meta.activeTag(last_val);
-        //         const cur_val_tag = std.meta.activeTag(val);
-
-        //         // Branching conditions
-        //         const collecting_pending = values_pending.items.len > 0;
-        //         values_pending.items.len > 0;
-        //         const different_tags = last_val_tag == cur_val_tag;
-        //         const is_there_ref = cur_val_tag == .ref or last_val_tag == .ref;
-
-        //         if (collecting_pending) {
-        //             try values_pending.append(gpa, ch);
-        //             continue;
-        //         }
-
-        //         if (different_tags) {
-        //             if (is_there_ref) {
-        //                 try values_pending.append(gpa, ch);
-        //                 continue;
-        //             }
-        //             return Error.UnsupportedConcatenation;
-        //         }
-        //     }
-        //     // Append if tags are same
-        //     values_to_splice.append(gpa, ch);
-        // }
-
-        // const primary_item = values_to_splice.items[0];
-        // const main_type = std.meta.activeTag(val);
-
         return .{
             .key = try Key.fromNode(gpa, key_node),
             .value = val,
@@ -457,8 +446,6 @@ test "value.text parts join, gaps and all" {
 // two lists written next to each other join, the same two lists arriving under
 // one key do not.
 test "value.objects merge by key, recursively" {
-    if (true) return error.SkipZigTest;
-
     var arena = std.heap.ArenaAllocator.init(testing.allocator);
     defer arena.deinit();
     const gpa = arena.allocator();
