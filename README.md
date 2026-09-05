@@ -6,8 +6,9 @@ Config Object Notation) parser for [Zig](https://ziglang.org), inspired by
 
 Requires Zig **0.16.0** or newer.
 
-> **Status: early development.** The tokenizer and parser are being built out
-> incrementally — see [Features](#features) below for what currently works.
+> **Status: early development.** The tokenizer, the parser and the value graph
+> are being built out incrementally — see [Features](#features) below for what
+> currently works.
 > This is not yet published to the Zig package registry.
 
 ## Usage
@@ -63,18 +64,35 @@ Not spec sections of their own, but needed to get there, and already done:
       alone, so `"a"."b" = 1` does not nest yet
 
 - [ ] [Duplicate keys and object merging](https://github.com/lightbend/config/blob/main/HOCON.md#duplicate-keys-and-object-merging)
-      — the tree keeps duplicates side by side; merging them is evaluation
-- [ ] [Value concatenation](https://github.com/lightbend/config/blob/main/HOCON.md#value-concatenation)
-      — the tree collects the parts of `a = x "y"`, `a = [1] [2]` and
-      `a = {x=1} {y=2}` together with the whitespace between them; which of the
-      three kinds applies depends on their types and is decided in evaluation
+      — merging itself is done: two objects meeting in a concatenation merge by
+      key, a key held by both sides merges again only if both hold an object,
+      and anything else lets the right-hand value win outright, so
+      `{b=[1]} {b=[2]}` is `[2]` rather than the `[1,2]` a concatenation would
+      give. What is missing is the other way in: a key written twice inside one
+      block (`{b=1, b=2}`) still reaches the value graph as two members
+- [x] [Value concatenation](https://github.com/lightbend/config/blob/main/HOCON.md#value-concatenation)
+      — the parser collects the parts of `a = x "y"`, `a = [1] [2]` and
+      `a = {x=1} {y=2}` with the whitespace between them, and the value graph
+      then joins them: lists concatenate flatly, objects merge, text parts join
+      and stop being numbers. Mixing kinds is the `WrongType` java reports, and
+      it is reported while loading rather than later. The whitespace between two
+      parts goes whichever way its neighbours do — a separator beside a list or
+      an object, a character beside text — and a *quoted* space is a value, so
+      `[1] " " [2]` is an error where `[1]   [2]` is `[1,2]`. A substitution is
+      the one part that cannot be joined into, so the parts around it are kept
+      in order for resolution to finish
 - [ ] [Substitutions](https://github.com/lightbend/config/blob/main/HOCON.md#substitutions) (`${a.b.c}`, `${?a.b.c}`)
       — parsed, not resolved: `${…}` and `${?…}` become nodes of their own
       wherever a value may stand, and everything java rejects at parse time is
       rejected here too (`${}`, an unclosed `${a`, a newline or a nested `${`
       inside the path, `?` anywhere but directly after `${`, and a substitution
-      where a key or an include target belongs). The path inside is kept as
-      text; splitting it on `.` waits for path expressions below
+      where a key or an include target belongs). In the value graph a
+      substitution becomes a reference of its own and everything holding one
+      stays pending, since its type is unknown until it resolves — which is why
+      `"1" ${x} [2]` loads and only fails once `x` turns out to be a number,
+      while `"1" [2] ${x}` fails immediately. The path is split on `.` there,
+      but naively: a quoted dot (`${a."b.c"}`) still splits and waits for path
+      expressions above
 
 - [ ] [Conversion of numerically-indexed objects to arrays](https://github.com/lightbend/config/blob/main/HOCON.md#conversion-of-numerically-indexed-objects-to-arrays)
 - [ ] [The `+=` field separator](https://github.com/lightbend/config/blob/main/HOCON.md#the--field-separator)
@@ -103,10 +121,18 @@ know that `a.b = 1` and `a { b = 2 }` describe the same field, and a substitutio
 written as `${a.b}` looks it up the same way — so splitting a key into segments is
 part of building the graph rather than something bolted on later.
 
-**Duplicate keys, merging, value concatenation and substitutions** are the walk
-over that finished tree. The syntax tree deliberately leaves concatenation and
-duplicates undecided, so this is where that debt comes due. `+=` then costs almost
-nothing, since the spec defines `a += b` as sugar for `a = ${?a} [b]`.
+**Duplicate keys, merging and value concatenation** turned out to belong to
+building the value graph rather than to the walk over it. Java decides them while
+parsing too — `a = {x=1} {y=2}` prints merged without anything being resolved —
+and doing the same here buys an invariant worth having: once loading is done,
+every value that holds no substitution is finished. Resolution then never has to
+know what a quote or a gap meant, only how to put a value where a reference was
+and re-run the same two functions loading used.
+
+**Substitutions** are what is left for the walk, and the reason a value holding
+one stays pending: its type is unknown until the graph is finished, so the type
+check that rejects `1 [2]` cannot run across it. `+=` then costs almost nothing,
+since the spec defines `a += b` as sugar for `a = ${?a} [b]`.
 
 Somewhere around here the library becomes useful end to end: with merging done and
 **automatic type conversions** in place, a JSON rendering works — and type
@@ -159,8 +185,15 @@ rather than the format.
       must outlive the parsed document, since leaf values are slices into it.
       And an individual string is not freeable on its own, so a non-arena
       allocator leaks by construction rather than by accident.
-- [ ] Evaluation — syntax tree to config values: concatenation, merging,
-      substitutions, includes, type conversions.
+- [x] Value graph — syntax tree to values. A key is a type rather than a
+      string, because three places produce one and all three have to agree that
+      `a`, `"a"` and `"""a"""` are the same key; unquoting is shared with
+      values, where the delimiter is kept as a flag instead, since `a = "1"` and
+      `a = 1` differ only by it. Concatenation and object merging happen here
+      (see the syntax items above), which leaves a value either finished or
+      explicitly pending on a substitution.
+- [ ] Evaluation — resolving substitutions against the finished graph, splicing
+      includes, and type conversions.
 - [ ] Public API — parse from a string or a file, typed accessors, and a JSON
       rendering (the bridge this project is ultimately for).
 
