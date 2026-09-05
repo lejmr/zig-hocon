@@ -56,14 +56,16 @@ Not spec sections of their own, but needed to get there, and already done:
       is what tells `"""a\nb"""` from `"a\nb"`
 - [ ] [Includes](https://github.com/lightbend/config/blob/main/HOCON.md#includes) (file, url, classpath, required)
 
-- [ ] [Path expressions](https://github.com/lightbend/config/blob/main/HOCON.md#path-expressions)
-      — a substitution path is split on `.` when its reference is built, so
-      `${a.b}` arrives as two elements and resolution never parses. The split is
-      still naive: it unquotes first and cuts afterwards, which loses the one
-      thing the quotes were there to say. Java takes `x { "y.z" = 1 }` and
-      `${x."y.z"}` as the same single key; here that path becomes three
-      elements. Keys and substitutions want the same splitter, and this is the
-      one that has to write it
+- [x] [Path expressions](https://github.com/lightbend/config/blob/main/HOCON.md#path-expressions)
+      — a substitution path is split into elements when its reference is built,
+      so resolution never parses. The split walks the parts the parser left
+      rather than the text, which is what keeps a quoted dot out of it: a dot
+      outside quotes is the only thing that ends an element, and the end of a
+      part means nothing at all. So `${x."y.z"}` is two elements and finds the
+      key `x { "y.z" = 1 }`, `${a"b"}` is the single element `ab`, and
+      `${a."".b}` keeps its empty middle, which java accepts. Still to do:
+      rejecting `.a`, `a.` and `a..b` as `BadPath`, and lending the same
+      splitter to the key side
 - [x] [Paths as keys](https://github.com/lightbend/config/blob/main/HOCON.md#paths-as-keys)
       — an unquoted dotted key nests: `a.b.c = 1` builds the same tree as
       `a { b { c = 1 } }`, `a.b {c = 1}` joins the two ways of writing it, and a
@@ -71,16 +73,17 @@ Not spec sections of their own, but needed to get there, and already done:
       A malformed path (`.a`, `a.`, `a..b`) is rejected, though as the parser's
       `UnexpectedToken` rather than the `BadPath` java names. Known gap: a key
       written in several parts is left alone, so `"a"."b" = 1` and `a."b.c" = 1`
-      stay flat where java nests them — the same quoted-dot problem as path
-      expressions above
+      stay flat where java nests them. The splitter that path expressions use
+      answers exactly this and only wants wiring up here
 
-- [ ] [Duplicate keys and object merging](https://github.com/lightbend/config/blob/main/HOCON.md#duplicate-keys-and-object-merging)
-      — merging itself is done: two objects meeting in a concatenation merge by
-      key, a key held by both sides merges again only if both hold an object,
-      and anything else lets the right-hand value win outright, so
-      `{b=[1]} {b=[2]}` is `[2]` rather than the `[1,2]` a concatenation would
-      give. What is missing is the other way in: a key written twice inside one
-      block (`{b=1, b=2}`) still reaches the value graph as two members
+- [x] [Duplicate keys and object merging](https://github.com/lightbend/config/blob/main/HOCON.md#duplicate-keys-and-object-merging)
+      — a key written twice is one member, whether the two spellings meet inside
+      one block (`{b=1, b=2}`) or in a concatenation (`{b=1} {b=2}`), and the
+      surviving member keeps the position of the first. A key held by both sides
+      merges again only if both hold an object; anything else lets the
+      right-hand value win outright, so `{b=[1]} {b=[2]}` is `[2]` where the
+      `[1] [2]` of a concatenation would be `[1,2]`. That pair is the whole
+      difference between merging and concatenating
 - [x] [Value concatenation](https://github.com/lightbend/config/blob/main/HOCON.md#value-concatenation)
       — the parser collects the parts of `a = x "y"`, `a = [1] [2]` and
       `a = {x=1} {y=2}` with the whitespace between them, and the value graph
@@ -200,9 +203,13 @@ rather than the format.
       string, because three places produce one and all three have to agree that
       `a`, `"a"` and `"""a"""` are the same key; unquoting is shared with
       values, where the delimiter is kept as a flag instead, since `a = "1"` and
-      `a = 1` differ only by it. Concatenation and object merging happen here
-      (see the syntax items above), which leaves a value either finished or
-      explicitly pending on a substitution.
+      `a = 1` differ only by it. Concatenation, object merging and path
+      splitting happen here (see the syntax items above), which leaves a value
+      either finished or explicitly pending on a substitution. The rule the
+      layer is built on: anything decidable while the context is still around
+      gets decided now, because nothing downstream can reconstruct it — which
+      is why a gap beside a list is dropped and a gap between two references is
+      not.
 - [ ] Evaluation — resolving substitutions against the finished graph, splicing
       includes, and type conversions.
 - [ ] Public API — parse from a string or a file, typed accessors, and a JSON
