@@ -32,7 +32,7 @@ implementation the HOCON spec was written against.
 useful for checking that we stay compatible with configs that work today, not
 for deciding what is correct. Confirmed divergences:
 
-| input | java | pyhocon | zig-hocon (this repo) | what the spec says |
+| input | java | pyhocon | zig-Hocon (this repo) | what the spec says |
 |---|---|---|---|---|
 | `"a" b = c` | `{"a b":"c"}` | error | ✅ `assign(concat(value("a"), value( ), value(b)), value(c))` — matches java | **java.** A key is a path expression, and a path element may be a quoted or an unquoted string; adjacent ones concatenate like any value. |
 | `"a"."b" = c` | `{"a":{"b":"c"}}` | error | `UnexpectedToken` — path expressions not implemented | **java.** Path elements are separated by `.` and each may be quoted, which is the documented way to put a `.` inside a single key. |
@@ -49,7 +49,7 @@ for deciding what is correct. Confirmed divergences:
 | `a "b c" d = f` | `{"a b c d":"f"}` | error | ⚠️ `assign(concat(…), value(f))` — parts kept side by side, key not joined | **java.** A key is a path expression and adjacent elements concatenate exactly like a value. |
 | `Include "x.conf"` | error | includes the file | ✅ `UnexpectedToken` — matches java | **java.** The spec spells the keyword lowercase; pyhocon matches case-insensitively. |
 
-The zig-hocon column is what the parser does *today*, produced by dumping the ast
+The zig-Hocon column is what the parser does *today*, produced by dumping the ast
 for each input — not what it is meant to do. ✅ means the behaviour is settled,
 ⚠️ means it is a bug, and the rest is unimplemented or a deliberate leniency.
 

@@ -1,8 +1,8 @@
-# zig-hocon
+<img src="docs/brand/zig-Hocon-badge-master-1650x500.png" width="600" alt="zig-Hocon">
 
-A [HOCON](https://github.com/lightbend/config/blob/main/HOCON.md) (Human-Optimized
-Config Object Notation) parser for [Zig](https://ziglang.org), inspired by
-[pyhocon](https://github.com/chimpler/pyhocon).
+zig-Hocon is a [HOCON](https://github.com/lightbend/config/blob/main/HOCON.md)
+(Human-Optimized Config Object Notation) parser for [Zig](https://ziglang.org),
+inspired by [pyhocon](https://github.com/chimpler/pyhocon).
 
 Requires Zig **0.16.0** or newer.
 
@@ -57,11 +57,22 @@ Not spec sections of their own, but needed to get there, and already done:
 - [ ] [Includes](https://github.com/lightbend/config/blob/main/HOCON.md#includes) (file, url, classpath, required)
 
 - [ ] [Path expressions](https://github.com/lightbend/config/blob/main/HOCON.md#path-expressions)
-- [ ] [Paths as keys](https://github.com/lightbend/config/blob/main/HOCON.md#paths-as-keys)
+      — a substitution path is split on `.` when its reference is built, so
+      `${a.b}` arrives as two elements and resolution never parses. The split is
+      still naive: it unquotes first and cuts afterwards, which loses the one
+      thing the quotes were there to say. Java takes `x { "y.z" = 1 }` and
+      `${x."y.z"}` as the same single key; here that path becomes three
+      elements. Keys and substitutions want the same splitter, and this is the
+      one that has to write it
+- [x] [Paths as keys](https://github.com/lightbend/config/blob/main/HOCON.md#paths-as-keys)
       — an unquoted dotted key nests: `a.b.c = 1` builds the same tree as
-      `a { b { c = 1 } }`, and a malformed path (`.a`, `a.`, `a..b`) is the
-      error java calls `BadPath`. A key made of several parts is still left
-      alone, so `"a"."b" = 1` does not nest yet
+      `a { b { c = 1 } }`, `a.b {c = 1}` joins the two ways of writing it, and a
+      number splits like any other unquoted string, so `1.5 = x` is `1 { 5 = x }`.
+      A malformed path (`.a`, `a.`, `a..b`) is rejected, though as the parser's
+      `UnexpectedToken` rather than the `BadPath` java names. Known gap: a key
+      written in several parts is left alone, so `"a"."b" = 1` and `a."b.c" = 1`
+      stay flat where java nests them — the same quoted-dot problem as path
+      expressions above
 
 - [ ] [Duplicate keys and object merging](https://github.com/lightbend/config/blob/main/HOCON.md#duplicate-keys-and-object-merging)
       — merging itself is done: two objects meeting in a concatenation merge by
