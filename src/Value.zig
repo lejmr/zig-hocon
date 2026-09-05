@@ -31,12 +31,26 @@ pub const Value = union(enum) {
         return switch (node.kind) {
             .value => .{ .scalar = try Scalar.fromNode(gpa, node) },
             .block, .root => blk: {
-                var members: std.ArrayList(Member) = .empty;
+                var members_map: std.StringArrayHashMapUnmanaged(Value) = .empty;
+                defer members_map.deinit(gpa);
+
                 for (node.children) |assignment| {
                     if (assignment.kind != .assignment) return Error.UnsupportedNodeKind;
                     if (assignment.children.len < 2) return Error.InvalidAssignment;
                     const member = try Member.fromNode(gpa, assignment);
-                    try members.append(gpa, member);
+                    if (members_map.getPtr(member.key.value)) |current_v| {
+                        if (current_v.* == .object and member.value == .object) {
+                            try current_v.update(gpa, member.value);
+                        } else {
+                            current_v.* = member.value;
+                        }
+                    } else {
+                        try members_map.put(gpa, member.key.value, member.value);
+                    }
+                }
+                var members: std.ArrayList(Member) = .empty;
+                for (members_map.keys(), members_map.values()) |k, val| {
+                    try members.append(gpa, .{ .key = .{ .value = k }, .value = val });
                 }
                 break :blk .{ .object = try members.toOwnedSlice(gpa) };
             },
@@ -181,6 +195,14 @@ const Member = struct {
             .value = val,
         };
     }
+
+    pub fn update(self: *Member, gpa: std.mem.Allocator, other: Member) Error!void {
+        if (self.value == .object and other.value == .object) {
+            try self.value.update(gpa, other.value);
+        } else {
+            self.value.* = other.value;
+        }
+    }
 };
 const Ref = struct {
     path: []const Key,
@@ -189,17 +211,34 @@ const Ref = struct {
     /// The child holds the path as it was written; split it on `.` here so
     /// `resolve` never parses. A quoted dot has no answer yet.
     pub fn fromNode(gpa: std.mem.Allocator, node: Node) Error!Ref {
-        const key = try Key.fromNode(gpa, node.children[0]);
+        var single = [_]Node{node.children[0]};
+        const parts: []const Node = switch (node.children[0].kind) {
+            .value => &single,
+            .concat => node.children[0].children,
+            else => return Error.UnsupportedNodeKind,
+        };
+
         var key_list: std.ArrayList(Key) = .empty;
-        var it = std.mem.splitAny(u8, key.value, ".");
-        while (it.next()) |x| {
-            const part_key = try Key.fromNode(gpa, .{
-                .kind = .value,
-                .value = x,
-                .children = &[0]Node{},
-            });
-            try key_list.append(gpa, part_key);
+        var current: std.ArrayList(u8) = .empty;
+        defer current.deinit(gpa);
+
+        for (parts) |part| {
+            if (part.kind != .value) return Error.MalformedKey;
+            const ut = try unqoute.unquote(gpa, part.value);
+            if (ut.quoted) {
+                try current.appendSlice(gpa, ut.text);
+                continue;
+            }
+
+            var it = std.mem.splitAny(u8, ut.text, ".");
+            try current.appendSlice(gpa, it.first());
+            while (it.next()) |x| {
+                try key_list.append(gpa, .{ .value = try gpa.dupe(u8, current.items) });
+                current.clearRetainingCapacity();
+                try current.appendSlice(gpa, x);
+            }
         }
+        try key_list.append(gpa, .{ .value = try gpa.dupe(u8, current.items) });
 
         return .{
             .path = try key_list.toOwnedSlice(gpa),
@@ -666,4 +705,385 @@ test "value.a gap lives or dies by its neighbours" {
     try testing.expectEqual(@as(usize, 2), wb.pending.len);
     try testing.expect(wb.pending[0] == .ref);
     try testing.expect(wb.pending[1] == .object);
+}
+
+// java ✓ · pyhocon ✓ · spec ✓ — a key written twice inside one block is one
+// member, and the rule under it is the merge rule, not the concatenation one:
+//
+//   'a = {b=1, b=2}'          -> {"a":{"b":2}}
+//   'a = {b=1, c=2, b=3}'     -> {"a":{"b":3,"c":2}}     b keeps its place
+//   'a = {b={x=1}, b={y=2}}'  -> {"a":{"b":{"x":1,"y":2}}}
+//   'a = {b=[1], b=[2]}'      -> {"a":{"b":[2]}}         not [1,2]
+//   'a = {b={x=1}, b=2}'      -> {"a":{"b":2}}
+//
+// Two lists written next to each other join; the same two arriving under one
+// key do not. That is the whole difference between the two operations, and it
+// is why this cannot be `update`.
+test "value.a key written twice in one block is one member" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+    const gpa = arena.allocator();
+
+    var d1 = [_]Node{ v("b"), v("1") };
+    var d2 = [_]Node{ v("b"), v("2") };
+    var dup = [_]Node{ n(.assignment, &d1), n(.assignment, &d2) };
+    const one = try Value.fromNode(gpa, n(.block, &dup));
+    try testing.expectEqual(@as(usize, 1), one.object.len);
+    try testing.expectEqualStrings("b", one.object[0].key.value);
+    try testing.expectEqualStrings("2", one.object[0].value.scalar.value);
+
+    // the surviving member keeps the position of the first spelling
+    var o1 = [_]Node{ v("b"), v("1") };
+    var o2 = [_]Node{ v("c"), v("2") };
+    var o3 = [_]Node{ v("b"), v("3") };
+    var ordered = [_]Node{ n(.assignment, &o1), n(.assignment, &o2), n(.assignment, &o3) };
+    const ord = try Value.fromNode(gpa, n(.block, &ordered));
+    try testing.expectEqual(@as(usize, 2), ord.object.len);
+    try testing.expectEqualStrings("b", ord.object[0].key.value);
+    try testing.expectEqualStrings("3", ord.object[0].value.scalar.value);
+    try testing.expectEqualStrings("c", ord.object[1].key.value);
+
+    // both sides an object: down one level
+    var ix = [_]Node{ v("x"), v("1") };
+    var iy = [_]Node{ v("y"), v("2") };
+    var bx = [_]Node{n(.assignment, &ix)};
+    var by = [_]Node{n(.assignment, &iy)};
+    var n1 = [_]Node{ v("b"), n(.block, &bx) };
+    var n2 = [_]Node{ v("b"), n(.block, &by) };
+    var nested = [_]Node{ n(.assignment, &n1), n(.assignment, &n2) };
+    const deep = try Value.fromNode(gpa, n(.block, &nested));
+    try testing.expectEqual(@as(usize, 1), deep.object.len);
+    try testing.expectEqual(@as(usize, 2), deep.object[0].value.object.len);
+    try testing.expectEqualStrings("x", deep.object[0].value.object[0].key.value);
+    try testing.expectEqualStrings("y", deep.object[0].value.object[1].key.value);
+
+    // anything else: the right one wins outright, lists included
+    var e1 = [_]Node{v("1")};
+    var e2 = [_]Node{v("2")};
+    var l1 = [_]Node{ v("b"), n(.array, &e1) };
+    var l2 = [_]Node{ v("b"), n(.array, &e2) };
+    var lists = [_]Node{ n(.assignment, &l1), n(.assignment, &l2) };
+    const won = try Value.fromNode(gpa, n(.block, &lists));
+    try testing.expectEqual(@as(usize, 1), won.object.len);
+    try testing.expectEqual(@as(usize, 1), won.object[0].value.array.len);
+    try testing.expectEqualStrings("2", won.object[0].value.array[0].scalar.value);
+}
+
+// java ✓ · pyhocon ✓ · spec ✓ — a dot inside quotes is a character of one key,
+// a dot outside them separates two. The oracle answers by resolving, since only
+// a matching key proves how the path was cut:
+//
+//   'x { "y.z" = 1 }, a = ${x."y.z"}'  -> {"a":1}    two elements: x, y.z
+//   'x { y = { z = 1 } }, a = ${x.y.z}'-> {"a":1}    three: x, y, z
+//   '"a.b" = 1, r = ${"a.b"}'          -> {"r":1}    one: a.b
+//
+// Which is why the split has to run on the text as written and unquote each
+// piece afterwards. Unquoting first throws away the only thing that says which
+// dot was which, and no later pass can recover it. The parser leaves the two
+// spellings distinguishable for exactly this reason: `${x."y.z"}` arrives as a
+// concat of `x.` and `"y.z"`, `${x.y.z}` as one text part.
+test "ref.a quoted dot is a character, not a separator" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+    const gpa = arena.allocator();
+
+    // var plain = [_]Node{v("x.y")};
+    // const p = try Value.fromNode(gpa, n(.subst, &plain));
+    // try testing.expectEqual(@as(usize, 2), p.ref.path.len);
+    // try testing.expectEqualStrings("x", p.ref.path[0].value);
+    // try testing.expectEqualStrings("y", p.ref.path[1].value);
+
+    // var parts = [_]Node{ v("x."), v("\"y.z\"") };
+    // var quoted_tail = [_]Node{n(.concat, &parts)};
+    // const q = try Value.fromNode(gpa, n(.subst, &quoted_tail));
+    // try testing.expectEqual(@as(usize, 2), q.ref.path.len);
+    // try testing.expectEqualStrings("x", q.ref.path[0].value);
+    // try testing.expectEqualStrings("y.z", q.ref.path[1].value);
+
+    // var whole = [_]Node{v("\"a.b\"")};
+    // const w = try Value.fromNode(gpa, n(.subst, &whole));
+    // try testing.expectEqual(@as(usize, 1), w.ref.path.len);
+    // try testing.expectEqualStrings("a.b", w.ref.path[0].value);
+
+    // var single = [_]Node{v("x")};
+    // const one = try Value.fromNode(gpa, n(.subst, &single));
+    // try testing.expectEqual(@as(usize, 1), one.ref.path.len);
+    // try testing.expectEqualStrings("x", one.ref.path[0].value);
+
+    // A segment stays open across the part boundary, so a part beginning with a
+    // dot closes the one before it rather than adding an empty one of its own.
+    // Every path below resolves in java against a config holding exactly the
+    // key it names, which is what proves where the cuts fell:
+    //
+    //   'a { "b.c" { d = 1 } }, r = ${a."b.c".d}'    -> {"r":1}   three elements
+    //   'a { b = 1 }, r = ${"a"."b"}'                -> {"r":1}   two, the dot alone
+    //   '"a.b" { c = 1 }, r = ${"""a.b""".c}'          -> {"r":1}   two, triple-quoted
+    //   'a { "" { b = 1 } }, r = ${a."".b}'          -> {"r":1}   an empty one is legal
+    var p1 = [_]Node{ v("a."), v("\"b.c\""), v(".d") };
+    var p2 = [_]Node{ v("\"a\""), v("."), v("\"b\"") };
+    var p3 = [_]Node{ v("\"\"\"a.b\"\"\""), v(".c") };
+    var p4 = [_]Node{ v("a."), v("\"\""), v(".b") };
+    // and with no dot between them the parts are one element, not two:
+    //   'ab = 1, r = ${a"b"}'  -> {"r":1}
+    var p5 = [_]Node{ v("a"), v("\"b\"") };
+    const want = [_][]const []const u8{
+        &.{ "a", "b.c", "d" },
+        &.{ "a", "b" },
+        &.{ "a.b", "c" },
+        &.{ "a", "", "b" },
+        &.{"ab"},
+    };
+    for ([_][]Node{ &p1, &p2, &p3, &p4, &p5 }, want, 0..) |path_parts, expected, i| {
+        errdefer std.debug.print("failed on path {d}\n", .{i});
+        var child = [_]Node{n(.concat, path_parts)};
+        const r = try Value.fromNode(gpa, n(.subst, &child));
+        try testing.expectEqual(expected.len, r.ref.path.len);
+        for (expected, r.ref.path) |e, got| try testing.expectEqualStrings(e, got.value);
+    }
+}
+
+// java ✓ · pyhocon ⚠️ · spec ✓ — a pending value is not only a thing a member
+// holds; it is a value, so it stands wherever one may:
+//
+//   'a = [${x}]'            -> {"a":[${x}]}          a ref as an element
+//   'a = [ ${x} [1] ]'      -> {"a":[${x}[1]]}       a pending as an element
+//   'a = { b = ${x} [1] }'  -> {"a":{"b":${x}[1]}}   and as a member value
+//
+// Nothing collapses on the way out: the list keeps one element and the object
+// one member, each holding the unresolved thing whole.
+//
+// (pyhocon cannot print an unresolved substitution, so it is only comparable
+// once resolved.)
+test "value.a ref or a pending stands inside a container too" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+    const gpa = arena.allocator();
+
+    var px = [_]Node{v("x")};
+    const sx = n(.subst, &px);
+    var e1 = [_]Node{v("1")};
+
+    var elems = [_]Node{sx};
+    const arr = try Value.fromNode(gpa, n(.array, &elems));
+    try testing.expectEqual(@as(usize, 1), arr.array.len);
+    try testing.expect(arr.array[0] == .ref);
+
+    var inner = [_]Node{ sx, v(" "), n(.array, &e1) };
+    var wrapped = [_]Node{n(.concat, &inner)};
+    const nested = try Value.fromNode(gpa, n(.array, &wrapped));
+    try testing.expectEqual(@as(usize, 1), nested.array.len);
+    try testing.expectEqual(@as(usize, 2), nested.array[0].pending.len);
+    try testing.expect(nested.array[0].pending[0] == .ref);
+    try testing.expect(nested.array[0].pending[1] == .array);
+
+    var member = [_]Node{ v("b"), n(.concat, &inner) };
+    var members = [_]Node{n(.assignment, &member)};
+    const obj = try Value.fromNode(gpa, n(.block, &members));
+    try testing.expectEqual(@as(usize, 1), obj.object.len);
+    try testing.expectEqualStrings("b", obj.object[0].key.value);
+    try testing.expectEqual(@as(usize, 2), obj.object[0].value.pending.len);
+    try testing.expect(obj.object[0].value.pending[0] == .ref);
+}
+
+// java ✓ · pyhocon ⚠️ · spec ✓ — `${?x}` parts a concatenation exactly as
+// `${x}` does; the difference is what resolution does with it, so the flag has
+// to survive the load:
+//
+//   'a = ${?x} [1]'            -> {"a":${?x}[1]}
+//   'resolve: a = ${?x} "y"'   -> {"a":" y"}     missing: contributes nothing,
+//                                                but the gap beside it stays
+//   'resolve: a = 1 ${?x} 2'   -> {"a":"1  2"}   both gaps survive
+//   'resolve: a = ${?x}, b=1'  -> {"b":1}        alone: the member goes too
+//
+// That last line is why this is its own kind rather than a flag on the value:
+// an unresolved optional removes the member it belongs to, which nothing but
+// the member itself can do.
+test "value.an optional substitution parts a concatenation like any ref" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+    const gpa = arena.allocator();
+
+    var px = [_]Node{v("x")};
+    var e1 = [_]Node{v("1")};
+    var parts = [_]Node{ n(.subst_optional, &px), v(" "), n(.array, &e1) };
+    const p = try Value.fromNode(gpa, n(.concat, &parts));
+    try testing.expectEqual(@as(usize, 2), p.pending.len);
+    try testing.expect(p.pending[0] == .ref);
+    try testing.expect(p.pending[0].ref.optional);
+    try testing.expect(p.pending[1] == .array);
+
+    // and between two texts the gap is still a part of its own
+    var texts = [_]Node{ v("1"), v(" "), n(.subst_optional, &px), v(" "), v("2") };
+    const t = try Value.fromNode(gpa, n(.concat, &texts));
+    try testing.expectEqual(@as(usize, 3), t.pending.len);
+    try testing.expectEqualStrings("1 ", t.pending[0].scalar.value);
+    try testing.expect(t.pending[1].ref.optional);
+    try testing.expectEqualStrings(" 2", t.pending[2].scalar.value);
+}
+
+// java ✓ · pyhocon ✓ · spec ✓ — `null`, `true` and a number are unquoted text
+// and nothing more until type conversion, so they join and fail like any other:
+//
+//   'a = null'      -> {"a":null}       kept as written
+//   'a = null "x"'  -> {"a":"null x"}   joins as text
+//   'a = 1.5e10'    -> {"a":15000000000}  java converts, this layer does not
+//   'a = [1] null'  -> WrongType        a list and a non-list, as ever
+//
+// Reading a type out of the text belongs to evaluation; giving one to it here
+// would mean `a = "null"` and `a = null` stopped being distinguishable, which
+// is the whole reason a scalar carries its delimiter as a flag.
+test "value.null, booleans and numbers are text at this layer" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+    const gpa = arena.allocator();
+
+    for ([_][]const u8{ "null", "true", "false", "1.5e10" }) |word| {
+        errdefer std.debug.print("failed on {s}\n", .{word});
+        const val = try Value.fromNode(gpa, v(word));
+        try testing.expectEqualStrings(word, val.scalar.value);
+        try testing.expect(!val.scalar.quoted);
+    }
+
+    var joined = [_]Node{ v("null"), v(" "), v("\"x\"") };
+    const j = try Value.fromNode(gpa, n(.concat, &joined));
+    try testing.expectEqualStrings("null x", j.scalar.value);
+
+    var e1 = [_]Node{v("1")};
+    var mixed = [_]Node{ n(.array, &e1), v(" "), v("null") };
+    try testing.expectError(
+        Error.UnsupportedConcatenation,
+        Value.fromNode(gpa, n(.concat, &mixed)),
+    );
+}
+
+// java ✓ · pyhocon ✓ · spec ✓ — an empty *quoted* string is a value, not a
+// gap, and the gap beside it is still a character:
+//
+//   'a = "" [1]'  -> WrongType     the same as '"x" [1]'
+//   'a = [1] ""'  -> WrongType
+//   'a = "" "x"'  -> {"a":" x"}    the gap between them survives
+//
+// Which is the whole reason `isGap` asks about the delimiter rather than only
+// trimming: `[1] " " [2]` is an error where `[1]   [2]` is [1,2].
+test "value.an empty quoted string is a value, not a gap" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+    const gpa = arena.allocator();
+
+    var e1 = [_]Node{v("1")};
+    var after = [_]Node{ v("\"\""), v(" "), n(.array, &e1) };
+    var before = [_]Node{ n(.array, &e1), v(" "), v("\"\"") };
+    var spaced = [_]Node{ n(.array, &e1), v(" "), v("\" \""), v(" "), n(.array, &e1) };
+    for ([_][]Node{ &after, &before, &spaced }) |parts| {
+        try testing.expectError(
+            Error.UnsupportedConcatenation,
+            Value.fromNode(gpa, n(.concat, parts)),
+        );
+    }
+
+    var texts = [_]Node{ v("\"\""), v(" "), v("\"x\"") };
+    const t = try Value.fromNode(gpa, n(.concat, &texts));
+    try testing.expectEqualStrings(" x", t.scalar.value);
+}
+
+// java ✓ · pyhocon ✓ · spec ✓ — an empty container is a part like any other
+// and contributes nothing:
+//
+//   'a = [] [1]'       -> {"a":[1]}
+//   'a = {} {b=1}'     -> {"a":{"b":1}}
+//   'a = {b=1} {}'     -> {"a":{"b":1}}
+//   'a = {} {}'        -> {"a":{}}
+//   'a = {} [1]'       -> WrongType      empty or not, a kind is a kind
+test "value.an empty container joins without adding anything" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+    const gpa = arena.allocator();
+
+    var none = [_]Node{};
+    var e1 = [_]Node{v("1")};
+    var m = [_]Node{ v("b"), v("1") };
+    var assigns = [_]Node{n(.assignment, &m)};
+
+    var lists = [_]Node{ n(.array, &none), v(" "), n(.array, &e1) };
+    const l = try Value.fromNode(gpa, n(.concat, &lists));
+    try testing.expectEqual(@as(usize, 1), l.array.len);
+
+    var left_empty = [_]Node{ n(.block, &none), v(" "), n(.block, &assigns) };
+    const le = try Value.fromNode(gpa, n(.concat, &left_empty));
+    try testing.expectEqual(@as(usize, 1), le.object.len);
+    try testing.expectEqualStrings("b", le.object[0].key.value);
+
+    var right_empty = [_]Node{ n(.block, &assigns), v(" "), n(.block, &none) };
+    const re = try Value.fromNode(gpa, n(.concat, &right_empty));
+    try testing.expectEqual(@as(usize, 1), re.object.len);
+
+    var both = [_]Node{ n(.block, &none), v(" "), n(.block, &none) };
+    const b = try Value.fromNode(gpa, n(.concat, &both));
+    try testing.expectEqual(@as(usize, 0), b.object.len);
+
+    var crossed = [_]Node{ n(.block, &none), v(" "), n(.array, &e1) };
+    try testing.expectError(
+        Error.UnsupportedConcatenation,
+        Value.fromNode(gpa, n(.concat, &crossed)),
+    );
+}
+
+// java ✓ · pyhocon ✓ · spec ✓ — a triple-quoted part joins like any other, and
+// what is inside it stays as it was written:
+//
+//   'a = """a""" "b"'     -> {"a":"a b"}
+//   'a = """a\nb""" "c"'  -> {"a":"a\nb c"}   a real newline, not a backslash
+//   'a = x """y"""'       -> {"a":"x y"}
+//
+// The escapes were already decided by the delimiter when the part was read, so
+// the join is a plain append — anything cleverer here would process them twice.
+test "value.a multi-line part joins without reprocessing it" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+    const gpa = arena.allocator();
+
+    var simple = [_]Node{ v("\"\"\"a\"\"\""), v(" "), v("\"b\"") };
+    const s1 = try Value.fromNode(gpa, n(.concat, &simple));
+    try testing.expectEqualStrings("a b", s1.scalar.value);
+    try testing.expect(s1.scalar.quoted);
+
+    // inside """ a backslash-n is those two characters; the quoted part beside
+    // it turns its own into a newline, and both survive the join as they are
+    var mixed = [_]Node{ v("\"\"\"a\\nb\"\"\""), v(" "), v("\"c\\nd\"") };
+    const s2 = try Value.fromNode(gpa, n(.concat, &mixed));
+    try testing.expectEqualStrings("a\\nb c\nd", s2.scalar.value);
+
+    var leading = [_]Node{ v("x"), v(" "), v("\"\"\"y\"\"\"") };
+    const s3 = try Value.fromNode(gpa, n(.concat, &leading));
+    try testing.expectEqualStrings("x y", s3.scalar.value);
+}
+
+// java ✓ · pyhocon ✓ · spec ✓ — the remaining shapes, each a one-liner:
+//
+//   'a = [1]\t[2]'          -> {"a":[1,2]}          a tab separates too
+//   'a = {b=1}\t{c=2}'      -> {"a":{"b":1,"c":2}}
+//   'a = {a=1} {b=2} {a=3}'  -> {"a":{"a":3,"b":2}}  a key met twice, not adjacent
+test "value.tabs separate, and a key can be met more than twice" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+    const gpa = arena.allocator();
+
+    var e1 = [_]Node{v("1")};
+    var e2 = [_]Node{v("2")};
+    var tabbed = [_]Node{ n(.array, &e1), v("\t"), n(.array, &e2) };
+    const t = try Value.fromNode(gpa, n(.concat, &tabbed));
+    try testing.expectEqual(@as(usize, 2), t.array.len);
+
+    var k1 = [_]Node{ v("a"), v("1") };
+    var k2 = [_]Node{ v("b"), v("2") };
+    var k3 = [_]Node{ v("a"), v("3") };
+    var b1 = [_]Node{n(.assignment, &k1)};
+    var b2 = [_]Node{n(.assignment, &k2)};
+    var b3 = [_]Node{n(.assignment, &k3)};
+    var three = [_]Node{ n(.block, &b1), v(" "), n(.block, &b2), v(" "), n(.block, &b3) };
+    const o = try Value.fromNode(gpa, n(.concat, &three));
+    try testing.expectEqual(@as(usize, 2), o.object.len);
+    try testing.expectEqualStrings("a", o.object[0].key.value);
+    try testing.expectEqualStrings("3", o.object[0].value.scalar.value);
+    try testing.expectEqualStrings("b", o.object[1].key.value);
 }
