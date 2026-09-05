@@ -76,19 +76,10 @@ pub const Value = union(enum) {
                     }
                 }
 
-                if (buffer != null) {
-                    try values.append(gpa, buffer.?);
-                }
-
-                if (values.items.len > 1) {
-                    return .{ .pending = try values.toOwnedSlice(gpa) };
-                }
-
-                const main_type = std.meta.activeTag(values.items[0]);
-                return switch (main_type) {
-                    .array => .{ .array = values.items[0].array },
-                    else => Error.UnsupportedValueType,
-                };
+                if (buffer) |b| try values.append(gpa, b);
+                if (values.items.len == 0) return Error.UnsupportedConcatenation;
+                if (values.items.len > 1) return .{ .pending = try values.toOwnedSlice(gpa) };
+                return values.items[0];
             },
             else => Error.UnsupportedNodeKind,
         };
@@ -118,6 +109,10 @@ pub const Value = union(enum) {
                     .value = try std.mem.concat(gpa, u8, &.{ self.scalar.value, other.scalar.value }),
                     .quoted = true,
                 };
+            },
+            .object => {
+                const merged = try std.mem.concat(gpa, Member, &.{ self.object, other.object });
+                self.object = merged;
             },
             else => return Error.UnsupportedConcatenation,
         }
@@ -425,18 +420,43 @@ test "value.a ref parts the lists around it without stopping them" {
     try testing.expectEqualStrings("4", q.pending[2].array[1].scalar.value);
 }
 
-// java ✓ · pyhocon ✓ · spec ✓ — the same shape for the other two kinds, left
-// for once lists are done: objects merge by key and text parts join with their
-// gaps as characters.
+// java ✓ · pyhocon ✓ · spec ✓ — text parts join with their gaps as characters:
 //
-//   'a = {x=1} {y=2}'     -> {"a":{"x":1,"y":2}}
 //   'a = grumpy "wombat"' -> {"a":"grumpy wombat"}
-//   'a = 1 " x"'          -> {"a":"1  x"}
+//   'a = 1 " x"'          -> {"a":"1  x"}          gap plus a quoted space
 //
 // A text join only arises when a quoted part is involved — adjacent unquoted
-// text is one slice already — so the result is quoted: '1 " x"' is no longer a
-// number.
-test "value.objects and text join at load too" {
+// text is one slice already and never reaches a `.concat` — so the result is
+// always quoted: '1 " x"' has stopped being a number.
+test "value.text parts join, gaps and all" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+    const gpa = arena.allocator();
+
+    var texts = [_]Node{ v("grumpy"), v(" "), v("\"wombat\"") };
+    const text = try Value.fromNode(gpa, n(.concat, &texts));
+    try testing.expectEqualStrings("grumpy wombat", text.scalar.value);
+    try testing.expect(text.scalar.quoted);
+
+    var spaced = [_]Node{ v("1"), v(" "), v("\" x\"") };
+    const joined = try Value.fromNode(gpa, n(.concat, &spaced));
+    try testing.expectEqualStrings("1  x", joined.scalar.value);
+    try testing.expect(joined.scalar.quoted);
+}
+
+// java ✓ · pyhocon ✓ · spec ✓ — the last kind, and the only one that goes
+// deeper than the surface: objects merge by key, and a key held by both sides
+// merges again if both hold an object, otherwise the right one wins.
+//
+//   'a = {x=1} {y=2}'            -> {"a":{"x":1,"y":2}}
+//   'a = {b=1, c=2} {c=3, d=4}'  -> {"a":{"b":1,"c":3,"d":4}}   c keeps its place
+//   'a = {b={c=1}} {b={d=2}}'    -> {"a":{"b":{"c":1,"d":2}}}
+//   'a = {b=[1]} {b=[2]}'        -> {"a":{"b":[2]}}             not [1,2]
+//
+// That last one is the difference from a concatenation worth keeping in view:
+// two lists written next to each other join, the same two lists arriving under
+// one key do not.
+test "value.objects merge by key, recursively" {
     if (true) return error.SkipZigTest;
 
     var arena = std.heap.ArenaAllocator.init(testing.allocator);
@@ -453,14 +473,115 @@ test "value.objects and text join at load too" {
     try testing.expectEqualStrings("x", obj.object[0].key.value);
     try testing.expectEqualStrings("y", obj.object[1].key.value);
 
-    var texts = [_]Node{ v("grumpy"), v(" "), v("\"wombat\"") };
-    const text = try Value.fromNode(gpa, n(.concat, &texts));
-    try testing.expectEqualStrings("grumpy wombat", text.scalar.value);
-    try testing.expect(text.scalar.quoted);
+    // a shared key keeps its position and takes the right-hand value
+    var l1 = [_]Node{ v("b"), v("1") };
+    var l2 = [_]Node{ v("c"), v("2") };
+    var r1 = [_]Node{ v("c"), v("3") };
+    var r2 = [_]Node{ v("d"), v("4") };
+    var left = [_]Node{ n(.assignment, &l1), n(.assignment, &l2) };
+    var right = [_]Node{ n(.assignment, &r1), n(.assignment, &r2) };
+    var overlap = [_]Node{ n(.block, &left), v(" "), n(.block, &right) };
+    const o = try Value.fromNode(gpa, n(.concat, &overlap));
+    try testing.expectEqual(@as(usize, 3), o.object.len);
+    try testing.expectEqualStrings("b", o.object[0].key.value);
+    try testing.expectEqualStrings("c", o.object[1].key.value);
+    try testing.expectEqualStrings("3", o.object[1].value.scalar.value);
+    try testing.expectEqualStrings("d", o.object[2].key.value);
 
-    var spaced = [_]Node{ v("1"), v(" "), v("\" x\"") };
-    const joined = try Value.fromNode(gpa, n(.concat, &spaced));
-    try testing.expectEqualStrings("1  x", joined.scalar.value);
+    // both sides an object under the same key: down one level
+    var deep_l = [_]Node{ v("c"), v("1") };
+    var deep_r = [_]Node{ v("d"), v("2") };
+    var inner_l = [_]Node{n(.assignment, &deep_l)};
+    var inner_r = [_]Node{n(.assignment, &deep_r)};
+    var outer_l = [_]Node{ v("b"), n(.block, &inner_l) };
+    var outer_r = [_]Node{ v("b"), n(.block, &inner_r) };
+    var wrap_l = [_]Node{n(.assignment, &outer_l)};
+    var wrap_r = [_]Node{n(.assignment, &outer_r)};
+    var nested = [_]Node{ n(.block, &wrap_l), v(" "), n(.block, &wrap_r) };
+    const d = try Value.fromNode(gpa, n(.concat, &nested));
+    try testing.expectEqual(@as(usize, 1), d.object.len);
+    try testing.expectEqual(@as(usize, 2), d.object[0].value.object.len);
+    try testing.expectEqualStrings("c", d.object[0].value.object[0].key.value);
+    try testing.expectEqualStrings("d", d.object[0].value.object[1].key.value);
+
+    // anything but two objects: the right one wins outright, no joining
+    var list_l = [_]Node{v("1")};
+    var list_r = [_]Node{v("2")};
+    var kl = [_]Node{ v("b"), n(.array, &list_l) };
+    var kr = [_]Node{ v("b"), n(.array, &list_r) };
+    var wl = [_]Node{n(.assignment, &kl)};
+    var wr = [_]Node{n(.assignment, &kr)};
+    var lists = [_]Node{ n(.block, &wl), v(" "), n(.block, &wr) };
+    const w = try Value.fromNode(gpa, n(.concat, &lists));
+    try testing.expectEqual(@as(usize, 1), w.object.len);
+    try testing.expectEqual(@as(usize, 1), w.object[0].value.array.len);
+    try testing.expectEqualStrings("2", w.object[0].value.array[0].scalar.value);
+}
+
+// java ✓ · pyhocon ⚠️ · spec ✓ — nothing has to stand between a substitution
+// and the part next to it. Written with no gap they are still two parts, and
+// the ref still cannot be joined into:
+//
+//   'a = ${x}"c"'    -> ${x}"c"        two parts, no gap to carry
+//   'a = "c"${x}'    -> "c"${x}
+//   'a = ${x}[1]'    -> ${x}[1]
+//   'a = ${x}{b=1}'  -> ${x}{"b":1}
+//
+// Which resolve then joins with nothing added — 'x = 1' gives "1c", not "1 c",
+// so the gap is never invented on the way out either.
+//
+// (pyhocon cannot print an unresolved substitution, so it is only comparable
+// once resolved.)
+test "value.a ref needs no gap to stand apart" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+    const gpa = arena.allocator();
+
+    var px = [_]Node{v("x")};
+    const sx = n(.subst, &px);
+    var elems = [_]Node{v("1")};
+    var m = [_]Node{ v("b"), v("1") };
+    var assigns = [_]Node{n(.assignment, &m)};
+
+    var after = [_]Node{ sx, v("\"c\"") };
+    const a = try Value.fromNode(gpa, n(.concat, &after));
+    try testing.expectEqual(@as(usize, 2), a.pending.len);
+    try testing.expect(a.pending[0] == .ref);
+    try testing.expectEqualStrings("c", a.pending[1].scalar.value);
+
+    var before = [_]Node{ v("\"c\""), sx };
+    const b = try Value.fromNode(gpa, n(.concat, &before));
+    try testing.expectEqual(@as(usize, 2), b.pending.len);
+    try testing.expectEqualStrings("c", b.pending[0].scalar.value);
+    try testing.expect(b.pending[1] == .ref);
+
+    var with_list = [_]Node{ sx, n(.array, &elems) };
+    const l = try Value.fromNode(gpa, n(.concat, &with_list));
+    try testing.expectEqual(@as(usize, 2), l.pending.len);
+    try testing.expect(l.pending[0] == .ref);
+    try testing.expect(l.pending[1] == .array);
+
+    var with_block = [_]Node{ sx, n(.block, &assigns) };
+    const o = try Value.fromNode(gpa, n(.concat, &with_block));
+    try testing.expectEqual(@as(usize, 2), o.pending.len);
+    try testing.expect(o.pending[0] == .ref);
+    try testing.expect(o.pending[1] == .object);
+}
+
+// The parser never builds one — a `.concat` exists because there were parts to
+// hold — but `fromNode` reads `values.items[0]` to decide what it is looking
+// at, and on an empty list that is a read past the end rather than an error.
+// A node arriving from anywhere but `parseValue` has to come back as an error.
+test "value.an empty concatenation is an error, not an index out of range" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+    const gpa = arena.allocator();
+
+    var none = [_]Node{};
+    try testing.expectError(
+        Error.UnsupportedConcatenation,
+        Value.fromNode(gpa, n(.concat, &none)),
+    );
 }
 
 // java ✓ · pyhocon ✓ · spec ✓ — 'Cannot concatenate object or list with a
