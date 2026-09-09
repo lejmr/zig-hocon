@@ -2,8 +2,10 @@ const std = @import("std");
 const testing = std.testing;
 
 const Tokenizer = @import("Tokenizer.zig");
+const Key = @import("Key.zig");
 const table = @import("table.zig");
 const Case = table.Case;
+const unquote = @import("utils/unqoute.zig");
 
 pub const Node = struct {
     kind: NodeKind,
@@ -74,7 +76,7 @@ pub const Parser = struct {
 
     /// Written out rather than inferred (`!Node`): `parseContainer` recurses, and
     /// an inferred error set cannot be resolved when it depends on itself.
-    pub const Error = error{UnexpectedToken} || std.mem.Allocator.Error;
+    pub const Error = error{UnexpectedToken} || std.mem.Allocator.Error || unquote.Error;
 
     fn parse(self: *Parser) Error!Node {
         return self.parseContainer(.eof, .root);
@@ -407,53 +409,50 @@ pub const Parser = struct {
 };
 
 /// Builds the member node for `key = value`, expanding a dotted key into the
-/// nesting it stands for: `a.b = 1` is `a { b = 1 }`, and both build the same
-/// tree on purpose.
-///
-/// Splitting belongs here rather than in evaluation, because the only thing
-/// carrying the difference between `a."b.c"` and `a.b.c` is which dots were
-/// quoted — and evaluation, which joins the parts into text, no longer has it.
-/// A multi-part key is left alone for now, dots and all.
+/// nesting it stands for: `a.b = 1`, `"a"."b" = 1` and `a { b = 1 }` build the
+/// same tree on purpose.
+/// Stupid part is a) is based on one node holding value="a.b" while
+///                b) concat(n("\"a\""),n("."),n("\"b\""))
 fn prepareMemberNode(gpa: std.mem.Allocator, key: Node, value: Node) Parser.Error!Node {
-    // if we are none quoted string then we can try to unnest the key
-    const is_not_quoted = std.mem.indexOfScalar(u8, key.value, '"') == null;
-    if (key.kind == .value and is_not_quoted) {
-        // Lets break into sections
-        const last_index = std.mem.lastIndexOfScalar(u8, key.value, '.');
-        if (last_index) |idx| {
-            // Unsupported situations
-            if (idx + 1 == key.value.len or idx == 0) return Parser.Error.UnexpectedToken;
-            if (key.value[idx - 1] == '.') return Parser.Error.UnexpectedToken;
+    const first = [_]Node{key};
+    const parts = if (key.kind == .value) &first else key.children;
 
-            // For the member object
-            const new_key = key.value[idx + 1 ..];
-            const new_member = Node{
-                .kind = .assignment,
-                .children = try gpa.dupe(
-                    Node,
-                    &.{
-                        Node{ .kind = .value, .value = new_key, .children = &.{} },
-                        value,
-                    },
-                ),
-            };
+    // Build hierarych of keys
+    var elements: std.ArrayList([]Node) = .empty;
+    defer elements.deinit(gpa);
+    var current: std.ArrayList(Node) = .empty;
+    defer current.deinit(gpa);
 
-            // Prepare recursive call
-            const pre = key.value[0..idx];
-            const new_value = Node{ .kind = .block, .children = try gpa.dupe(Node, &.{new_member}) };
-            return prepareMemberNode(
-                gpa,
-                Node{ .kind = .value, .value = pre, .children = &.{} },
-                new_value,
-            );
+    for (parts) |part| {
+        const unquoted = try unquote.unquote(gpa, part.value);
+        if (unquoted.quoted) {
+            try current.append(gpa, part);
+            continue;
+        }
+
+        var it = std.mem.splitScalar(u8, part.value, '.');
+        const head = it.first();
+        if (head.len > 0) try current.append(gpa, .{ .kind = .value, .value = head, .children = &.{} });
+        while (it.next()) |seq| {
+            try elements.append(gpa, try current.toOwnedSlice(gpa));
+            if (seq.len > 0) try current.append(gpa, .{ .kind = .value, .value = seq, .children = &.{} });
         }
     }
+    try elements.append(gpa, try current.toOwnedSlice(gpa));
 
-    // Lets return at the end of recursion or in case of a complex key
-    return .{
-        .kind = .assignment,
-        .children = try gpa.dupe(Node, &.{ key, value }),
-    };
+    var return_node: ?Node = null;
+    for (0..elements.items.len) |i| {
+        const nodes = elements.items[elements.items.len - i - 1];
+        if (nodes.len == 0) return Parser.Error.UnexpectedToken;
+
+        const element: Node = if (nodes.len == 1) nodes[0] else .{ .kind = .concat, .children = nodes };
+        const inner: Node = if (return_node) |nn|
+            .{ .kind = .block, .children = try gpa.dupe(Node, &.{nn}) }
+        else
+            value;
+        return_node = .{ .kind = .assignment, .children = try gpa.dupe(Node, &.{ element, inner }) };
+    }
+    return return_node orelse Parser.Error.UnexpectedToken;
 }
 
 /// Whether `node` is the text a path expression is made of. The inside of
@@ -1034,24 +1033,82 @@ test "key.a dotted key is a path" {
     });
 }
 
-// java ⚠️ · pyhocon ⚠️ · spec ✓ — nobody agrees with us here, and for opposite
-// reasons: java splits these ('"a"."b" = 1' -> {"a":{"b":1}}, 'a "b c" d = f' ->
-// {"a b c d":"f"}), pyhocon rejects both outright. We keep the parts side by
-// side, which is neither — the state tools/oracle/README.md records as
-// unimplemented.
+// java ✓ · pyhocon ⚠️ · spec ✓ — every row through both oracles; pyhocon rejects
+// any key with a quoted part outright (see tools/oracle/README.md), java takes
+// them all:
 //
-// A key made of several parts is left alone for now, so a dot
-// in one is not yet a separator. Java splits these too ('"a"."b" = 1' gives
-// {"a":{"b":1}}); we keep the parts side by side instead, which is the state
-// tools/oracle/README.md records as unimplemented.
+//   input                 java
+//   "a"."b" = 1           {"a":{"b":1}}
+//   "a".b = 1             {"a":{"b":1}}
+//   a."b.c" = 1           {"a":{"b.c":1}}
+//   a."b".c = 1           {"a":{"b":{"c":1}}}
+//   "a.b".c = 1           {"a.b":{"c":1}}
+//   """a.b""".c = 1       {"a.b":{"c":1}}
+//   a.".".b = 1           {"a":{".":{"b":1}}}
+//   a."" = 1              {"a":{"":1}}
+//   "".a = 1              {"":{"a":1}}
+//   a"b".c = 1            {"ab":{"c":1}}
+//   a."b c" d = 1         {"a":{"b c d":1}}
+//   "a" . "b" = 1         {"a ":{" b":1}}
+//   "a"."b" { c = 1 }     {"a":{"b":{"c":1}}}
+//   a."b.c" = 1\na.b.c = 2  {"a":{"b":{"c":2},"b.c":1}}
+//   "a". = 1              ERROR BadPath
+//   ."a" = 1              ERROR BadPath
+//   "a"..b = 1            ERROR BadPath
 //
-// Asserted rather than left untested: the pass-through is what makes the split
-// safe to write as `key.kind == .value`, and a concat key that started splitting
-// by accident would otherwise fail somewhere far away.
-test "key.a multi-part key is not split yet" {
+// One splitter for both spellings of a key. It walks the parts `parseText`
+// left rather than the joined text: a dot inside an unquoted part ends an
+// element, a dot inside a quoted part is a character, and the boundary between
+// two parts means nothing — so `a"b".c` has two elements, the first made of
+// two parts. That is the same rule `${…}` already follows in Value.zig, and it
+// is why the quotes stay on the leaves here: the tree still has to tell
+// `"a.b"` from `a.b` one level down.
+//
+// An element made of one part is a `value`, of several a `concat`, exactly as
+// a whole key was before — so `a "b c" d` (no dot) dumps as it always did.
+test "key.a multi-part key is a path too" {
     try expectAll(&.{
-        .ok("\"a\".\"b\" = 1", "root(assign(concat(value(\"a\"), value(.), value(\"b\")), value(1)))"),
+        // The dot alone between two quoted parts.
+        .ok("\"a\".\"b\" = 1", "root(assign(value(\"a\"), block(assign(value(\"b\"), value(1)))))"),
+        .ok("\"a\".b = 1", "root(assign(value(\"a\"), block(assign(value(b), value(1)))))"),
+
+        // A quoted dot is a character of its element.
+        .ok("a.\"b.c\" = 1", "root(assign(value(a), block(assign(value(\"b.c\"), value(1)))))"),
+        .ok("a.\"b\".c = 1", "root(assign(value(a), block(assign(value(\"b\"), block(assign(value(c), value(1)))))))"),
+        .ok("\"a.b\".c = 1", "root(assign(value(\"a.b\"), block(assign(value(c), value(1)))))"),
+        .ok("\"\"\"a.b\"\"\".c = 1", "root(assign(value(\"\"\"a.b\"\"\"), block(assign(value(c), value(1)))))"),
+        .ok("a.\".\".b = 1", "root(assign(value(a), block(assign(value(\".\"), block(assign(value(b), value(1)))))))"),
+
+        // An empty element is legal when it is written as `""`.
+        .ok("a.\"\" = 1", "root(assign(value(a), block(assign(value(\"\"), value(1)))))"),
+        .ok("\"\".a = 1", "root(assign(value(\"\"), block(assign(value(a), value(1)))))"),
+
+        // A part boundary is not an element boundary: only a dot is.
+        .ok("a\"b\".c = 1", "root(assign(concat(value(a), value(\"b\")), block(assign(value(c), value(1)))))"),
+        .ok("a.\"b c\" d = 1", "root(assign(value(a), block(assign(concat(value(\"b c\"), value( ), value(d)), value(1)))))"),
+
+        // Whitespace around a dot belongs to the element it touches, as in
+        // `a .b` — here it arrives as gap parts and stays with them.
+        .ok("\"a\" . \"b\" = 1", "root(assign(concat(value(\"a\"), value( )), block(assign(concat(value( ), value(\"b\")), value(1)))))"),
+
+        // No dot anywhere: one element, the concat it always was.
         .ok("a \"b c\" d = f", "root(assign(concat(value(a), value( ), value(\"b c\"), value( ), value(d)), value(f)))"),
+
+        // The value side is untouched by the split.
+        .ok("\"a\".\"b\" { c = 1 }", "root(assign(value(\"a\"), block(assign(value(\"b\"), block(assign(value(c), value(1)))))))"),
+
+        // Two spellings, two members side by side; that they name different
+        // keys is for evaluation to find out.
+        .ok(
+            "a.\"b.c\" = 1\na.b.c = 2",
+            "root(assign(value(a), block(assign(value(\"b.c\"), value(1)))), assign(value(a), block(assign(value(b), block(assign(value(c), value(2)))))))",
+        ),
+
+        // An unquoted empty element is a BadPath here too, whichever side of
+        // the quotes it falls on.
+        .bad("\"a\". = 1"),
+        .bad(".\"a\" = 1"),
+        .bad("\"a\"..b = 1"),
     });
 }
 
