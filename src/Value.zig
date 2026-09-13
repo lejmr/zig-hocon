@@ -184,9 +184,9 @@ const Member = struct {
         // Member can only by assignment type
         if (node.kind != .assignment and node.children.len >= 2) return Error.UnsupportedNodeKind;
 
-        // Lets prepare key
+        // Lets prepare key: one part, or the `concat` of parts one element can be
         const key_node = node.children[0];
-        if (key_node.kind != .value) return Error.UnsupportedNodeKind;
+        if (key_node.kind != .value and key_node.kind != .concat) return Error.UnsupportedNodeKind;
 
         // Loads load the Value
         const val = try Value.fromNode(gpa, node.children[1]);
@@ -208,8 +208,6 @@ const Ref = struct {
     path: []const Key,
     optional: bool,
 
-    /// The child holds the path as it was written; split it on `.` here so
-    /// `resolve` never parses. A quoted dot has no answer yet.
     pub fn fromNode(gpa: std.mem.Allocator, node: Node) Error!Ref {
         var single = [_]Node{node.children[0]};
         const parts: []const Node = switch (node.children[0].kind) {
@@ -221,23 +219,28 @@ const Ref = struct {
         var key_list: std.ArrayList(Key) = .empty;
         var current: std.ArrayList(u8) = .empty;
         defer current.deinit(gpa);
+        var written = false;
 
         for (parts) |part| {
             if (part.kind != .value) return Error.MalformedKey;
             const ut = try unqoute.unquote(gpa, part.value);
             if (ut.quoted) {
                 try current.appendSlice(gpa, ut.text);
+                written = true;
                 continue;
             }
 
-            var it = std.mem.splitAny(u8, ut.text, ".");
+            var it = std.mem.splitScalar(u8, ut.text, '.');
             try current.appendSlice(gpa, it.first());
             while (it.next()) |x| {
+                if (current.items.len == 0 and !written) return Error.MalformedKey;
                 try key_list.append(gpa, .{ .value = try gpa.dupe(u8, current.items) });
                 current.clearRetainingCapacity();
+                written = false;
                 try current.appendSlice(gpa, x);
             }
         }
+        if (current.items.len == 0 and !written) return Error.MalformedKey;
         try key_list.append(gpa, .{ .value = try gpa.dupe(u8, current.items) });
 
         return .{
@@ -787,28 +790,28 @@ test "ref.a quoted dot is a character, not a separator" {
     defer arena.deinit();
     const gpa = arena.allocator();
 
-    // var plain = [_]Node{v("x.y")};
-    // const p = try Value.fromNode(gpa, n(.subst, &plain));
-    // try testing.expectEqual(@as(usize, 2), p.ref.path.len);
-    // try testing.expectEqualStrings("x", p.ref.path[0].value);
-    // try testing.expectEqualStrings("y", p.ref.path[1].value);
+    var plain = [_]Node{v("x.y")};
+    const p = try Value.fromNode(gpa, n(.subst, &plain));
+    try testing.expectEqual(@as(usize, 2), p.ref.path.len);
+    try testing.expectEqualStrings("x", p.ref.path[0].value);
+    try testing.expectEqualStrings("y", p.ref.path[1].value);
 
-    // var parts = [_]Node{ v("x."), v("\"y.z\"") };
-    // var quoted_tail = [_]Node{n(.concat, &parts)};
-    // const q = try Value.fromNode(gpa, n(.subst, &quoted_tail));
-    // try testing.expectEqual(@as(usize, 2), q.ref.path.len);
-    // try testing.expectEqualStrings("x", q.ref.path[0].value);
-    // try testing.expectEqualStrings("y.z", q.ref.path[1].value);
+    var parts = [_]Node{ v("x."), v("\"y.z\"") };
+    var quoted_tail = [_]Node{n(.concat, &parts)};
+    const q = try Value.fromNode(gpa, n(.subst, &quoted_tail));
+    try testing.expectEqual(@as(usize, 2), q.ref.path.len);
+    try testing.expectEqualStrings("x", q.ref.path[0].value);
+    try testing.expectEqualStrings("y.z", q.ref.path[1].value);
 
-    // var whole = [_]Node{v("\"a.b\"")};
-    // const w = try Value.fromNode(gpa, n(.subst, &whole));
-    // try testing.expectEqual(@as(usize, 1), w.ref.path.len);
-    // try testing.expectEqualStrings("a.b", w.ref.path[0].value);
+    var whole = [_]Node{v("\"a.b\"")};
+    const w = try Value.fromNode(gpa, n(.subst, &whole));
+    try testing.expectEqual(@as(usize, 1), w.ref.path.len);
+    try testing.expectEqualStrings("a.b", w.ref.path[0].value);
 
-    // var single = [_]Node{v("x")};
-    // const one = try Value.fromNode(gpa, n(.subst, &single));
-    // try testing.expectEqual(@as(usize, 1), one.ref.path.len);
-    // try testing.expectEqualStrings("x", one.ref.path[0].value);
+    var single = [_]Node{v("x")};
+    const one = try Value.fromNode(gpa, n(.subst, &single));
+    try testing.expectEqual(@as(usize, 1), one.ref.path.len);
+    try testing.expectEqualStrings("x", one.ref.path[0].value);
 
     // A segment stays open across the part boundary, so a part beginning with a
     // dot closes the one before it rather than adding an empty one of its own.
@@ -835,6 +838,76 @@ test "ref.a quoted dot is a character, not a separator" {
     };
     for ([_][]Node{ &p1, &p2, &p3, &p4, &p5 }, want, 0..) |path_parts, expected, i| {
         errdefer std.debug.print("failed on path {d}\n", .{i});
+        var child = [_]Node{n(.concat, path_parts)};
+        const r = try Value.fromNode(gpa, n(.subst, &child));
+        try testing.expectEqual(expected.len, r.ref.path.len);
+        for (expected, r.ref.path) |e, got| try testing.expectEqualStrings(e, got.value);
+    }
+}
+
+// java ✓ · pyhocon ⚠️ · spec ✓ — an element made of several parts is one key
+// at load, the way `Key.fromNode` already joins it:
+//
+//   'a"b" = 1'    -> {"ab":1}       '"a" b = c'  -> {"a b":"c"}
+//
+// Such keys reach here routinely now that the parser splits `a"b".c` into
+// elements, so a `concat` key node is a member like any other. pyhocon rejects
+// the mixed spelling (see tools/oracle/README.md).
+test "value.a key made of several parts is one member" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+    const gpa = arena.allocator();
+
+    var glued = [_]Node{ v("a"), v("\"b\"") };
+    var m1 = [_]Node{ n(.concat, &glued), v("1") };
+    var spaced = [_]Node{ v("\"a\""), v(" "), v("b") };
+    var m2 = [_]Node{ n(.concat, &spaced), v("c") };
+    var members = [_]Node{ n(.assignment, &m1), n(.assignment, &m2) };
+    const o = try Value.fromNode(gpa, n(.block, &members));
+    try testing.expectEqual(@as(usize, 2), o.object.len);
+    try testing.expectEqualStrings("ab", o.object[0].key.value);
+    try testing.expectEqualStrings("a b", o.object[1].key.value);
+    try testing.expectEqualStrings("c", o.object[1].value.scalar.value);
+}
+
+// java ✓ · pyhocon ⚠️ · spec ✓ — the empty element java calls BadPath, on a path
+// inside `${…}`. Quotes make the same difference they make on the key side: an
+// empty element is legal only when it is written as `""`.
+//
+//   'a = ${.b}'      -> ERROR BadPath      'a = ${"b".}'  -> ERROR BadPath
+//   'a = ${b.}'      -> ERROR BadPath      'a = ${."b"}'  -> ERROR BadPath
+//   'a = ${b..c}'    -> ERROR BadPath
+//   'a = ${"".b}'    -> {"a":${"".b}}      'a = ${b.""}'  -> {"a":${b.""}}
+//
+// The two legal ones resolve in java against exactly the key they name:
+// 'resolve:"" { b = 1 }\na = ${"".b}' -> {"":{"b":1},"a":1}. pyhocon cannot
+// parse a quoted path element at all, so it is not comparable here.
+//
+// The parser still lets these through (its own `substitution` table says so),
+// so the ref is where they have to stop: the same splitter that cuts the path
+// is the one that knows an element came out empty without quotes to say so.
+test "ref.an unquoted empty element is a BadPath" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+    const gpa = arena.allocator();
+
+    var b1 = [_]Node{v(".b")};
+    var b2 = [_]Node{v("b.")};
+    var b3 = [_]Node{v("b..c")};
+    var b4 = [_]Node{ v("\"b\""), v(".") };
+    var b5 = [_]Node{ v("."), v("\"b\"") };
+    for ([_][]Node{ &b1, &b2, &b3, &b4, &b5 }, 0..) |path_parts, i| {
+        errdefer std.debug.print("failed on bad path {d}\n", .{i});
+        var child = [_]Node{n(.concat, path_parts)};
+        try testing.expectError(Error.MalformedKey, Value.fromNode(gpa, n(.subst, &child)));
+    }
+
+    // Written as `""`, the empty element is an element like any other.
+    var ok1 = [_]Node{ v("\"\""), v(".b") };
+    var ok2 = [_]Node{ v("b."), v("\"\"") };
+    const want = [_][]const []const u8{ &.{ "", "b" }, &.{ "b", "" } };
+    for ([_][]Node{ &ok1, &ok2 }, want, 0..) |path_parts, expected, i| {
+        errdefer std.debug.print("failed on legal path {d}\n", .{i});
         var child = [_]Node{n(.concat, path_parts)};
         const r = try Value.fromNode(gpa, n(.subst, &child));
         try testing.expectEqual(expected.len, r.ref.path.len);
