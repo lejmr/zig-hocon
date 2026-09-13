@@ -46,56 +46,79 @@ three you do not have to leave when the config stops being one file.
 
 ## 3. Layers — environments, shared defaults, overrides?
 
-This is the real decision, and it is **HOCON or Pkl**.
+This is where HOCON earns its keep, and it is worth being plain that this is
+also where the alternatives stop being level.
 
 Everything else on this page makes you build layering yourself. In TOML you
 merge dictionaries in application code. In YAML you reach for anchors and
 aliases, which do not cross file boundaries, cannot be partially overridden,
 and whose merge key `<<` was never part of the standard. Both of those are
-someone's Tuesday afternoon reimplementing what these two formats do properly.
+someone's Tuesday afternoon spent reimplementing what HOCON does as a language
+feature: a file says only what it changes, objects merge key by key, and a
+substitution resolves against the *finished* document, so a value derived in a
+shared file follows an override made three layers later. That is
+{{< ref-link "patterns" "Patterns" >}}, and it is the whole reason the format
+outlived the decade it was designed in.
 
-**HOCON** does it with includes, merging and substitutions. A file says only
-what it changes, a substitution resolves against the *finished* document, and
-nothing needs a toolchain — see {{< ref-link "patterns" "Patterns" >}}.
+## 4. So when is it not HOCON?
 
-**Pkl** does it with `amends`, and gives you two things HOCON has no answer to:
-type constraints in the file itself —
+Two cases, and neither is common. If you are in either, it is worth knowing;
+if you are not, the answer is HOCON and this section is trivia.
+
+### It is infrastructure, not application config
+
+If what you are describing is Kubernetes manifests, Terraform, CI pipelines —
+anything whose consumer is a tool that eats YAML — then look at
+**[Pkl](https://pkl-lang.org)**.
+
+The difference is not taste. In that pipeline there is no type system anywhere
+between what you write and what runs, so a typo in `replcias` reaches the
+cluster. Pkl supplies the type system that is missing: manifests are typed
+against generated classes from the Kubernetes OpenAPI schema, and it can reach
+into a list to override one element by predicate —
 
 ```
-serverPort: Int(isBetween(0, 1023))
+containers {
+  [[name == "follower"]] { env { [[name == "GET_HOSTS_FROM"]] { value = "env" } } }
+}
 ```
 
-— and generated typed bindings for Java, Kotlin, Swift and Go.
+— which HOCON genuinely cannot do. Lists there can be replaced or extended,
+never edited in the middle, and infrastructure config is lists all the way
+down.
 
-Choose **HOCON** when the files exist already, when you do not want a language
-in your build, or when the people editing the config should not have to learn
-one. Choose **Pkl** when you are starting from nothing and the extra strictness
-is worth the adoption.
+### The same config is read by programs in several languages
 
-One honest note on the constraints, because the gap is narrower than it looks
-from the outside: Pkl's are declarative and travel with the file, which is a
-real advantage — but they cannot reference other properties. "Read timeout must
-exceed connect timeout" is not expressible as a Pkl constraint, while it is one
-line of ordinary code in a `validate()` method next to the struct the config
-parses into. Different shape, not strictly more.
+If a platform team owns the shape and four languages consume it, one schema
+generating typed bindings for each is exactly the problem Pkl was built for. It
+came out of Apple, and that list of target languages is not a coincidence.
 
-## 4. A contract across teams and languages?
+### And when it is application config in one language — it is not Pkl
 
-Then **Pkl**, and it is not close.
+Which is the ordinary case, and where the argument is the other way round.
 
-If a platform team owns what a service's configuration looks like, and the
-services reading it are written in four languages, then generating typed
-bindings from one schema is exactly the problem Pkl was built for — it came out
-of Apple, and that list of target languages is not a coincidence.
+Pkl's pitch for an application is a type system and constraints. You already
+have a type system: the one in the language reading the config. So what Pkl
+adds is mostly a re-derivation of what your own struct already says, and it
+costs a language in the build, a code generation step, and generated files in
+the repository that nobody edits and everybody has to regenerate.
 
-That is a different problem from the one this library solves. Bindings here
-exist so that several languages can call *one parser*, because the files are
-already HOCON and nobody wants to write the parser five times. Pkl's codegen
-exists so that several languages can share *one schema*. The first is interop
-with what exists; the second is a contract about what will.
+| | what has to exist and stay in agreement |
+|---|---|
+| Pkl | the `.pkl` schema → the generated types → your code |
+| HOCON + a struct | your code |
 
-If you have the second problem, use Pkl. This library will not give you that,
-and pretending otherwise would waste your time.
+Removing an artefact beats shortening a syntax, and this removes two. The
+struct that reads the configuration *is* the schema — see
+{{< ref-link "getting-started" "Getting started" >}}.
+
+Two honest points against that, so the trade is visible. Pkl's constraints live
+in the file and are checked by its LSP as you type; a `validate()` method is
+checked when the build runs, so someone editing config without compiling gets
+no feedback until CI. And Pkl's constraints are declarative, which is a real
+advantage — though narrower than it looks, since they cannot reference other
+properties: "read timeout must exceed connect timeout" is not expressible as a
+Pkl constraint and is one line of ordinary code next to the struct.
 
 ## The short version
 
@@ -103,6 +126,7 @@ and pretending otherwise would waste your time.
 |---|---|
 | config already in HOCON | HOCON |
 | one flat file | HOCON, TOML or YAML — level |
-| layers and environments | HOCON, or Pkl if greenfield |
-| one schema, many languages, many teams | Pkl |
+| layers, environments, shared defaults | HOCON |
+| Kubernetes, Terraform, anything rendering YAML | [Pkl](https://pkl-lang.org) |
+| one schema, many languages, many teams | [Pkl](https://pkl-lang.org) |
 | data to serialise, with a schema, in Zig | [Ziggy](https://ziggy-lang.io) |
