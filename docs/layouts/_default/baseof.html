@@ -10,9 +10,13 @@
 </head>
 <body>
 <header class="site"><div class="wrap">
-  <a href="{{ "/" | relURL }}"><img src="{{ "img/zig-hocon.png" | relURL }}" alt="zig-hocon"></a>
+  <a href="{{ site.Home.RelPermalink }}"><img src="{{ "img/zig-hocon.png" | relURL }}" alt="zig-hocon"></a>
   <nav>
-    {{ range .Site.Menus.main }}<a href="{{ with .PageRef }}{{ . | relURL }}{{ else }}{{ .URL }}{{ end }}">{{ .Name }}</a>{{ end }}
+    {{- range site.Menus.main }}
+      {{- $url := .URL }}
+      {{- with .PageRef }}{{ with site.GetPage . }}{{ $url = .RelPermalink }}{{ end }}{{ end }}
+      <a href="{{ $url }}">{{ .Name }}</a>
+    {{- end }}
   </nav>
 </div></header>
 <main><div class="wrap">

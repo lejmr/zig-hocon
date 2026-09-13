@@ -74,4 +74,4 @@ rather than a value. Includes are not implemented. Types are not inferred, so
 `1` and `"1"` are both text carrying a flag that says which way they were
 written — that flag is what type conversion will read.
 
-[Coverage](/coverage/) has the section-by-section list.
+{{< ref-link "coverage" "Coverage" >}} has the section-by-section list.
