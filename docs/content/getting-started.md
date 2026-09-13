@@ -92,6 +92,28 @@ That is a real test in CI: rename a field and the configs that still use the
 old name fail the build, in the same run that compiles the code reading them.
 No new tool, no schema to keep in sync.
 
+And note which configs it checked. **Every environment, in one run, on a
+laptop.** The usual way to find out that the UAT config no longer fits the
+program is to deploy to UAT; here prod, uat and dev are all checked before
+anything ships, because loading a config needs no environment to load it in.
+
+It catches the failure that HOCON cannot catch on its own, too. A deep override
+path is just a key:
+
+```ini
+service.timeouts.raed = 5000    # adds a key nobody reads
+service.timeouts.read = 5000    # changes the one that matters
+```
+
+Nothing in the format can tell those apart — there is no declared shape for it
+to check against. A struct is exactly that declaration, so the first line stops
+being a silent no-op and starts being a build failure.
+
+Where it stops: a type is not a constraint. `port: u16` refuses `70000` and
+accepts `0`, and "a timeout must be under thirty seconds" is not something a
+type says. That is a `validate()` method on the struct, run after loading — and
+it is worth writing, because by then everything else has already been checked.
+
 ### From the command line — the convenient one
 
 For a config struct that stands on its own, the CLI can do it:
