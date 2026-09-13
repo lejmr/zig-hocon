@@ -10,7 +10,7 @@ them, with no JVM underneath.</p>
 
 <div class="status">
 <strong>Status: early development.</strong> Tokenizer, parser and value graph
-are built and tested — eighty tests, each recording which reference
+are built and tested — seventy-eight of them, most recording which reference
 implementations agree. There is no public API yet and no CLI, so the Zig and
 shell snippets below are the target rather than a description.
 {{< ref-link "coverage" "Coverage" >}} tracks the spec section by section,

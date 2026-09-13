@@ -45,7 +45,7 @@ the two parts stayed two parts. No amount of prose says it as precisely.
 
 ## What it changed about the work
 
-Every behavioural test in the repository carries a line like
+Most behavioural tests in the repository carry a line like
 
 ```
 // java ✓ · pyhocon ⚠️ · spec ✓

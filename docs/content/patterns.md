@@ -4,10 +4,10 @@ description: What people actually build with includes, merging and substitutions
 ---
 
 <div class="status">
-<strong>Includes are the one piece not yet implemented here.</strong> Everything
-else on this page — merging, substitutions, self-reference, environment
-overrides — is built and tested. See {{< ref-link "coverage" "Coverage" >}}.
-The <code>zig-hocon</code> CLI below is planned, not built.
+<strong>This page teaches the format, not the library.</strong> Object merging
+is built and tested here; includes and substitution <em>resolution</em> are
+not, and neither is the CLI — so most of what follows is HOCON as it works,
+and as this will. See {{< ref-link "coverage" "Coverage" >}} for the line.
 </div>
 
 The reason HOCON is still around is not its syntax. It is that a configuration

@@ -18,8 +18,9 @@ cd zig-hocon
 zig build test
 ```
 
-Eighty tests, covering the tokenizer, the parser and the value graph. Most of
-them carry a note saying which reference implementations agree with them.
+Seventy-eight tests across the tokenizer, the parser and the value graph.
+Forty-four of the seventy-seven groups carry a note saying which reference
+implementations agree with them.
 
 The oracles bootstrap themselves on first use — `hocon-java` fetches
 `config.jar` from Maven Central, `hocon-py` makes a venv and installs pyhocon:
