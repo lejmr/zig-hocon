@@ -45,17 +45,52 @@ Deliberately out of scope: Java properties mapping, JVM config file name
 conventions, and override by system properties. Those describe the JVM, not the
 format.
 
-## Known divergences
+## Where this differs, and on purpose or not
 
-Where this parser and the Lightbend implementation differ, and it is on purpose
-or not yet fixed:
+Three different things get called a divergence and they deserve separating.
 
-- A malformed path (`.a`, `a.`, `a..b`) is rejected as the parser's
-  `UnexpectedToken` rather than the `BadPath` java names. Same verdict,
-  different label.
-- The tokenizer cannot yet start an unquoted string on `_ ' ~ % ( <`.
-- An escaped backslash immediately before a closing quote (`\\"`) is not
-  handled, nor is a leading `+` on a number.
+**The spec is the authority. Lightbend's `typesafe/config` is how the spec gets
+read**, because it is the implementation the spec was written against and the
+one every `.conf` file in the world was written for. On every disagreement
+found so far the two agree with each other and pyhocon is simply wrong — so
+"follow the spec" and "follow java" have not yet pulled in opposite directions,
+and claiming to hold one against the other would be a distinction without a
+difference.
+
+### Bugs — differs, and should not
+
+| input | java | here |
+|---|---|---|
+| an unquoted string starting `_ ' ~ % ( <` | accepted | tokenizer will not start one |
+| `a = b\\"c"` — escaped backslash before a closing quote | accepted | mis-lexed |
+| `a = +1` | accepted | rejected |
+| `a "b c" d = f` | one key, `a b c d` | parts kept side by side, not joined |
+
+### Deliberate leniency — differs, and stays that way
+
+Java is stricter than the spec strictly needs to be in a couple of places, and
+accepting more is the safer side to err on when the job is reading files that
+already exist. A config that parses today should keep parsing.
+
+| input | java | here | why |
+|---|---|---|---|
+| `,a = b` | error | accepted | a stray leading comma cannot change a value, only be noise |
+| `a = b,,c = d` | error | accepted | same — a doubled separator separates nothing extra |
+
+The rule that keeps this honest: **leniency may only accept more inputs, never
+produce a different value.** Where java and pyhocon give the same input
+different *output* — `a = b\tc`, where pyhocon expands the tab and java keeps
+it — java wins, every time.
+
+### Cosmetic — same verdict, different label
+
+`.a = 1`, `a. = 1` and `a..b = 1` are rejected here as the parser's
+`UnexpectedToken` where java names them `BadPath`. Same inputs refused, less
+helpful message. Worth fixing, changes nothing about what is accepted.
+
+The full table, with a note on each row about what the spec says and which
+implementation it backs, is in
+[`tools/oracle/README.md`](https://github.com/lejmr/zig-hocon/blob/main/tools/oracle/README.md).
 
 ## Not yet decided
 

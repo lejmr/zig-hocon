@@ -202,6 +202,9 @@ $ zig-hocon diff config/prod/application.conf config/uat/application.conf
 
 # parse and resolve, say nothing, set an exit code — for CI
 $ zig-hocon check config/prod/application.conf
+
+# and, since the struct is already the schema: does this file fit it?
+$ zig-hocon validate --schema src/config.zig:Config config/prod/application.conf
 ```
 
 No JVM to start, so it is fast enough to put in a pre-commit hook.
