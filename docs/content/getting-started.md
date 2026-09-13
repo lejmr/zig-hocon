@@ -92,6 +92,41 @@ That is a real test in CI: rename a field and the configs that still use the
 old name fail the build, in the same run that compiles the code reading them.
 No new tool, no schema to keep in sync.
 
+**Validate the leaves, not the layers.** `common.conf` and `defaults.conf` are
+not configurations — they are parts of one, and a part is legitimately missing
+fields the leaf supplies. Only the files something actually loads are complete
+enough to check, so the test names them: prod, uat, dev, and whatever else gets
+deployed.
+
+That `inline for` is the `@pytest.mark.parametrize` of this arrangement, with
+one difference worth knowing: it runs at compile time, which is what lets
+`@embedFile` work and what makes a missing config file a build error rather
+than a test that quietly did not run.
+
+The cost is that the list is written by hand. To discover the leaves instead,
+put it in `build.zig` — which *is* an ordinary program, and the only one that
+gets to read the filesystem before compilation happens:
+
+```zig
+// build.zig — every config/<env>/application.conf becomes a test case
+var dir = try std.fs.cwd().openDir("config", .{ .iterate = true });
+defer dir.close();
+
+var envs: std.ArrayList([]const u8) = .empty;
+var it = dir.iterate();
+while (try it.next()) |entry| {
+    if (entry.kind != .directory) continue;
+    try envs.append(b.allocator, b.dupe(entry.name));
+}
+
+const opts = b.addOptions();
+opts.addOption([]const []const u8, "environments", envs.items);
+tests.root_module.addOptions("config_envs", opts);
+```
+
+Add an environment directory and it is covered by the next build, with nobody
+having remembered to add it to a list.
+
 And note which configs it checked. **Every environment, in one run, on a
 laptop.** The usual way to find out that the UAT config no longer fits the
 program is to deploy to UAT; here prod, uat and dev are all checked before
