@@ -1,4 +1,4 @@
-# Builds docs/ and publishes it to GitHub Pages at hocon.miloskozak.cz.
+# Builds docs/ and publishes it to GitHub Pages at lejmr.github.io/zig-hocon.
 # Separate from CI on purpose: a documentation change cannot break the library,
 # and a red test should not stop a typo fix from shipping.
 name: Deploy docs to Pages
