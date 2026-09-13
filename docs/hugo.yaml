@@ -22,6 +22,9 @@ menus:
     - name: Patterns
       pageRef: /patterns
       weight: 15
+    - name: Choosing
+      pageRef: /choosing
+      weight: 17
     - name: Coverage
       pageRef: /coverage
       weight: 20

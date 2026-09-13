@@ -97,6 +97,13 @@ retries = 3
 retries = ${?RETRIES}        # let the environment win, if it has an opinion
 ```
 
+This is also the reason to reach for HOCON on a config that is one file today:
+it is the only format in its weight class you do not have to leave when that
+stops being true. Every JSON document is already a valid HOCON one, so it
+scales down to nothing — and up to this without changing format.
+{{< ref-link "choosing" "Choosing a format" >}} puts it next to TOML, YAML,
+Ziggy and Pkl, including where one of those is the better answer.
+
 Files layer, objects merge key by key, lists concatenate, and a substitution is
 resolved against the *finished* document — so `${app.name}` works whether the
 name was set above it, below it, in an included file, or by an environment
