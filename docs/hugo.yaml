@@ -1,0 +1,36 @@
+baseURL: https://lejmr.github.io/zig-hocon/
+languageCode: en-us
+title: zig-hocon
+
+params:
+  tagline: A HOCON parser for Zig
+  repo: https://github.com/lejmr/zig-hocon
+
+markup:
+  highlight:
+    noClasses: false
+    style: tango
+  goldmark:
+    renderer:
+      unsafe: true
+
+menus:
+  main:
+    - name: Getting started
+      pageRef: /getting-started
+      weight: 10
+    - name: Patterns
+      pageRef: /patterns
+      weight: 15
+    - name: Choosing
+      pageRef: /choosing
+      weight: 17
+    - name: Coverage
+      pageRef: /coverage
+      weight: 20
+    - name: Oracles
+      pageRef: /oracles
+      weight: 30
+    - name: Code
+      url: https://github.com/lejmr/zig-hocon
+      weight: 40

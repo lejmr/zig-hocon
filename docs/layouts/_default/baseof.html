@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ if .IsHome }}{{ .Site.Title }} — {{ .Site.Params.tagline }}{{ else }}{{ .Title }} · {{ .Site.Title }}{{ end }}</title>
+<meta name="description" content="{{ with .Description }}{{ . }}{{ else }}{{ .Site.Params.tagline }}{{ end }}">
+<link rel="stylesheet" href="{{ "css/chroma.css" | relURL }}">
+<link rel="stylesheet" href="{{ "css/main.css" | relURL }}">
+</head>
+<body>
+<header class="site"><div class="wrap">
+  <a href="{{ site.Home.RelPermalink }}"><img src="{{ "img/zig-hocon.png" | relURL }}" alt="zig-hocon"></a>
+  <nav>
+    {{- range site.Menus.main }}
+      {{- $url := .URL }}
+      {{- with .PageRef }}{{ with site.GetPage . }}{{ $url = .RelPermalink }}{{ end }}{{ end }}
+      <a href="{{ $url }}">{{ .Name }}</a>
+    {{- end }}
+  </nav>
+</div></header>
+<main><div class="wrap">
+{{ block "main" . }}{{ end }}
+</div></main>
+<footer class="site"><div class="wrap">
+  BSD 3-Clause · <a href="{{ .Site.Params.repo }}">source</a> ·
+  written up at <a href="https://pubs.miloskozak.cz">pubs.miloskozak.cz</a>
+</div></footer>
+</body>
+</html>

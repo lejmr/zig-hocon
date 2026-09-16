@@ -1,0 +1,2 @@
+{{- $p := site.GetPage (index .Params 0) -}}
+<a href="{{ $p.RelPermalink }}">{{ index .Params 1 }}</a>
