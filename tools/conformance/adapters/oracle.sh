@@ -1,10 +1,10 @@
 #!/bin/sh
 # Adapter: makes any of the reference oracles satisfy the run.sh contract.
 #
-#   tools/conformance/run.sh --spec -- tools/conformance/adapters/oracle.sh hocon-java
-#   tools/conformance/run.sh --spec -- tools/conformance/adapters/oracle.sh hocon-py
-#   tools/conformance/run.sh --java -- tools/conformance/adapters/oracle.sh hocon-py
-#   tools/conformance/run.sh --spec -- tools/conformance/adapters/oracle.sh \
+#   conformance/run.sh --spec -- tools/conformance/adapters/oracle.sh hocon-java
+#   conformance/run.sh --spec -- tools/conformance/adapters/oracle.sh hocon-py
+#   conformance/run.sh --java -- tools/conformance/adapters/oracle.sh hocon-py
+#   conformance/run.sh --spec -- tools/conformance/adapters/oracle.sh \
 #       rust-oracle/target/release/rust-oracle
 #
 # run.sh appends the case file to whatever command it is given, so the oracle
