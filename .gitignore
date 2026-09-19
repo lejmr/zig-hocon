@@ -3,3 +3,4 @@ zig-out/
 .zig_test
 tools/oracle/rust-oracle/target/
 ROADMAP.md
+.DS_Store

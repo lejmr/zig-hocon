@@ -22,6 +22,10 @@ ROOT, SUITE, REPORTS = suite.ROOT, suite.SUITE, suite.REPORTS
 README = ROOT / "README.md"
 PAGE = ROOT / "conformance" / "report.html"
 COVERAGE = ROOT / "conformance" / "maintaining" / "COVERAGE.md"
+SECTIONS_MD = ROOT / "conformance" / "maintaining" / "SECTIONS.md"
+# sections whose rules live in typed accessors the oracle protocol never calls;
+# their cases pin only that the value survives the parse
+NOT_MEASURED = {"units-format", "duration-format", "period-format", "size-in-bytes-format"}
 START, END = "<!-- conformance:start -->", "<!-- conformance:end -->"
 MARK = {"pass": "✅", "fail": "❌", "open": "⚠"}
 
@@ -142,6 +146,29 @@ def main(argv):
         + (["- `{}` → `{}`".format(f, i) for i in tagged if i not in items for f in tagged[i]] or ["none"])
         + [""])
 
+    # SECTIONS.md keeps its prose by hand; only the state column is derived, so
+    # it cannot drift from the disk the way it did before
+    import re
+    counts = {name: len(rows) for name, rows in sections.items()}
+    sec_lines, seen = [], set()
+    for line in SECTIONS_MD.read_text().splitlines():
+        m = re.match(r"^(\| \d+ \| .*? \| `)([a-z0-9-]+)(` \| ).*\|$", line)
+        if m:
+            d = m.group(2); seen.add(d)
+            n = counts.get(d, 0)
+            if d in NOT_MEASURED and n:
+                state = "⚠ {} cases, not measured".format(n)
+            elif n:
+                state = "✅ {} cases".format(n)
+            else:
+                state = "— no cases yet"
+            line = "{}{}{}{} |".format(m.group(1), d, m.group(3), state)
+        sec_lines.append(line)
+    unlisted = sorted(set(counts) - seen)
+    if unlisted:
+        print("directories with no row in SECTIONS.md (add one by hand):\n  " + "\n  ".join(unlisted))
+    sections_md = "\n".join(sec_lines) + "\n"
+
     open_rows = sum(1 for r in all_rows if r["review"])
     out += ["", "Cells show **spec mode**. The two differ only on the {} rows marked `java:`. "
             "{} rows are open questions (⚠) rather than results. The suite checks {} of the {} rules "
@@ -163,7 +190,8 @@ def main(argv):
     html = page.build(impls, html_sections, split, lede,
                       {i: runs[i]["version"] for i in impls}, now)
 
-    stale = [str(p.relative_to(ROOT)) for p, content in ((README, new), (PAGE, html), (COVERAGE, coverage))
+    stale = [str(p.relative_to(ROOT)) for p, content in
+             ((README, new), (PAGE, html), (COVERAGE, coverage), (SECTIONS_MD, sections_md))
              if not p.exists() or p.read_text() != content]
     if orphans:
         print("no sidecar, skipped:\n  " + "\n  ".join(str(o.relative_to(ROOT)) for o in orphans))
@@ -176,6 +204,7 @@ def main(argv):
     README.write_text(new)
     PAGE.write_text(html)
     COVERAGE.write_text(coverage)
+    SECTIONS_MD.write_text(sections_md)
     print("{} cases, {} sections, {} implementations".format(len(all_rows), len(sections), len(impls)))
     return 0
 
