@@ -4,11 +4,11 @@
   "version": "pyhocon 0.3.63",
   "mode": "java",
   "command": "conformance/adapters/oracle.sh hocon-py",
-  "ran_at": "2026-09-19T09:03:33Z",
+  "ran_at": "2026-09-19T09:05:39Z",
   "suite_digest": "acbbba26e65742f8",
   "total": 217,
-  "passed": 169,
-  "percent": 77.9,
+  "passed": 168,
+  "percent": 77.4,
   "sections": {
     "array-and-object-concatenation": {
       "total": 13,
@@ -52,7 +52,7 @@
     },
     "omit-root-braces": {
       "total": 11,
-      "passed": 6
+      "passed": 5
     },
     "path-expressions": {
       "total": 15,
@@ -590,6 +590,14 @@
       "java": "unsupported"
     },
     {
+      "case": "omit-root-braces/011-trailing-array-after-root-array.conf",
+      "spec": "HOCON.md#omit-root-braces",
+      "rule": "two arrays side by side concatenate when only non-newline whitespace separates them, which would make this document [1,2,3]; but nothing in the spec says a root value may be a concatenation, and typesafe/config calls the second bracket a trailing token. pyhocon rejects it too, with a different error",
+      "expected": "rejected",
+      "got": "rejected",
+      "open_question": "oracle rejected this — illegal per spec, or unsupported by java?"
+    },
+    {
       "case": "path-expressions/002-mixed-quoted-and-unquoted-path.conf",
       "spec": "HOCON.md#path-expressions",
       "rule": "foo.bar.\"hello.world\" is a path with three elements: foo, bar, and hello.world, since unquoted dots are path separators but a quoted dot is not",
@@ -859,7 +867,7 @@
         "a": "null bar"
       },
       "got": {
-        "a": "<pyhocon.config_tree.NoneValue object at 0x101bd3a50>bar"
+        "a": "<pyhocon.config_tree.NoneValue object at 0x1059e7590>bar"
       }
     },
     {

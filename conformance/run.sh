@@ -116,6 +116,10 @@ for record in records:
 
     name = case.parent.name
     rel = str(case.relative_to(root))
+    # an open question is not a result: it counts as neither a pass nor a failure,
+    # and the headline number must agree with the per-case verdict
+    if "review" in meta:
+        ok = False
     verdicts[rel] = "open" if "review" in meta else "pass" if ok else "fail"
     # the contested rows are worth keeping verbatim: a report wants to show what
     # each implementation actually did, not only whether it agreed
