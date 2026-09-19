@@ -50,8 +50,21 @@ Where the two part ways, the row records both:
 - `expect` / `error` — the spec's answer. What a conforming implementation must do.
 - `java_expect` / `java_error` — present **only** on a divergent row: what
   typesafe/config actually does with that same input.
-- `java` — `"diverges"` when both parse and disagree, `"unsupported"` when the
-  spec describes behaviour the reference implementation does not have.
+- `java` — which way the two part company:
+
+| kind | the spec | typesafe/config | shape of the row |
+|---|---|---|---|
+| `diverges` | a value | a **different** value | `expect` + `java_expect` |
+| `unsupported` | a value | refuses | `expect` + `java_error` |
+| `lenient` | rejects | a value | `error` + `java_expect` |
+
+`lenient` is the common one, and the one worth staring at: it is every input
+HOCON forbids that typesafe/config waves through. `a = 01`, `a = -foo` and
+`include.foo : 42` are all of this kind. An implementation aiming at
+compatibility may copy the leniency; one aiming at conformance must not.
+
+`fill-expected.py --check` enforces the shape column — a row whose fields do
+not match its declared kind is sent back as `review` instead of being scored.
 
 So one suite answers two questions. Score a column against `expect` and it
 says "am I HOCON". Score it against `java_expect` where present and `expect`

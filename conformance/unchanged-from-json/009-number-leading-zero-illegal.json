@@ -1,12 +1,9 @@
 {
   "spec": "HOCON.md#unchanged-from-json",
-  "why": "allowed number formats matches JSON, and JSON numbers forbid a leading zero before other digits, so 01 is not a valid number literal; typesafe/config accepts it anyway and parses it as the number 1. The spec says only that 01 is not a number, not what it is instead, so the oracle's value is kept here.",
-  "expect": {
-    "a": 1
-  },
-  "java": "diverges",
+  "why": "allowed number formats match JSON, and JSON forbids a zero followed by further digits; the initial number character plus the valid-in-JSON number characters after it must be parsed as a number value, so the whole token 01 has to be a number and is not one, with no fallback offered. typesafe/config parses it leniently as the number 1.",
+  "error": "LeadingZeroIsNotAJsonNumber",
+  "java": "lenient",
   "java_expect": {
     "a": 1
-  },
-  "review": "marked java:diverges but expect is exactly what java does — what does the spec require instead?"
+  }
 }

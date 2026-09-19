@@ -126,8 +126,11 @@ def main(argv):
              "| **{} cases** | ".format(sum(totals[impls[0][0]][1:]) if impls else 0)
              + " | ".join("**{}** ({}/{})".format(pct(*totals[label]), *totals[label])
                           for label, _ in impls) + " |",
-             "", "{} of {} rows are open questions (⚠) rather than results.".format(
-                 sum(1 for rows in sections.values() for r in rows if r["review"]), len(cases)),
+             "", "{} of {} rows are open questions (⚠) rather than results. "
+             "On {} rows the spec and typesafe/config disagree — Java is scored against "
+             "its own behaviour there, so its column reads compatibility, not conformance.".format(
+                 sum(1 for rows in sections.values() for r in rows if r["review"]), len(cases),
+                 sum(1 for rows in sections.values() for r in rows if r["java_note"])),
              "", END]
     block = "\n".join(html)
 

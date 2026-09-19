@@ -100,14 +100,20 @@ def main(argv):
         # a declared divergence that does not actually diverge is a half-finished
         # judgement, not a row — send it back to a human rather than score it
         if "java" in want:
-            spec_side = (want.get("expect"), want.get("error"))
-            java_side = (want.get("java_expect"), want.get("java_error"))
-            if spec_side == java_side:
-                want["review"] = ("marked java:{} but expect is exactly what java does — "
-                                  "what does the spec require instead?".format(want["java"]))
-            elif want["java"] == "unsupported" and "java_expect" in want:
-                want["review"] = ("marked java:unsupported but java produces a value — "
-                                  "this looks like java:diverges")
+            kind, complaint = want["java"], None
+            spec_value, java_value = "expect" in want, "java_expect" in want
+            if kind == "diverges" and not (spec_value and java_value):
+                complaint = "java:diverges means both sides produce a value — one of them does not"
+            elif kind == "diverges" and want["expect"] == want["java_expect"]:
+                complaint = "java:diverges but the two values are identical"
+            elif kind == "unsupported" and not (spec_value and "java_error" in want):
+                complaint = "java:unsupported means the spec requires a value java refuses to produce"
+            elif kind == "lenient" and not ("error" in want and java_value):
+                complaint = "java:lenient means the spec rejects the input and java accepts it"
+            elif kind not in ("diverges", "unsupported", "lenient"):
+                complaint = "unknown java kind {!r}".format(kind)
+            if complaint:
+                want["review"] = complaint
             else:
                 want.pop("review", None)
 
