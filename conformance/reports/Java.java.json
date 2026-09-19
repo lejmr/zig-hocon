@@ -4,11 +4,11 @@
   "version": "typesafe/config 1.4.5",
   "mode": "java",
   "command": "conformance/adapters/oracle.sh hocon-java",
-  "ran_at": "2026-09-19T09:02:43Z",
+  "ran_at": "2026-09-19T09:04:47Z",
   "suite_digest": "acbbba26e65742f8",
   "total": 217,
-  "passed": 217,
-  "percent": 100.0,
+  "passed": 216,
+  "percent": 99.5,
   "sections": {
     "array-and-object-concatenation": {
       "total": 13,
@@ -52,7 +52,7 @@
     },
     "omit-root-braces": {
       "total": 11,
-      "passed": 11
+      "passed": 10
     },
     "path-expressions": {
       "total": 15,
@@ -343,5 +343,14 @@
     "unchanged-from-json/009-number-leading-zero-illegal.conf": "{\"a\":1}",
     "unquoted-strings/012-unquoted-cannot-start-with-hyphen.conf": "{\"a\":\"-foo\"}"
   },
-  "failures": []
+  "failures": [
+    {
+      "case": "omit-root-braces/011-trailing-array-after-root-array.conf",
+      "spec": "HOCON.md#omit-root-braces",
+      "rule": "two arrays side by side concatenate when only non-newline whitespace separates them, which would make this document [1,2,3]; but nothing in the spec says a root value may be a concatenation, and typesafe/config calls the second bracket a trailing token. pyhocon rejects it too, with a different error",
+      "expected": "rejected",
+      "got": "rejected",
+      "open_question": "oracle rejected this — illegal per spec, or unsupported by java?"
+    }
+  ]
 }
