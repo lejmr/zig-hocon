@@ -36,6 +36,10 @@ alone, key order irrelevant. A case that must be **rejected** carries no
 }
 ```
 
+An optional `"java"` field records where the reference implementation and the
+spec part ways — `"unsupported"` or `"diverges"`. See `PROCESS.md`; those cases
+are the reason the suite exists.
+
 `error` is documentation, not an assertion — messages differ per
 implementation. A runner asserts only that parsing failed.
 
