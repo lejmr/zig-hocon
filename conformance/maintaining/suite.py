@@ -93,3 +93,15 @@ def spec_items():
         if m:
             out[m.group(1)] = m.group(2)
     return out
+
+
+def digest():
+    """Fingerprint of every case and sidecar — the same one run.sh records, so a
+    stale result file can be told from a current one."""
+    import hashlib
+    h = hashlib.sha256()
+    for path in sorted(SUITE.rglob("*.conf")):
+        h.update(path.relative_to(SUITE).as_posix().encode())
+        h.update(path.read_bytes())
+        h.update(path.with_suffix(".json").read_bytes())
+    return h.hexdigest()[:16]

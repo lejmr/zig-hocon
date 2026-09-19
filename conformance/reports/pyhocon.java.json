@@ -4,7 +4,8 @@
   "version": "pyhocon 0.3.63",
   "mode": "java",
   "command": "conformance/adapters/oracle.sh hocon-py",
-  "ran_at": "2026-09-19T07:43:18Z",
+  "ran_at": "2026-09-19T09:03:33Z",
+  "suite_digest": "acbbba26e65742f8",
   "total": 217,
   "passed": 169,
   "percent": 77.9,
@@ -858,7 +859,7 @@
         "a": "null bar"
       },
       "got": {
-        "a": "<pyhocon.config_tree.NoneValue object at 0x10598b590>bar"
+        "a": "<pyhocon.config_tree.NoneValue object at 0x101bd3a50>bar"
       }
     },
     {
