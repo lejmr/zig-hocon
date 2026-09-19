@@ -3,7 +3,8 @@
 import html as esc
 import json
 
-PAGE = """<title>HOCON Conformance</title>
+PAGE = """<meta charset="utf-8">
+<title>HOCON Conformance</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
 <style>
 :root {
