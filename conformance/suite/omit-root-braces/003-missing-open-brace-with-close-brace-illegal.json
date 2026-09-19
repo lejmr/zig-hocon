@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#omit-root-braces",
+  "rule": "omit-root-braces.4",
   "why": "a HOCON file is invalid if it omits the opening { but still has a closing }, since the curly braces must be balanced",
   "error": "Parse"
 }

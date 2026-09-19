@@ -701,7 +701,7 @@ Each column is what that implementation actually returns.
 | **spec mode** — what HOCON requires | **96%** (219/228) | **80%** (183/228) |
 | **java mode** — what typesafe/config does | 100% (227/228) | 79% (181/228) |
 
-Cells show **spec mode**. The two differ only on the 8 rows marked `java:`. 1 rows are open questions (⚠) rather than results. Columns appear here because their result file is committed under `conformance/reports/`.
+Cells show **spec mode**. The two differ only on the 8 rows marked `java:`. 1 rows are open questions (⚠) rather than results. The suite checks 129 of the 210 rules in its inventory — `conformance/maintaining/COVERAGE.md` lists the rest. Columns appear here because their result file is committed under `conformance/reports/`.
 
 <!-- conformance:end -->
 

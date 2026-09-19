@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#unquoted-strings",
+  "rule": "unquoted-strings.2",
   "why": "some forbidden characters, such as '!', have no meaning in HOCON today and are reserved as keywords for future extensions to the spec",
   "error": "Parse"
 }

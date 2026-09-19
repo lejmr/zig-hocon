@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#note-arrays-without-commas-or-newlines",
+  "rule": "note-arrays-without-commas-or-newlines.1",
   "why": "the spec's worked example: a newline between two bracketed arrays makes them two separate elements",
   "expect": {
     "a": [

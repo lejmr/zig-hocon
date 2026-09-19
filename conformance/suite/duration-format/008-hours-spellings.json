@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#duration-format",
+  "rule": "duration-format.9",
   "why": "exactly h, hour, hours are the supported unit strings for hours",
   "expect": {
     "h": "5h",

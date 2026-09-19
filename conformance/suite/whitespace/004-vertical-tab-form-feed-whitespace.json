@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#whitespace",
+  "rule": "whitespace.3",
   "why": "vertical tab (0x000B) and form feed (0x000C) are whitespace characters",
   "expect": {
     "a": 1,

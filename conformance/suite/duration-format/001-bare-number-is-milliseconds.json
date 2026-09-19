@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#duration-format",
+  "rule": "duration-format.1",
   "why": "bare numbers are taken to be in milliseconds already",
   "expect": {
     "t": 10

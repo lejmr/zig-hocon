@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#note-arrays-without-commas-or-newlines",
+  "rule": "note-arrays-without-commas-or-newlines.2",
   "why": "the spec's worked example: whitespace-separated unquoted tokens and substitutions concatenate into one array element per comma-separated group",
   "error": "UnresolvedSubstitution",
   "resolve": true

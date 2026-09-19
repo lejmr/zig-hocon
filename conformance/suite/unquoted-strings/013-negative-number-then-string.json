@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#unquoted-strings",
+  "rule": "unquoted-strings.13",
   "why": "a hyphen followed by digits begins number parsing (-1), after which foo continues as a separate unquoted string token, mirroring the 10.0bar example for negative numbers",
   "expect": {
     "a": "-1foo"

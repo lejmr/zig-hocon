@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#self-referential-substitutions",
+  "rule": "self-referential-substitutions.2",
   "why": "a field may look up its own older value before being overridden with a new value based on it, letting path:${path}\":d\" extend the earlier path:\"a:b:c\"",
   "expect": {
     "path": "a:b:c:d"

@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#paths-as-keys",
+  "rule": "paths-as-keys.6",
   "why": "path expressions are always converted to strings, so the unquoted boolean-looking key true:42 is \"true\":42",
   "expect": {
     "true": 42

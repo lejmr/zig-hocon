@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#substitutions",
+  "rule": "substitutions.20",
   "why": "foo : ${?bar}${?baz} avoids creating the field only if both bar and baz are undefined",
   "expect": {},
   "resolve": true

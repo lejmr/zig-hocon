@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#comments",
+  "rule": "comments.1",
   "why": "a // inside a quoted string is not treated as starting a comment",
   "expect": {
     "a": "not // a comment"

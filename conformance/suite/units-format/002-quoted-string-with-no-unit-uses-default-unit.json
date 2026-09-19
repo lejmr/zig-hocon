@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#units-format",
+  "rule": "units-format.8",
   "why": "a string value with no unit name should be interpreted with the default unit, as if it were a number",
   "expect": {
     "t": "10"

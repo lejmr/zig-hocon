@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#paths-as-keys",
+  "rule": "paths-as-keys.8",
   "why": "a dot in an unquoted key is a path separator even when it looks like a decimal number, so 3.14:42 is \"3\":{\"14\":42}",
   "expect": {
     "3": {

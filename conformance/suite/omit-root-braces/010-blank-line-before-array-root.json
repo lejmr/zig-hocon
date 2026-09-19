@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#omit-root-braces",
+  "rule": "omit-root-braces.3",
   "why": "leading whitespace does not trigger the {} wrap either, for the same reason as a leading comment",
   "expect": [
     1,

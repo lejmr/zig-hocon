@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#unquoted-strings",
+  "rule": "unquoted-strings.9",
   "why": "worked example: bar10.0 does not begin with a digit, so the whole thing is the single unquoted string bar10.0, not a number",
   "expect": {
     "a": "bar10.0"

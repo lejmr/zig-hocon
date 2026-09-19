@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#array-and-object-concatenation",
+  "rule": "array-and-object-concatenation.7",
   "why": "objects cannot be field keys, whether concatenation is involved or not",
   "error": "Parse"
 }

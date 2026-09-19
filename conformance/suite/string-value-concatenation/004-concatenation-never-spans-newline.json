@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#string-value-concatenation",
+  "rule": "string-value-concatenation.3",
   "why": "string value concatenations never span a newline, so a bare word on the following line is not appended to the value above it",
   "error": "Parse"
 }

@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#path-expressions",
+  "rule": "path-expressions.17",
   "why": "a path that starts with a dot is invalid and should generate an error",
   "error": "BadPath"
 }

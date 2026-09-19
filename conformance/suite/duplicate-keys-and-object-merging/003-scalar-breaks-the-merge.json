@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#duplicate-keys-and-object-merging",
+  "rule": "duplicate-keys-and-object-merging.8",
   "why": "a non-object in between discards the earlier object, so the last object merges into nothing",
   "expect": {"a": {"c": 2}}
 }

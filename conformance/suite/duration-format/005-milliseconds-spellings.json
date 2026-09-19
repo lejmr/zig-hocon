@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#duration-format",
+  "rule": "duration-format.6",
   "why": "exactly ms, milli, millis, millisecond, milliseconds are the supported unit strings for milliseconds",
   "expect": {
     "milli": "5milli",

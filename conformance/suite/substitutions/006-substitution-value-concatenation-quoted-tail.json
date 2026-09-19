@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#substitutions",
+  "rule": "substitutions.6",
   "why": "worked example: quoting the non-substitution portion also forms a value concatenation with the substitution",
   "expect": {
     "animal": {

@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#string-value-concatenation",
+  "rule": "string-value-concatenation.11",
   "why": "string value concatenation supports substitutions inside the concatenated string",
   "expect": {
     "a": "foo 1 bar",

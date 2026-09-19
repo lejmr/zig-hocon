@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#note-arrays-without-commas-or-newlines",
+  "rule": "note-arrays-without-commas-or-newlines.2",
   "why": "the spec's worked example: whitespace on the same line between two bracketed arrays concatenates them into a single element, the array [1, 2, 3, 4]",
   "expect": {
     "a": [

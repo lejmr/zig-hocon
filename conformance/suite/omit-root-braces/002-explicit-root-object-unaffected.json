@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#omit-root-braces",
+  "rule": "omit-root-braces.3",
   "why": "the implicit-wrap rule only applies when the file does not begin with [ or {; a file already beginning with { is parsed as ordinary JSON-style object",
   "expect": {
     "a": 1

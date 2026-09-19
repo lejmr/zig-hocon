@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#examples-of-self-referential-substitutions",
+  "rule": "examples-of-self-referential-substitutions.23",
   "why": "the spec gives bar:${foo}, foo:${bar} as an example that is not possible to resolve, since neither lazy evaluation nor looking backward breaks the cycle and neither field is optional",
   "error": "UnresolvedSubstitution",
   "resolve": true

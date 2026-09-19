@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#substitutions",
+  "rule": "substitutions.21",
   "why": "substitutions are only allowed in field values and array elements, not in keys",
   "error": "Parse"
 }

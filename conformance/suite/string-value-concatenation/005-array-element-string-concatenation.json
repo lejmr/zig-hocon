@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#string-value-concatenation",
+  "rule": "string-value-concatenation.4",
   "why": "a string value concatenation may appear in any place a string may appear, including array elements",
   "expect": {
     "a": [

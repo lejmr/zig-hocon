@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#path-expressions",
+  "rule": "path-expressions.4",
   "why": "foo.bar.\"hello.world\" is a path with three elements: foo, bar, and hello.world, since unquoted dots are path separators but a quoted dot is not",
   "expect": {
     "foo": {

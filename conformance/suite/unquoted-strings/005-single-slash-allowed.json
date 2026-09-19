@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#unquoted-strings",
+  "rule": "unquoted-strings.3",
   "why": "only the two-character string '//' is special for comments; a lone '/' is not a forbidden character and stays part of the unquoted string",
   "expect": {
     "a": "foo/bar"

@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#unquoted-strings",
+  "rule": "unquoted-strings.7",
   "why": "worked example: truefoo parses as the boolean token true followed by the unquoted string foo, because its initial characters parse as true",
   "expect": {
     "a": "truefoo"

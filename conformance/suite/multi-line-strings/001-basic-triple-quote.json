@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#multi-line-strings",
+  "rule": "multi-line-strings.1",
   "why": "the three-character sequence \"\"\" starts a multi-line string whose unicode characters are used unmodified to create the string value",
   "expect": {
     "a": "hello world"

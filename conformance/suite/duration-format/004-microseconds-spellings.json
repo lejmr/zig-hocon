@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#duration-format",
+  "rule": "duration-format.5",
   "why": "exactly us, micro, micros, microsecond, microseconds are the supported unit strings for microseconds",
   "expect": {
     "micro": "5micro",

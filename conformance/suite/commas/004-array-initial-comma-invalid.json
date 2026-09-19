@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#commas",
+  "rule": "commas.5",
   "why": "[,1,2,3] is explicitly called invalid because it has an initial comma",
   "error": "Parse"
 }

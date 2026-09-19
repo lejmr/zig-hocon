@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#commas",
+  "rule": "commas.4",
   "why": "[1,2,3,,] is explicitly called invalid because it has two trailing commas",
   "error": "Parse"
 }

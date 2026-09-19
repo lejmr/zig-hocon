@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#string-value-concatenation",
+  "rule": "string-value-concatenation.7",
   "why": "true and false become the strings \"true\" and \"false\" when they participate in a concatenation",
   "expect": {
     "a": "true foo"

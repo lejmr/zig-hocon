@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#unquoted-strings",
+  "rule": "unquoted-strings.15",
   "why": "unquoted strings place no restriction on control characters, other than the forbidden characters listed",
   "expect": {
     "a": "foo\u0001bar"

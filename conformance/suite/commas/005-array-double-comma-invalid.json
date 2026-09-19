@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#commas",
+  "rule": "commas.6",
   "why": "[1,,2,3] is explicitly called invalid because it has two commas in a row",
   "error": "Parse"
 }

@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#units-format",
+  "rule": "units-format.2",
   "why": "the units-format grammar is optional whitespace, a number, optional whitespace, an optional unit name, optional whitespace",
   "expect": {
     "t": " 10 ms "

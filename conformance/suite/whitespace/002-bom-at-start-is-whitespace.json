@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#whitespace",
+  "rule": "whitespace.2",
   "why": "the BOM (0xFEFF) must be treated as whitespace, not as part of the key",
   "expect": {
     "a": 1

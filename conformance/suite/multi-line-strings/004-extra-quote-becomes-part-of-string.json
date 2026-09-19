@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#multi-line-strings",
+  "rule": "multi-line-strings.4",
   "why": "any sequence of at least three quotes ends the multi-line string and any extra quotes are part of the string, so HOCON works like Scala's four-character string foo\" rather than Python's syntax error",
   "expect": {
     "a": "foo\""

@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#unquoted-strings",
+  "rule": "unquoted-strings.9",
   "why": "worked example: 10.0bar is the number 10.0 followed by the unquoted string bar, since 10.0 parses as a number at the start",
   "expect": {
     "a": "10.0bar"

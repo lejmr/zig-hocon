@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#whitespace",
+  "rule": "whitespace.4",
   "why": "the Unicode line separator (Zl, U+2028) and paragraph separator (Zp, U+2029) count as whitespace",
   "error": "Parse"
 }

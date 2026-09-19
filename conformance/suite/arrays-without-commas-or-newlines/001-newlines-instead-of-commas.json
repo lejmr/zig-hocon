@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#note-arrays-without-commas-or-newlines",
+  "rule": "note-arrays-without-commas-or-newlines.1",
   "why": "arrays allow newlines to separate elements instead of commas",
   "expect": {
     "a": [

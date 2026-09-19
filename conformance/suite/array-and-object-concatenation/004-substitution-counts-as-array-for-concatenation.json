@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#array-and-object-concatenation",
+  "rule": "array-and-object-concatenation.2",
   "why": "for concatenation purposes, a substitution that resolves to an array also counts as an array",
   "error": "UnresolvedSubstitution",
   "resolve": true

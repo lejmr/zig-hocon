@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#period-format",
+  "rule": "period-format.6",
   "why": "exactly m, mo, month, months are the supported unit strings for months",
   "expect": {
     "m": "5m",

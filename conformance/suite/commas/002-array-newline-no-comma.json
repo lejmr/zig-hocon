@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#commas",
+  "rule": "commas.1",
   "why": "array elements need not have a comma between them as long as an ASCII newline separates them: [1\\n2\\n3] and [1,2,3] are the same array",
   "expect": {
     "a": [

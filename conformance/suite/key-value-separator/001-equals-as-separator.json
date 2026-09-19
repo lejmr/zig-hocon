@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#key-value-separator",
+  "rule": "key-value-separator.1",
   "why": "the = character can be used anywhere JSON allows :, to separate keys from values",
   "expect": {
     "a": 1

@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#size-in-bytes-format",
+  "rule": "size-in-bytes-format.4",
   "why": "for single bytes, exactly B, b, byte, bytes are supported",
   "expect": {
     "B": "5B",

@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#duplicate-keys-and-object-merging",
+  "rule": "duplicate-keys-and-object-merging.5",
   "why": "for a non-object-valued field present in both merged objects, the field from the second object is used",
   "expect": {
     "a": {

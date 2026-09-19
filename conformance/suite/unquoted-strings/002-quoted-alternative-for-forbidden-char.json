@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#unquoted-strings",
+  "rule": "unquoted-strings.6",
   "why": "a quoted string may always be used as an alternative to write a character that is not permitted in an unquoted string, such as '@'",
   "expect": {
     "a": "foo@bar"

@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#conversion-of-numerically-indexed-objects-to-arrays",
+  "rule": "conversion-of-numerically-indexed-objects-to-arrays.4",
   "why": "the conversion should not occur if the object has no keys which parse as positive integers, so this object cannot satisfy a list-expected concatenation and this is illegal",
   "error": "WrongType"
 }
