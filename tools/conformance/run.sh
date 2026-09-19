@@ -55,7 +55,10 @@ done
 case "$MODE" in spec|java) ;; *) echo "mode must be spec or java" >&2; exit 1 ;; esac
 [ -d "$DIR" ] || { echo "no suite at $DIR" >&2; exit 1; }
 
-[ -n "$IMPL" ] || IMPL=$(basename "$1")
+# the last word names the thing better than the first: `oracle.sh hocon-py` is
+# pyhocon, not an adapter, and `python3 parse.py` is parse.py
+for word in "$@"; do :; done
+[ -n "$IMPL" ] || IMPL=$(basename "$word")
 [ -n "$VERSION" ] || VERSION=$("$@" --version </dev/null 2>/dev/null | head -1) || true
 [ -n "$VERSION" ] || VERSION=unknown
 
