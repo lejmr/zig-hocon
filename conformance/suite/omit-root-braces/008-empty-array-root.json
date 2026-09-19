@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#omit-root-braces",
+  "item": "S3.5",
   "why": "an empty array is still an array root, and the wrap rule looks at the opening bracket, not at whether the document has content",
   "expect": [],
   "java": "unsupported",

@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#substitutions",
+  "item": "S13.5",
   "why": "substitutions are not parsed inside quoted strings, so this stays the literal text",
   "expect": {
     "animal": {

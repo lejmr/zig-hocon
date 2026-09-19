@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#self-referential-substitutions",
+  "item": "S13a.7",
   "why": "an array with a substitution inside it is not considered self-referential for this purpose, so a:[${a}] is an unbreakable cycle that must generate an error",
   "error": "UnresolvedSubstitution",
   "resolve": true

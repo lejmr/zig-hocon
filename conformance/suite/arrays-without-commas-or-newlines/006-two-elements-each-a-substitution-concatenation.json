@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#note-arrays-without-commas-or-newlines",
+  "item": "S10.16",
   "why": "the spec's worked example: commas separate elements while whitespace within a comma-separated group concatenates substitutions together",
   "error": "UnresolvedSubstitution",
   "resolve": true

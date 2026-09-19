@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#substitutions",
+  "item": "S13.15",
   "why": "foo : ${?bar}${?baz} creates the field once at least one of bar or baz is defined",
   "expect": {
     "baz": "hello",

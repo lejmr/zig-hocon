@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#duplicate-keys-and-object-merging",
+  "item": "S7.2",
   "why": "two objects under the same key merge key-by-key, they do not replace",
   "expect": {"a": {"b": 1, "c": 2}}
 }

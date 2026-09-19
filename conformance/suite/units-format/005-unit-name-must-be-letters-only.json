@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#units-format",
+  "item": "S18.3",
   "why": "the unit name consists only of letters (Unicode L* categories, Java isLetter()), so a unit name with a trailing digit is not a legal units-format string",
   "expect": {
     "t": "10m2"

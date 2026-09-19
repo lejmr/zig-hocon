@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#period-format",
+  "item": "S20.1",
   "why": "exactly d, day, days are the supported unit strings for days in the period format",
   "expect": {
     "d": "5d",

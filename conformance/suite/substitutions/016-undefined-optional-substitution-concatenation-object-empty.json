@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#substitutions",
+  "item": "S13.14",
   "why": "an undefined ${?foo} in a value concatenation with an object becomes an empty object",
   "expect": {
     "a": {

@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#multi-line-strings",
+  "item": "S9.2",
   "why": "newlines and whitespace inside a multi-line string receive no special treatment and are kept in the value",
   "expect": {
     "a": "line one\n  line two"

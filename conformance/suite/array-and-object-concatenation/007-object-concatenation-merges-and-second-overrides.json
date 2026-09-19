@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#array-and-object-concatenation",
+  "item": "S10.3",
   "why": "for objects, concatenation means merging, and the second object overrides the first on overlapping keys",
   "expect": {
     "a": {

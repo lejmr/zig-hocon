@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#multi-line-strings",
+  "item": "S9.4",
   "why": "a closing run of five quotes still only needs three to end the string, so both extra quotes are appended to the string value",
   "expect": {
     "a": "foo\"\""

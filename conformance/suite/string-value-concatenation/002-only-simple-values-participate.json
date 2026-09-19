@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#string-value-concatenation",
+  "item": "S10.13",
   "why": "it is invalid for arrays or objects to appear in a string value concatenation, since only simple values participate",
   "error": "WrongType"
 }

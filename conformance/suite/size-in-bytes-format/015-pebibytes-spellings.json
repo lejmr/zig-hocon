@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#size-in-bytes-format",
+  "item": "S21.3",
   "why": "for powers of two, exactly P, p, Pi, PiB, pebibyte, pebibytes are the supported unit strings (including both upper- and lower-case single-letter forms, since one-letter unit strings may be uppercase)",
   "expect": {
     "u0_P": "5P",

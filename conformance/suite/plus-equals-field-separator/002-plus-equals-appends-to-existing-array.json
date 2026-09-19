@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#the--field-separator",
+  "item": "S13b.1",
   "why": "+= appends an element to a previous array",
   "expect": {
     "a": [

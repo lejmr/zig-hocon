@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#unchanged-from-json",
+  "item": "S1.3",
   "why": "null is one of the possible value types",
   "expect": {
     "a": null

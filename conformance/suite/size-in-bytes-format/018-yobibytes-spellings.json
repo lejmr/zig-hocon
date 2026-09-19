@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#size-in-bytes-format",
+  "item": "S21.3",
   "why": "for powers of two, exactly Y, y, Yi, YiB, yobibyte, yobibytes are the supported unit strings (including both upper- and lower-case single-letter forms, since one-letter unit strings may be uppercase)",
   "expect": {
     "u0_Y": "5Y",

@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#paths-as-keys",
+  "item": "S11.8",
   "why": "path expressions are always converted to strings, so the unquoted numeric key 3:42 is \"3\":42",
   "expect": {
     "3": 42

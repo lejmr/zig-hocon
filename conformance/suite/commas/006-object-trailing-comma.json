@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#commas",
+  "item": "S5.6",
   "why": "these same comma rules apply to fields in objects, so a single trailing comma after the last field is ignored",
   "expect": {
     "a": {

@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#the--field-separator",
+  "item": "S13b.3",
   "why": "a += b transforms into a = ${?a} [b], and because the fallback is optional (${?a} not ${a}) this is legal even as the first mention of a in the file",
   "expect": {
     "a": [

@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#examples-of-self-referential-substitutions",
+  "item": "S13a.5",
   "why": "the same hiding rule applies to a self-reference cycle: once overridden by a non-mergeable literal, the initial foo:${foo} must simply be ignored, so foo ends up 42 with no error",
   "expect": {
     "foo": 42

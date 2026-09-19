@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#value-concatenation",
+  "item": "S10.2",
   "why": "if all the values are arrays they are concatenated into one array",
   "expect": {
     "a": [

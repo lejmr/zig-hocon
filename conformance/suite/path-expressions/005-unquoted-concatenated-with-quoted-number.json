@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#path-expressions",
+  "item": "S11.3",
   "why": "foo followed by quoted \"10.0\" is an unquoted then a quoted string which concatenate, giving a single-element path",
   "expect": {
     "foo10.0": 1

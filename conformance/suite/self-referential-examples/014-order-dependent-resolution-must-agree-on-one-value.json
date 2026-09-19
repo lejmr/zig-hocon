@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#examples-of-self-referential-substitutions",
+  "item": "S13a.10",
   "why": "this case has undefined behavior depending on resolution order: implementations are allowed to set both a and b to 1, both to 2, or to error, but must set both to the same value because substitutions are memoized by instance, so a and b must never diverge (e.g. a=1,b=2 is not permitted)",
   "expect": {
     "a": 1,

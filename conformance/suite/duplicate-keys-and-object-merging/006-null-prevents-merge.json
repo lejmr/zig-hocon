@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#duplicate-keys-and-object-merging",
+  "item": "S7.6",
   "why": "setting a key to null between two object assignments prevents the merge, since a non-object always wins over an object it borders",
   "expect": {
     "foo": {

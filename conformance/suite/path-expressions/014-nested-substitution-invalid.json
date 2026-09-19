@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#path-expressions",
+  "item": "S11.9",
   "why": "you cannot nest substitutions inside other substitutions",
   "error": "BadPath",
   "resolve": true

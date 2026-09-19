@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#unchanged-from-json",
+  "item": "S1.2.1",
   "why": "quoted strings are in the same format as JSON strings, so JSON escapes like \\n, \\t, \\\", \\\\ and \\u unicode escapes are honored",
   "expect": {
     "a": "line1\nline2\t\"quoted\"\\backslashé"

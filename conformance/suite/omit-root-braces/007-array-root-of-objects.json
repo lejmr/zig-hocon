@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#omit-root-braces",
+  "item": "S3.5",
   "why": "a file beginning with a square bracket keeps its array root whatever the elements are; typesafe/config parses it and then refuses it at the API, having no array-rooted config",
   "expect": [
     {

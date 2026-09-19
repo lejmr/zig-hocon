@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#omit-root-braces",
+  "item": "S3.1",
   "why": "in plain JSON empty files are invalid documents; this case checks whether HOCON's implicit-brace wrapping (the file does not begin with [ or {) extends to an empty file as well",
   "expect": {}
 }

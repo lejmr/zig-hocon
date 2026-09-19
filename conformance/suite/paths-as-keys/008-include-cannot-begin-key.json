@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#paths-as-keys",
+  "item": "S12.5",
   "why": "the unquoted string include may not begin a path expression in a key, and where an object key would be expected include is not read as a key at all -- what follows it must be a quoted string. typesafe/config accepts the key as the path include.foo, and is inconsistent with itself here: it rejects 'include = 42' with the very same rule.",
   "error": "IncludeMayNotBeginAKey",
   "java": "lenient",

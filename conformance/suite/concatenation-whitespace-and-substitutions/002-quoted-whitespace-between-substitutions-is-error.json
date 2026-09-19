@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#note-concatenation-with-whitespace-and-substitutions",
+  "item": "S10.15",
   "why": "quoted whitespace between substitutions should be an error, unlike unquoted whitespace which is merely ignored or preserved",
   "error": "UnresolvedSubstitution",
   "resolve": true

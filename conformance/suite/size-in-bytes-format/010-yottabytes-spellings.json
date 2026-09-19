@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#size-in-bytes-format",
+  "item": "S21.2",
   "why": "for powers of ten, exactly YB, yottabyte, yottabytes are the supported unit strings",
   "expect": {
     "YB": "5YB",

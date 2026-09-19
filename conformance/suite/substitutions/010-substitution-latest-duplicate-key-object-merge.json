@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#substitutions",
+  "item": "S13.8",
   "why": "a substitution to a key set more than once evaluates to the merged object, not an earlier snapshot",
   "expect": {
     "a": {

@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#value-concatenation",
+  "item": "S10.3",
   "why": "if all the values are objects they are merged (as with duplicate keys) into one object",
   "expect": {
     "a": {

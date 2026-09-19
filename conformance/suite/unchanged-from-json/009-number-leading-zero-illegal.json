@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#unchanged-from-json",
+  "item": "S1.4",
   "why": "allowed number formats match JSON, and JSON forbids a zero followed by further digits; the initial number character plus the valid-in-JSON number characters after it must be parsed as a number value, so the whole token 01 has to be a number and is not one, with no fallback offered. typesafe/config parses it leniently as the number 1.",
   "error": "LeadingZeroIsNotAJsonNumber",
   "java": "lenient",

@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#conversion-of-numerically-indexed-objects-to-arrays",
+  "item": "S15.6",
   "why": "the conversion should sort by the integer value of each key and then build the array; missing indices such as \"1\" are eliminated rather than left as gaps, so keys \"0\" and \"2\" become a two-element array",
   "expect": {
     "a": [

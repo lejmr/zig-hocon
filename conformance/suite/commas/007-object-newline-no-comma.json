@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#commas",
+  "item": "S5.1",
   "why": "fields in objects need not have a comma between them as long as an ASCII newline separates them, same as array elements",
   "expect": {
     "a": {

@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#value-concatenation",
+  "item": "S10.8",
   "why": "string value concatenation is allowed in field keys, in addition to field values and array elements",
   "expect": {
     "foo bar": 1

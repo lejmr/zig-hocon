@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#unquoted-strings",
+  "item": "S8.6",
   "why": "an unquoted string may not begin with a hyphen, and the initial number character plus any valid-in-JSON number characters that follow must be parsed as a number value -- here that is the lone '-', which is not a number. typesafe/config falls back to unquoted text and yields the string '-foo', the same leniency it shows for '1e'.",
   "error": "HyphenIsNotAJsonNumber",
   "java": "lenient",

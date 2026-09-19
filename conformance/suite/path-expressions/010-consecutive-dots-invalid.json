@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#path-expressions",
+  "item": "S11.7",
   "why": "an unquoted empty path element is invalid, so a..b must generate an error",
   "error": "BadPath"
 }

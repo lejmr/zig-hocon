@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#comments",
+  "item": "S2.3",
   "why": "a # inside a quoted string is not treated as starting a comment",
   "expect": {
     "a": "not # a comment"

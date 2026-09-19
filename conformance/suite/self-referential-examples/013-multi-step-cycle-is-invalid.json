@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#examples-of-self-referential-substitutions",
+  "item": "S13a.9",
   "why": "a multi-step loop across three fields (a:${b}, b:${c}, c:${a}) must also be detected as invalid, not just a direct two-field cycle",
   "error": "UnresolvedSubstitution",
   "resolve": true

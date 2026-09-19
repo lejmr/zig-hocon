@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#units-format",
+  "item": "S18.2",
   "why": "a string value with a unit name has that name specify the value's interpretation",
   "expect": {
     "t": "10ms"

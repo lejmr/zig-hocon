@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#size-in-bytes-format",
+  "item": "S21.2",
   "why": "for powers of ten, exactly kB, kilobyte, kilobytes are the supported unit strings",
   "expect": {
     "kB": "5kB",

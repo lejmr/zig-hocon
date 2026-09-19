@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#duration-format",
+  "item": "S19.4",
   "why": "exactly s, second, seconds are the supported unit strings for seconds",
   "expect": {
     "s": "5s",

@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#unquoted-strings",
+  "item": "S2.2",
   "why": "'#' is forbidden inside an unquoted string because it already has meaning in HOCON: it starts a comment",
   "expect": {
     "a": "foo"

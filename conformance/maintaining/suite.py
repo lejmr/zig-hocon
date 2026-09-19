@@ -82,3 +82,14 @@ def version(cmd):
         return "unknown"
     first = (out.stdout or out.stderr).strip().splitlines()
     return first[0][:80] if out.returncode == 0 and first else "unknown"
+
+
+def spec_items():
+    """The vendored rule inventory: id -> text. The denominator for coverage."""
+    out = {}
+    path = pathlib.Path(__file__).resolve().parent / "spec-items.md"
+    for line in path.read_text().splitlines():
+        m = re.match(r"- \*\*(S[\dA-Za-z.]+)\*\* (.*)", line)
+        if m:
+            out[m.group(1)] = m.group(2)
+    return out

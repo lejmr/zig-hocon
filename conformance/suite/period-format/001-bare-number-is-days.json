@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#period-format",
+  "item": "S18.1",
   "why": "for getPeriod(), bare numbers are taken to be in days, unlike getDuration() where bare numbers are milliseconds",
   "expect": {
     "p": 10

@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#whitespace",
+  "item": "S6.2",
   "why": "a nonbreaking space (0x00A0) is a Unicode Zs separator and must be treated as whitespace",
   "expect": {
     "a": 1

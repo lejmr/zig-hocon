@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#comments",
+  "item": "S2.2",
   "why": "a comment may occupy an entire line by itself, ignored just like a trailing one",
   "expect": {
     "a": 1

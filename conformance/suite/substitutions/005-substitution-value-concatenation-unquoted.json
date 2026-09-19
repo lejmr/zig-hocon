@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#substitutions",
+  "item": "S13.18",
   "why": "worked example: to get a string containing a substitution, use value concatenation with the substitution in the unquoted portion",
   "expect": {
     "animal": {

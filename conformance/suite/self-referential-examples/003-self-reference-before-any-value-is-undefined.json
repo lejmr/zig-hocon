@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#examples-of-self-referential-substitutions",
+  "item": "S13a.3",
   "why": "if the self-referential foo:${foo} comes before foo has any value, the reference is undefined, exactly as if it named a path not found in the document, so it is an error even though foo is given a value afterward",
   "error": "UnresolvedSubstitution",
   "resolve": true

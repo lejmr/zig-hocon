@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#period-format",
+  "item": "S20.4",
   "why": "exactly y, year, years are the supported unit strings for years",
   "expect": {
     "y": "5y",
