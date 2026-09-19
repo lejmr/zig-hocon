@@ -1,6 +1,6 @@
 {
   "spec": "HOCON.md#substitution-fallback-to-environment-variables",
-  "item": "S16.1",
+  "item": "S26.1",
   "why": "a substitution whose path is not defined in the configuration falls back to an environment variable of the same name",
   "env": {
     "CONFORMANCE_HOME": "/from/env"
