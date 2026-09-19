@@ -7,6 +7,8 @@ DIR=$(cd "$(dirname "$0")" && pwd)
 VERSION=1.4.5
 JAR="$DIR/config.jar"
 
+[ "${1:-}" = "--version" ] && { echo "typesafe/config $VERSION"; exit 0; }
+
 # /usr/bin/java is only Apple's stub; the real JDK lives in the Homebrew prefix.
 if ! java -version >/dev/null 2>&1; then
     PATH="/opt/homebrew/opt/openjdk/bin:$PATH"

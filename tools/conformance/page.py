@@ -151,6 +151,7 @@ function render() {
     return `<div class="score"><div class="impl">${impl}</div>
       <div class="pct num">${pct}%</div>
       <div class="of num">${ok} of ${n} rows</div>
+      <div class="of num">${DATA.versions[impl]}</div>
       <div class="bar"><i style="width:${pct}%"></i></div></div>`;
   }).join("");
   for (const td of document.querySelectorAll("td.v")) td.innerHTML = cell(JSON.parse(td.dataset.v)[mode]);
@@ -175,7 +176,7 @@ def _cells(row, impls):
     return "".join('<td class="v" data-v=\'{}\'></td>'.format(json.dumps(row["v"][i])) for i in impls)
 
 
-def build(impls, sections, split_rows, lede):
+def build(impls, sections, split_rows, lede, versions):
     head = "".join("<th>{}</th>".format(esc.escape(i)) for i in impls)
 
     split = ['<table><thead><tr><th>input</th><th>the spec requires</th>{}</tr></thead>'
@@ -203,7 +204,7 @@ def build(impls, sections, split_rows, lede):
                        esc.escape(sec["name"]), len(sec["rows"]), n, "".join(rows)))
 
     total = sum(len(s["rows"]) for s in sections)
-    return (PAGE.replace("__DATA__", json.dumps({"impls": impls, "sections": sections}))
+    return (PAGE.replace("__DATA__", json.dumps({"impls": impls, "sections": sections, "versions": versions}))
                 .replace("__SECTIONS__", "".join(out))
                 .replace("__SPLIT__", "".join(split))
                 .replace("__SPLITCOUNT__", str(len(split_rows)))

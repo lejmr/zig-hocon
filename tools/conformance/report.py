@@ -77,6 +77,7 @@ def main(argv):
 
     impls = [(label, cmd) for label, cmd in IMPLS if pathlib.Path(cmd[0]).exists()]
     results = {label: suite.ask(cmd, lines, strict=False) for label, cmd in impls}
+    versions = {label: suite.version(cmd) for label, cmd in impls}
 
     sections = {}
     for case, meta, i in zip(cases, metas, range(len(cases))):
@@ -136,7 +137,8 @@ def main(argv):
 
     pct = lambda p, n: "{:.0f}%".format(100 * p / n) if n else "—"
     html += ["| {} cases | ".format(totals[impls[0][0]][1] if impls else 0)
-             + " | ".join(label for label, _ in impls) + " |",
+             + " | ".join("{}<br><sub>{}</sub>".format(label, versions[label])
+                          for label, _ in impls) + " |",
              "|---|" + "---|" * len(impls),
              "| **spec mode** — what HOCON requires | "
              + " | ".join("**{}** ({}/{})".format(pct(*totals[label]), *totals[label])
@@ -176,7 +178,7 @@ def main(argv):
     lede = ("Every row is one sentence of the HOCON specification, turned into a config file and an "
             "expected value. Score against the specification and you get conformance; score against "
             "typesafe/config and you get compatibility with the implementation the JVM world runs.")
-    page_html = page.build([label for label, _ in impls], html_sections, split_rows, lede)
+    page_html = page.build([label for label, _ in impls], html_sections, split_rows, lede, versions)
     out_path = SUITE / "report.html"
     if not check:
         out_path.write_text(page_html)

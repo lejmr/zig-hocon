@@ -695,7 +695,7 @@ Each column is what that implementation actually returns. The spec column is the
 
 </details>
 
-| 228 cases | Java | pyhocon | Rust |
+| 228 cases | Java<br><sub>typesafe/config 1.4.5</sub> | pyhocon<br><sub>pyhocon 0.3.63</sub> | Rust<br><sub>unknown</sub> |
 |---|---|---|---|
 | **spec mode** — what HOCON requires | **96%** (219/228) | **80%** (183/228) | **89%** (204/228) |
 | **java mode** — what typesafe/config does | 100% (227/228) | 79% (181/228) | 92% (209/228) |

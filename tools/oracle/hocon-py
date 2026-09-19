@@ -12,4 +12,9 @@ if [ ! -x "$VENV/bin/python" ]; then
     "$VENV/bin/pip" install -q --disable-pip-version-check pyhocon >&2
 fi
 
+if [ "${1:-}" = "--version" ]; then
+    "$VENV/bin/python" -c 'import pyhocon,importlib.metadata as m; print("pyhocon", m.version("pyhocon"))'
+    exit 0
+fi
+
 exec "$VENV/bin/python" "$DIR/oracle.py" "$@"

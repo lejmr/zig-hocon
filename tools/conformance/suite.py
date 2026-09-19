@@ -68,3 +68,16 @@ def bad_anchors(paths, metas):
     known = anchors()
     return [(p, m.get("spec", "")) for p, m in zip(paths, metas)
             if m.get("spec", "").split("#", 1)[-1] not in known]
+
+
+def version(cmd):
+    """What an implementation calls itself. A command that has no --version, or
+    hangs on to stdin instead of answering, is reported as unknown rather than
+    holding up the run."""
+    try:
+        out = subprocess.run([str(c) for c in cmd] + ["--version"], input="",
+                             capture_output=True, text=True, timeout=20)
+    except (OSError, subprocess.SubprocessError):
+        return "unknown"
+    first = (out.stdout or out.stderr).strip().splitlines()
+    return first[0][:80] if out.returncode == 0 and first else "unknown"
