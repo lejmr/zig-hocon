@@ -46,6 +46,10 @@ A row where the reference implementation and the spec part ways carries
 input. Those rows are the reason the suite exists; `PROCESS.md` has the table
 of which kind means what.
 
+A runner scores the suite in **spec mode** (against `expect`) or **java mode**
+(against `java_expect` where it exists). Both are supported bars — see
+"What a runner must do with this" in `PROCESS.md`.
+
 A row carrying `"review"` is an open question for a human. It is not a pass and
 not a failure; `report.py` marks it ⚠.
 

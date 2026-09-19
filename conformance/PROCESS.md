@@ -63,6 +63,24 @@ HOCON forbids that typesafe/config waves through. `a = 01`, `a = -foo` and
 `include.foo : 42` are all of this kind. An implementation aiming at
 compatibility may copy the leniency; one aiming at conformance must not.
 
+### What a runner must do with this
+
+A runner reads the suite in one of two modes, and must support both:
+
+- **spec** (the default) — score against `expect` / `error`. This is
+  conformance to HOCON. A row marked `java: lenient` must be **rejected** to
+  pass.
+- **java** — on a row carrying `java_expect` / `java_error`, score against that
+  instead. This is compatibility with typesafe/config, the implementation the
+  JVM world actually runs, and it is a legitimate bar to aim at: a config that
+  parses in production today should keep parsing.
+
+Only the rows carrying a `java` kind differ between the modes. Everywhere else
+the two ask the same question, so a mode switch is cheap: one lookup per row,
+no second copy of the suite.
+
+`report.py` scores both and prints a line for each.
+
 `fill-expected.py --check` enforces the shape column — a row whose fields do
 not match its declared kind is sent back as `review` instead of being scored.
 

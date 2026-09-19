@@ -399,7 +399,7 @@ of the exercise — they are marked `java: unsupported` or `java: diverges` in t
 </details>
 
 <details>
-<summary><b>omit-root-braces</b> — 6 cases · Java 6/6 · pyhocon 6/6 · Rust 5/6</summary>
+<summary><b>omit-root-braces</b> — 6 cases · Java 5/6 · pyhocon 6/6 · Rust 5/6</summary>
 
 | case | Java | pyhocon | Rust | rule |
 |---|---|---|---|---|
@@ -408,7 +408,7 @@ of the exercise — they are marked `java: unsupported` or `java: diverges` in t
 | `003-missing-open-brace-with-close-brace-illegal` | ✅ | ✅ | ✅ | a HOCON file is invalid if it omits the opening { but still has a closing }, since the curly braces must be balanced |
 | `004-empty-file` | ✅ | ✅ | ✅ | in plain JSON empty files are invalid documents; this case checks whether HOCON's implicit-brace wrapping (the file does not begin with [ or {) extends to an empty file as well |
 | `005-bare-string-root-illegal` | ✅ | ✅ | ✅ | a JSON document containing only a non-array non-object value such as a string is invalid, and wrapping such content in {} does not produce a valid object body either |
-| `006-array-root-unaffected` | ✅ | ✅ | ❌ | the implicit-wrap rule only applies when the file does not begin with [ or {; a file beginning with [ is parsed as an array root, unwrapped, and JSON allows an array at the root. typesafe/config has no array-rooted config: it rejects the document with a WrongType error instead of returning the array. _(java: unsupported)_ |
+| `006-array-root-unaffected` | ❌ | ✅ | ❌ | the implicit-wrap rule only applies when the file does not begin with [ or {; a file beginning with [ is parsed as an array root, unwrapped, and JSON allows an array at the root. typesafe/config has no array-rooted config: it rejects the document with a WrongType error instead of returning the array. _(java: unsupported)_ |
 
 </details>
 
@@ -436,7 +436,7 @@ of the exercise — they are marked `java: unsupported` or `java: diverges` in t
 </details>
 
 <details>
-<summary><b>paths-as-keys</b> — 8 cases · Java 8/8 · pyhocon 7/8 · Rust 7/8</summary>
+<summary><b>paths-as-keys</b> — 8 cases · Java 7/8 · pyhocon 7/8 · Rust 7/8</summary>
 
 | case | Java | pyhocon | Rust | rule |
 |---|---|---|---|---|
@@ -447,7 +447,7 @@ of the exercise — they are marked `java: unsupported` or `java: diverges` in t
 | `005-unquoted-true-key-becomes-string` | ✅ | ✅ | ✅ | path expressions are always converted to strings, so the unquoted boolean-looking key true:42 is "true":42 |
 | `006-unquoted-number-key-becomes-string` | ✅ | ✅ | ✅ | path expressions are always converted to strings, so the unquoted numeric key 3:42 is "3":42 |
 | `007-decimal-key-splits-on-dot` | ✅ | ✅ | ✅ | a dot in an unquoted key is a path separator even when it looks like a decimal number, so 3.14:42 is "3":{"14":42} |
-| `008-include-cannot-begin-key` | ✅ | ❌ | ✅ | the unquoted string include may not begin a path expression in a key, and where an object key would be expected include is not read as a key at all -- what follows it must be a quoted string. typesafe/config accepts the key as the path include.foo, and is inconsistent with itself here: it rejects 'include = 42' with the very same rule. _(java: lenient)_ |
+| `008-include-cannot-begin-key` | ❌ | ❌ | ✅ | the unquoted string include may not begin a path expression in a key, and where an object key would be expected include is not read as a key at all -- what follows it must be a quoted string. typesafe/config accepts the key as the path include.foo, and is inconsistent with itself here: it rejects 'include = 42' with the very same rule. _(java: lenient)_ |
 
 </details>
 
@@ -591,7 +591,7 @@ of the exercise — they are marked `java: unsupported` or `java: diverges` in t
 </details>
 
 <details>
-<summary><b>unchanged-from-json</b> — 9 cases · Java 9/9 · pyhocon 7/9 · Rust 7/9</summary>
+<summary><b>unchanged-from-json</b> — 9 cases · Java 8/9 · pyhocon 7/9 · Rust 7/9</summary>
 
 | case | Java | pyhocon | Rust | rule |
 |---|---|---|---|---|
@@ -603,7 +603,7 @@ of the exercise — they are marked `java: unsupported` or `java: diverges` in t
 | `006-boolean-value-type` | ✅ | ✅ | ✅ | boolean is one of the possible value types |
 | `007-null-value-type` | ✅ | ✅ | ✅ | null is one of the possible value types |
 | `008-number-format-decimal-and-exponent` | ✅ | ✅ | ✅ | allowed number formats match JSON, including negative numbers, decimals, and exponent notation |
-| `009-number-leading-zero-illegal` | ✅ | ❌ | ❌ | allowed number formats match JSON, and JSON forbids a zero followed by further digits; the initial number character plus the valid-in-JSON number characters after it must be parsed as a number value, so the whole token 01 has to be a number and is not one, with no fallback offered. typesafe/config parses it leniently as the number 1. _(java: lenient)_ |
+| `009-number-leading-zero-illegal` | ❌ | ❌ | ❌ | allowed number formats match JSON, and JSON forbids a zero followed by further digits; the initial number character plus the valid-in-JSON number characters after it must be parsed as a number value, so the whole token 01 has to be a number and is not one, with no fallback offered. typesafe/config parses it leniently as the number 1. _(java: lenient)_ |
 
 </details>
 
@@ -622,7 +622,7 @@ of the exercise — they are marked `java: unsupported` or `java: diverges` in t
 </details>
 
 <details>
-<summary><b>unquoted-strings</b> — 17 cases · Java 17/17 · pyhocon 13/17 · Rust 15/17</summary>
+<summary><b>unquoted-strings</b> — 17 cases · Java 16/17 · pyhocon 13/17 · Rust 15/17</summary>
 
 | case | Java | pyhocon | Rust | rule |
 |---|---|---|---|---|
@@ -637,7 +637,7 @@ of the exercise — they are marked `java: unsupported` or `java: diverges` in t
 | `009-digits-not-at-start-stay-string` | ✅ | ✅ | ✅ | worked example: bar10.0 does not begin with a digit, so the whole thing is the single unquoted string bar10.0, not a number |
 | `010-embedded-null-not-recognized` | ✅ | ✅ | ✅ | embedded (non-initial) null, true, false, and numbers are not recognized as such: they are just part of the string, since only the leading characters are checked |
 | `011-unquoted-cannot-contain-backslash` | ✅ | ❌ | ✅ | backslash is a forbidden character, and unquoted strings support no escaping at all, so a literal backslash requires a quoted string instead |
-| `012-unquoted-cannot-start-with-hyphen` | ✅ | ❌ | ❌ | an unquoted string may not begin with a hyphen, and the initial number character plus any valid-in-JSON number characters that follow must be parsed as a number value -- here that is the lone '-', which is not a number. typesafe/config falls back to unquoted text and yields the string '-foo', the same leniency it shows for '1e'. _(java: lenient)_ |
+| `012-unquoted-cannot-start-with-hyphen` | ❌ | ❌ | ❌ | an unquoted string may not begin with a hyphen, and the initial number character plus any valid-in-JSON number characters that follow must be parsed as a number value -- here that is the lone '-', which is not a number. typesafe/config falls back to unquoted text and yields the string '-foo', the same leniency it shows for '1e'. _(java: lenient)_ |
 | `013-negative-number-then-string` | ✅ | ✅ | ✅ | a hyphen followed by digits begins number parsing (-1), after which foo continues as a separate unquoted string token, mirroring the 10.0bar example for negative numbers |
 | `014-hash-starts-comment-not-forbidden-char-in-string` | ✅ | ✅ | ✅ | '#' is forbidden inside an unquoted string because it already has meaning in HOCON: it starts a comment |
 | `015-reserved-forbidden-char-no-current-meaning` | ✅ | ✅ | ✅ | some forbidden characters, such as '!', have no meaning in HOCON today and are reserved as keywords for future extensions to the spec |
@@ -672,11 +672,12 @@ of the exercise — they are marked `java: unsupported` or `java: diverges` in t
 
 </details>
 
-| total | Java | pyhocon | Rust |
+| 223 cases | Java | pyhocon | Rust |
 |---|---|---|---|
-| **223 cases** | **100%** (223/223) | **80%** (179/223) | **91%** (204/223) |
+| **spec mode** — what HOCON requires | **98%** (219/223) | **80%** (179/223) | **91%** (204/223) |
+| **java mode** — what typesafe/config does | 100% (223/223) | 81% (181/223) | 92% (205/223) |
 
-0 of 223 rows are open questions (⚠) rather than results. On 4 rows the spec and typesafe/config disagree — Java is scored against its own behaviour there, so its column reads compatibility, not conformance.
+Cells above show **spec mode**. The two modes differ on the 4 rows marked `java:` — the ones where HOCON and typesafe/config part ways; everywhere else they are the same question. 0 rows are open questions (⚠) rather than results.
 
 <!-- conformance:end -->
 
