@@ -168,6 +168,33 @@ def main(argv):
     else:
         new = text.rstrip() + "\n\n## Conformance\n\n" + block + "\n"
 
+    sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+    import page
+    html_sections = [
+        {"name": name,
+         "rows": [{"name": r["name"], "why": r["why"], "kind": r["java_note"] or "",
+                   "v": {label: {"spec": r["cells"][label],
+                                 "java": r["java_mode"].get(label, r["cells"][label])}
+                         for label, _ in impls}}
+                  for r in sections[name]]}
+        for name in sorted(sections)]
+    split_rows = []
+    for case, meta, i in split:
+        split_rows.append({
+            "input": case.read_text().strip(),
+            "spec_side": "rejects" if "error" in meta else json.dumps(meta["expect"]),
+            "java_side": "rejects" if "java_error" in meta else json.dumps(meta["java_expect"]),
+            "v": {label: {"spec": verdict(results[label][i], meta),
+                          "java": verdict(results[label][i], in_mode(meta, "java"))}
+                  for label, _ in impls}})
+    lede = ("Every row is one sentence of the HOCON specification, turned into a config file and an "
+            "expected value. Score against the specification and you get conformance; score against "
+            "typesafe/config and you get compatibility with the implementation the JVM world runs.")
+    page_html = page.build([label for label, _ in impls], html_sections, split_rows, lede)
+    out_path = SUITE / "report.html"
+    if not check:
+        out_path.write_text(page_html)
+
     if new == text:
         print("table up to date")
         return 0
