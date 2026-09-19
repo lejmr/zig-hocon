@@ -33,12 +33,12 @@ def is_json(s):
         return False
 
 
-def ask(cmd, lines, strict=True):
+def ask(cmd, lines, strict=True, env=None):
     """Run one oracle over every case at once. A short answer means the oracle
     died or broke the protocol, and every later row would be scored against its
     neighbour's answer — so it is an error, never a silent shift."""
     out = subprocess.run([str(c) for c in cmd], input="\n".join(lines) + "\n",
-                         capture_output=True, text=True).stdout.splitlines()
+                         capture_output=True, text=True, env=env).stdout.splitlines()
     if len(out) == len(lines):
         return out
     if strict:
@@ -46,13 +46,44 @@ def ask(cmd, lines, strict=True):
     return ["ERROR OracleFailed: {} lines for {} cases".format(len(out), len(lines))] * len(lines)
 
 
+def is_dir_case(case):
+    """A case that needs more than one file lives in its own directory as
+    `<nnn>-<name>/main.conf` + `main.json`; every other .conf beside main.conf
+    is a fixture it includes, not a case."""
+    return case.name == "main.conf"
+
+
+def is_fixture(path):
+    return path.name != "main.conf" and (path.parent / "main.conf").exists()
+
+
+def section_of(case):
+    return case.parent.parent.name if is_dir_case(case) else case.parent.name
+
+
+def name_of(case):
+    return case.parent.name if is_dir_case(case) else case.stem
+
+
+def key_of(case):
+    return case.relative_to(SUITE).as_posix()
+
+
 def cases():
     """Every case with a sidecar, sorted. Orphans are returned separately rather
-    than skipped quietly — a .conf with no .json is unfinished work, not a case."""
-    found = sorted(SUITE.rglob("*.conf"))
+    than skipped quietly — a .conf with no .json is unfinished work, not a case.
+    Fixtures inside a directory case are neither."""
+    found = [c for c in sorted(SUITE.rglob("*.conf")) if not is_fixture(c)]
     orphans = [c for c in found if not c.with_suffix(".json").exists()]
     keep = [c for c in found if c not in set(orphans)]
     return keep, [json.loads(c.with_suffix(".json").read_text()) for c in keep], orphans
+
+
+def oracle_line(case, meta):
+    """The one line that asks an oracle about this case. A directory case is sent
+    as a path so its includes resolve beside it; anything else as escaped text."""
+    body = "file:" + str(case.resolve()) if is_dir_case(case) else encode(case.read_text())
+    return ("resolve:" if meta.get("resolve") else "") + body
 
 
 def anchors():
@@ -103,5 +134,7 @@ def digest():
     for path in sorted(SUITE.rglob("*.conf")):
         h.update(path.relative_to(SUITE).as_posix().encode())
         h.update(path.read_bytes())
-        h.update(path.with_suffix(".json").read_bytes())
+        side = path.with_suffix(".json")
+        if side.exists():  # a fixture has none, and is still an input
+            h.update(side.read_bytes())
     return h.hexdigest()[:16]

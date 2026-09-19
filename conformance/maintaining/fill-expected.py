@@ -10,7 +10,9 @@ oracle is reported and left alone.
 is what CI and the Zig test step should call.
 """
 
+import collections
 import json
+import os
 import pathlib
 import sys
 
@@ -31,15 +33,37 @@ def main(argv):
     if not cases:
         sys.exit("no cases found")
 
-    srcs = [c.read_text() for c in cases]
-    plain = suite.ask([ORACLE], [suite.encode(s) for s in srcs])
-    # every case is also asked resolved; the two answers together say whether
-    # resolution is what the case is actually about
-    resolved = suite.ask([ORACLE], ["resolve:" + suite.encode(s) for s in srcs])
+    def line(case, meta):
+        # ask without the resolve prefix first; the loop below decides whether the
+        # resolved answer is the one that matters
+        return suite.oracle_line(case, dict(meta, resolve=False))
+
+    # cases that need environment variables each get their own oracle process
+    # with that environment; everything else goes through one batch
+    batch = [(i, c, m) for i, (c, m) in enumerate(zip(cases, metas)) if not m.get("env")]
+    plain = [None] * len(cases)
+    resolved = [None] * len(cases)
+    if batch:
+        for (i, _, _), a in zip(batch, suite.ask([ORACLE], [line(c, m) for _, c, m in batch])):
+            plain[i] = a
+        for (i, _, _), b in zip(batch, suite.ask([ORACLE], ["resolve:" + line(c, m) for _, c, m in batch])):
+            resolved[i] = b
+    for i, (c, m) in enumerate(zip(cases, metas)):
+        if m.get("env"):
+            env = dict(os.environ, **{k: str(v) for k, v in m["env"].items()})
+            plain[i] = suite.ask([ORACLE], [line(c, m)], env=env)[0]
+            resolved[i] = suite.ask([ORACLE], ["resolve:" + line(c, m)], env=env)[0]
 
     stale = ["{}: no sidecar".format(o.relative_to(suite.ROOT)) for o in orphans]
     stale += ["{}: spec anchor {} is not a heading of HOCON.md".format(p.relative_to(suite.ROOT), ref)
               for p, ref in suite.bad_anchors([c.with_suffix(".json") for c in cases], metas)]
+    # a directory is one heading of the spec: every case in it cites the same anchor
+    anchors_by_dir = collections.defaultdict(set)
+    for c, m in zip(cases, metas):
+        anchors_by_dir[suite.section_of(c)].add(m.get("spec", ""))
+    stale += ["conformance/suite/{}: cases cite {} different spec anchors: {}".format(
+                  d, len(a), ", ".join(sorted(a)))
+              for d, a in sorted(anchors_by_dir.items()) if len(a) > 1]
     for case, meta, a, b in zip(cases, metas, plain, resolved):
         side = case.with_suffix(".json")
 

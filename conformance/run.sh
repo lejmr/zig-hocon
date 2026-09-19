@@ -25,6 +25,11 @@
 # JSON does not matter. Anything your command prints on stderr is left alone, so
 # it can log freely.
 #
+# A case that includes other files is a directory: you are handed
+# <case>/main.conf and its includes sit beside it, so resolve them relative to
+# the file. A case that needs environment variables gets them set in your
+# command's environment before it runs.
+#
 # Modes:
 #   --spec (default)  score against what the HOCON specification requires
 #   --java            score against what typesafe/config does, on the rows where
@@ -73,11 +78,22 @@ for word in "$@"; do :; done
 RESULTS=$(mktemp)
 trap 'rm -f "$RESULTS"' EXIT INT TERM
 
+# A case is <name>.conf beside <name>.json, or <name>/main.conf beside main.json;
+# any other .conf inside such a directory is a fixture the case includes.
 for case_file in $(find "$DIR" -name '*.conf' | sort); do
     [ -z "$ONLY" ] || case "$case_file" in *"$ONLY"*) ;; *) continue ;; esac
     [ -f "${case_file%.conf}.json" ] || continue
 
-    if out=$("$@" "$case_file" 2>/dev/null); then status=0; else status=$?; fi
+    # a case may ask for environment variables; they are set for the adapter only
+    # ponytail: values with whitespace are refused rather than quoted — none needs it
+    vars=
+    if grep -q '"env"' "${case_file%.conf}.json"; then
+        vars=$(python3 -c 'import json,sys
+for k, v in json.load(open(sys.argv[1])).get("env", {}).items():
+    if any(c.isspace() for c in k + v): sys.exit("env value with whitespace in " + sys.argv[1])
+    print(k + "=" + v)' "${case_file%.conf}.json") || exit 1
+    fi
+    if out=$(env $vars "$@" "$case_file" 2>/dev/null); then status=0; else status=$?; fi
     printf '%s\037%s\037%s\036' "$case_file" "$status" "$out" >> "$RESULTS"
 done
 
@@ -114,7 +130,8 @@ for record in records:
         except json.JSONDecodeError:
             ok, got = False, out.strip()[:200]
 
-    name = case.parent.name
+    # a directory case is <section>/<name>/main.conf
+    name = case.parent.parent.name if case.name == "main.conf" else case.parent.name
     rel = str(case.relative_to(root))
     # an open question is not a result: it counts as neither a pass nor a failure,
     # and the headline number must agree with the per-case verdict
@@ -146,7 +163,8 @@ digest = hashlib.sha256()
 for path in sorted(root.rglob("*.conf")):
     digest.update(path.relative_to(root).as_posix().encode())
     digest.update(path.read_bytes())
-    digest.update(path.with_suffix(".json").read_bytes())
+    if path.with_suffix(".json").exists():
+        digest.update(path.with_suffix(".json").read_bytes())
 
 total = len(records)
 report = {

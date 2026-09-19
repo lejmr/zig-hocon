@@ -21,8 +21,12 @@ shift
 [ -x "$ORACLE" ] || { echo "no oracle at $ORACLE" >&2; exit 2; }
 [ "${1:-}" = "--version" ] && exec "$ORACLE" --version
 
-# the oracles speak one escaped case per line, so fold the file into one
-line=$(python3 -c 'import sys; sys.path.insert(0, sys.argv[1]); import suite; print("resolve:" + suite.encode(open(sys.argv[2]).read()))' "$HERE/../maintaining" "$1")
+# the oracles speak one escaped case per line, so fold the file into one; a
+# directory case is sent by path instead, so its includes resolve beside it
+case "$1" in
+    */main.conf) line="resolve:file:$(cd "$(dirname "$1")" && pwd)/main.conf" ;;
+    *) line=$(python3 -c 'import sys; sys.path.insert(0, sys.argv[1]); import suite; print("resolve:" + suite.encode(open(sys.argv[2]).read()))' "$HERE/../maintaining" "$1") ;;
+esac
 
 out=$(printf '%s\n' "$line" | "$ORACLE")
 case "$out" in ERROR*) printf '%s\n' "$out" >&2; exit 1 ;; esac

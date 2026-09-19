@@ -48,13 +48,28 @@ one section at a time.
 
 ## Layout
 
-One directory per heading of the specification, named after the heading's
-anchor. Inside, one case per pair of files:
+One directory per heading of the specification. The directory name is readable;
+the exact heading is the `spec` anchor every sidecar in it carries, and
+`maintaining/SECTIONS.md` is the map between the two. Inside, one case per pair
+of files:
 
 ```
 suite/<spec-section>/<nnn>-<name>.conf    the input, verbatim
 suite/<spec-section>/<nnn>-<name>.json    what it must produce
 ```
+
+A case that needs more than one file — anything with `include` — is a
+directory instead:
+
+```
+suite/<spec-section>/<nnn>-<name>/main.conf    the input; this is what gets parsed
+suite/<spec-section>/<nnn>-<name>/main.json    what it must produce
+suite/<spec-section>/<nnn>-<name>/*.conf       fixtures main.conf includes
+```
+
+A runner hands your adapter the path to `main.conf`; includes resolve beside
+it. A case that needs environment variables lists them in the sidecar as
+`"env": {"NAME": "value"}`, and the runner sets them for your adapter.
 
 `maintaining/SECTIONS.md` maps every heading of the spec to its directory, or to
 the reason it has no observable parse behaviour. `maintaining/FINDINGS.md` is
