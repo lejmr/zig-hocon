@@ -37,7 +37,7 @@ FORMAT=json
 ONLY=
 IMPL=
 VERSION=
-DIR=$(cd "$(dirname "$0")" && pwd)
+DIR=$(cd "$(dirname "$0")" && pwd)/suite
 
 usage() { sed -n '2,24p' "$0" | sed 's/^# \{0,1\}//'; exit "${1:-0}"; }
 
@@ -88,7 +88,7 @@ import json, os, pathlib, sys
 mode, root = os.environ["MODE"], pathlib.Path(os.environ["DIR"])
 records = [r for r in pathlib.Path(os.environ["RESULTS"]).read_text(errors="replace").split("\036") if r]
 
-sections, failures, passed = {}, [], 0
+sections, failures, verdicts, outputs, passed = {}, [], {}, {}, 0
 for record in records:
     path, status, out = record.split("\037", 2)
     case = pathlib.Path(path)
@@ -115,6 +115,12 @@ for record in records:
             ok, got = False, out.strip()[:200]
 
     name = case.parent.name
+    rel = str(case.relative_to(root))
+    verdicts[rel] = "open" if "review" in meta else "pass" if ok else "fail"
+    # the contested rows are worth keeping verbatim: a report wants to show what
+    # each implementation actually did, not only whether it agreed
+    if "java" in meta or "review" in meta:
+        outputs[rel] = "rejected" if status != "0" else out.strip()[:120]
     tally = sections.setdefault(name, {"total": 0, "passed": 0})
     tally["total"] += 1
     tally["passed"] += ok
@@ -142,6 +148,8 @@ report = {
     "passed": passed,
     "percent": round(100 * passed / total, 1) if total else 0.0,
     "sections": dict(sorted(sections.items())),
+    "cases": dict(sorted(verdicts.items())),
+    "outputs": dict(sorted(outputs.items())),
     "failures": failures,
 }
 

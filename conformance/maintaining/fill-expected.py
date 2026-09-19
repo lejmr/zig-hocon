@@ -4,7 +4,7 @@ Reads each conformance case, runs it through tools/oracle/hocon-java, and writes
 the oracle's answer back. Never invents a value; a case it cannot feed to the
 oracle is reported and left alone.
 
-    python3 tools/conformance/fill-expected.py [--check] [<dir>...]
+    python3 conformance/maintaining/fill-expected.py [--check] [<dir>...]
 
 --check writes nothing and exits non-zero if any sidecar is out of date, which
 is what CI and the Zig test step should call.

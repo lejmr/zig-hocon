@@ -7,7 +7,8 @@ import subprocess
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
-SUITE = ROOT / "conformance"
+SUITE = ROOT / "conformance" / "suite"
+REPORTS = ROOT / "conformance" / "reports"
 SPEC = ROOT / "spec" / "HOCON.md"
 
 

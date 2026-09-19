@@ -4,6 +4,16 @@ Every case here is one sentence of the [HOCON specification](../spec/HOCON.md),
 written as a config file and the value it must produce. The suite is data, not
 code: a runner in any language is a directory walk and a JSON compare.
 
+## What is in here
+
+```
+suite/        the cases — one directory per heading of the specification
+run.sh        point your parser at the suite, get a result out
+adapters/     ten-line shims; example.sh is the one to copy
+reports/      results we publish, one file per implementation and mode
+maintaining/  how the suite is built and kept honest — you can ignore this
+```
+
 ## Check your implementation
 
 ```sh
@@ -30,8 +40,8 @@ conformance/run.sh --java -- ./my-adapter.sh   # what typesafe/config does
 They ask the same question on every row but a handful — the ones where the
 specification and the reference implementation genuinely part ways. Aim at
 `--spec` if you want to be correct, at `--java` if you need configs that parse
-in the JVM world today to keep parsing. `PROCESS.md` explains the difference and
-lists every row where it matters.
+in the JVM world today to keep parsing. `maintaining/PROCESS.md` explains the
+difference and lists every row where it matters.
 
 `--only <text>` narrows a run to matching paths, which is how you work through
 one section at a time.
@@ -42,13 +52,14 @@ One directory per heading of the specification, named after the heading's
 anchor. Inside, one case per pair of files:
 
 ```
-conformance/<spec-section>/<nnn>-<name>.conf    the input, verbatim
-conformance/<spec-section>/<nnn>-<name>.json    what it must produce
+suite/<spec-section>/<nnn>-<name>.conf    the input, verbatim
+suite/<spec-section>/<nnn>-<name>.json    what it must produce
 ```
 
-`SECTIONS.md` maps every heading of the spec to its directory, or to the reason
-it has no observable parse behaviour. `FINDINGS.md` is the open work: cases
-known to be defective and normative sentences nothing covers yet.
+`maintaining/SECTIONS.md` maps every heading of the spec to its directory, or to
+the reason it has no observable parse behaviour. `maintaining/FINDINGS.md` is
+the open work: cases known to be defective and normative sentences nothing
+covers yet.
 
 ## The sidecar
 
@@ -61,7 +72,7 @@ known to be defective and normative sentences nothing covers yet.
 ```
 
 `expect` is what the **specification** requires, not what any implementation
-does — see "Tie-break" in `PROCESS.md`. A case that must be **rejected** carries
+does — see "Tie-break" in `maintaining/PROCESS.md`. A case that must be **rejected** carries
 no `expect`:
 
 ```json
@@ -78,14 +89,27 @@ so a runner asserts only that parsing failed.
 A row where the reference implementation and the spec part ways carries
 `"java": "diverges" | "unsupported" | "lenient"` and, next to it, `"java_expect"`
 or `"java_error"` — what typesafe/config does with that same input. Those rows
-are the reason the suite exists; `PROCESS.md` has the table of which kind means
-what.
+are the reason the suite exists; `maintaining/PROCESS.md` has the table of which
+kind means what.
 
 A row carrying `"review"` is an open question for a human. It is neither a pass
 nor a failure.
 
 `"resolve": true` marks a case that only means anything once substitutions are
 resolved. Resolve them always and it makes no difference to you.
+
+## Published results
+
+`reports/` holds one JSON per implementation and mode, produced by `run.sh` and
+committed. The table in the repository's top-level README and the page at
+`report.html` are rendered from those files and nothing else — an implementation
+appears there because its result file is committed.
+
+```sh
+python3 conformance/maintaining/report.py          # re-render from reports/
+```
+
+Drop your own result into `reports/` and the local report picks it up.
 
 ## Reusing this
 

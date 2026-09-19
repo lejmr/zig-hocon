@@ -79,7 +79,7 @@ Only the rows carrying a `java` kind differ between the modes. Everywhere else
 the two ask the same question, so a mode switch is cheap: one lookup per row,
 no second copy of the suite.
 
-`report.py` scores both and prints a line for each.
+`report.py` renders both from the committed results in `conformance/reports/`.
 
 `fill-expected.py --check` enforces the shape column — a row whose fields do
 not match its declared kind is sent back as `review` instead of being scored.
@@ -90,7 +90,7 @@ elsewhere and it says "am I compatible with the implementation everyone
 actually runs". An implementation picks which bar it is aiming at; this repo
 aims at the first and reports the second.
 
-Invariants a row must satisfy, checked by `tools/conformance/fill-expected.py --check`:
+Invariants a row must satisfy, checked by `conformance/maintaining/fill-expected.py --check`:
 
 - `java_expect` / `java_error` appear only together with `java`.
 - without `java`, `expect` must equal what the oracle produces — otherwise
