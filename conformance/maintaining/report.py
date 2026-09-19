@@ -33,6 +33,7 @@ def load_runs():
         r = json.loads(f.read_text())
         impl = runs.setdefault(r["implementation"], {"version": r["version"], "modes": {}, "outputs": {}})
         impl["modes"][r["mode"]] = r["cases"]
+        impl.setdefault("digests", set()).add(r.get("suite_digest", "none"))
         impl["outputs"].update(r.get("outputs", {}))
     for impl in runs.values():
         impl["modes"].setdefault("java", impl["modes"].get("spec", {}))
@@ -50,6 +51,16 @@ def main(argv):
     if not runs:
         sys.exit("no results in {} — run conformance/run.sh first".format(REPORTS))
     impls = list(runs)
+
+    # a result file scored against a different set of cases is not a result about
+    # this suite; saying so is cheaper than quietly publishing last week's numbers
+    now = suite.digest()
+    behind = [i for i in impls if runs[i].get("digests", {"none"}) != {now}]
+    if behind:
+        print("results predate the current cases, re-run conformance/run.sh for:\n  "
+              + "\n  ".join(behind))
+        if check:
+            return 1
 
     rel = [str(c.relative_to(SUITE)) for c in cases]
     verdict = lambda impl, key, mode: runs[impl]["modes"][mode].get(key, "open")

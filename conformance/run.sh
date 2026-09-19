@@ -83,7 +83,7 @@ done
 
 COMMAND="$*" MODE="$MODE" FORMAT="$FORMAT" RESULTS="$RESULTS" DIR="$DIR" IMPL="$IMPL" VERSION="$VERSION" \
   RAN_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ) python3 - <<'PY'
-import json, os, pathlib, sys
+import hashlib, json, os, pathlib, sys
 
 mode, root = os.environ["MODE"], pathlib.Path(os.environ["DIR"])
 records = [r for r in pathlib.Path(os.environ["RESULTS"]).read_text(errors="replace").split("\036") if r]
@@ -136,6 +136,14 @@ for record in records:
             **({"java": meta["java"]} if "java" in meta else {}),
         })
 
+# a fingerprint of the cases this run was scored against, so a report that has
+# fallen behind the suite can be told from one that has not
+digest = hashlib.sha256()
+for path in sorted(root.rglob("*.conf")):
+    digest.update(path.relative_to(root).as_posix().encode())
+    digest.update(path.read_bytes())
+    digest.update(path.with_suffix(".json").read_bytes())
+
 total = len(records)
 report = {
     "suite": "hocon-conformance",
@@ -144,6 +152,7 @@ report = {
     "mode": mode,
     "command": os.environ["COMMAND"],
     "ran_at": os.environ["RAN_AT"],
+    "suite_digest": digest.hexdigest()[:16],
     "total": total,
     "passed": passed,
     "percent": round(100 * passed / total, 1) if total else 0.0,
