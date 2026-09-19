@@ -1,0 +1,13 @@
+{
+  "spec": "HOCON.md#string-value-concatenation",
+  "item": "S10.13",
+  "why": "the same rule for arrays; typesafe/config again accepts and discards the trailing x, where it errors when the scalar comes first",
+  "error": "ArrayInStringConcatenation",
+  "java": "lenient",
+  "java_expect": {
+    "a": [
+      1,
+      2
+    ]
+  }
+}

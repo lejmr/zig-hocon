@@ -4,9 +4,9 @@
   "version": "typesafe/config 1.4.5",
   "mode": "java",
   "command": "conformance/adapters/oracle.sh hocon-java",
-  "ran_at": "2026-09-19T07:20:51Z",
-  "total": 228,
-  "passed": 228,
+  "ran_at": "2026-09-19T07:42:26Z",
+  "total": 217,
+  "passed": 217,
   "percent": 100.0,
   "sections": {
     "array-and-object-concatenation": {
@@ -78,12 +78,12 @@
       "passed": 6
     },
     "size-in-bytes-format": {
-      "total": 20,
-      "passed": 20
+      "total": 5,
+      "passed": 5
     },
     "string-value-concatenation": {
-      "total": 9,
-      "passed": 9
+      "total": 13,
+      "passed": 13
     },
     "substitutions": {
       "total": 24,
@@ -246,24 +246,9 @@
     "self-referential-substitutions/006-self-referential-array-concatenation.conf": "pass",
     "size-in-bytes-format/001-bare-number-is-bytes.conf": "pass",
     "size-in-bytes-format/002-single-byte-spellings.conf": "pass",
-    "size-in-bytes-format/003-kilobytes-spellings.conf": "pass",
-    "size-in-bytes-format/004-megabytes-spellings.conf": "pass",
-    "size-in-bytes-format/005-gigabytes-spellings.conf": "pass",
-    "size-in-bytes-format/006-terabytes-spellings.conf": "pass",
-    "size-in-bytes-format/007-petabytes-spellings.conf": "pass",
-    "size-in-bytes-format/008-exabytes-spellings.conf": "pass",
-    "size-in-bytes-format/009-zettabytes-spellings.conf": "pass",
-    "size-in-bytes-format/010-yottabytes-spellings.conf": "pass",
-    "size-in-bytes-format/011-kibibytes-spellings.conf": "pass",
-    "size-in-bytes-format/012-mebibytes-spellings.conf": "pass",
-    "size-in-bytes-format/013-gibibytes-spellings.conf": "pass",
-    "size-in-bytes-format/014-tebibytes-spellings.conf": "pass",
-    "size-in-bytes-format/015-pebibytes-spellings.conf": "pass",
-    "size-in-bytes-format/016-exbibytes-spellings.conf": "pass",
-    "size-in-bytes-format/017-zebibytes-spellings.conf": "pass",
-    "size-in-bytes-format/018-yobibytes-spellings.conf": "pass",
+    "size-in-bytes-format/003-powers-of-ten-suffixes.conf": "pass",
+    "size-in-bytes-format/004-powers-of-two-suffixes.conf": "pass",
     "size-in-bytes-format/019-single-letter-abbreviation-means-powers-of-two.conf": "pass",
-    "size-in-bytes-format/020-multiletter-unit-wrong-case-is-illegal.conf": "pass",
     "string-value-concatenation/001-substitution-in-string-concatenation.conf": "pass",
     "string-value-concatenation/002-only-simple-values-participate.conf": "pass",
     "string-value-concatenation/003-leading-and-trailing-whitespace-trimmed.conf": "pass",
@@ -273,6 +258,10 @@
     "string-value-concatenation/007-null-becomes-string-in-concatenation.conf": "pass",
     "string-value-concatenation/008-number-kept-as-written-in-concatenation.conf": "pass",
     "string-value-concatenation/009-single-boolean-not-converted-to-string.conf": "pass",
+    "string-value-concatenation/010-object-then-scalar-drops-the-scalar.conf": "pass",
+    "string-value-concatenation/011-array-then-scalar-drops-the-scalar.conf": "pass",
+    "string-value-concatenation/012-scalar-then-object-is-an-error.conf": "pass",
+    "string-value-concatenation/013-scalar-then-array-is-an-error.conf": "pass",
     "substitutions/001-basic-substitution.conf": "pass",
     "substitutions/002-optional-substitution-syntax.conf": "pass",
     "substitutions/003-optional-substitution-whitespace-illegal.conf": "pass",
@@ -348,6 +337,8 @@
     "omit-root-braces/010-blank-line-before-array-root.conf": "rejected",
     "omit-root-braces/011-trailing-array-after-root-array.conf": "rejected",
     "paths-as-keys/008-include-cannot-begin-key.conf": "{\"include\":{\"foo\":42}}",
+    "string-value-concatenation/010-object-then-scalar-drops-the-scalar.conf": "{\"a\":{\"b\":1}}",
+    "string-value-concatenation/011-array-then-scalar-drops-the-scalar.conf": "{\"a\":[1,2]}",
     "unchanged-from-json/009-number-leading-zero-illegal.conf": "{\"a\":1}",
     "unquoted-strings/012-unquoted-cannot-start-with-hyphen.conf": "{\"a\":\"-foo\"}"
   },

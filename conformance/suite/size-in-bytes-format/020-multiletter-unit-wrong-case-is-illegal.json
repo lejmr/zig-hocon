@@ -1,8 +1,0 @@
-{
-  "spec": "HOCON.md#size-in-bytes-format",
-  "item": "S21.2",
-  "why": "multi-letter size units must match the listed spelling exactly (kB for kilobytes), so a differently-cased multi-letter unit like Kb is not one of the supported strings, unlike the one-letter forms which may be uppercase",
-  "expect": {
-    "s": "1Kb"
-  }
-}

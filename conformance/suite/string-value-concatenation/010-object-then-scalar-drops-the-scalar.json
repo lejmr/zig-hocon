@@ -1,0 +1,12 @@
+{
+  "spec": "HOCON.md#string-value-concatenation",
+  "item": "S10.13",
+  "why": "it is invalid for arrays or objects to appear in a string value concatenation; typesafe/config accepts this one silently and discards the trailing x, losing data with no diagnostic, while erroring on the same pair in the other order",
+  "error": "ObjectInStringConcatenation",
+  "java": "lenient",
+  "java_expect": {
+    "a": {
+      "b": 1
+    }
+  }
+}
