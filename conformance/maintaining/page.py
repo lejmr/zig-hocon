@@ -99,6 +99,16 @@ h2 { font-size: 17px; font-weight: 600; margin: 0 0 2px; }
 .section-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
 .note { color: var(--muted); font-size: 13px; max-width: 78ch; }
 footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--rule); padding-top: 16px; }
+.drop {
+  border: 1px dashed var(--rule); border-radius: 10px; padding: 14px 18px;
+  background: var(--panel); display: flex; flex-direction: column; gap: 4px;
+}
+.drop.over { border-color: var(--accent); border-style: solid; }
+.drop .note { margin: 0; }
+.drop input[type=file] { font: inherit; font-size: 13px; max-width: 100%; }
+.score.local { border-style: dashed; }
+.score .local-tag { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); }
+#dropmsg.bad { color: var(--fail); }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 </style>
 
@@ -115,6 +125,16 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--rule)
   </div>
 
   <div class="scores" id="scores"></div>
+
+  <section class="drop" id="drop">
+    <label for="pick"><b>Add your own result</b></label>
+    <p class="note">Run <code>conformance/run.sh -- ./your-adapter.sh &gt; result.json</code> and drop the
+    file here, or <input type="file" id="pick" accept="application/json,.json"> pick it. It is read in
+    your browser and shown beside the others; nothing is uploaded, and reloading the page forgets it.</p>
+    <p class="note" id="dropmsg" hidden></p>
+  </section>
+
+  <section id="yours" hidden></section>
 
   <section class="split">
     <div class="section-head" style="padding:12px 10px 2px">
@@ -143,33 +163,90 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--rule)
 <script>
 const DATA = __DATA__;
 let mode = "spec";
+const LOCAL = {};   // results dropped in by the viewer, this tab only
 
 function cell(v) {
   if (v === "review") return '<span class="tag review">open</span>';
   return v === "pass" ? '<span class="tag pass">pass</span>' : '<span class="tag fail">fail</span>';
 }
+function verdictOf(row, impl) {
+  if (LOCAL[impl]) return LOCAL[impl].cases[row.key] || "open";
+  return row.v[impl][mode];
+}
 function score(rows, impl) {
   let ok = 0;
-  for (const r of rows) if (r.v[impl][mode] === "pass") ok++;
+  for (const r of rows) if (verdictOf(r, impl) === "pass") ok++;
   return [ok, rows.length];
 }
+function columns() { return DATA.impls.concat(Object.keys(LOCAL)); }
 function render() {
   const all = DATA.sections.flatMap(s => s.rows);
-  document.getElementById("scores").innerHTML = DATA.impls.map(impl => {
+  document.getElementById("scores").innerHTML = columns().map(impl => {
     const [ok, n] = score(all, impl);
     const pct = n ? Math.round(100 * ok / n) : 0;
-    return `<div class="score"><div class="impl">${impl}</div>
+    const local = LOCAL[impl];
+    return `<div class="score${local ? " local" : ""}"><div class="impl">${impl}</div>
       <div class="pct num">${pct}%</div>
       <div class="of num">${ok} of ${n} rows</div>
-      <div class="of num">${DATA.versions[impl]}</div>
+      <div class="of num">${local ? local.version : DATA.versions[impl]}</div>
+      ${local ? '<div class="local-tag">yours · not published</div>' : ""}
       <div class="bar"><i style="width:${pct}%"></i></div></div>`;
   }).join("");
   for (const td of document.querySelectorAll("td.v")) td.innerHTML = cell(JSON.parse(td.dataset.v)[mode]);
+  renderYours();
   for (const el of document.querySelectorAll("[data-tally]")) {
     const rows = DATA.sections[+el.dataset.tally].rows;
-    el.textContent = DATA.impls.map(i => { const [ok, n] = score(rows, i); return `${i} ${ok}/${n}`; }).join(" · ");
+    el.textContent = columns().map(i => { const [ok, n] = score(rows, i); return `${i} ${ok}/${n}`; }).join(" · ");
   }
 }
+function renderYours() {
+  const box = document.getElementById("yours");
+  const names = Object.keys(LOCAL);
+  box.hidden = names.length === 0;
+  if (box.hidden) return;
+  const rows = DATA.sections.flatMap(s => s.rows.map(r => [s.name, r]));
+  box.innerHTML = names.map(impl => {
+    const bad = rows.filter(([, r]) => verdictOf(r, impl) === "fail");
+    const head = `<div class="section-head" style="padding:12px 10px 2px"><h2>${impl} — what fails</h2>` +
+      `<span class="note">${bad.length} of ${rows.length} rows. Read left to right: the rule you broke.</span></div>`;
+    if (!bad.length) return `<section class="split">${head}<p class="note" style="padding:0 10px 12px">` +
+      `Nothing fails. Check <code>COVERAGE.md</code> for the rules this suite never asks about.</p></section>`;
+    const body = bad.map(([sec, r]) =>
+      `<tr><td class="mono">${sec}/${r.name}</td><td class="why">${r.why}` +
+      (r.kind ? `<span class="tag kind">java: ${r.kind}</span>` : "") + `</td></tr>`).join("");
+    return `<section class="split">${head}<div class="scroll"><table><thead><tr>` +
+      `<th>case</th><th>rule</th></tr></thead><tbody>${body}</tbody></table></div></section>`;
+  }).join("");
+}
+
+function adopt(text, name) {
+  const msg = document.getElementById("dropmsg");
+  const say = (t, bad) => { msg.hidden = false; msg.textContent = t; msg.classList.toggle("bad", !!bad); };
+  let r;
+  try { r = JSON.parse(text); } catch (e) { return say(`${name} is not JSON: ${e.message}`, true); }
+  if (r.suite !== "hocon-conformance" || !r.cases)
+    return say(`${name} is not a conformance result — expected the JSON that conformance/run.sh prints.`, true);
+  if (r.suite_digest && r.suite_digest !== DATA.digest)
+    say(`Scored against a different set of cases (${r.suite_digest}, this page has ${DATA.digest}). ` +
+        `Showing it anyway — re-run conformance/run.sh for numbers that line up.`, true);
+  else
+    say(`${r.implementation || name}: ${r.passed}/${r.total} in ${r.mode} mode.`);
+  const label = (r.implementation || name) + " (yours)";
+  LOCAL[label] = { cases: r.cases, version: r.version || "unknown", mode: r.mode };
+  render();
+}
+
+const drop = document.getElementById("drop");
+drop.addEventListener("dragover", e => { e.preventDefault(); drop.classList.add("over"); });
+drop.addEventListener("dragleave", () => drop.classList.remove("over"));
+drop.addEventListener("drop", e => {
+  e.preventDefault(); drop.classList.remove("over");
+  for (const f of e.dataTransfer.files) f.text().then(t => adopt(t, f.name));
+});
+document.getElementById("pick").addEventListener("change", e => {
+  for (const f of e.target.files) f.text().then(t => adopt(t, f.name));
+});
+
 for (const b of document.querySelectorAll("button.mode")) {
   b.addEventListener("click", () => {
     mode = b.dataset.mode;
@@ -186,7 +263,7 @@ def _cells(row, impls):
     return "".join('<td class="v" data-v=\'{}\'></td>'.format(json.dumps(row["v"][i])) for i in impls)
 
 
-def build(impls, sections, split_rows, lede, versions):
+def build(impls, sections, split_rows, lede, versions, digest):
     head = "".join("<th>{}</th>".format(esc.escape(i)) for i in impls)
 
     split = ['<table><thead><tr><th>input</th><th>the spec requires</th>{}</tr></thead>'
@@ -214,7 +291,7 @@ def build(impls, sections, split_rows, lede, versions):
                        esc.escape(sec["name"]), len(sec["rows"]), n, "".join(rows)))
 
     total = sum(len(s["rows"]) for s in sections)
-    return (PAGE.replace("__DATA__", json.dumps({"impls": impls, "sections": sections, "versions": versions}))
+    return (PAGE.replace("__DATA__", json.dumps({"impls": impls, "sections": sections, "versions": versions, "digest": digest}))
                 .replace("__SECTIONS__", "".join(out))
                 .replace("__SPLIT__", "".join(split))
                 .replace("__SPLITCOUNT__", str(len(split_rows)))

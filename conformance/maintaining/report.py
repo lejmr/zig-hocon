@@ -67,7 +67,7 @@ def main(argv):
 
     sections, split = {}, []
     for case, meta, key in zip(cases, metas, rel):
-        row = {"name": case.stem, "why": meta.get("why", ""), "kind": meta.get("java", ""),
+        row = {"key": key, "name": case.stem, "why": meta.get("why", ""), "kind": meta.get("java", ""),
                "review": meta.get("review", ""),
                "v": {i: {m: verdict(i, key, m) for m in ("spec", "java")} for i in impls}}
         sections.setdefault(case.parent.name, []).append(row)
@@ -159,7 +159,8 @@ def main(argv):
     lede = ("Every row is one sentence of the HOCON specification, turned into a config file and an "
             "expected value. Score against the specification and you get conformance; score against "
             "typesafe/config and you get compatibility with the implementation the JVM world runs.")
-    html = page.build(impls, html_sections, split, lede, {i: runs[i]["version"] for i in impls})
+    html = page.build(impls, html_sections, split, lede,
+                      {i: runs[i]["version"] for i in impls}, now)
 
     stale = [str(p.relative_to(ROOT)) for p, content in ((README, new), (PAGE, html), (COVERAGE, coverage))
              if not p.exists() or p.read_text() != content]
