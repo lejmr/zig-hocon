@@ -1,0 +1,11 @@
+{
+  "spec": "HOCON.md#duration-format",
+  "why": "exactly ns, nano, nanos, nanosecond, nanoseconds are the supported unit strings for nanoseconds",
+  "expect": {
+    "nano": "5nano",
+    "nanos": "5nanos",
+    "nanosecond": "5nanosecond",
+    "nanoseconds": "5nanoseconds",
+    "ns": "5ns"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "spec": "HOCON.md#size-in-bytes-format",
+  "why": "for powers of two, exactly K, k, Ki, KiB, kibibyte, kibibytes are the supported unit strings (including both upper- and lower-case single-letter forms, since one-letter unit strings may be uppercase)",
+  "expect": {
+    "u0_K": "5K",
+    "u1_k": "5k",
+    "u2_Ki": "5Ki",
+    "u3_KiB": "5KiB",
+    "u4_kibibyte": "5kibibyte",
+    "u5_kibibytes": "5kibibytes"
+  }
+}

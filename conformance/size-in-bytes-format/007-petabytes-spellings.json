@@ -1,0 +1,9 @@
+{
+  "spec": "HOCON.md#size-in-bytes-format",
+  "why": "for powers of ten, exactly PB, petabyte, petabytes are the supported unit strings",
+  "expect": {
+    "PB": "5PB",
+    "petabyte": "5petabyte",
+    "petabytes": "5petabytes"
+  }
+}

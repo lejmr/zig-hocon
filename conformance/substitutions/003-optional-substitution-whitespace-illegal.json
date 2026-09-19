@@ -1,0 +1,5 @@
+{
+  "spec": "HOCON.md#substitutions",
+  "why": "the ? in ${?pathexpression} must not have whitespace before it; the three characters ${? must be exactly grouped together",
+  "error": "Parse"
+}

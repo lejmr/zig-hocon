@@ -1,0 +1,8 @@
+{
+  "spec": "HOCON.md#whitespace",
+  "why": "the spec names figure space (0x2007) and narrow no-break space (0x202F) explicitly among the nonbreaking spaces treated as whitespace",
+  "expect": {
+    "a": 1,
+    "b": 2
+  }
+}

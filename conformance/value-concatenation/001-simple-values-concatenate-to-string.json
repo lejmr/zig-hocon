@@ -1,0 +1,7 @@
+{
+  "spec": "HOCON.md#value-concatenation",
+  "why": "if all the values are simple values they are concatenated into a string",
+  "expect": {
+    "a": "foo bar"
+  }
+}

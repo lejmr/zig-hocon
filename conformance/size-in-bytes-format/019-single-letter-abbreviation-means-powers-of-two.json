@@ -1,0 +1,7 @@
+{
+  "spec": "HOCON.md#size-in-bytes-format",
+  "why": "the single-letter abbreviations (like K) are ambiguous between powers of two and ten, and this spec follows the java -Xmx / GNU-tools precedent of mapping them to powers of two",
+  "expect": {
+    "s": "128K"
+  }
+}

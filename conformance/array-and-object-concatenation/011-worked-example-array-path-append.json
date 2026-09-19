@@ -1,0 +1,11 @@
+{
+  "spec": "HOCON.md#array-and-object-concatenation",
+  "why": "the spec's worked example: array concatenation with a substitution is a common way to add to paths",
+  "expect": {
+    "path": [
+      "/bin",
+      "/usr/bin"
+    ]
+  },
+  "resolve": true
+}

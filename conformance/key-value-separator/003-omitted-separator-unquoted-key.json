@@ -1,0 +1,9 @@
+{
+  "spec": "HOCON.md#key-value-separator",
+  "why": "the separator-omission rule before { applies to unquoted keys too, not just the quoted example in the spec",
+  "expect": {
+    "foo": {
+      "a": 1
+    }
+  }
+}

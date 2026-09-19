@@ -1,0 +1,5 @@
+{
+  "spec": "HOCON.md#multi-line-strings",
+  "why": "a multi-line string opened with a three-character quote sequence that never reaches a closing \"\"\" is not a legal value",
+  "error": "Parse"
+}

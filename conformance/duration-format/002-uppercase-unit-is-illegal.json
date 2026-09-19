@@ -1,0 +1,7 @@
+{
+  "spec": "HOCON.md#duration-format",
+  "why": "the supported unit strings for duration are case-sensitive and must be lowercase, so an uppercase unit is not one of the supported strings",
+  "expect": {
+    "t": "10MS"
+  }
+}

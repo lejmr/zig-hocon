@@ -1,0 +1,7 @@
+{
+  "spec": "HOCON.md#unquoted-strings",
+  "why": "the two-character string '//' starts a comment, ending the unquoted string before it even mid-token",
+  "expect": {
+    "a": "foo"
+  }
+}

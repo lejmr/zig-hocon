@@ -1,0 +1,9 @@
+{
+  "spec": "HOCON.md#duration-format",
+  "why": "exactly d, day, days are the supported unit strings for days in the duration format",
+  "expect": {
+    "d": "5d",
+    "day": "5day",
+    "days": "5days"
+  }
+}

@@ -1,0 +1,5 @@
+{
+  "spec": "HOCON.md#unquoted-strings",
+  "why": "quoted JSON strings may not contain control characters, per the JSON spec, unlike unquoted strings",
+  "error": "Parse"
+}

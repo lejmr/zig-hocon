@@ -1,0 +1,7 @@
+{
+  "spec": "HOCON.md#unquoted-strings",
+  "why": "a hyphen may not begin an unquoted string because it is a valid character to start a JSON number, and -foo does not continue as a valid number",
+  "expect": {
+    "a": "-foo"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "spec": "HOCON.md#conversion-of-numerically-indexed-objects-to-arrays",
+  "why": "the conversion should be done lazily when required to avoid a type error, not eagerly anytime an object has numeric keys, so a bare object with numeric keys stays an object",
+  "expect": {
+    "foo": {
+      "0": "a",
+      "1": "b"
+    }
+  }
+}

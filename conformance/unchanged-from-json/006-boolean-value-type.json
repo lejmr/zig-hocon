@@ -1,0 +1,8 @@
+{
+  "spec": "HOCON.md#unchanged-from-json",
+  "why": "boolean is one of the possible value types",
+  "expect": {
+    "a": true,
+    "b": false
+  }
+}

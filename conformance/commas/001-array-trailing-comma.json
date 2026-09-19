@@ -1,0 +1,11 @@
+{
+  "spec": "HOCON.md#commas",
+  "why": "the last element in an array may be followed by a single comma, which is ignored: [1,2,3,] and [1,2,3] are the same array",
+  "expect": {
+    "a": [
+      1,
+      2,
+      3
+    ]
+  }
+}

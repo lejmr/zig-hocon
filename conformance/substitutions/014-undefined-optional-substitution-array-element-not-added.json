@@ -1,0 +1,11 @@
+{
+  "spec": "HOCON.md#substitutions",
+  "why": "if an undefined ${?foo} substitution is an array element, the element should not be added",
+  "expect": {
+    "a": [
+      1,
+      2
+    ]
+  },
+  "resolve": true
+}

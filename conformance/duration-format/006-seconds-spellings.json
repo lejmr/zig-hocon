@@ -1,0 +1,9 @@
+{
+  "spec": "HOCON.md#duration-format",
+  "why": "exactly s, second, seconds are the supported unit strings for seconds",
+  "expect": {
+    "s": "5s",
+    "second": "5second",
+    "seconds": "5seconds"
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "spec": "HOCON.md#unquoted-strings",
+  "why": "worked example: footrue does not begin with true, false, null, or a number, so it parses as a single unquoted string",
+  "expect": {
+    "a": "footrue"
+  }
+}

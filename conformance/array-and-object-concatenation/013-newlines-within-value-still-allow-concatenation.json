@@ -1,0 +1,12 @@
+{
+  "spec": "HOCON.md#array-and-object-concatenation",
+  "why": "newlines may occur within an array without preventing it from concatenating with a second array on the same line as its closing bracket",
+  "expect": {
+    "a": [
+      1,
+      2,
+      3,
+      4
+    ]
+  }
+}

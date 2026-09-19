@@ -1,0 +1,10 @@
+{
+  "spec": "HOCON.md#substitutions",
+  "why": "substitutions are not parsed inside quoted strings, so this stays the literal text",
+  "expect": {
+    "animal": {
+      "favorite": "wolf"
+    },
+    "key": "${animal.favorite}"
+  }
+}

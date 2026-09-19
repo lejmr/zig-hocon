@@ -1,0 +1,8 @@
+{
+  "spec": "HOCON.md#comments",
+  "why": "a comment runs only to the next newline, so the following line is parsed normally",
+  "expect": {
+    "a": 1,
+    "b": 2
+  }
+}

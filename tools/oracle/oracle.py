@@ -20,7 +20,7 @@ def run(src, resolve):
     except Exception as e:
         # pyparsing dumps its whole grammar into the message; the class name and
         # the first line are the only parts worth diffing against Java.
-        msg = str(e).replace("\n", " ")
+        msg = " ".join(str(e).split())  # one line out per line in, whatever pyparsing dumps
         if len(msg) > 120:
             msg = msg[:120] + "…"
         return "ERROR {}: {}".format(type(e).__name__, msg)

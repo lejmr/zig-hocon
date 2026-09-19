@@ -1,0 +1,7 @@
+{
+  "spec": "HOCON.md#unchanged-from-json",
+  "why": "string is one of the possible value types",
+  "expect": {
+    "a": "hello"
+  }
+}

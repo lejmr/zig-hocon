@@ -1,0 +1,7 @@
+{
+  "spec": "HOCON.md#units-format",
+  "why": "if the value is a number, it is taken to be a number in the default unit",
+  "expect": {
+    "t": 10
+  }
+}

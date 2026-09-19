@@ -1,0 +1,7 @@
+{
+  "spec": "HOCON.md#unquoted-strings",
+  "why": "a sequence of characters outside a quoted string is a string value when it contains none of the forbidden characters",
+  "expect": {
+    "a": "hello"
+  }
+}

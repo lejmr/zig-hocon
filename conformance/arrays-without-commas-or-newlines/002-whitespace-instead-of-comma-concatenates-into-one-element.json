@@ -1,0 +1,9 @@
+{
+  "spec": "HOCON.md#note-arrays-without-commas-or-newlines",
+  "why": "the spec's worked example: non-newline whitespace instead of a comma produces concatenation, so this array has one element, the string 1 2 3 4, not four integers",
+  "expect": {
+    "a": [
+      "1 2 3 4"
+    ]
+  }
+}

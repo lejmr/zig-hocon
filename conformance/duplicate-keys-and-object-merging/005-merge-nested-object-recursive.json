@@ -1,0 +1,12 @@
+{
+  "spec": "HOCON.md#duplicate-keys-and-object-merging",
+  "why": "for an object-valued field present in both objects, the object values are recursively merged by the same rules",
+  "expect": {
+    "a": {
+      "b": {
+        "x": 1,
+        "y": 2
+      }
+    }
+  }
+}

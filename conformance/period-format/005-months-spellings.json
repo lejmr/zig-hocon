@@ -1,0 +1,10 @@
+{
+  "spec": "HOCON.md#period-format",
+  "why": "exactly m, mo, month, months are the supported unit strings for months",
+  "expect": {
+    "m": "5m",
+    "mo": "5mo",
+    "month": "5month",
+    "months": "5months"
+  }
+}

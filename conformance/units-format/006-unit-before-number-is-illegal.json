@@ -1,0 +1,7 @@
+{
+  "spec": "HOCON.md#units-format",
+  "why": "the units-format grammar puts the number before the unit name, not after, so a unit-then-number string is not a legal units-format value",
+  "expect": {
+    "t": "ms10"
+  }
+}

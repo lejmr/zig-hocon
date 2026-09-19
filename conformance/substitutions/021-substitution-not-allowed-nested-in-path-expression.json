@@ -1,0 +1,5 @@
+{
+  "spec": "HOCON.md#substitutions",
+  "why": "substitutions are not allowed nested inside other substitutions (path expressions)",
+  "error": "BadPath"
+}

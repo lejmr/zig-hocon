@@ -1,0 +1,17 @@
+{
+  "spec": "HOCON.md#substitutions",
+  "why": "a substitution is replaced with any value type; if it is the only part of a value, the type (here an array) is preserved",
+  "expect": {
+    "a": [
+      1,
+      2,
+      3
+    ],
+    "b": [
+      1,
+      2,
+      3
+    ]
+  },
+  "resolve": true
+}

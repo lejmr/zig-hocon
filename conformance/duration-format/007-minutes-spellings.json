@@ -1,0 +1,9 @@
+{
+  "spec": "HOCON.md#duration-format",
+  "why": "exactly m, minute, minutes are the supported unit strings for minutes",
+  "expect": {
+    "m": "5m",
+    "minute": "5minute",
+    "minutes": "5minutes"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "spec": "HOCON.md#array-and-object-concatenation",
+  "why": "arrays can be concatenated with arrays when only non-newline whitespace separates them",
+  "expect": {
+    "a": [
+      1,
+      2,
+      3,
+      4
+    ]
+  }
+}

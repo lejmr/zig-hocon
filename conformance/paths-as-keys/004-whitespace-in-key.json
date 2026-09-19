@@ -1,0 +1,7 @@
+{
+  "spec": "HOCON.md#paths-as-keys",
+  "why": "because path expressions work like value concatenations, whitespace is allowed in keys: a b c:42 is equivalent to \"a b c\":42",
+  "expect": {
+    "a b c": 42
+  }
+}

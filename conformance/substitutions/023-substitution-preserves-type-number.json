@@ -1,0 +1,9 @@
+{
+  "spec": "HOCON.md#substitutions",
+  "why": "a substitution is replaced with any value type; if it is the only part of a value, the type (here a number) is preserved",
+  "expect": {
+    "a": 42,
+    "b": 42
+  },
+  "resolve": true
+}

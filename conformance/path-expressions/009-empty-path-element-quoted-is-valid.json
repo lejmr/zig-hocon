@@ -1,0 +1,11 @@
+{
+  "spec": "HOCON.md#path-expressions",
+  "why": "a path element that is an empty string must be quoted; a.\"\".b is a valid three-element path whose middle element is the empty string",
+  "expect": {
+    "a": {
+      "": {
+        "b": 1
+      }
+    }
+  }
+}

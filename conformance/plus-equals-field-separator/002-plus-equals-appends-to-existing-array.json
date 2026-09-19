@@ -1,0 +1,11 @@
+{
+  "spec": "HOCON.md#plus-equals-field-separator",
+  "why": "+= appends an element to a previous array",
+  "expect": {
+    "a": [
+      "x",
+      "y"
+    ]
+  },
+  "resolve": true
+}

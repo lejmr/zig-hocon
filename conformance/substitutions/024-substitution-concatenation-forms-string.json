@@ -1,0 +1,9 @@
+{
+  "spec": "HOCON.md#substitutions",
+  "why": "when a substitution is not the only part of a value, it is value-concatenated to form a string rather than keeping the substituted type",
+  "expect": {
+    "a": 42,
+    "b": "42px"
+  },
+  "resolve": true
+}

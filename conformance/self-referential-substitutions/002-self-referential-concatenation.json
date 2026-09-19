@@ -1,0 +1,6 @@
+{
+  "spec": "HOCON.md#self-referential-substitutions",
+  "why": "a value concatenation containing a substitution that refers to the field being defined is self-referential, as the spec lists a:${a}bc among the examples",
+  "error": "UnresolvedSubstitution",
+  "resolve": true
+}

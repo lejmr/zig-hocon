@@ -1,0 +1,12 @@
+{
+  "spec": "HOCON.md#conversion-of-numerically-indexed-objects-to-arrays",
+  "why": "the conversion should be done in a concatenation when a list is expected and an object with numeric keys is found, so the trailing object concatenates onto the array as elements x, y",
+  "expect": {
+    "a": [
+      1,
+      2,
+      "x",
+      "y"
+    ]
+  }
+}

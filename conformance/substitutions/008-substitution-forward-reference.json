@@ -1,0 +1,9 @@
+{
+  "spec": "HOCON.md#substitutions",
+  "why": "substitution processing happens as the last parsing step, so a substitution can look forward in the configuration",
+  "expect": {
+    "a": 5,
+    "b": 5
+  },
+  "resolve": true
+}

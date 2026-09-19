@@ -1,0 +1,7 @@
+{
+  "spec": "HOCON.md#period-format",
+  "why": "the spec notes that getTemporal() callers should prefer mo over m for months, since m is also the duration unit for minutes and getTemporal() may return either a Duration or a Period",
+  "expect": {
+    "p": "1m"
+  }
+}

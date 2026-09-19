@@ -1,0 +1,12 @@
+{
+  "spec": "HOCON.md#value-concatenation",
+  "why": "if all the values are arrays they are concatenated into one array",
+  "expect": {
+    "a": [
+      1,
+      2,
+      3,
+      4
+    ]
+  }
+}

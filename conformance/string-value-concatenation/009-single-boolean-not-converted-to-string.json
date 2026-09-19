@@ -1,0 +1,7 @@
+{
+  "spec": "HOCON.md#string-value-concatenation",
+  "why": "a single value is never converted to a string; true by itself must be parsed as a boolean-typed value, not a string",
+  "expect": {
+    "a": true
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "spec": "HOCON.md#path-expressions",
+  "why": "foo10.0 is an unquoted string with a dot in it, giving the two-element path foo10 and 0",
+  "expect": {
+    "foo10": {
+      "0": 1
+    }
+  }
+}

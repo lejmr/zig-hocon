@@ -1,0 +1,11 @@
+{
+  "spec": "HOCON.md#substitutions",
+  "why": "worked example: to get a string containing a substitution, use value concatenation with the substitution in the unquoted portion",
+  "expect": {
+    "animal": {
+      "favorite": "wolf"
+    },
+    "key": "wolf is my favorite animal"
+  },
+  "resolve": true
+}

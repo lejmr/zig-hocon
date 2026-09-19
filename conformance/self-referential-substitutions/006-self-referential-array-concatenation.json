@@ -1,0 +1,11 @@
+{
+  "spec": "HOCON.md#self-referential-substitutions",
+  "why": "the spec lists path:${path} [ /usr/bin ] among the examples of self-referential fields: a value concatenation of a substitution with an array literal is still self-referential",
+  "expect": {
+    "path": [
+      "/usr",
+      "/usr/bin"
+    ]
+  },
+  "resolve": true
+}

@@ -1,0 +1,9 @@
+{
+  "spec": "HOCON.md#substitutions",
+  "why": "if a key has been specified more than once, a substitution referring to it always evaluates to its latest-assigned value",
+  "expect": {
+    "a": 2,
+    "b": 2
+  },
+  "resolve": true
+}

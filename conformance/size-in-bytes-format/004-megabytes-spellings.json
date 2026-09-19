@@ -1,0 +1,9 @@
+{
+  "spec": "HOCON.md#size-in-bytes-format",
+  "why": "for powers of ten, exactly MB, megabyte, megabytes are the supported unit strings",
+  "expect": {
+    "MB": "5MB",
+    "megabyte": "5megabyte",
+    "megabytes": "5megabytes"
+  }
+}

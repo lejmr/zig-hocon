@@ -1,0 +1,7 @@
+{
+  "spec": "HOCON.md#string-value-concatenation",
+  "why": "null becomes the string \"null\" when it participates in a concatenation",
+  "expect": {
+    "a": "null bar"
+  }
+}

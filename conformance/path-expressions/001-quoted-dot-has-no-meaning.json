@@ -1,0 +1,7 @@
+{
+  "spec": "HOCON.md#path-expressions",
+  "why": "a dot inside a quoted string has no special meaning as a path separator, so a quoted \"a.b\" key is a single-element path",
+  "expect": {
+    "a.b": 1
+  }
+}

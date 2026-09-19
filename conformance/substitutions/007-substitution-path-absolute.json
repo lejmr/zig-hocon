@@ -1,0 +1,11 @@
+{
+  "spec": "HOCON.md#substitutions",
+  "why": "substitutions are resolved by looking up the path from the root configuration object, absolute rather than relative to where the substitution appears",
+  "expect": {
+    "a": 5,
+    "b": {
+      "c": 5
+    }
+  },
+  "resolve": true
+}

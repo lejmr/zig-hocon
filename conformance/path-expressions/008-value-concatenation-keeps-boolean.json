@@ -1,0 +1,7 @@
+{
+  "spec": "HOCON.md#path-expressions",
+  "why": "unlike a path expression, a value consisting of the single value true is a value concatenation and retains its character as a boolean",
+  "expect": {
+    "x": true
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "spec": "HOCON.md#multi-line-strings",
+  "why": "unlike JSON quoted strings, unicode escapes are not interpreted in triple-quoted strings, so \\u0041 stays literal rather than becoming A",
+  "expect": {
+    "a": "A"
+  }
+}

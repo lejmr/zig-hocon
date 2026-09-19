@@ -1,0 +1,5 @@
+{
+  "spec": "HOCON.md#conversion-of-numerically-indexed-objects-to-arrays",
+  "why": "the conversion should not occur if the object is empty, so an empty object cannot satisfy a list-expected concatenation and this is illegal",
+  "error": "WrongType"
+}

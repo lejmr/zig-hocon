@@ -1,0 +1,9 @@
+{
+  "spec": "HOCON.md#unchanged-from-json",
+  "why": "allowed number formats match JSON, including negative numbers, decimals, and exponent notation",
+  "expect": {
+    "a": -3.14,
+    "b": 10000000000,
+    "c": 0.0025
+  }
+}

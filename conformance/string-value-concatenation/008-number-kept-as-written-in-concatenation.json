@@ -1,0 +1,7 @@
+{
+  "spec": "HOCON.md#string-value-concatenation",
+  "why": "numbers should be kept as they were originally written in the file when they participate in a concatenation, not renormalized",
+  "expect": {
+    "a": "1e5 foo"
+  }
+}

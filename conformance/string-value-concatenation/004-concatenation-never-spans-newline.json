@@ -1,0 +1,5 @@
+{
+  "spec": "HOCON.md#string-value-concatenation",
+  "why": "string value concatenations never span a newline, so a bare word on the following line is not appended to the value above it",
+  "error": "Parse"
+}

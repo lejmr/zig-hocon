@@ -1,0 +1,6 @@
+{
+  "spec": "HOCON.md#substitutions",
+  "why": "${?pathexpression} is the optional substitution syntax, distinct from the required form",
+  "expect": {},
+  "resolve": true
+}

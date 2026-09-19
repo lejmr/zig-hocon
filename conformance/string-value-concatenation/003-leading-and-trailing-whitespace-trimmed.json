@@ -1,0 +1,7 @@
+{
+  "spec": "HOCON.md#string-value-concatenation",
+  "why": "whitespace before the first and after the last simple value is discarded, but whitespace between simple values is preserved",
+  "expect": {
+    "a": "foo   bar   baz"
+  }
+}

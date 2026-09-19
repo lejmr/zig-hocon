@@ -1,0 +1,12 @@
+{
+  "spec": "HOCON.md#note-arrays-without-commas-or-newlines",
+  "why": "arrays allow newlines to separate elements instead of commas",
+  "expect": {
+    "a": [
+      1,
+      2,
+      3,
+      4
+    ]
+  }
+}

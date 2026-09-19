@@ -1,0 +1,8 @@
+{
+  "spec": "HOCON.md#substitutions",
+  "why": "an undefined ${?foo} in a value concatenation with another string becomes an empty string",
+  "expect": {
+    "a": "rest"
+  },
+  "resolve": true
+}

@@ -1,0 +1,7 @@
+{
+  "spec": "HOCON.md#comments",
+  "why": "anything between // and the next newline is a comment and ignored",
+  "expect": {
+    "a": 1
+  }
+}

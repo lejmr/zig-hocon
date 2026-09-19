@@ -1,0 +1,5 @@
+{
+  "spec": "HOCON.md#commas",
+  "why": "these same comma rules apply to fields in objects, so two commas in a row between fields is invalid just as in an array",
+  "error": "Parse"
+}

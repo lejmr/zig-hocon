@@ -1,0 +1,11 @@
+{
+  "spec": "HOCON.md#unchanged-from-json",
+  "why": "array is one of the possible value types",
+  "expect": {
+    "a": [
+      1,
+      2,
+      3
+    ]
+  }
+}

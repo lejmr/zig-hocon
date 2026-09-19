@@ -1,0 +1,8 @@
+{
+  "spec": "HOCON.md#substitutions",
+  "why": "if an undefined ${?foo} would override a previously-set value for the same field, the previous value remains",
+  "expect": {
+    "a": 1
+  },
+  "resolve": true
+}

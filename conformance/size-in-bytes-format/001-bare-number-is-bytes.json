@@ -1,0 +1,7 @@
+{
+  "spec": "HOCON.md#size-in-bytes-format",
+  "why": "bare numbers are taken to be in bytes already",
+  "expect": {
+    "s": 10
+  }
+}

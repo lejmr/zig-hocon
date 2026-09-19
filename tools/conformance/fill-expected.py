@@ -20,8 +20,22 @@ ORACLE = ROOT / "tools" / "oracle" / "hocon-java"
 
 
 def encode(src):
+    # the wrappers drop blank input lines, so an empty document has to travel as
+    # whitespace — same parse, and it keeps one line in == one line out
+    # ponytail: only empty-vs-whitespace is affected; fix the wrappers if a case
+    # ever needs to distinguish them
+    if not src.strip():
+        src = " " + src.lstrip("\n")
     # the oracle protocol is one case per line, with \n \t \" escaped
     return src.replace("\\", "\\\\").replace("\t", "\\t").replace('"', '\\"').replace("\n", "\\n")
+
+
+def is_json(s):
+    try:
+        json.loads(s)
+        return True
+    except json.JSONDecodeError:
+        return False
 
 
 def ask(lines):
@@ -56,7 +70,9 @@ def main(argv):
             continue
         meta = json.loads(side.read_text())
 
-        use_resolved = "${" in src and not b.startswith("ERROR")
+        # an unresolved substitution renders as a literal ${x}, which is not JSON;
+        # += desugars into one too, so ask the output, not the input
+        use_resolved = not (a.startswith("ERROR") or is_json(a))
         answer = b if use_resolved else a
         want = dict(meta)
         want.pop("expect", None)
@@ -65,7 +81,7 @@ def main(argv):
             want["error"] = answer[len("ERROR "):].split(":", 1)[0]
         else:
             want["expect"] = json.loads(answer)
-        if use_resolved and a != b:
+        if use_resolved:
             want["resolve"] = True
 
         if want == meta:

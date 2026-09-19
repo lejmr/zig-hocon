@@ -1,0 +1,10 @@
+{
+  "spec": "HOCON.md#paths-as-keys",
+  "why": "the objects created by expanding path keys are merged in the usual way, so a.x:42, a.y:43 is equivalent to a{x:42,y:43}",
+  "expect": {
+    "a": {
+      "x": 42,
+      "y": 43
+    }
+  }
+}

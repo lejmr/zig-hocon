@@ -1,0 +1,9 @@
+{
+  "spec": "HOCON.md#size-in-bytes-format",
+  "why": "for powers of ten, exactly GB, gigabyte, gigabytes are the supported unit strings",
+  "expect": {
+    "GB": "5GB",
+    "gigabyte": "5gigabyte",
+    "gigabytes": "5gigabytes"
+  }
+}

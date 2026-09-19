@@ -1,0 +1,5 @@
+{
+  "spec": "HOCON.md#path-expressions",
+  "why": "a path that ends with a dot is invalid and should generate an error",
+  "error": "BadPath"
+}

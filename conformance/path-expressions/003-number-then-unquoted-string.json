@@ -1,0 +1,9 @@
+{
+  "spec": "HOCON.md#path-expressions",
+  "why": "10.0foo is a number then unquoted string foo, giving the two-element path 10 and 0foo, because a dot inside a number still counts as a path separator",
+  "expect": {
+    "10": {
+      "0foo": 1
+    }
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "spec": "HOCON.md#size-in-bytes-format",
+  "why": "for powers of ten, exactly TB, terabyte, terabytes are the supported unit strings",
+  "expect": {
+    "TB": "5TB",
+    "terabyte": "5terabyte",
+    "terabytes": "5terabytes"
+  }
+}

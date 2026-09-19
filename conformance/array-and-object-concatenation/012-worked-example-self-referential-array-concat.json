@@ -1,0 +1,13 @@
+{
+  "spec": "HOCON.md#array-and-object-concatenation",
+  "why": "the spec's worked example: a later array definition can concatenate a substitution referring to its own earlier value with a new array",
+  "expect": {
+    "a": [
+      1,
+      2,
+      3,
+      4
+    ]
+  },
+  "resolve": true
+}

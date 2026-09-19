@@ -1,0 +1,6 @@
+{
+  "spec": "HOCON.md#note-concatenation-with-whitespace-and-substitutions",
+  "why": "when substitutions resolve to strings, unquoted whitespace between them is significant and becomes part of the concatenated value",
+  "error": "UnresolvedSubstitution",
+  "resolve": true
+}

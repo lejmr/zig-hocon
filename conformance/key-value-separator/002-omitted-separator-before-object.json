@@ -1,0 +1,7 @@
+{
+  "spec": "HOCON.md#key-value-separator",
+  "why": "if a key is followed by {, the : or = may be omitted; the spec's own example is \"foo\" {} meaning \"foo\" : {}",
+  "expect": {
+    "foo": {}
+  }
+}

@@ -1,0 +1,5 @@
+{
+  "spec": "HOCON.md#omit-root-braces",
+  "why": "the implicit-wrap rule only applies when the file does not begin with [ or {; a file beginning with [ is parsed as an array root, unwrapped",
+  "error": "WrongType"
+}

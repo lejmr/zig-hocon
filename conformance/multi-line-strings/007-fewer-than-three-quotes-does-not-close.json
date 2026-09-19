@@ -1,0 +1,7 @@
+{
+  "spec": "HOCON.md#multi-line-strings",
+  "why": "only a run of at least three quote characters ends the multi-line string, so the single embedded quote pairs around hi do not terminate it early",
+  "expect": {
+    "a": "he said \"hi\" to me"
+  }
+}

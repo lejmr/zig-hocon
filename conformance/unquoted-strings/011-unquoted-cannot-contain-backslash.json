@@ -1,0 +1,5 @@
+{
+  "spec": "HOCON.md#unquoted-strings",
+  "why": "backslash is a forbidden character, and unquoted strings support no escaping at all, so a literal backslash requires a quoted string instead",
+  "error": "Parse"
+}

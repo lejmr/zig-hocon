@@ -1,0 +1,10 @@
+{
+  "spec": "HOCON.md#conversion-of-numerically-indexed-objects-to-arrays",
+  "why": "the conversion should ignore any keys which do not parse as positive integers, so key \"foo\" is dropped and only \"0\" contributes to the resulting array",
+  "expect": {
+    "a": [
+      1,
+      "x"
+    ]
+  }
+}

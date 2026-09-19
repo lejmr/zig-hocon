@@ -1,0 +1,9 @@
+{
+  "spec": "HOCON.md#paths-as-keys",
+  "why": "as a special rule the unquoted string include may not begin a path expression used as a key, because it has a special interpretation as an include directive; this key is illegal",
+  "expect": {
+    "include": {
+      "foo": 42
+    }
+  }
+}

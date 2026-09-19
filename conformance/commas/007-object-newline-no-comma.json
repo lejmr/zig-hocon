@@ -1,0 +1,10 @@
+{
+  "spec": "HOCON.md#commas",
+  "why": "fields in objects need not have a comma between them as long as an ASCII newline separates them, same as array elements",
+  "expect": {
+    "a": {
+      "b": 1,
+      "c": 2
+    }
+  }
+}

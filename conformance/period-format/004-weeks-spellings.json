@@ -1,0 +1,9 @@
+{
+  "spec": "HOCON.md#period-format",
+  "why": "exactly w, week, weeks are the supported unit strings for weeks",
+  "expect": {
+    "w": "5w",
+    "week": "5week",
+    "weeks": "5weeks"
+  }
+}

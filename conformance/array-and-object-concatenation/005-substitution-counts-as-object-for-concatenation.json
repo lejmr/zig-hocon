@@ -1,0 +1,6 @@
+{
+  "spec": "HOCON.md#array-and-object-concatenation",
+  "why": "for concatenation purposes, a substitution that resolves to an object also counts as an object",
+  "error": "UnresolvedSubstitution",
+  "resolve": true
+}

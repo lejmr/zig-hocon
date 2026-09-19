@@ -1,0 +1,8 @@
+{
+  "spec": "HOCON.md#omit-root-braces",
+  "why": "if the file does not begin with [ or {, it is parsed as if enclosed with {} curly braces",
+  "expect": {
+    "a": 1,
+    "b": 2
+  }
+}

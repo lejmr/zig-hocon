@@ -1,0 +1,5 @@
+{
+  "spec": "HOCON.md#unquoted-strings",
+  "why": "'@' is one of the listed forbidden characters, so it cannot appear inside an unquoted string",
+  "error": "Parse"
+}
