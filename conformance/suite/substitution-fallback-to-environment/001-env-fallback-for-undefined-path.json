@@ -1,0 +1,12 @@
+{
+  "spec": "HOCON.md#substitution-fallback-to-environment-variables",
+  "rule": "substitution-fallback-to-environment-variables.2",
+  "why": "a substitution whose path is not defined in the configuration falls back to an environment variable of the same name",
+  "env": {
+    "CONFORMANCE_HOME": "/from/env"
+  },
+  "expect": {
+    "home": "/from/env"
+  },
+  "resolve": true
+}

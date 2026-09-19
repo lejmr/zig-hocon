@@ -9,6 +9,9 @@ import java.util.*;
  * line per case: the concise JSON rendering, or "ERROR <Class>: <message>".
  *
  * Substitutions are NOT resolved unless the case is prefixed with "resolve:".
+ * A line prefixed with "file:" is a path instead of source text; the file is
+ * parsed in place, so its includes resolve relative to it. Prefixes stack as
+ * "resolve:file:<path>".
  */
 public class Oracle {
     public static void main(String[] args) throws Exception {
@@ -19,14 +22,29 @@ public class Oracle {
             if (line.isEmpty()) continue;
             boolean resolve = line.startsWith("resolve:");
             if (resolve) line = line.substring("resolve:".length());
-            String src = unescape(line);
-            System.out.println(run(src, resolve));
+            boolean file = line.startsWith("file:");
+            if (file) line = line.substring("file:".length());
+            System.out.println(file ? runFile(line, resolve) : run(unescape(line), resolve));
         }
     }
 
     static String run(String src, boolean resolve) {
         try {
             Config c = ConfigFactory.parseString(src);
+            if (resolve) c = c.resolve();
+            return c.root().render(ConfigRenderOptions.concise());
+        } catch (Exception e) {
+            String msg = e.getMessage();
+            if (msg != null) msg = msg.replace('\n', ' ');
+            return "ERROR " + e.getClass().getSimpleName() + ": " + msg;
+        }
+    }
+
+    static String runFile(String path, boolean resolve) {
+        try {
+            // strict: a missing non-optional include is an error, as the spec says
+            Config c = ConfigFactory.parseFile(new File(path),
+                    ConfigParseOptions.defaults().setAllowMissing(false));
             if (resolve) c = c.resolve();
             return c.root().render(ConfigRenderOptions.concise());
         } catch (Exception e) {

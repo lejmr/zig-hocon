@@ -62,18 +62,19 @@ def main(argv):
         if check:
             return 1
 
-    rel = [str(c.relative_to(SUITE)) for c in cases]
+    rel = [suite.key_of(c) for c in cases]
     verdict = lambda impl, key, mode: runs[impl]["modes"][mode].get(key, "open")
 
     sections, split = {}, []
     for case, meta, key in zip(cases, metas, rel):
-        row = {"key": key, "name": case.stem, "why": meta.get("why", ""), "kind": meta.get("java", ""),
+        row = {"key": key, "name": suite.name_of(case), "why": meta.get("why", ""), "kind": meta.get("java", ""),
                "review": meta.get("review", ""),
                "v": {i: {m: verdict(i, key, m) for m in ("spec", "java")} for i in impls}}
-        sections.setdefault(case.parent.name, []).append(row)
+        sections.setdefault(suite.section_of(case), []).append(row)
         if meta.get("java"):
             split.append({
-                "input": suite.encode(case.read_text()),
+                "input": suite.encode(case.read_text()) if not suite.is_dir_case(case)
+                         else "{}/ (directory)".format(suite.name_of(case)),
                 "kind": meta["java"],
                 "spec_side": "rejects" if "error" in meta else "`" + json.dumps(meta["expect"]) + "`",
                 "got": {i: runs[i]["outputs"].get(key, "—") for i in impls},
@@ -128,7 +129,7 @@ def main(argv):
     tagged = {}
     for c, m in zip(cases, metas):
         if m.get("item"):
-            tagged.setdefault(m["item"], []).append(str(c.relative_to(SUITE)))
+            tagged.setdefault(m["item"], []).append(suite.key_of(c))
     known = {i for i in tagged if i in items}
     coverage = "\n".join(
         ["# Rule coverage", "",

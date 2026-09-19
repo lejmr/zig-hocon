@@ -1,0 +1,10 @@
+{
+  "spec": "HOCON.md#include-semantics-merging",
+  "rule": "include-semantics-merging.4",
+  "why": "the keys from the included object are conceptually substituted for the include statement in the including file, so the included field lands between the fields around it and merges by the usual duplicate-key rules",
+  "expect": {
+    "a": 1,
+    "b": 2,
+    "c": 3
+  }
+}

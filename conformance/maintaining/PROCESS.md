@@ -129,12 +129,14 @@ Where stage 5 is not confident, it writes `review` with the question rather
 than a verdict. An unresolved row is a cheap outcome; a confidently wrong row
 poisons every column in the table.
 
-## Open, blocking their sections only
+## Multi-file and environment cases
 
-- **Multi-file cases** (includes, file merging). A case is a `.conf`/`.json`
-  pair today. Includes need siblings on disk. Cheapest shape: when a case needs
-  more than one file it becomes a directory with `main.conf` plus its
-  neighbours and one `case.json`. Decide when the includes sections come up.
-- **Environment cases** (`list-values-from-environment-variables`,
-  `substitution-fallback-to-environment`). Needs an `env` object in the
-  sidecar and a runner that honours it.
+Settled: a case that needs more than one
+file is a directory, `<nnn>-<name>/main.conf` + `main.json`, with its fixtures
+beside it. The oracles take such a case by path (`file:<path>`, stacked as
+`resolve:file:<path>`) so includes resolve next to the file, exactly as they
+would for an application. `run.sh` hands adapters the path to `main.conf`.
+
+A case that needs environment variables carries `"env": {"NAME": "value"}` in
+its sidecar. `run.sh` sets them for the adapter; `fill-expected.py` runs the
+oracle in a separate process with that environment for each such case.
