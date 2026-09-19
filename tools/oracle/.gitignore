@@ -1,3 +1,4 @@
 config.jar
+config-*.jar
 *.class
 venv/
