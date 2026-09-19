@@ -1,9 +1,0 @@
-{
-  "spec": "HOCON.md#size-in-bytes-format",
-  "why": "for powers of ten, exactly EB, exabyte, exabytes are the supported unit strings",
-  "expect": {
-    "EB": "5EB",
-    "exabyte": "5exabyte",
-    "exabytes": "5exabytes"
-  }
-}

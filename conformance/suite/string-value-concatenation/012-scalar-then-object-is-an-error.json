@@ -1,0 +1,6 @@
+{
+  "spec": "HOCON.md#string-value-concatenation",
+  "rule": "string-value-concatenation.12",
+  "why": "the same rule with the scalar first, which typesafe/config does reject -- the half of the rule it enforces",
+  "error": "WrongType"
+}

@@ -1,0 +1,32 @@
+{
+  "spec": "HOCON.md#size-in-bytes-format",
+  "rule": "size-in-bytes-format.5",
+  "why": "every power-of-10 suffix and its long forms name the same unit family; one table, one rule",
+  "expect": {
+    "EB": "5EB",
+    "GB": "5GB",
+    "MB": "5MB",
+    "PB": "5PB",
+    "TB": "5TB",
+    "YB": "5YB",
+    "ZB": "5ZB",
+    "exabyte": "5exabyte",
+    "exabytes": "5exabytes",
+    "gigabyte": "5gigabyte",
+    "gigabytes": "5gigabytes",
+    "kB": "5kB",
+    "kilobyte": "5kilobyte",
+    "kilobytes": "5kilobytes",
+    "megabyte": "5megabyte",
+    "megabytes": "5megabytes",
+    "petabyte": "5petabyte",
+    "petabytes": "5petabytes",
+    "s": "1Kb",
+    "terabyte": "5terabyte",
+    "terabytes": "5terabytes",
+    "yottabyte": "5yottabyte",
+    "yottabytes": "5yottabytes",
+    "zettabyte": "5zettabyte",
+    "zettabytes": "5zettabytes"
+  }
+}

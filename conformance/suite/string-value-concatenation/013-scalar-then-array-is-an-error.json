@@ -1,0 +1,5 @@
+{
+  "spec": "HOCON.md#string-value-concatenation",
+  "why": "the same rule with the scalar first and an array, also rejected",
+  "error": "WrongType"
+}
