@@ -1,5 +1,5 @@
 {
-  "spec": "HOCON.md#self-referential-examples",
+  "spec": "HOCON.md#examples-of-self-referential-substitutions",
   "why": "an optional self-reference in a value concatenation has to look back to an undefined a, so a ends up \"foo\" rather than \"foofoo\"",
   "expect": {
     "a": "foo"

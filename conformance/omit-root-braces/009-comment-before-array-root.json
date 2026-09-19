@@ -1,0 +1,10 @@
+{
+  "spec": "HOCON.md#omit-root-braces",
+  "why": "the {} wrap fires only for a file that does not begin with a bracket or brace, and a leading comment does not make it one -- both typesafe/config and pyhocon read the first token, not the first byte. the spec's wording is loose here; this row records the consensus reading",
+  "expect": [
+    1,
+    2
+  ],
+  "java": "unsupported",
+  "java_error": "WrongType"
+}

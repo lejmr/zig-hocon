@@ -1,0 +1,10 @@
+{
+  "spec": "HOCON.md#omit-root-braces",
+  "why": "leading whitespace does not trigger the {} wrap either, for the same reason as a leading comment",
+  "expect": [
+    1,
+    2
+  ],
+  "java": "unsupported",
+  "java_error": "WrongType"
+}

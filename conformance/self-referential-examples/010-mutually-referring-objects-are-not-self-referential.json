@@ -1,5 +1,5 @@
 {
-  "spec": "HOCON.md#self-referential-examples",
+  "spec": "HOCON.md#examples-of-self-referential-substitutions",
   "why": "mutually-referring objects should work and are not self-referential, so they look forward: bar.a ends up 4 and foo.c ends up 3",
   "expect": {
     "bar": {

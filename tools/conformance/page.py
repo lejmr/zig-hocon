@@ -112,6 +112,7 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--rule)
       <span class="note">__SPLITCOUNT__ of __TOTAL__ rows. Everywhere else they ask the same question.</span>
     </div>
     <div class="scroll">__SPLIT__</div>
+    <p class="note" style="padding:0 10px 10px">Each column is what that implementation actually returns. The spec column is the bar being scored; Java's is, by definition, the other one.</p>
   </section>
 
   <section>
@@ -177,10 +178,14 @@ def _cells(row, impls):
 def build(impls, sections, split_rows, lede):
     head = "".join("<th>{}</th>".format(esc.escape(i)) for i in impls)
 
-    split = ['<table><thead><tr><th>input</th><th>the spec</th><th>typesafe/config</th>{}</tr></thead><tbody>'.format(head)]
+    split = ['<table><thead><tr><th>input</th><th>the spec requires</th>{}</tr></thead>'
+             '<tbody>'.format(head)]
     for r in split_rows:
-        split.append("<tr><td class=\"mono\">{}</td><td class=\"mono\">{}</td><td class=\"mono\">{}</td>{}</tr>".format(
-            esc.escape(r["input"]), esc.escape(r["spec_side"]), esc.escape(r["java_side"]), _cells(r, impls)))
+        got = "".join('<td class="mono">{}</td>'.format(esc.escape(r["got"][i])) for i in impls)
+        split.append('<tr><td class="mono">{}<span class="tag kind">{}</span></td>'
+                     '<td class="mono">{}</td>{}</tr>'.format(
+                         esc.escape(r["input"]), esc.escape(r["kind"]),
+                         esc.escape(r["spec_side"]), got))
     split.append("</tbody></table>")
 
     out = []

@@ -10,11 +10,13 @@ non-zero if the committed table is out of date.
 
 import json
 import pathlib
-import subprocess
 import sys
 
-ROOT = pathlib.Path(__file__).resolve().parents[2]
-SUITE = ROOT / "conformance"
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import page
+import suite
+
+ROOT, SUITE = suite.ROOT, suite.SUITE
 README = ROOT / "README.md"
 START, END = "<!-- conformance:start -->", "<!-- conformance:end -->"
 
@@ -26,21 +28,15 @@ IMPLS = [
 ]
 
 
-def encode(src):
-    # the wrappers drop blank input lines, so an empty document has to travel as
-    # whitespace — same parse, and it keeps one line in == one line out
-    # ponytail: only empty-vs-whitespace is affected; fix the wrappers if a case
-    # ever needs to distinguish them
-    if not src.strip():
-        src = " " + src.lstrip("\n")
-    return src.replace("\\", "\\\\").replace("\t", "\\t").replace('"', '\\"').replace("\n", "\\n")
 
-
-def ask(cmd, lines):
-    out = subprocess.run([str(c) for c in cmd], input="\n".join(lines) + "\n",
-                         capture_output=True, text=True).stdout.splitlines()
-    # a crashed or short-circuiting oracle must not silently shift every answer
-    return out if len(out) == len(lines) else ["ERROR OracleFailed: short output"] * len(lines)
+def shorten(answer, width=30):
+    """What an implementation actually returned, short enough for a table cell.
+    The point of the divergence table is the behaviour, not a verdict — a verdict
+    would only restate which of the two bars the row is being scored against."""
+    if answer.startswith("ERROR"):
+        cls = answer[len("ERROR "):].split(":", 1)[0]
+        return "rejects: " + (cls[:19] + "…" if len(cls) > 20 else cls)
+    return answer if len(answer) <= width else answer[:width - 1] + "…"
 
 
 def verdict(answer, meta):
@@ -71,19 +67,16 @@ def in_mode(meta, mode):
 def main(argv):
     check = "--check" in argv
 
-    cases = sorted(SUITE.rglob("*.conf"))
+    cases, metas, orphans = suite.cases()
     if not cases:
         sys.exit("no cases found")
-    orphans = [c for c in cases if not c.with_suffix(".json").exists()]
     if orphans:
         print("no sidecar, skipped:\n  " + "\n  ".join(str(o.relative_to(ROOT)) for o in orphans))
-        cases = [c for c in cases if c not in set(orphans)]
-    metas = [json.loads(c.with_suffix(".json").read_text()) for c in cases]
-    lines = [("resolve:" if m.get("resolve") else "") + encode(c.read_text())
+    lines = [("resolve:" if m.get("resolve") else "") + suite.encode(c.read_text())
              for c, m in zip(cases, metas)]
 
     impls = [(label, cmd) for label, cmd in IMPLS if pathlib.Path(cmd[0]).exists()]
-    results = {label: ask(cmd, lines) for label, cmd in impls}
+    results = {label: suite.ask(cmd, lines, strict=False) for label, cmd in impls}
 
     sections = {}
     for case, meta, i in zip(cases, metas, range(len(cases))):
@@ -106,21 +99,18 @@ def main(argv):
     if split:
         html += ["<details open>",
                  "<summary><b>Where HOCON and typesafe/config part ways</b> — {} rows</summary>".format(len(split)),
-                 "", "| input | the spec | typesafe/config | "
+                 "", "| input | the spec requires | "
                  + " | ".join(label for label, _ in impls) + " |",
-                 "|---|---|---|" + "---|" * len(impls)]
+                 "|---|---|" + "---|" * len(impls)]
         for case, meta, i in split:
             spec_side = "rejects" if "error" in meta else "`" + json.dumps(meta["expect"]) + "`"
             java_side = "rejects" if "java_error" in meta else "`" + json.dumps(meta["java_expect"]) + "`"
-            cells = []
-            for label, _ in impls:
-                a, b = verdict(results[label][i], meta), verdict(results[label][i], in_mode(meta, "java"))
-                cells.append("spec" if a == "pass" else "java" if b == "pass" else "**neither**")
-            html.append("| `{}` | {} | {} | {} |".format(
-                case.read_text().strip().replace("|", "\\|"), spec_side, java_side,
-                " | ".join(cells)))
-        html += ["", "A column says which bar that implementation clears on that row. "
-                 "`neither` means it does a third thing.", "", "</details>", ""]
+            cells = [shorten(results[label][i]) for label, _ in impls]
+            html.append("| `{}` | {} | {} |".format(
+                suite.encode(case.read_text()).replace("|", "\\|"), spec_side,
+                " | ".join("`{}`".format(c.replace("|", "\\|")) for c in cells)))
+        html += ["", "Each column is what that implementation actually returns. The spec column is "
+                 "the bar; Java's column is, by definition, the other bar.", "", "</details>", ""]
     totals = {label: [0, 0] for label, _ in impls}
     java_totals = {label: [0, 0] for label, _ in impls}
     for name in sorted(sections):
@@ -168,8 +158,6 @@ def main(argv):
     else:
         new = text.rstrip() + "\n\n## Conformance\n\n" + block + "\n"
 
-    sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-    import page
     html_sections = [
         {"name": name,
          "rows": [{"name": r["name"], "why": r["why"], "kind": r["java_note"] or "",
@@ -181,12 +169,10 @@ def main(argv):
     split_rows = []
     for case, meta, i in split:
         split_rows.append({
-            "input": case.read_text().strip(),
+            "input": suite.encode(case.read_text()),
             "spec_side": "rejects" if "error" in meta else json.dumps(meta["expect"]),
-            "java_side": "rejects" if "java_error" in meta else json.dumps(meta["java_expect"]),
-            "v": {label: {"spec": verdict(results[label][i], meta),
-                          "java": verdict(results[label][i], in_mode(meta, "java"))}
-                  for label, _ in impls}})
+            "kind": meta["java"],
+            "got": {label: shorten(results[label][i], 44) for label, _ in impls}})
     lede = ("Every row is one sentence of the HOCON specification, turned into a config file and an "
             "expected value. Score against the specification and you get conformance; score against "
             "typesafe/config and you get compatibility with the implementation the JVM world runs.")

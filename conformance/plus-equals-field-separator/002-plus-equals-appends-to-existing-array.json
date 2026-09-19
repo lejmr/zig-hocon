@@ -1,5 +1,5 @@
 {
-  "spec": "HOCON.md#plus-equals-field-separator",
+  "spec": "HOCON.md#the--field-separator",
   "why": "+= appends an element to a previous array",
   "expect": {
     "a": [

@@ -1,0 +1,14 @@
+{
+  "spec": "HOCON.md#omit-root-braces",
+  "why": "a file beginning with a square bracket keeps its array root whatever the elements are; typesafe/config parses it and then refuses it at the API, having no array-rooted config",
+  "expect": [
+    {
+      "a": 1
+    },
+    {
+      "b": 2
+    }
+  ],
+  "java": "unsupported",
+  "java_error": "WrongType"
+}

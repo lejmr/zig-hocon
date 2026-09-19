@@ -1,5 +1,5 @@
 {
-  "spec": "HOCON.md#plus-equals-field-separator",
+  "spec": "HOCON.md#the--field-separator",
   "why": "if the previous value was not an array, += results in an error just as the long form a = ${?a} [b] would with a non-array a",
   "error": "WrongType",
   "resolve": true

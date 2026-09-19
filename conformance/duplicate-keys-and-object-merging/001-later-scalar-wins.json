@@ -1,5 +1,7 @@
 {
-  "spec": "HOCON.md#duplicate-keys",
+  "spec": "HOCON.md#duplicate-keys-and-object-merging",
   "why": "for a non-object value the later assignment simply replaces the earlier one",
-  "expect": {"a": 2}
+  "expect": {
+    "a": 2
+  }
 }

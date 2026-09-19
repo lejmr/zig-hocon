@@ -1,5 +1,5 @@
 {
-  "spec": "HOCON.md#self-referential-examples",
+  "spec": "HOCON.md#examples-of-self-referential-substitutions",
   "why": "when foo:${foo} is merged with an earlier value for foo, the self-reference resolves to that overridden value, so foo ends up { a : 1 }",
   "expect": {
     "foo": {
