@@ -77,8 +77,17 @@ details { background: var(--panel); border: 1px solid var(--rule); border-radius
 details + details { margin-top: 10px; }
 summary { cursor: pointer; padding: 13px 18px; display: flex; gap: 14px; align-items: baseline; flex-wrap: wrap; }
 summary::-webkit-details-marker { display: none; }
-summary::before { content: "▸"; color: var(--muted); }
-details[open] summary::before { content: "▾"; }
+/* the caret is drawn, not typed — a glyph here depends on whatever font the
+   viewer actually has, and IBM Plex Sans has no triangles */
+summary::before {
+  content: ""; flex: none; align-self: center;
+  width: 0; height: 0; color: var(--muted);
+  border-left: 5px solid currentColor;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  transition: transform .12s ease;
+}
+details[open] summary::before { transform: rotate(90deg); }
 summary:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 summary .name { font-weight: 600; }
 summary .tally { color: var(--muted); font-size: 13px; margin-left: auto; }
