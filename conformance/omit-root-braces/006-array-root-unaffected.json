@@ -1,5 +1,11 @@
 {
   "spec": "HOCON.md#omit-root-braces",
-  "why": "the implicit-wrap rule only applies when the file does not begin with [ or {; a file beginning with [ is parsed as an array root, unwrapped",
-  "error": "WrongType"
+  "why": "the implicit-wrap rule only applies when the file does not begin with [ or {; a file beginning with [ is parsed as an array root, unwrapped, and JSON allows an array at the root. typesafe/config has no array-rooted config: it rejects the document with a WrongType error instead of returning the array.",
+  "expect": [
+    1,
+    2,
+    3
+  ],
+  "java": "unsupported",
+  "java_error": "WrongType"
 }

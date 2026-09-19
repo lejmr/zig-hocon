@@ -75,14 +75,41 @@ def main(argv):
         use_resolved = not (a.startswith("ERROR") or is_json(a))
         answer = b if use_resolved else a
         want = dict(meta)
-        want.pop("expect", None)
-        want.pop("error", None)
-        if answer.startswith("ERROR"):
+        if "java" in meta:
+            # a divergent row: `expect` is the spec's answer and belongs to stage 5,
+            # the oracle only gets to say what it does next to it
+            want.pop("java_expect", None)
+            want.pop("java_error", None)
+            if answer.startswith("ERROR"):
+                want["java_error"] = answer[len("ERROR "):].split(":", 1)[0]
+            else:
+                want["java_expect"] = json.loads(answer)
+        elif answer.startswith("ERROR"):
+            # the oracle refusing an input does not say whether the input is illegal
+            # per spec or merely unimplemented — only a reader of the spec can tell
+            if "error" not in meta:
+                want["review"] = "oracle rejected this — illegal per spec, or unsupported by java?"
+            want.pop("expect", None)
             want["error"] = answer[len("ERROR "):].split(":", 1)[0]
         else:
+            want.pop("error", None)
             want["expect"] = json.loads(answer)
         if use_resolved:
             want["resolve"] = True
+
+        # a declared divergence that does not actually diverge is a half-finished
+        # judgement, not a row — send it back to a human rather than score it
+        if "java" in want:
+            spec_side = (want.get("expect"), want.get("error"))
+            java_side = (want.get("java_expect"), want.get("java_error"))
+            if spec_side == java_side:
+                want["review"] = ("marked java:{} but expect is exactly what java does — "
+                                  "what does the spec require instead?".format(want["java"]))
+            elif want["java"] == "unsupported" and "java_expect" in want:
+                want["review"] = ("marked java:unsupported but java produces a value — "
+                                  "this looks like java:diverges")
+            else:
+                want.pop("review", None)
 
         if want == meta:
             continue

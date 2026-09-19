@@ -1,7 +1,12 @@
 {
   "spec": "HOCON.md#unquoted-strings",
-  "why": "a hyphen may not begin an unquoted string because it is a valid character to start a JSON number, and -foo does not continue as a valid number",
+  "why": "the spec says an unquoted string may not _begin_ with a hyphen, and that the initial number character plus any valid-in-JSON number characters that follow it must be parsed as a number value -- for '-foo' that is the lone '-', which is not a number, so the spec leaves no reading in which '-foo' is a string. java instead falls back to unquoted text whenever the number parse fails and yields the string '-foo'; the oracle value is kept because the spec states the rule without naming an outcome for the failure.",
+  "java": "diverges",
   "expect": {
     "a": "-foo"
-  }
+  },
+  "java_expect": {
+    "a": "-foo"
+  },
+  "review": "marked java:diverges but expect is exactly what java does — what does the spec require instead?"
 }

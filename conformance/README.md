@@ -36,9 +36,17 @@ alone, key order irrelevant. A case that must be **rejected** carries no
 }
 ```
 
-An optional `"java"` field records where the reference implementation and the
-spec part ways — `"unsupported"` or `"diverges"`. See `PROCESS.md`; those cases
-are the reason the suite exists.
+`expect` is what the **specification** requires, not what any implementation
+does. It is seeded from `tools/oracle/hocon-java` and then owned by the
+validation stage — see "Tie-break" in `PROCESS.md`.
+
+A row where the reference implementation and the spec part ways carries
+`"java": "unsupported" | "diverges"` and, next to it, `"java_expect"` or
+`"java_error"` — what typesafe/config does with that same input. Those rows are
+the reason the suite exists.
+
+A row carrying `"review"` is an open question for a human. It is not a pass and
+not a failure; `report.py` marks it ⚠.
 
 `error` is documentation, not an assertion — messages differ per
 implementation. A runner asserts only that parsing failed.

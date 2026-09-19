@@ -1,9 +1,12 @@
 {
   "spec": "HOCON.md#paths-as-keys",
-  "why": "as a special rule the unquoted string include may not begin a path expression used as a key, because it has a special interpretation as an include directive; this key is illegal",
-  "expect": {
+  "why": "as a special rule the unquoted string include may not begin a path expression used as a key, because it has a special interpretation, so this key is illegal and the input must be rejected; typesafe/config has no such restriction - its include handling fires only on a bare include token, so it reads the key as the two-element path include.foo and yields {\"include\":{\"foo\":42}}",
+  "error": "BadPath",
+  "java": "unsupported",
+  "java_expect": {
     "include": {
       "foo": 42
     }
-  }
+  },
+  "review": "marked java:unsupported but java produces a value — this looks like java:diverges"
 }
