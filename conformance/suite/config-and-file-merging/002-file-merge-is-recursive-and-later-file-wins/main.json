@@ -1,0 +1,14 @@
+{
+  "spec": "HOCON.md#config-object-merging-and-file-merging",
+  "rule": "config-object-merging-and-file-merging.6",
+  "why": "merging objects loaded from different files is exactly the same behavior as merging duplicate fields in the same file: object-valued fields present in both files merge recursively and a non-object field takes the value from the later file",
+  "expect": {
+    "a": {
+      "b": {
+        "x": 1,
+        "y": 2
+      },
+      "k": "override"
+    }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "spec": "HOCON.md#include-semantics-merging",
+  "rule": "include-semantics-merging.6",
+  "why": "if the including file repeats a key from an earlier-included object and both values are objects, the including file's value merges with the one from the included file",
+  "expect": {
+    "a": {
+      "x": 1,
+      "y": 2
+    }
+  }
+}

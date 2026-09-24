@@ -1,0 +1,9 @@
+{
+  "spec": "HOCON.md#include-semantics-missing-files-and-required-files",
+  "rule": "include-semantics-missing-files-and-required-files.1",
+  "why": "by default, if an included file does not exist the include statement is silently ignored, so the keys around it parse as if the line were not there",
+  "expect": {
+    "a": 1,
+    "b": 2
+  }
+}

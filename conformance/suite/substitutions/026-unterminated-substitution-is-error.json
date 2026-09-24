@@ -1,0 +1,6 @@
+{
+  "spec": "HOCON.md#substitutions",
+  "rule": "substitutions.1",
+  "why": "the syntax is ${pathexpression}: a substitution opened with ${ and never closed with } is not that syntax, and $ cannot start an unquoted string either, so it must be rejected",
+  "error": "Parse"
+}

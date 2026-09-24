@@ -1,0 +1,8 @@
+{
+  "spec": "HOCON.md#include-semantics-merging",
+  "rule": "include-semantics-merging.6",
+  "why": "if the including file repeats a key from an earlier-included object, the including file's value overrides the one from the included file",
+  "expect": {
+    "a": 2
+  }
+}

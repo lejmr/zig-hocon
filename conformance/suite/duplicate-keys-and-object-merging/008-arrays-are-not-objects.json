@@ -1,0 +1,13 @@
+{
+  "spec": "HOCON.md#duplicate-keys-and-object-merging",
+  "rule": "duplicate-keys-and-object-merging.1",
+  "why": "only two object values merge; an array is not an object, so a later array replaces an earlier array (no concatenation) and replaces an earlier object (no merge)",
+  "expect": {
+    "a": [
+      2
+    ],
+    "b": [
+      1
+    ]
+  }
+}

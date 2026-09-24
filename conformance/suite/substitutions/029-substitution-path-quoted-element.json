@@ -1,0 +1,11 @@
+{
+  "spec": "HOCON.md#substitutions",
+  "why": "the path expression inside ${} has the same syntax you could use for an object key, so the quoted element in ${a.\"b.c\"} names the single key b.c under a instead of a path a.b.c",
+  "expect": {
+    "a": {
+      "b.c": 1
+    },
+    "d": 1
+  },
+  "resolve": true
+}

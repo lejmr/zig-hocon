@@ -1,0 +1,6 @@
+{
+  "spec": "HOCON.md#include-syntax",
+  "rule": "include-syntax.10",
+  "why": "if an unquoted include at the start of a key is followed by anything other than a single quoted string or the url()/file()/classpath() syntax, it is invalid and an error should be generated; the argument may not be an unquoted string",
+  "error": "Parse"
+}

@@ -1,0 +1,10 @@
+{
+  "spec": "HOCON.md#substitutions",
+  "rule": "substitutions.13",
+  "why": "a substitution is undefined only if it does not match any value present in the configuration, and null is among the value types a substitution is replaced with, so ${?a} with a = null is defined: the field is created with null rather than omitted",
+  "expect": {
+    "a": null,
+    "b": null
+  },
+  "resolve": true
+}

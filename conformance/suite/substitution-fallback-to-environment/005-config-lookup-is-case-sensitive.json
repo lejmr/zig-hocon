@@ -1,0 +1,13 @@
+{
+  "spec": "HOCON.md#substitution-fallback-to-environment-variables",
+  "rule": "substitution-fallback-to-environment-variables.3",
+  "why": "the lookup is case-sensitive all the way until the env variable fallback is reached, so a lowercase key does not shadow an uppercase substitution and the environment variable is used",
+  "env": {
+    "CONFORMANCE_X": "from-env"
+  },
+  "expect": {
+    "conformance_x": "lower",
+    "x": "from-env"
+  },
+  "resolve": true
+}

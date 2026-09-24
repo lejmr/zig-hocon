@@ -1,0 +1,10 @@
+{
+  "spec": "HOCON.md#include-syntax",
+  "rule": "include-syntax.16",
+  "why": "unquoted include has no special meaning if it is not the start of a key's path expression; as an array element it is the string \"include\". the spec's example is the root array [ include ]; it is wrapped in a field here so the row does not depend on array-root support",
+  "expect": {
+    "a": [
+      "include"
+    ]
+  }
+}

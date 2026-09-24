@@ -1,6 +1,6 @@
 {
   "spec": "HOCON.md#duplicate-keys-and-object-merging",
   "rule": "duplicate-keys-and-object-merging.8",
-  "why": "a non-object in between discards the earlier object, so the last object merges into nothing",
+  "why": "merging is always done two values at a time: the scalar replaces the first object (non-object always wins), then the second object replaces the scalar (no merging, object is the new value), so the two objects never see each other",
   "expect": {"a": {"c": 2}}
 }

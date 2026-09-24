@@ -1,6 +1,6 @@
 {
   "spec": "HOCON.md#array-and-object-concatenation",
   "rule": "array-and-object-concatenation.7",
-  "why": "objects cannot be field keys, whether concatenation is involved or not",
+  "why": "objects cannot be field keys; nested inside an object so the rejection comes from the key position, not from the document root",
   "error": "Parse"
 }

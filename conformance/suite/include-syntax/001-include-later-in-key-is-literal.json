@@ -1,0 +1,8 @@
+{
+  "spec": "HOCON.md#include-syntax",
+  "rule": "include-syntax.16",
+  "why": "unquoted include has no special meaning if it is not the start of a key's path expression; it may appear later in the key, so { foo include : 42 } is equivalent to { \"foo include\" : 42 }",
+  "expect": {
+    "foo include": 42
+  }
+}

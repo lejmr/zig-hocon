@@ -1,7 +1,7 @@
 {
   "spec": "HOCON.md#path-expressions",
   "rule": "path-expressions.10",
-  "why": "1.2.3 is the three-element path with elements 1, 2, 3",
+  "why": "dots in numbers count as path separators, so 1.2.3 is the three-element path with elements 1, 2, 3",
   "expect": {
     "1": {
       "2": {

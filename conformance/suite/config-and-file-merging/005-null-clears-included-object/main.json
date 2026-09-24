@@ -1,0 +1,10 @@
+{
+  "spec": "HOCON.md#config-object-merging-and-file-merging",
+  "rule": "config-object-merging-and-file-merging.7",
+  "why": "setting an object to null and then setting it back to a new object clears it and starts over, which is how to get rid of default fallback values from another file that you don't want",
+  "expect": {
+    "a": {
+      "z": 3
+    }
+  }
+}

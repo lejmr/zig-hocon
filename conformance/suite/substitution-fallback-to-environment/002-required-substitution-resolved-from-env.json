@@ -1,0 +1,12 @@
+{
+  "spec": "HOCON.md#substitution-fallback-to-environment-variables",
+  "rule": "substitution-fallback-to-environment-variables.1",
+  "why": "a required ${x} substitution that is not present in the configuration tree is searched for in the environment and resolves to the variable's value instead of being an error",
+  "env": {
+    "CONFORMANCE_X": "from-env"
+  },
+  "expect": {
+    "x": "from-env"
+  },
+  "resolve": true
+}

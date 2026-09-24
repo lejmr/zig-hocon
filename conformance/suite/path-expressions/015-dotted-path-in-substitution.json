@@ -1,7 +1,12 @@
 {
   "spec": "HOCON.md#path-expressions",
   "rule": "path-expressions.1",
-  "why": "path expressions appear in substitutions like ${foo.bar}, where the unquoted dot separates foo and bar into two path elements",
-  "error": "UnresolvedSubstitution",
+  "why": "path expressions appear in substitutions like ${foo.bar}, where the unquoted dot separates foo and bar into two path elements, so the lookup walks key foo then key bar",
+  "expect": {
+    "foo": {
+      "bar": 1
+    },
+    "x": 1
+  },
   "resolve": true
 }

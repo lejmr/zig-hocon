@@ -1,0 +1,10 @@
+{
+  "spec": "HOCON.md#include-semantics-missing-files-and-required-files",
+  "rule": "include-semantics-missing-files-and-required-files.2",
+  "why": "required() only makes the include mandatory; a resource that does resolve is included exactly as an unwrapped include would be",
+  "expect": {
+    "a": 1,
+    "b": 2,
+    "c": 3
+  }
+}

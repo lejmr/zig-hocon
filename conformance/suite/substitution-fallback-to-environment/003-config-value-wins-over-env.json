@@ -1,0 +1,13 @@
+{
+  "spec": "HOCON.md#substitution-fallback-to-environment-variables",
+  "rule": "substitution-fallback-to-environment-variables.1",
+  "why": "the environment is only searched when the substitution is not present within the configuration tree, so a value set in the configuration wins over an environment variable of the same name",
+  "env": {
+    "CONFORMANCE_X": "from-env"
+  },
+  "expect": {
+    "CONFORMANCE_X": "from-config",
+    "x": "from-config"
+  },
+  "resolve": true
+}

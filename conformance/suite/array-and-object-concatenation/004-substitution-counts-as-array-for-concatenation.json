@@ -1,7 +1,16 @@
 {
   "spec": "HOCON.md#array-and-object-concatenation",
   "rule": "array-and-object-concatenation.2",
-  "why": "for concatenation purposes, a substitution that resolves to an array also counts as an array",
-  "error": "UnresolvedSubstitution",
+  "why": "for purposes of concatenation a substitution that resolves to an array also means an array, so ${x} [ 1, 2 ] with x an array concatenates into one array",
+  "expect": {
+    "a": [
+      0,
+      1,
+      2
+    ],
+    "x": [
+      0
+    ]
+  },
   "resolve": true
 }

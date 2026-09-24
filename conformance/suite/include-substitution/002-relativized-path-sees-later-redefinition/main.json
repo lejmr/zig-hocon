@@ -1,0 +1,12 @@
+{
+  "spec": "HOCON.md#include-semantics-substitution",
+  "rule": "include-semantics-substitution.5",
+  "why": "substitution happens after parsing the whole configuration, so the ${x} fixed up to ${a.x} evaluates to the root's later redefinition 42 rather than the included file's 10",
+  "expect": {
+    "a": {
+      "x": 42,
+      "y": 42
+    }
+  },
+  "resolve": true
+}

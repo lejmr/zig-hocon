@@ -1,0 +1,6 @@
+{
+  "spec": "HOCON.md#array-and-object-concatenation",
+  "rule": "array-and-object-concatenation.5",
+  "why": "a newline between two arrays in a field value prevents concatenation, so the second array begins a new field, and an array cannot be a field key",
+  "error": "Parse"
+}

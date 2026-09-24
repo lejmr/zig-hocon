@@ -1,0 +1,6 @@
+{
+  "spec": "HOCON.md#include-semantics-missing-files-and-required-files",
+  "rule": "include-semantics-missing-files-and-required-files.2",
+  "why": "when the included resource name is wrapped with required(), file parsing fails with an error if the resource cannot be resolved",
+  "error": "IO"
+}

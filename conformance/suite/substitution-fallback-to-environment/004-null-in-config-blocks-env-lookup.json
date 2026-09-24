@@ -1,0 +1,13 @@
+{
+  "spec": "HOCON.md#substitution-fallback-to-environment-variables",
+  "rule": "substitution-fallback-to-environment-variables.4",
+  "why": "setting a key to null in the configuration explicitly blocks looking that substitution up in the environment, so ${CONFORMANCE_X} resolves to null even though the variable is set",
+  "env": {
+    "CONFORMANCE_X": "from-env"
+  },
+  "expect": {
+    "CONFORMANCE_X": null,
+    "x": null
+  },
+  "resolve": true
+}

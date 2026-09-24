@@ -1,0 +1,9 @@
+{
+  "spec": "HOCON.md#duplicate-keys-and-object-merging",
+  "rule": "duplicate-keys-and-object-merging.1",
+  "why": "null is a value like any other, so a later null overrides an earlier scalar or object: the key stays, set to null, rather than being removed or the assignment skipped",
+  "expect": {
+    "a": null,
+    "b": null
+  }
+}

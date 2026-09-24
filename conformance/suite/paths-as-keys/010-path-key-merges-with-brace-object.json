@@ -1,0 +1,15 @@
+{
+  "spec": "HOCON.md#paths-as-keys",
+  "rule": "paths-as-keys.3",
+  "why": "the object created by expanding a path key is merged in the usual way with an object written in braces at the same key, whichever form comes first: a{x:1}, a.y:2 and b.x:1, b{y:2} are both equivalent to {x:1,y:2}",
+  "expect": {
+    "a": {
+      "x": 1,
+      "y": 2
+    },
+    "b": {
+      "x": 1,
+      "y": 2
+    }
+  }
+}

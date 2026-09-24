@@ -1,0 +1,16 @@
+{
+  "spec": "HOCON.md#substitution-fallback-to-environment-variables",
+  "rule": "substitution-fallback-to-environment-variables.6",
+  "why": "environment variables always become a string value, so values that would parse as a number, a boolean or null in HOCON stay the strings \"42\", \"true\" and \"null\"",
+  "env": {
+    "CONFORMANCE_NUM": "42",
+    "CONFORMANCE_BOOL": "true",
+    "CONFORMANCE_NULL": "null"
+  },
+  "expect": {
+    "b": "true",
+    "n": "42",
+    "z": "null"
+  },
+  "resolve": true
+}

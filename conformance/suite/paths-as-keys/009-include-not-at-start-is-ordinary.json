@@ -1,0 +1,13 @@
+{
+  "spec": "HOCON.md#paths-as-keys",
+  "rule": "include-syntax.16",
+  "why": "only the unquoted string include that begins a path expression in a key is special: include later in a key (foo.include) and a quoted \"include\" beginning one are ordinary path elements",
+  "expect": {
+    "foo": {
+      "include": 42
+    },
+    "include": {
+      "bar": 43
+    }
+  }
+}

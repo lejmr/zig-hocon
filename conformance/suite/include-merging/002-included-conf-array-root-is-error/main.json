@@ -1,0 +1,6 @@
+{
+  "spec": "HOCON.md#include-semantics-merging",
+  "rule": "include-semantics-merging.2",
+  "why": "an included file must contain an object, not an array; if it contains an array as the root value it is invalid and an error should be generated",
+  "error": "WrongType"
+}

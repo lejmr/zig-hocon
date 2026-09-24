@@ -1,0 +1,12 @@
+{
+  "spec": "HOCON.md#include-semantics-substitution",
+  "rule": "include-semantics-substitution.4",
+  "why": "a substitution in an included file must be fixed up to be relative to the app's configuration root, so ${x} in a file included at key a becomes ${a.x}",
+  "expect": {
+    "a": {
+      "x": 10,
+      "y": 10
+    }
+  },
+  "resolve": true
+}

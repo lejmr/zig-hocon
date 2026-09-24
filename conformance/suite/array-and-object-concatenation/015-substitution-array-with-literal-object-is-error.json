@@ -1,0 +1,7 @@
+{
+  "spec": "HOCON.md#array-and-object-concatenation",
+  "rule": "array-and-object-concatenation.2",
+  "why": "a substitution that resolves to an array means an array for concatenation, and concatenating an array with an object is an error",
+  "error": "WrongType",
+  "resolve": true
+}

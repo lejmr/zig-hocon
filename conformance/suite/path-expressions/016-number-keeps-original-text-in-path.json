@@ -1,0 +1,10 @@
+{
+  "spec": "HOCON.md#path-expressions",
+  "rule": "path-expressions.6",
+  "why": "a number in a path expression must keep its original string representation as it appeared in the file, so 1.10 is the two-element path 1 and 10, not the 1 and 1 a generic number-to-string conversion would give",
+  "expect": {
+    "1": {
+      "10": 1
+    }
+  }
+}

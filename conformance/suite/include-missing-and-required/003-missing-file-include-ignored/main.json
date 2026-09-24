@@ -1,0 +1,9 @@
+{
+  "spec": "HOCON.md#include-semantics-missing-files-and-required-files",
+  "rule": "include-semantics-missing-files-and-required-files.1",
+  "why": "the silent-ignore default applies to an explicit file() include as well: a file that does not exist contributes nothing and parsing continues",
+  "expect": {
+    "a": 1,
+    "b": 2
+  }
+}

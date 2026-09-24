@@ -1,0 +1,12 @@
+{
+  "spec": "HOCON.md#substitution-fallback-to-environment-variables",
+  "rule": "substitution-fallback-to-environment-variables.5",
+  "why": "an env variable set to the empty string is set to empty string rather than undefined, so an optional ${?x} substitution creates the field with \"\" instead of dropping it",
+  "env": {
+    "CONFORMANCE_EMPTY": ""
+  },
+  "expect": {
+    "x": ""
+  },
+  "resolve": true
+}

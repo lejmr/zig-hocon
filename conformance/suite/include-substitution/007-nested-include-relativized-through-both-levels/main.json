@@ -1,0 +1,14 @@
+{
+  "spec": "HOCON.md#include-semantics-substitution",
+  "rule": "include-semantics-substitution.3",
+  "why": "the fix-up is relative to the app's configuration root, so ${x} in a file included at b inside a file included at a becomes ${a.b.x}",
+  "expect": {
+    "a": {
+      "b": {
+        "x": 1,
+        "y": 1
+      }
+    }
+  },
+  "resolve": true
+}
