@@ -128,6 +128,9 @@ Drop your own result into `reports/` and the local report picks it up.
 
 ## Reusing this
 
-BSD 3-Clause, like the rest of the repository. Vendor the directory, keep the
-licence, and tell us what broke — a case that is wrong about the spec is worth
+BSD 3-Clause, like the rest of the repository, except the two rule inventories
+in `maintaining/` (`spec-items.md`, `extra-spec-items.md`): those are copied
+verbatim from [o3co/xx.hocon](https://github.com/o3co/xx.hocon) under Apache
+2.0, licence in `maintaining/vendor/`. Vendor the directory, keep the
+licences, and tell us what broke — a case that is wrong about the spec is worth
 more to us as a bug report than a passing score is.

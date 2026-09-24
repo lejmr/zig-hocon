@@ -1,0 +1,10 @@
+{
+  "spec": "HOCON.md#unchanged-from-json",
+  "item": "S1.4",
+  "why": "allowed number formats match JSON, and JSON requires a digit before the decimal point, so -.33 is a number token that is not a valid number. typesafe/config releases up to 1.4.9 parse it as -0.33; upstream main since lightbend/config#861 (unreleased) reads it as the unquoted string \"-.33\", like .33 -- still accepted, still not the error the hyphen rule asks for",
+  "error": "BadNumber",
+  "java": "lenient",
+  "java_expect": {
+    "a": -0.33
+  }
+}

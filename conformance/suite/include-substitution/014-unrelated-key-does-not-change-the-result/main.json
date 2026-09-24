@@ -1,0 +1,18 @@
+{
+  "spec": "HOCON.md#include-semantics-substitution",
+  "item": "S14c.2",
+  "why": "an unrelated key that reads common.x must not change what common.a resolves to; in typesafe/config this input fails while the same input with the key named o24bbd resolves to 0 (lightbend/config#863)",
+  "expect": {
+    "common": {
+      "x": {},
+      "a": 0
+    },
+    "x": {
+      "y": 0
+    },
+    "zzz": {}
+  },
+  "java": "unsupported",
+  "java_error": "UnresolvedSubstitution",
+  "resolve": true
+}

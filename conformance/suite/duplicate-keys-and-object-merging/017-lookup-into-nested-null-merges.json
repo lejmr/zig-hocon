@@ -1,0 +1,23 @@
+{
+  "spec": "HOCON.md#duplicate-keys-and-object-merging",
+  "item": "S7.6",
+  "why": "two nested nulls each break only their own key's merge, and a lookup of a.n.d sees the final {x:1}; typesafe/config throws BugOrBroken in this key order (reported on lightbend/config#864, same on main)",
+  "expect": {
+    "a": {
+      "n": {
+        "d": {
+          "x": 1
+        }
+      }
+    },
+    "p": {
+      "x": 1
+    },
+    "o24bbd": {
+      "x": 1
+    }
+  },
+  "java": "unsupported",
+  "java_error": "BugOrBroken",
+  "resolve": true
+}

@@ -1,0 +1,9 @@
+{
+  "spec": "HOCON.md#examples-of-self-referential-substitutions",
+  "item": "S13a.5",
+  "why": "the literal counterpart of 015: a literal number could not be merged with the list, so the list is never evaluated and there is no error",
+  "expect": {
+    "wrapper": 42
+  },
+  "resolve": true
+}

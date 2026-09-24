@@ -1,0 +1,7 @@
+{
+  "spec": "HOCON.md#include-semantics-substitution",
+  "item": "S14c.2",
+  "why": "when the original path is itself an undefined optional, neither lookup finds a value and the required ${x.y} is an error",
+  "error": "UnresolvedSubstitution",
+  "resolve": true
+}

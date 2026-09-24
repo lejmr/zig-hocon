@@ -1,0 +1,7 @@
+{
+  "spec": "HOCON.md#examples-of-self-referential-substitutions",
+  "item": "S13a.5",
+  "why": "w += 1 is w = ${?w} [1], which reads the earlier list, so ${does-not-exist} is evaluated: an error",
+  "error": "UnresolvedSubstitution",
+  "resolve": true
+}

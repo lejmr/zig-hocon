@@ -1,0 +1,24 @@
+{
+  "spec": "HOCON.md#include-semantics-substitution",
+  "item": "S14c.2",
+  "why": "the optional form of 009 falls back the same way; typesafe/config leaves a out instead (lightbend/config#863)",
+  "expect": {
+    "common": {
+      "x": {},
+      "a": 0
+    },
+    "x": {
+      "y": 0
+    }
+  },
+  "java": "diverges",
+  "java_expect": {
+    "common": {
+      "x": {}
+    },
+    "x": {
+      "y": 0
+    }
+  },
+  "resolve": true
+}

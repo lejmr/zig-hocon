@@ -1,0 +1,11 @@
+{
+  "spec": "HOCON.md#examples-of-self-referential-substitutions",
+  "item": "S13a.5",
+  "why": "a literal list is a non-object value, so it hides the earlier object and ${does-not-exist} is never evaluated",
+  "expect": {
+    "wrapper": [
+      1
+    ]
+  },
+  "resolve": true
+}

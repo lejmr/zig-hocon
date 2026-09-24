@@ -1,0 +1,10 @@
+{
+  "spec": "HOCON.md#unchanged-from-json",
+  "item": "S1.4",
+  "why": "the same rule with an exponent after the dot; typesafe/config reads it as -1000 (named out of scope in lightbend/config#861)",
+  "error": "BadNumber",
+  "java": "lenient",
+  "java_expect": {
+    "a": -1000
+  }
+}

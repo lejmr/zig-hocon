@@ -1,0 +1,20 @@
+{
+  "spec": "HOCON.md#concatenation-with-whitespace-and-substitutions",
+  "item": "S10.15",
+  "why": "U+200B is format (Cf), not a space separator, so it is text, and text between two list substitutions is invalid. typesafe/config drops it and concatenates the lists; lightbend/config#862 rejects it",
+  "error": "ArrayOrObjectInStringConcatenation",
+  "resolve": true,
+  "java": "lenient",
+  "java_expect": {
+    "x": [
+      1
+    ],
+    "y": [
+      2
+    ],
+    "a": [
+      1,
+      2
+    ]
+  }
+}

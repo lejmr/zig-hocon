@@ -1,0 +1,15 @@
+{
+  "spec": "HOCON.md#string-value-concatenation",
+  "item": "S10.13",
+  "why": "| is ordinary unquoted text, so it sits in a concatenation between two arrays and the value is invalid; typesafe/config drops it and concatenates the arrays (lightbend/config#685, #862)",
+  "error": "ArrayOrObjectInStringConcatenation",
+  "java": "lenient",
+  "java_expect": {
+    "list": [
+      0,
+      1,
+      2,
+      3
+    ]
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "spec": "HOCON.md#comments",
+  "item": "S2.2",
+  "why": "a # comment directly after ] is a comment, not text in a concatenation",
+  "expect": {
+    "x": [
+      1
+    ]
+  }
+}

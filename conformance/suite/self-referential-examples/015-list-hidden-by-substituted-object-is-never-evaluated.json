@@ -1,0 +1,12 @@
+{
+  "spec": "HOCON.md#examples-of-self-referential-substitutions",
+  "item": "S13a.5",
+  "why": "a list cannot merge with the object that replaces it, so it is hidden and never evaluated, whether the object is written literally or arrives through ${replacement}; typesafe/config evaluates it (lightbend/config#865)",
+  "expect": {
+    "wrapper": {},
+    "replacement": {}
+  },
+  "java": "unsupported",
+  "java_error": "UnresolvedSubstitution",
+  "resolve": true
+}

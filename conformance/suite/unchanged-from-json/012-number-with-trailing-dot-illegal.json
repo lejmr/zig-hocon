@@ -1,0 +1,10 @@
+{
+  "spec": "HOCON.md#unchanged-from-json",
+  "item": "S1.4",
+  "why": "JSON requires a digit after the decimal point; 1. is a number token that is not a valid number. typesafe/config reads it as 1, and lightbend/config#861 leaves it so on purpose",
+  "error": "BadNumber",
+  "java": "lenient",
+  "java_expect": {
+    "a": 1
+  }
+}

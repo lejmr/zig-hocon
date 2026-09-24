@@ -1,0 +1,12 @@
+{
+  "spec": "HOCON.md#string-value-concatenation",
+  "item": "S10.13",
+  "why": "an array may not appear in a string value concatenation, with or without whitespace between them; typesafe/config silently drops suffix (lightbend/config#862)",
+  "error": "ArrayOrObjectInStringConcatenation",
+  "java": "lenient",
+  "java_expect": {
+    "x": [
+      1
+    ]
+  }
+}
