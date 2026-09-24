@@ -28,6 +28,8 @@ case "$1" in
     *) line=$(python3 -c 'import sys; sys.path.insert(0, sys.argv[1]); import suite; print("resolve:" + suite.encode(open(sys.argv[2]).read()))' "$HERE/../maintaining" "$1") ;;
 esac
 
-out=$(printf '%s\n' "$line" | "$ORACLE")
+# pyhocon loops forever on some hidden-substitution inputs; a hang counts as a
+# rejection. ponytail: perl alarm, since macOS ships no timeout(1)
+out=$(printf '%s\n' "$line" | perl -e 'alarm 30; exec @ARGV' "$ORACLE")
 case "$out" in ERROR*) printf '%s\n' "$out" >&2; exit 1 ;; esac
 printf '%s\n' "$out"
