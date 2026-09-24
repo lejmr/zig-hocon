@@ -1,0 +1,18 @@
+{
+  "spec": "HOCON.md#concatenation-with-whitespace-and-substitutions",
+  "rule": "note-concatenation-with-whitespace-and-substitutions.2",
+  "why": "whitespace between two list substitutions is ignored, tabs included, and the lists concatenate",
+  "expect": {
+    "x": [
+      1
+    ],
+    "y": [
+      2
+    ],
+    "a": [
+      1,
+      2
+    ]
+  },
+  "resolve": true
+}

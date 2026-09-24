@@ -1,0 +1,26 @@
+{
+  "spec": "HOCON.md#duplicate-keys-and-object-merging",
+  "rule": "substitutions.11",
+  "why": "the null belongs to v's history even when v's object is still unresolved, so a merges and keeps helper (lightbend/config#864)",
+  "expect": {
+    "v": {
+      "x": 1
+    },
+    "pending": 1,
+    "a": {
+      "helper": 0,
+      "x": 1
+    }
+  },
+  "java": "diverges",
+  "java_expect": {
+    "v": {
+      "x": 1
+    },
+    "pending": 1,
+    "a": {
+      "x": 1
+    }
+  },
+  "resolve": true
+}

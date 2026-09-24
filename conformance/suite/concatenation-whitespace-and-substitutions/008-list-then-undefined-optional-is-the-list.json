@@ -1,0 +1,14 @@
+{
+  "spec": "HOCON.md#concatenation-with-whitespace-and-substitutions",
+  "rule": "substitutions.18",
+  "why": "an undefined optional substitution in a concatenation with an array becomes an empty array",
+  "expect": {
+    "x": [
+      1
+    ],
+    "a": [
+      1
+    ]
+  },
+  "resolve": true
+}

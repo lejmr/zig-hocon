@@ -1,0 +1,32 @@
+{
+  "spec": "HOCON.md#duplicate-keys-and-object-merging",
+  "rule": "substitutions.11",
+  "why": "the same rule one level down: the null in v.nested's history belongs to v.nested, so a.nested still merges with the substituted {x:1} (lightbend/config#864)",
+  "expect": {
+    "v": {
+      "nested": {
+        "x": 1
+      }
+    },
+    "a": {
+      "nested": {
+        "helper": 0,
+        "x": 1
+      }
+    }
+  },
+  "java": "diverges",
+  "java_expect": {
+    "v": {
+      "nested": {
+        "x": 1
+      }
+    },
+    "a": {
+      "nested": {
+        "x": 1
+      }
+    }
+  },
+  "resolve": true
+}

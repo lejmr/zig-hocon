@@ -1,0 +1,18 @@
+{
+  "spec": "HOCON.md#concatenation-with-whitespace-and-substitutions",
+  "rule": "whitespace.1",
+  "why": "U+00A0 is a Zs space and so whitespace in HOCON; between two list substitutions it is ignored (lightbend/config#862 review)",
+  "expect": {
+    "x": [
+      1
+    ],
+    "y": [
+      2
+    ],
+    "a": [
+      1,
+      2
+    ]
+  },
+  "resolve": true
+}

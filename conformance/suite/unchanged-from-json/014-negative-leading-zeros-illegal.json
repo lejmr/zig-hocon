@@ -1,0 +1,10 @@
+{
+  "spec": "HOCON.md#unchanged-from-json",
+  "rule": "unchanged-from-json.4",
+  "why": "JSON forbids leading zeros after the minus sign as well; typesafe/config reads it as -33 (named out of scope in lightbend/config#861)",
+  "error": "BadNumber",
+  "java": "lenient",
+  "java_expect": {
+    "a": -33
+  }
+}

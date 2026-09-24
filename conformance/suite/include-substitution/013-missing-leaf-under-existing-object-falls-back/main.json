@@ -1,0 +1,15 @@
+{
+  "spec": "HOCON.md#include-semantics-substitution",
+  "rule": "include-semantics-substitution.6",
+  "why": "the metamorphic twin of 009 without the optional: common.x exists, common.x.y does not, so x.y is looked up at the original path",
+  "expect": {
+    "common": {
+      "x": {},
+      "a": 0
+    },
+    "x": {
+      "y": 0
+    }
+  },
+  "resolve": true
+}

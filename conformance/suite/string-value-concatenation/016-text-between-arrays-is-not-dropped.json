@@ -1,0 +1,13 @@
+{
+  "spec": "HOCON.md#string-value-concatenation",
+  "rule": "string-value-concatenation.12",
+  "why": "text between two arrays makes a concatenation of array, string and array, which is invalid; typesafe/config drops the text and concatenates the arrays (lightbend/config#862)",
+  "error": "ArrayOrObjectInStringConcatenation",
+  "java": "lenient",
+  "java_expect": {
+    "x": [
+      1,
+      2
+    ]
+  }
+}

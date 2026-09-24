@@ -1,0 +1,10 @@
+{
+  "spec": "HOCON.md#unchanged-from-json",
+  "rule": "unchanged-from-json.4",
+  "why": "the same JSON rule with an exponent: -.33e+1 has no integer part. typesafe/config releases up to 1.4.9 parse it as -3.3; upstream main since lightbend/config#861 (unreleased) rejects it, on the reserved +",
+  "error": "BadNumber",
+  "java": "lenient",
+  "java_expect": {
+    "a": -3.3
+  }
+}

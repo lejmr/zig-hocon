@@ -1,0 +1,7 @@
+{
+  "spec": "HOCON.md#duplicate-keys-and-object-merging",
+  "rule": "duplicate-keys-and-object-merging.2",
+  "why": "${r} is an object, so it merges with the earlier a and the ${missing} inside it is evaluated: an error. typesafe/config 1.4.5 agrees; 1.4.9 drops the earlier a and yields {y:1}; lightbend/config#864 restores the error",
+  "error": "UnresolvedSubstitution",
+  "resolve": true
+}

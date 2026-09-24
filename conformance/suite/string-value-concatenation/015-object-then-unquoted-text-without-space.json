@@ -1,0 +1,12 @@
+{
+  "spec": "HOCON.md#string-value-concatenation",
+  "rule": "string-value-concatenation.12",
+  "why": "the same rule for an object followed directly by text; typesafe/config silently drops suffix (lightbend/config#862)",
+  "error": "ArrayOrObjectInStringConcatenation",
+  "java": "lenient",
+  "java_expect": {
+    "x": {
+      "a": 1
+    }
+  }
+}

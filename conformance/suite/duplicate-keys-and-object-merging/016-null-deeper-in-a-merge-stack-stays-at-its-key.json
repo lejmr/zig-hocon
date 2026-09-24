@@ -1,0 +1,48 @@
+{
+  "spec": "HOCON.md#duplicate-keys-and-object-merging",
+  "rule": "substitutions.11",
+  "why": "v's value is a merge whose top is an object and whose null sits further down, under nested; that null is still v.nested's merge instruction, so a.nested keeps helper (lightbend/config#864 review, round 3)",
+  "expect": {
+    "v": {
+      "nested": {
+        "x": 1
+      },
+      "y": 2
+    },
+    "a": {
+      "nested": {
+        "helper": 0,
+        "x": 1
+      },
+      "y": 2
+    },
+    "pending": {
+      "x": 1
+    },
+    "pendingTop": {
+      "y": 2
+    }
+  },
+  "java": "diverges",
+  "java_expect": {
+    "v": {
+      "nested": {
+        "x": 1
+      },
+      "y": 2
+    },
+    "a": {
+      "nested": {
+        "x": 1
+      },
+      "y": 2
+    },
+    "pending": {
+      "x": 1
+    },
+    "pendingTop": {
+      "y": 2
+    }
+  },
+  "resolve": true
+}

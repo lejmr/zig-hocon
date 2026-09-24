@@ -1,0 +1,57 @@
+{
+  "spec": "HOCON.md#duplicate-keys-and-object-merging",
+  "rule": "substitutions.11",
+  "why": "a substitution sees the resolved value of the field it names, so o24bbd equals a.nested, which keeps helper. The key name is chosen to sort before a in typesafe/config's root HashMap, the order in which the first version of lightbend/config#864 answered differently for the two",
+  "expect": {
+    "v": {
+      "nested": {
+        "x": 1
+      },
+      "sibling": {
+        "x": 1
+      }
+    },
+    "payload": {
+      "x": 1
+    },
+    "a": {
+      "nested": {
+        "helper": 0,
+        "x": 1
+      },
+      "sibling": {
+        "x": 1
+      }
+    },
+    "o24bbd": {
+      "helper": 0,
+      "x": 1
+    }
+  },
+  "java": "diverges",
+  "java_expect": {
+    "v": {
+      "nested": {
+        "x": 1
+      },
+      "sibling": {
+        "x": 1
+      }
+    },
+    "payload": {
+      "x": 1
+    },
+    "a": {
+      "nested": {
+        "x": 1
+      },
+      "sibling": {
+        "x": 1
+      }
+    },
+    "o24bbd": {
+      "x": 1
+    }
+  },
+  "resolve": true
+}

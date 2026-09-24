@@ -1,0 +1,18 @@
+{
+  "spec": "HOCON.md#concatenation-with-whitespace-and-substitutions",
+  "rule": "whitespace.2",
+  "why": "the BOM must be treated as whitespace, so between two list substitutions it is ignored",
+  "expect": {
+    "x": [
+      1
+    ],
+    "y": [
+      2
+    ],
+    "a": [
+      1,
+      2
+    ]
+  },
+  "resolve": true
+}

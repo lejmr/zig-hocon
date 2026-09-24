@@ -1,0 +1,17 @@
+{
+  "spec": "HOCON.md#duplicate-keys-and-object-merging",
+  "rule": "duplicate-keys-and-object-merging.7",
+  "why": "the receiver's own intermediate null still breaks the merge: a is {helper:0}, then null, then the substituted object, so helper is gone",
+  "expect": {
+    "v": {
+      "x": 1
+    },
+    "r": {
+      "x": 1
+    },
+    "a": {
+      "x": 1
+    }
+  },
+  "resolve": true
+}

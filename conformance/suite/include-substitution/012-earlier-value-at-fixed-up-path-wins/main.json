@@ -1,0 +1,17 @@
+{
+  "spec": "HOCON.md#include-semantics-substitution",
+  "rule": "include-semantics-substitution.1",
+  "why": "an undefined optional that would override keeps the previous value, so common.x.y is 9 and found at the fixed-up path; the original path is not consulted",
+  "expect": {
+    "common": {
+      "x": {
+        "y": 9
+      },
+      "a": 9
+    },
+    "x": {
+      "y": 0
+    }
+  },
+  "resolve": true
+}

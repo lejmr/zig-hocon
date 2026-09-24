@@ -1,0 +1,8 @@
+{
+  "spec": "HOCON.md#unquoted-strings",
+  "rule": "unquoted-strings.12",
+  "why": "only 0-9 and - begin a number, so .33 is an ordinary unquoted string -- the reading lightbend/config#861 extends to -.33",
+  "expect": {
+    "a": ".33"
+  }
+}

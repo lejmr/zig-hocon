@@ -1,0 +1,7 @@
+{
+  "spec": "HOCON.md#examples-of-self-referential-substitutions",
+  "rule": "substitutions.16",
+  "why": "an undefined optional that would override leaves the previous value in place, so the list is the result and ${does-not-exist} is evaluated: an error",
+  "error": "UnresolvedSubstitution",
+  "resolve": true
+}

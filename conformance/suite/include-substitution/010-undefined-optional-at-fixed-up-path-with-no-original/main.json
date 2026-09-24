@@ -1,0 +1,7 @@
+{
+  "spec": "HOCON.md#include-semantics-substitution",
+  "rule": "include-semantics-substitution.1",
+  "why": "with neither common.x.y nor x.y defined, the required ${x.y} in the included file is unresolved",
+  "error": "UnresolvedSubstitution",
+  "resolve": true
+}

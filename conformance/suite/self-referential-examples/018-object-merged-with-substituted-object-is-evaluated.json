@@ -1,0 +1,7 @@
+{
+  "spec": "HOCON.md#examples-of-self-referential-substitutions",
+  "rule": "examples-of-self-referential-substitutions.8",
+  "why": "a substituted object merges with the earlier object, so its fields are part of the result and ${does-not-exist} is an error",
+  "error": "UnresolvedSubstitution",
+  "resolve": true
+}
