@@ -1,0 +1,6 @@
+{
+  "spec": "HOCON.md#include-syntax",
+  "item": "S14a.9",
+  "why": "no substitutions are allowed in the argument to include, which must be a single quoted string; ${x} after include is an error even though x is defined, so an implementation that resolves the argument first still fails this row",
+  "error": "Parse"
+}

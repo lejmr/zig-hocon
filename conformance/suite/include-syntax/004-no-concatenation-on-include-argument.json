@@ -1,0 +1,6 @@
+{
+  "spec": "HOCON.md#include-syntax",
+  "item": "S14a.8",
+  "why": "value concatenation is NOT performed on the argument to include; the argument must be a single quoted string, so a second quoted string after the resource name is an error whether or not the first resource exists",
+  "error": "Parse"
+}

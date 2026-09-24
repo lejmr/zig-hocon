@@ -1,0 +1,10 @@
+{
+  "spec": "HOCON.md#path-expressions",
+  "item": "S12.4",
+  "why": "path expressions are syntactically identical to a value concatenation, so the whitespace-separated a b concatenates into one element and the unquoted dot then splits off c, giving the two-element path a b and c",
+  "expect": {
+    "a b": {
+      "c": 1
+    }
+  }
+}

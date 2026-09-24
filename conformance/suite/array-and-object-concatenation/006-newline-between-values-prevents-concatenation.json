@@ -1,7 +1,20 @@
 {
   "spec": "HOCON.md#array-and-object-concatenation",
   "item": "S10.7",
-  "why": "a newline between two values prevents concatenation, unlike non-newline whitespace",
-  "error": "UnresolvedSubstitution",
+  "why": "newlines between a substitution and an array prevent concatenation, so inside an array they stay two separate elements instead of one concatenated array",
+  "expect": {
+    "a": [
+      0
+    ],
+    "arr": [
+      [
+        0
+      ],
+      [
+        1,
+        2
+      ]
+    ]
+  },
   "resolve": true
 }

@@ -1,0 +1,12 @@
+{
+  "spec": "HOCON.md#include-semantics-substitution",
+  "item": "S14c.2",
+  "why": "it is not enough to only look up the fixed-up path; when a.x is undefined the original path x is looked up relative to the root of the including configuration",
+  "expect": {
+    "a": {
+      "y": 7
+    },
+    "x": 7
+  },
+  "resolve": true
+}

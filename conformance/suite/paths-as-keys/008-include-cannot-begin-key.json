@@ -1,7 +1,7 @@
 {
   "spec": "HOCON.md#paths-as-keys",
   "item": "S12.5",
-  "why": "the unquoted string include may not begin a path expression in a key, and where an object key would be expected include is not read as a key at all -- what follows it must be a quoted string. typesafe/config accepts the key as the path include.foo, and is inconsistent with itself here: it rejects 'include = 42' with the very same rule.",
+  "why": "the unquoted string include may not begin a path expression in a key: where an object key is expected, include is not read as a key at all and must be followed by a quoted resource name, so include.foo is an error. typesafe/config recognises the keyword only as a bare include token -- include.foo tokenizes as one unquoted string, so it is accepted as the path include.foo, while include = 42 is rejected under the very rule the spec states.",
   "error": "IncludeMayNotBeginAKey",
   "java": "lenient",
   "java_expect": {

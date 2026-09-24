@@ -1,7 +1,14 @@
 {
   "spec": "HOCON.md#note-arrays-without-commas-or-newlines",
   "item": "S10.16",
-  "why": "the spec's worked example: whitespace-separated unquoted tokens and substitutions concatenate into one array element per comma-separated group",
-  "error": "UnresolvedSubstitution",
+  "why": "the spec's worked example: unquoted words and substitutions separated by whitespace concatenate into one string element, and only the comma separates elements",
+  "expect": {
+    "a": [
+      "This is an unquoted string my name is Alice",
+      "Hello World"
+    ],
+    "name": "Alice",
+    "world": "World"
+  },
   "resolve": true
 }

@@ -1,0 +1,6 @@
+{
+  "spec": "HOCON.md#path-expressions",
+  "item": "S11.7",
+  "why": "an unquoted empty path element is invalid in a substitution just as in a key, so ${a..b} must generate an error rather than collapsing to ${a.b} (a.b is defined so a lenient implementation would produce a value and fail)",
+  "error": "BadPath"
+}

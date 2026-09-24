@@ -1,0 +1,6 @@
+{
+  "spec": "HOCON.md#array-and-object-concatenation",
+  "item": "S10.4",
+  "why": "it is an error to concatenate an object with an array in this order too, not only array then object",
+  "error": "WrongType"
+}

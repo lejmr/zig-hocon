@@ -1,0 +1,12 @@
+{
+  "spec": "HOCON.md#path-expressions",
+  "item": "S11.2",
+  "why": "path expressions appear in substitutions as well as keys, and inside quoted strings a dot has no special meaning there either, so ${foo.\"bar.baz\"} looks up key foo then the single key bar.baz",
+  "expect": {
+    "foo": {
+      "bar.baz": 1
+    },
+    "x": 1
+  },
+  "resolve": true
+}

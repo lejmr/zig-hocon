@@ -1,0 +1,17 @@
+{
+  "spec": "HOCON.md#duplicate-keys-and-object-merging",
+  "item": "S7.3",
+  "why": "fields present in only one of the two objects are added to the merged object as they are, whether the first or the second side has them and whether the value is a scalar or an object with nothing to merge against",
+  "expect": {
+    "a": {
+      "b": 1,
+      "c": {
+        "x": 1
+      },
+      "d": 2,
+      "e": {
+        "y": 2
+      }
+    }
+  }
+}

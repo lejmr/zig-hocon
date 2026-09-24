@@ -1,0 +1,8 @@
+{
+  "spec": "HOCON.md#include-syntax",
+  "item": "S14a.6",
+  "why": "unquoted include has no special meaning if it is not the start of a key's path expression; as an object value it is the string \"include\"",
+  "expect": {
+    "foo": "include"
+  }
+}

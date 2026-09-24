@@ -2,6 +2,5 @@
   "spec": "HOCON.md#path-expressions",
   "item": "S11.9",
   "why": "path expressions may not contain substitutions, so a substitution used as a key is illegal",
-  "error": "Parse",
-  "resolve": true
+  "error": "Parse"
 }

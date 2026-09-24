@@ -1,0 +1,8 @@
+{
+  "spec": "HOCON.md#include-semantics-missing-files-and-required-files",
+  "item": "S14d.1",
+  "why": "a missing include is treated as if the included file contained only an empty object, so an object whose only content is that include stays an empty object",
+  "expect": {
+    "a": {}
+  }
+}

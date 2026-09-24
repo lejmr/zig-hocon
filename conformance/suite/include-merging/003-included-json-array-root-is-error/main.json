@@ -1,0 +1,6 @@
+{
+  "spec": "HOCON.md#include-semantics-merging",
+  "item": "S14b.1",
+  "why": "both JSON and HOCON allow arrays as root values in a document, but an included file must contain an object, so a JSON file with an array root is an error when included",
+  "error": "WrongType"
+}

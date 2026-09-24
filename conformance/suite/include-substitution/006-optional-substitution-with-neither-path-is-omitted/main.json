@@ -1,0 +1,11 @@
+{
+  "spec": "HOCON.md#include-semantics-substitution",
+  "item": "S14c.2",
+  "why": "an optional substitution in an included file is looked up at the fixed-up path a.x and at the original path x; with neither defined the field is omitted rather than an error",
+  "expect": {
+    "a": {
+      "z": 1
+    }
+  },
+  "resolve": true
+}

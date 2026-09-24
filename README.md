@@ -347,16 +347,19 @@ Each column is what that implementation actually returns.
 </details>
 
 <details>
-<summary><b>duplicate-keys-and-object-merging</b> — 6 cases · Java 6/6 · pyhocon 5/6</summary>
+<summary><b>duplicate-keys-and-object-merging</b> — 9 cases · Java 6/9 · pyhocon 5/9</summary>
 
 | case | Java | pyhocon | rule |
 |---|---|---|---|
 | `001-later-scalar-wins` | ✅ | ✅ | for a non-object value the later assignment simply replaces the earlier one |
 | `002-objects-merge` | ✅ | ✅ | two objects under the same key merge key-by-key, they do not replace |
-| `003-scalar-breaks-the-merge` | ✅ | ❌ | a non-object in between discards the earlier object, so the last object merges into nothing |
+| `003-scalar-breaks-the-merge` | ✅ | ❌ | merging is always done two values at a time: the scalar replaces the first object (non-object always wins), then the second object replaces the scalar (no merging, object is the new value), so the two objects never see each other |
 | `004-merge-scalar-field-later-wins` | ✅ | ✅ | for a non-object-valued field present in both merged objects, the field from the second object is used |
 | `005-merge-nested-object-recursive` | ✅ | ✅ | for an object-valued field present in both objects, the object values are recursively merged by the same rules |
-| `006-null-prevents-merge` | ✅ | ✅ | setting a key to null between two object assignments prevents the merge, since a non-object always wins over an object it borders |
+| `006-null-prevents-merge` | ✅ | ✅ | the spec's own example: an intermediate null is a non-object, so it replaces the first object and is in turn replaced by the second object with no merging, which prevents the two objects from ever seeing each other |
+| `007-merge-keeps-fields-from-either-side` | ⚠ | ⚠ | fields present in only one of the two objects are added to the merged object as they are, whether the first or the second side has them and whether the value is a scalar or an object with nothing to merge against |
+| `008-arrays-are-not-objects` | ⚠ | ⚠ | only two object values merge; an array is not an object, so a later array replaces an earlier array (no concatenation) and replaces an earlier object (no merge) |
+| `009-later-null-overrides` | ⚠ | ⚠ | null is a value like any other, so a later null overrides an earlier scalar or object: the key stays, set to null, rather than being removed or the assignment skipped |
 
 </details>
 
@@ -374,6 +377,30 @@ Each column is what that implementation actually returns.
 | `007-minutes-spellings` | ✅ | ❌ | exactly m, minute, minutes are the supported unit strings for minutes |
 | `008-hours-spellings` | ✅ | ❌ | exactly h, hour, hours are the supported unit strings for hours |
 | `009-days-spellings` | ✅ | ❌ | exactly d, day, days are the supported unit strings for days in the duration format |
+
+</details>
+
+<details>
+<summary><b>include-merging</b> — 1 cases · Java 0/1 · pyhocon 0/1</summary>
+
+| case | Java | pyhocon | rule |
+|---|---|---|---|
+| `001-included-keys-merge-in-place` | ⚠ | ⚠ | the keys from the included object are conceptually substituted for the include statement in the including file, so the included field lands between the fields around it and merges by the usual duplicate-key rules |
+
+</details>
+
+<details>
+<summary><b>include-syntax</b> — 7 cases · Java 0/7 · pyhocon 0/7</summary>
+
+| case | Java | pyhocon | rule |
+|---|---|---|---|
+| `001-include-later-in-key-is-literal` | ⚠ | ⚠ | unquoted include has no special meaning if it is not the start of a key's path expression; it may appear later in the key, so { foo include : 42 } is equivalent to { "foo include" : 42 } |
+| `002-include-as-object-value-is-string` | ⚠ | ⚠ | unquoted include has no special meaning if it is not the start of a key's path expression; as an object value it is the string "include" |
+| `003-include-as-array-element-is-string` | ⚠ | ⚠ | unquoted include has no special meaning if it is not the start of a key's path expression; as an array element it is the string "include". the spec's example is the root array [ include ]; it is wrapped in a field here so the row does not depend on array-root support |
+| `004-no-concatenation-on-include-argument` | ⚠ | ⚠ | value concatenation is NOT performed on the argument to include; the argument must be a single quoted string, so a second quoted string after the resource name is an error whether or not the first resource exists |
+| `005-no-substitution-in-include-argument` | ⚠ | ⚠ | no substitutions are allowed in the argument to include, which must be a single quoted string; ${x} after include is an error even though x is defined, so an implementation that resolves the argument first still fails this row |
+| `006-include-argument-must-be-quoted` | ⚠ | ⚠ | if an unquoted include at the start of a key is followed by anything other than a single quoted string or the url()/file()/classpath() syntax, it is invalid and an error should be generated; the argument may not be an unquoted string |
+| `007-quoted-include-is-ordinary-key` | ⚠ | ⚠ | only unquoted include is special; quoting it gives a key that starts with the word include, so { "include" : 42 } is an ordinary field named include |
 
 </details>
 
@@ -439,7 +466,7 @@ Each column is what that implementation actually returns.
 </details>
 
 <details>
-<summary><b>path-expressions</b> — 15 cases · Java 15/15 · pyhocon 9/15</summary>
+<summary><b>path-expressions</b> — 19 cases · Java 15/19 · pyhocon 9/19</summary>
 
 | case | Java | pyhocon | rule |
 |---|---|---|---|
@@ -448,21 +475,25 @@ Each column is what that implementation actually returns.
 | `003-number-then-unquoted-string` | ✅ | ✅ | 10.0foo is a number then unquoted string foo, giving the two-element path 10 and 0foo, because a dot inside a number still counts as a path separator |
 | `004-unquoted-string-with-dot` | ✅ | ✅ | foo10.0 is an unquoted string with a dot in it, giving the two-element path foo10 and 0 |
 | `005-unquoted-concatenated-with-quoted-number` | ✅ | ❌ | foo followed by quoted "10.0" is an unquoted then a quoted string which concatenate, giving a single-element path |
-| `006-all-numeric-path` | ✅ | ✅ | 1.2.3 is the three-element path with elements 1, 2, 3 |
+| `006-all-numeric-path` | ✅ | ✅ | dots in numbers count as path separators, so 1.2.3 is the three-element path with elements 1, 2, 3 |
 | `007-path-expression-always-a-string` | ✅ | ✅ | a path expression is always converted to a string, so the key true becomes the string true rather than a boolean |
-| `008-value-concatenation-keeps-boolean` | ✅ | ✅ | unlike a path expression, a value consisting of the single value true is a value concatenation and retains its character as a boolean |
+| `008-value-concatenation-keeps-boolean` | ✅ | ✅ | unlike a path expression, an array or element value consisting of the single value true is a value concatenation and retains its character as a boolean |
 | `009-empty-path-element-quoted-is-valid` | ✅ | ❌ | a path element that is an empty string must be quoted; a."".b is a valid three-element path whose middle element is the empty string |
 | `010-consecutive-dots-invalid` | ✅ | ❌ | an unquoted empty path element is invalid, so a..b must generate an error |
 | `011-path-starting-with-dot-invalid` | ✅ | ❌ | a path that starts with a dot is invalid and should generate an error |
 | `012-path-ending-with-dot-invalid` | ✅ | ❌ | a path that ends with a dot is invalid and should generate an error |
 | `013-substitution-in-key-invalid` | ✅ | ✅ | path expressions may not contain substitutions, so a substitution used as a key is illegal |
 | `014-nested-substitution-invalid` | ✅ | ✅ | you cannot nest substitutions inside other substitutions |
-| `015-dotted-path-in-substitution` | ✅ | ✅ | path expressions appear in substitutions like ${foo.bar}, where the unquoted dot separates foo and bar into two path elements |
+| `015-dotted-path-in-substitution` | ✅ | ✅ | path expressions appear in substitutions like ${foo.bar}, where the unquoted dot separates foo and bar into two path elements, so the lookup walks key foo then key bar |
+| `016-number-keeps-original-text-in-path` | ⚠ | ⚠ | a number in a path expression must keep its original string representation as it appeared in the file, so 1.10 is the two-element path 1 and 10, not the 1 and 1 a generic number-to-string conversion would give |
+| `017-whitespace-concatenation-in-path` | ⚠ | ⚠ | path expressions are syntactically identical to a value concatenation, so the whitespace-separated a b concatenates into one element and the unquoted dot then splits off c, giving the two-element path a b and c |
+| `018-quoted-element-in-substitution-path` | ⚠ | ⚠ | path expressions appear in substitutions as well as keys, and inside quoted strings a dot has no special meaning there either, so ${foo."bar.baz"} looks up key foo then the single key bar.baz |
+| `019-empty-element-in-substitution-path-invalid` | ⚠ | ⚠ | an unquoted empty path element is invalid in a substitution just as in a key, so ${a..b} must generate an error rather than collapsing to ${a.b} (a.b is defined so a lenient implementation would produce a value and fail) |
 
 </details>
 
 <details>
-<summary><b>paths-as-keys</b> — 8 cases · Java 7/8 · pyhocon 7/8</summary>
+<summary><b>paths-as-keys</b> — 10 cases · Java 7/10 · pyhocon 7/10</summary>
 
 | case | Java | pyhocon | rule |
 |---|---|---|---|
@@ -473,7 +504,9 @@ Each column is what that implementation actually returns.
 | `005-unquoted-true-key-becomes-string` | ✅ | ✅ | path expressions are always converted to strings, so the unquoted boolean-looking key true:42 is "true":42 |
 | `006-unquoted-number-key-becomes-string` | ✅ | ✅ | path expressions are always converted to strings, so the unquoted numeric key 3:42 is "3":42 |
 | `007-decimal-key-splits-on-dot` | ✅ | ✅ | a dot in an unquoted key is a path separator even when it looks like a decimal number, so 3.14:42 is "3":{"14":42} |
-| `008-include-cannot-begin-key` | ❌ | ❌ | the unquoted string include may not begin a path expression in a key, and where an object key would be expected include is not read as a key at all -- what follows it must be a quoted string. typesafe/config accepts the key as the path include.foo, and is inconsistent with itself here: it rejects 'include = 42' with the very same rule. _(java: lenient)_ |
+| `008-include-cannot-begin-key` | ❌ | ❌ | the unquoted string include may not begin a path expression in a key: where an object key is expected, include is not read as a key at all and must be followed by a quoted resource name, so include.foo is an error. typesafe/config recognises the keyword only as a bare include token -- include.foo tokenizes as one unquoted string, so it is accepted as the path include.foo, while include = 42 is rejected under the very rule the spec states. _(java: lenient)_ |
+| `009-include-not-at-start-is-ordinary` | ⚠ | ⚠ | only the unquoted string include that begins a path expression in a key is special: include later in a key (foo.include) and a quoted "include" beginning one are ordinary path elements |
+| `010-path-key-merges-with-brace-object` | ⚠ | ⚠ | the object created by expanding a path key is merged in the usual way with an object written in braces at the same key, whichever form comes first: a{x:1}, a.y:2 and b.x:1, b{y:2} are both equivalent to {x:1,y:2} |
 
 </details>
 
@@ -570,6 +603,15 @@ Each column is what that implementation actually returns.
 | `011-array-then-scalar-drops-the-scalar` | ❌ | ✅ | the same rule for arrays; typesafe/config again accepts and discards the trailing x, where it errors when the scalar comes first _(java: lenient)_ |
 | `012-scalar-then-object-is-an-error` | ✅ | ✅ | the same rule with the scalar first, which typesafe/config does reject -- the half of the rule it enforces |
 | `013-scalar-then-array-is-an-error` | ✅ | ✅ | the same rule with the scalar first and an array, also rejected |
+
+</details>
+
+<details>
+<summary><b>substitution-fallback-to-environment</b> — 1 cases · Java 0/1 · pyhocon 0/1</summary>
+
+| case | Java | pyhocon | rule |
+|---|---|---|---|
+| `001-env-fallback-for-undefined-path` | ⚠ | ⚠ | a substitution whose path is not defined in the configuration falls back to an environment variable of the same name |
 
 </details>
 
@@ -687,12 +729,12 @@ Each column is what that implementation actually returns.
 
 </details>
 
-| 217 cases | Java<br><sub>typesafe/config 1.4.5</sub> | pyhocon<br><sub>pyhocon 0.3.63</sub> |
+| 235 cases | Java<br><sub>typesafe/config 1.4.5</sub> | pyhocon<br><sub>pyhocon 0.3.63</sub> |
 |---|---|---|
-| **spec mode** — what HOCON requires | **95%** (206/217) | **79%** (172/217) |
-| **java mode** — what typesafe/config does | 100% (216/217) | 77% (168/217) |
+| **spec mode** — what HOCON requires | **88%** (206/235) | **73%** (172/235) |
+| **java mode** — what typesafe/config does | 92% (216/235) | 71% (168/235) |
 
-Cells show **spec mode**. The two differ only on the 10 rows marked `java:`. 1 rows are open questions (⚠) rather than results. The suite checks 129 of the 210 rules in its inventory — `conformance/maintaining/COVERAGE.md` lists the rest. Columns appear here because their result file is committed under `conformance/reports/`.
+Cells show **spec mode**. The two differ only on the 10 rows marked `java:`. 1 rows are open questions (⚠) rather than results. The suite checks 137 of the 210 rules in its inventory — `conformance/maintaining/COVERAGE.md` lists the rest. Columns appear here because their result file is committed under `conformance/reports/`.
 
 <!-- conformance:end -->
 

@@ -1,7 +1,15 @@
 {
   "spec": "HOCON.md#array-and-object-concatenation",
   "item": "S10.18",
-  "why": "for concatenation purposes, a substitution that resolves to an object also counts as an object",
-  "error": "UnresolvedSubstitution",
+  "why": "for purposes of concatenation a substitution that resolves to an object also means an object, so ${x} { c : 1 } with x an object merges into one object",
+  "expect": {
+    "a": {
+      "b": 1,
+      "c": 1
+    },
+    "x": {
+      "b": 1
+    }
+  },
   "resolve": true
 }

@@ -1,0 +1,6 @@
+{
+  "spec": "HOCON.md#include-semantics-missing-files-and-required-files",
+  "item": "S14d.2",
+  "why": "required() may also wrap the file() form, and a required file that cannot be resolved is a parse error rather than an empty object",
+  "error": "IO"
+}

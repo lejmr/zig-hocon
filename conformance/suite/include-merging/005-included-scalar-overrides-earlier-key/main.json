@@ -1,0 +1,8 @@
+{
+  "spec": "HOCON.md#include-semantics-merging",
+  "item": "S14b.3",
+  "why": "if a key in the included object occurred prior to the include statement in the including object, the included key's value overrides the earlier value, exactly as with duplicate keys found in a single file",
+  "expect": {
+    "a": 2
+  }
+}

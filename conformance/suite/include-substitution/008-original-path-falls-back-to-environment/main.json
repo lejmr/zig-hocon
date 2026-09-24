@@ -1,0 +1,14 @@
+{
+  "spec": "HOCON.md#include-semantics-substitution",
+  "item": "S14c.2",
+  "why": "an included file may intend to refer to the application's root config, for example to get a value from the environment; the original path CONFORMANCE_HOME is looked up and falls back to the environment variable",
+  "env": {
+    "CONFORMANCE_HOME": "/from/env"
+  },
+  "expect": {
+    "a": {
+      "home": "/from/env"
+    }
+  },
+  "resolve": true
+}

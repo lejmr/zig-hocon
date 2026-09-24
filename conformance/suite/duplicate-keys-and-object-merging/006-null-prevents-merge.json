@@ -1,7 +1,7 @@
 {
   "spec": "HOCON.md#duplicate-keys-and-object-merging",
   "item": "S7.6",
-  "why": "setting a key to null between two object assignments prevents the merge, since a non-object always wins over an object it borders",
+  "why": "the spec's own example: an intermediate null is a non-object, so it replaces the first object and is in turn replaced by the second object with no merging, which prevents the two objects from ever seeing each other",
   "expect": {
     "foo": {
       "b": 43

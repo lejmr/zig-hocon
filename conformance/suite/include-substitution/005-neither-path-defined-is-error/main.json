@@ -1,0 +1,7 @@
+{
+  "spec": "HOCON.md#include-semantics-substitution",
+  "item": "S14c.2",
+  "why": "only the fixed-up path a.x and the original path x are looked up; with neither defined the substitution is undefined and the configuration is invalid",
+  "error": "UnresolvedSubstitution",
+  "resolve": true
+}

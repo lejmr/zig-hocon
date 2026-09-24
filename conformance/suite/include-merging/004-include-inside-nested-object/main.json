@@ -1,0 +1,12 @@
+{
+  "spec": "HOCON.md#include-semantics-merging",
+  "item": "S14b.2",
+  "why": "the keys from the included root object are conceptually substituted for the include statement in the including file, so an include inside a nested object contributes its keys to that object",
+  "expect": {
+    "a": {
+      "x": 1,
+      "y": 2,
+      "z": 3
+    }
+  }
+}

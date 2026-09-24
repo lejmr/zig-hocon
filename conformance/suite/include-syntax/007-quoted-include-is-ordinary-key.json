@@ -1,0 +1,8 @@
+{
+  "spec": "HOCON.md#include-syntax",
+  "item": "S14a.11",
+  "why": "only unquoted include is special; quoting it gives a key that starts with the word include, so { \"include\" : 42 } is an ordinary field named include",
+  "expect": {
+    "include": 42
+  }
+}

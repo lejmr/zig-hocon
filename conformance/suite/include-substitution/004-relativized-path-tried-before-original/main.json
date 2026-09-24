@@ -1,0 +1,13 @@
+{
+  "spec": "HOCON.md#include-semantics-substitution",
+  "item": "S14c.2",
+  "why": "substitutions in included files are looked up first relative to the root of the included file and only second relative to the root of the including configuration, so a.x wins over x",
+  "expect": {
+    "a": {
+      "x": 10,
+      "y": 10
+    },
+    "x": 7
+  },
+  "resolve": true
+}

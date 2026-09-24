@@ -1,0 +1,28 @@
+{
+  "spec": "HOCON.md#note-concatenation-with-whitespace-and-substitutions",
+  "item": "S10.14",
+  "why": "unquoted whitespace between substitutions that resolve to objects or lists must be ignored, so they merge and concatenate as if adjacent",
+  "expect": {
+    "p": [
+      1
+    ],
+    "q": [
+      2
+    ],
+    "r": [
+      1,
+      2
+    ],
+    "x": {
+      "a": 1
+    },
+    "y": {
+      "b": 2
+    },
+    "z": {
+      "a": 1,
+      "b": 2
+    }
+  },
+  "resolve": true
+}

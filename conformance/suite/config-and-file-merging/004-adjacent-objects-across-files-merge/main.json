@@ -1,0 +1,11 @@
+{
+  "spec": "HOCON.md#config-object-merging-and-file-merging",
+  "item": "S22.2",
+  "why": "the spec's re-ordered example: with the non-object 42 moved to the lowest priority the two objects are adjacent, so they merge to { a : { x : 1, y : 2 } }",
+  "expect": {
+    "a": {
+      "x": 1,
+      "y": 2
+    }
+  }
+}
