@@ -31,6 +31,10 @@ pub const Value = union(enum) {
         return switch (node.kind) {
             .value => .{ .scalar = try Scalar.fromNode(gpa, node) },
             .block, .root => blk: {
+                // A braced root `{a = 1}` is `root(block(...))`: the block is the document.
+                if (node.kind == .root and node.children.len == 1 and node.children[0].kind == .block)
+                    return Value.fromNode(gpa, node.children[0]);
+
                 var members_map: std.StringArrayHashMapUnmanaged(Value) = .empty;
                 defer members_map.deinit(gpa);
 

@@ -7,4 +7,5 @@ test {
     _ = @import("utils/unqoute.zig");
     _ = @import("Key.zig");
     _ = @import("Value.zig");
+    _ = @import("Config.zig");
 }
