@@ -1,0 +1,6 @@
+{
+  "spec": "HOCON.md#key-value-separator",
+  "item": "S4.2",
+  "why": "the separator may be omitted only before {; a key followed directly by [ is invalid",
+  "error": "Parse"
+}

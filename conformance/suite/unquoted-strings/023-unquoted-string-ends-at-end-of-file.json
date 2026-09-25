@@ -1,0 +1,8 @@
+{
+  "spec": "HOCON.md#unquoted-strings",
+  "item": "S8.1",
+  "why": "an unquoted string runs to a forbidden character or whitespace, and the end of the file ends it as well; no final newline is needed",
+  "expect": {
+    "a": "foo"
+  }
+}

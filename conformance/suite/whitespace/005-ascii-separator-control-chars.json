@@ -1,6 +1,6 @@
 {
   "spec": "HOCON.md#whitespace",
-  "item": "S6.4",
-  "why": "file separator (0x001C), group separator (0x001D), record separator (0x001E), and unit separator (0x001F) are whitespace characters",
+  "item": "S6.5",
+  "why": "the ASCII separator controls 0x1C-0x1F are whitespace but not newlines, so they do not separate two fields",
   "error": "Parse"
 }

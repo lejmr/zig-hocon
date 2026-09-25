@@ -1,0 +1,8 @@
+{
+  "spec": "HOCON.md#multi-line-strings",
+  "item": "S9.1",
+  "why": "a backslash sequence inside a triple-quoted string is used unmodified, not as an escape",
+  "expect": {
+    "a": "a\\nb"
+  }
+}

@@ -1,7 +1,7 @@
 {
   "spec": "HOCON.md#comments",
-  "item": "S2.2",
-  "why": "a comment and a blank line before an explicit root object are ignored",
+  "item": "S3.3",
+  "why": "a comment and a blank line before an explicit root object are skipped before the implicit-braces rule looks at the first token; the spec's wording (\"does not begin with\") is loose here and this row records the consensus reading, as omit-root-braces/009 does",
   "expect": {
     "a": 1
   }

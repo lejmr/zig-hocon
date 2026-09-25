@@ -1,7 +1,7 @@
 {
   "spec": "HOCON.md#path-expressions",
   "item": "S11.1",
-  "why": "in a key, -.33 is a path expression split on the unquoted dot, not a number, so it names - then 33; the JSON number rule for values does not reach keys",
+  "why": "a dot in a key separates path elements whether or not the text around it would be a number, so -.33 names - then 33; numbers in paths keep their original text",
   "expect": {
     "-": {
       "33": 1

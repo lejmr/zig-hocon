@@ -1,0 +1,6 @@
+{
+  "spec": "HOCON.md#commas",
+  "item": "S5.4",
+  "why": "an initial comma is invalid in an object, the implicit root included",
+  "error": "Parse"
+}

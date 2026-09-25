@@ -1,7 +1,7 @@
 {
   "spec": "HOCON.md#size-in-bytes-format",
   "item": "S21.3",
-  "why": "every power-of-2 suffix and its long forms name the same unit family; one table, one rule",
+  "why": "every power-of-2 suffix and its long forms name the same unit family; one table, one rule. The E and e forms are quoted because an unquoted 5E is a number token that is not a number (see unquoted-strings/022)",
   "expect": {
     "E": "5E",
     "Ei": "5Ei",

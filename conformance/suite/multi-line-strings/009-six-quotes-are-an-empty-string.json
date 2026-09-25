@@ -1,0 +1,8 @@
+{
+  "spec": "HOCON.md#multi-line-strings",
+  "item": "S9.1",
+  "why": "the three opening quotes are followed at once by the closing run, so the string is empty",
+  "expect": {
+    "a": ""
+  }
+}

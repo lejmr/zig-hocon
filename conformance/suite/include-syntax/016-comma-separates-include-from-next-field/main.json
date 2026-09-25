@@ -1,0 +1,9 @@
+{
+  "spec": "HOCON.md#include-syntax",
+  "item": "S14a.1",
+  "why": "an include stands where a field would, so the usual comma separates it from the field that follows",
+  "expect": {
+    "a": 1,
+    "b": 2
+  }
+}

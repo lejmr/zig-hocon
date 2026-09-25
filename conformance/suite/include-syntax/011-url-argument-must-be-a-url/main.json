@@ -2,5 +2,6 @@
   "spec": "HOCON.md#include-syntax",
   "item": "S14a.2",
   "why": "the string inside url() is interpreted as a URL, and x.conf has no scheme, so it is not one",
-  "error": "Parse"
+  "error": "Parse",
+  "review": "the spec says only that the string inside url() is interpreted as a URL; it does not say whether a string that is not a URL is an error or an unresolvable, hence ignorable, resource. typesafe/config rejects it"
 }

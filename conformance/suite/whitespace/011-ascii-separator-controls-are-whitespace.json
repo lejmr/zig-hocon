@@ -1,0 +1,9 @@
+{
+  "spec": "HOCON.md#whitespace",
+  "item": "S6.4",
+  "why": "the file, group, record and unit separators 0x1C-0x1F are whitespace around keys and separators",
+  "expect": {
+    "a": 1,
+    "b": 2
+  }
+}

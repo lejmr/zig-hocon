@@ -1,0 +1,8 @@
+{
+  "spec": "HOCON.md#whitespace",
+  "item": "S6.1",
+  "why": "the ideographic space U+3000 is a Zs space separator and so whitespace, like every member of the category",
+  "expect": {
+    "a": 1
+  }
+}

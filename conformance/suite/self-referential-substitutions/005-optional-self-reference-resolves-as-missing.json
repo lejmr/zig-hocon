@@ -1,7 +1,0 @@
-{
-  "spec": "HOCON.md#self-referential-substitutions",
-  "item": "S13a.4",
-  "why": "cycles are treated the same as a missing value when resolving an optional substitution, so if ${?a} refers to itself it is as if it referred to a nonexistent value",
-  "expect": {},
-  "resolve": true
-}

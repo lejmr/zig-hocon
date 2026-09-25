@@ -1,5 +1,5 @@
 {
-  "spec": "HOCON.md#concatenation-with-whitespace-and-substitutions",
+  "spec": "HOCON.md#note-concatenation-with-whitespace-and-substitutions",
   "item": "S13.14",
   "why": "an undefined optional substitution in a concatenation with an array becomes an empty array",
   "expect": {

@@ -1,0 +1,8 @@
+{
+  "spec": "HOCON.md#unchanged-from-json",
+  "item": "S1.2.1",
+  "why": "JSON writes a character outside the BMP as two \\u escapes forming a surrogate pair, which decode to one character",
+  "expect": {
+    "a": "😀"
+  }
+}

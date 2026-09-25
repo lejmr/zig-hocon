@@ -1,7 +1,9 @@
 {
   "spec": "HOCON.md#self-referential-substitutions",
-  "item": "S13a.3",
-  "why": "a value concatenation containing a substitution that refers to the field being defined is self-referential, as the spec lists a:${a}bc among the examples",
-  "error": "UnresolvedSubstitution",
+  "item": "S13a.1",
+  "why": "a value concatenation containing a substitution to its own field is self-referential, so ${a} looks back to the earlier x and the result is xbc",
+  "expect": {
+    "a": "xbc"
+  },
   "resolve": true
 }

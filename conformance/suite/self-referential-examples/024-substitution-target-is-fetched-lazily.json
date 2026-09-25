@@ -1,0 +1,13 @@
+{
+  "spec": "HOCON.md#examples-of-self-referential-substitutions",
+  "item": "S13a.11",
+  "why": "resolving ${b.c} fetches only b.c; resolving all of b first would reach ${a} and report a cycle that is not there",
+  "expect": {
+    "a": 1,
+    "b": {
+      "c": 1,
+      "d": 1
+    }
+  },
+  "resolve": true
+}

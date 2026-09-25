@@ -1,0 +1,8 @@
+{
+  "spec": "HOCON.md#include-syntax",
+  "item": "S14a.7",
+  "why": "whitespace inside the parentheses, outside the quotes, is allowed",
+  "expect": {
+    "a": 1
+  }
+}

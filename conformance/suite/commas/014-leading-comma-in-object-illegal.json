@@ -1,0 +1,6 @@
+{
+  "spec": "HOCON.md#commas",
+  "item": "S5.6",
+  "why": "the array comma rules apply to object fields: an initial comma is invalid",
+  "error": "Parse"
+}

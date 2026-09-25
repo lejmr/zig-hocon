@@ -1,7 +1,0 @@
-{
-  "spec": "HOCON.md#substitutions",
-  "item": "S13.10",
-  "why": "a quoted element in a substitution path may contain a space; the path names a field called 'b c', which does not exist, so the required substitution is an error",
-  "error": "UnresolvedSubstitution",
-  "resolve": true
-}

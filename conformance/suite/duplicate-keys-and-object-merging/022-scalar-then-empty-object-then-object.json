@@ -1,7 +1,7 @@
 {
   "spec": "HOCON.md#duplicate-keys-and-object-merging",
   "item": "S7.6",
-  "why": "the number cuts the merge off from anything before it; the empty object and the object after it still merge with each other",
+  "why": "the number cuts the merge off from anything before it; the empty object after it and the object after that still merge, and the empty one contributes nothing",
   "expect": {
     "a": {
       "x": 1

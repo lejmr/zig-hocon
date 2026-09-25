@@ -1,0 +1,10 @@
+{
+  "spec": "HOCON.md#path-expressions",
+  "item": "S11.8",
+  "why": "a path expression is always a string, so true in a substitution names the key true rather than a boolean",
+  "expect": {
+    "true": 1,
+    "x": 1
+  },
+  "resolve": true
+}

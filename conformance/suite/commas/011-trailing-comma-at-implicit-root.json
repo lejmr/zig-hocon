@@ -1,0 +1,8 @@
+{
+  "spec": "HOCON.md#commas",
+  "item": "S5.2",
+  "why": "the implicit root object follows the object comma rules, so its last field may carry a single trailing comma",
+  "expect": {
+    "a": 1
+  }
+}

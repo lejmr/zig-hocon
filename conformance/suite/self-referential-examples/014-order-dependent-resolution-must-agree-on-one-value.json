@@ -6,5 +6,6 @@
     "a": 1,
     "b": 1
   },
-  "resolve": true
+  "resolve": true,
+  "review": "the spec allows both fields to be 1, both 2, or an error (L875-877); only 'the same value' is required, which one expected tree cannot express. typesafe/config itself gives 1 or 2 depending on key order"
 }

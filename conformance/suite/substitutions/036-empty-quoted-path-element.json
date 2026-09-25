@@ -1,0 +1,10 @@
+{
+  "spec": "HOCON.md#substitutions",
+  "item": "S13.1",
+  "why": "an empty path element is legal when quoted, in a substitution as in a key",
+  "expect": {
+    "": 1,
+    "a": 1
+  },
+  "resolve": true
+}

@@ -1,0 +1,7 @@
+{
+  "spec": "HOCON.md#examples-of-self-referential-substitutions",
+  "item": "S13a.8",
+  "why": "a genuine cycle is an error for required substitutions; with the optional syntax it is a missing value, so neither field is created",
+  "expect": {},
+  "resolve": true
+}

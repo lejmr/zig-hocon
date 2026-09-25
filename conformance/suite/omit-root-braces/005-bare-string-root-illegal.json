@@ -1,6 +1,6 @@
 {
   "spec": "HOCON.md#omit-root-braces",
-  "item": "S3.2",
-  "why": "a JSON document containing only a non-array non-object value such as a string is invalid, and wrapping such content in {} does not produce a valid object body either",
+  "item": "S3.3",
+  "why": "the file does not begin with a bracket or brace, so it is wrapped in {} and becomes a key with no separator and no value",
   "error": "Parse"
 }

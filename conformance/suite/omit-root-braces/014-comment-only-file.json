@@ -1,0 +1,6 @@
+{
+  "spec": "HOCON.md#omit-root-braces",
+  "item": "S3.1",
+  "why": "a file holding only a comment does not begin with a bracket or brace, so it is the empty object",
+  "expect": {}
+}

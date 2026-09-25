@@ -1,0 +1,10 @@
+{
+  "spec": "HOCON.md#duplicate-keys-and-object-merging",
+  "item": "S7.2",
+  "why": "two objects merge, so the empty later object keeps x; replacement would have given {}",
+  "expect": {
+    "a": {
+      "x": 1
+    }
+  }
+}

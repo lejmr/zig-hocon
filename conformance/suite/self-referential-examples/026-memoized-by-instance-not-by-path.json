@@ -1,0 +1,10 @@
+{
+  "spec": "HOCON.md#examples-of-self-referential-substitutions",
+  "item": "S13a.10",
+  "why": "the text ${a} appears twice and resolves differently: to x in a's own self-reference and to the final xy in b; memoizing by path instead of by instance would give b the wrong value",
+  "expect": {
+    "a": "xy",
+    "b": "xy"
+  },
+  "resolve": true
+}

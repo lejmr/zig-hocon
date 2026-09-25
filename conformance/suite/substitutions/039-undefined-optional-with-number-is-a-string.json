@@ -1,0 +1,13 @@
+{
+  "spec": "HOCON.md#substitutions",
+  "item": "S13.18",
+  "why": "${?x}42 is a concatenation of two parts, so the value is a string: the undefined optional becomes empty and the number keeps its written form. The spec states the empty-string rule for a concatenation 'with another string', so this row extends it to a number; typesafe/config instead drops the undefined part and keeps the lone number as a number",
+  "expect": {
+    "a": "42"
+  },
+  "java": "diverges",
+  "java_expect": {
+    "a": 42
+  },
+  "resolve": true
+}

@@ -1,0 +1,8 @@
+{
+  "spec": "HOCON.md#whitespace",
+  "item": "S6.3",
+  "why": "the BOM is whitespace wherever it appears, not only as a file-start marker",
+  "expect": {
+    "a": 1
+  }
+}

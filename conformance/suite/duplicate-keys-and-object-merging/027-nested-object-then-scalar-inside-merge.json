@@ -1,0 +1,10 @@
+{
+  "spec": "HOCON.md#duplicate-keys-and-object-merging",
+  "item": "S7.4",
+  "why": "inside a merge the same rules apply per field: b is an object in the first and a number in the second, so the later value replaces it",
+  "expect": {
+    "a": {
+      "b": 2
+    }
+  }
+}
