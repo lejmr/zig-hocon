@@ -110,6 +110,12 @@ kind means what.
 A row carrying `"review"` is an open question for a human. It is neither a pass
 nor a failure.
 
+Two directories assert features the specification only permits: `include-file-formats`
+(other formats, basename probing: "implementations may support") and
+`substitution-fallback-to-environment` together with `list-values-from-environment-variables`
+("implementations may search external sources"). An implementation without them is
+still conformant; it fails those rows knowingly, and `--only` can leave them out.
+
 `"resolve": true` marks a case that only means anything once substitutions are
 resolved. Resolve them always and it makes no difference to you.
 

@@ -25,7 +25,7 @@ shift
 # directory case is sent by path instead, so its includes resolve beside it
 case "$1" in
     */main.conf) line="resolve:file:$(cd "$(dirname "$1")" && pwd)/main.conf" ;;
-    *) line=$(python3 -c 'import sys; sys.path.insert(0, sys.argv[1]); import suite; print("resolve:" + suite.encode(open(sys.argv[2]).read()))' "$HERE/../maintaining" "$1") ;;
+    *) line=$(python3 -c 'import sys; sys.path.insert(0, sys.argv[1]); import suite; print("resolve:" + suite.encode(open(sys.argv[2], newline="").read()))' "$HERE/../maintaining" "$1") ;;
 esac
 
 # pyhocon loops forever on some hidden-substitution inputs; a hang counts as a

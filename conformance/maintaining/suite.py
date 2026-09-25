@@ -22,7 +22,7 @@ def encode(src):
     """
     if not src.strip():
         src = " " + src.lstrip("\n")
-    return src.replace("\\", "\\\\").replace("\t", "\\t").replace('"', '\\"').replace("\n", "\\n")
+    return src.replace("\\", "\\\\").replace("\t", "\\t").replace('"', '\\"').replace("\r", "\\r").replace("\n", "\\n")
 
 
 def is_json(s):
@@ -54,7 +54,15 @@ def is_dir_case(case):
 
 
 def is_fixture(path):
-    return path.name != "main.conf" and (path.parent / "main.conf").exists()
+    """Any file under a directory case that is not its main.conf, however deep."""
+    if path.name == "main.conf":
+        return False
+    p = path.parent
+    while p != SUITE and p != p.parent:
+        if (p / "main.conf").exists():
+            return True
+        p = p.parent
+    return False
 
 
 def section_of(case):
@@ -82,7 +90,7 @@ def cases():
 def oracle_line(case, meta):
     """The one line that asks an oracle about this case. A directory case is sent
     as a path so its includes resolve beside it; anything else as escaped text."""
-    body = "file:" + str(case.resolve()) if is_dir_case(case) else encode(case.read_text())
+    body = "file:" + str(case.resolve()) if is_dir_case(case) else encode(case.open(newline="").read())
     return ("resolve:" if meta.get("resolve") else "") + body
 
 
