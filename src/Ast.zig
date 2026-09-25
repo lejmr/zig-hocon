@@ -78,7 +78,7 @@ pub const Parser = struct {
     /// an inferred error set cannot be resolved when it depends on itself.
     pub const Error = error{UnexpectedToken} || std.mem.Allocator.Error || unquote.Error;
 
-    fn parse(self: *Parser) Error!Node {
+    pub fn parse(self: *Parser) Error!Node {
         return self.parseContainer(.eof, .root);
     }
 
