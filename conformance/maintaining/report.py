@@ -77,7 +77,7 @@ def main(argv):
         sections.setdefault(suite.section_of(case), []).append(row)
         if meta.get("java"):
             split.append({
-                "input": suite.encode(case.read_text()) if not suite.is_dir_case(case)
+                "input": suite.encode(case.open(newline="").read()) if not suite.is_dir_case(case)
                          else "{}/ (directory)".format(suite.name_of(case)),
                 "kind": meta["java"],
                 "spec_side": "rejects" if "error" in meta else "`" + json.dumps(meta["expect"]) + "`",

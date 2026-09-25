@@ -63,7 +63,7 @@ for conf in sorted(suite.SUITE.rglob("*.conf")):
     if not side.exists() or suite.is_fixture(conf):
         continue
     meta = json.loads(side.read_text())
-    line = "resolve:file:" + str(conf) if conf.name == "main.conf" else "resolve:" + suite.encode(conf.read_text())
+    line = "resolve:file:" + str(conf) if conf.name == "main.conf" else "resolve:" + suite.encode(open(conf, newline="").read())
     if meta.get("env"):
         env.append(" ".join(f"{k}={v}" for k, v in meta["env"].items()) + "\t" + line)
     else:
