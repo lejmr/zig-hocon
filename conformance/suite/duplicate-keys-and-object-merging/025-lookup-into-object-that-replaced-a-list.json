@@ -1,0 +1,15 @@
+{
+  "spec": "HOCON.md#duplicate-keys-and-object-merging",
+  "item": "S7.1",
+  "why": "the object replaces the earlier list, so a.m exists and p is 1 whatever order the keys are resolved in. typesafe/config fails when the reader p is resolved before a (it iterates p before a); the same file with the reader named zzz resolves",
+  "expect": {
+    "p": 1,
+    "a": {
+      "m": 1
+    },
+    "x": 1
+  },
+  "java": "unsupported",
+  "java_error": "UnresolvedSubstitution",
+  "resolve": true
+}

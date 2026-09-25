@@ -1,0 +1,12 @@
+{
+  "spec": "HOCON.md#substitutions",
+  "item": "S13.11",
+  "why": "a path names object fields only, so b.0 does not reach into the list b even though it has an element at index 0; the optional substitution is undefined and a is not created. The list is still unresolved when the lookup happens, which is what makes an implementation look inside it",
+  "expect": {
+    "b": [
+      1
+    ],
+    "x": 1
+  },
+  "resolve": true
+}

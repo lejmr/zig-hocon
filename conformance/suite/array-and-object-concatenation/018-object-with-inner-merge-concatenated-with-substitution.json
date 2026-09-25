@@ -1,0 +1,22 @@
+{
+  "spec": "HOCON.md#array-and-object-concatenation",
+  "item": "S10.18",
+  "why": "an object whose field a is itself a merge of an object and a substitution concatenates with a substituted object like any other: the two merge. typesafe/config fails with an internal error (BugOrBroken) because the concatenation is not registered as the merge's parent; the same objects written as literals concatenate fine",
+  "expect": {
+    "x": {
+      "p": 1
+    },
+    "n": {
+      "a": {
+        "p": 1
+      },
+      "q": 2
+    },
+    "y": {
+      "q": 2
+    }
+  },
+  "java": "unsupported",
+  "java_error": "BugOrBroken",
+  "resolve": true
+}

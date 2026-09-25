@@ -1,0 +1,12 @@
+{
+  "spec": "HOCON.md#duplicate-keys-and-object-merging",
+  "item": "S7.1",
+  "why": "the same shape with a key the object does not have: the list below it is not consulted, a.b is undefined and the optional p is not created",
+  "expect": {
+    "a": {
+      "m": 1
+    },
+    "x": 1
+  },
+  "resolve": true
+}

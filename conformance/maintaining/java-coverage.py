@@ -96,8 +96,7 @@ UNREACHED = {
         ((266,), "withOrigin on a delayed merge; comments attach to the values before they are merged")],
     "ConfigDelayedMergeObject.java": [
         ((46,), "withOrigin on a delayed merge object; see ConfigDelayedMerge 266"),
-        ((74,), "replaceChild emptying the stack; see AbstractConfigValue 95"),
-        ((276,), "a delayed-merge object nested in another's stack; stacks are consolidated on construction")],
+        ((74,), "replaceChild emptying the stack; see AbstractConfigValue 95")],
     "ConfigDocumentParser.java": [
         ((176,), "consolidateValues never sees whitespace before the first value; nextTokenCollectingWhitespace has consumed it"),
         ((216, 223), "the previousFieldName wording: lastPath is declared but never assigned")],
@@ -119,12 +118,11 @@ UNREACHED = {
         ((200,), "resetParents with no parents; a delayed merge always has its container pushed first"),
         ((213, 214, 220, 222, 234), "replace() when the container chain ends or a parent stops being a container; with a SimpleConfigObject root and merges only under objects the chain keeps its containers"),
         ((244, 273), "old == replacement: a remainder is always a fresh value"),
-        ((256, 258, 259, 279, 280), "the root replaced or emptied; a parsed root is always a SimpleConfigObject")],
+        ((256, 258, 259, 280), "the root replaced or emptied; a parsed root is always a SimpleConfigObject")],
     "SimpleConfigList.java": [
         ((68,), "replaceChild emptying the list; see AbstractConfigValue 95"),
         ((121,), "modify with a null status is the allowUnresolved API path"),
-        ((124,), "an unresolved list whose children all resolve to themselves"),
-        ((154,), "a list resolved restricted to a child path; lookups stop before descending into a list")],
+        ((124,), "an unresolved list whose children all resolve to themselves")],
     "SimpleConfigObject.java": [
         ((192,), "withFallbacksIgnored on an object already ignoring fallbacks; withFallback returns early for it"),
         ((655,), "empty(null origin) is the API's emptyObject(null)")],
@@ -197,13 +195,16 @@ def main(argv):
 
     if len(argv) > 2 and argv[1] == "--probe":
         probe = load(pathlib.Path(argv[2]), src)
-        hits = 0
+        hits, listed = 0, 0
         for name, lines in files.items():
             for nr, (covered, reason, method, text) in lines.items():
                 if not covered and reason is None and probe[name][nr][0]:
                     print(f"{name[:-5]}.{method}:{nr}  {text.strip()}")
                     hits += 1
-        print(f"\n{hits} reachable lines newly covered")
+                elif reason == "unreached" and probe[name][nr][0]:
+                    print(f"LISTED UNREACHABLE, yet hit: {name[:-5]}.{method}:{nr}  {text.strip()}")
+                    listed += 1
+        print(f"\n{hits} reachable lines newly covered, {listed} listed-unreachable lines hit")
         return
 
     report, table, listed, stale = [], [], [], []
