@@ -1,0 +1,19 @@
+{
+  "spec": "HOCON.md#array-and-object-concatenation",
+  "rule": "array-and-object-concatenation.2",
+  "why": "${a} in a's own value refers to the earlier a, an object, so the concatenation merges {p: ...} with {q: 1}; the inner p is itself a merge of an object and a substitution. typesafe/config fails with an internal error (BugOrBroken) when the merge inside a concatenation piece resolves, as in 018",
+  "expect": {
+    "a": {
+      "p": {
+        "r": 2
+      },
+      "q": 1
+    },
+    "x": {
+      "r": 2
+    }
+  },
+  "java": "unsupported",
+  "java_error": "BugOrBroken",
+  "resolve": true
+}

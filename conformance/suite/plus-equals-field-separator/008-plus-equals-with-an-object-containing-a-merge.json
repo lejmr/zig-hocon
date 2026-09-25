@@ -1,0 +1,20 @@
+{
+  "spec": "HOCON.md#the--field-separator",
+  "rule": "the--field-separator.2",
+  "why": "l += v is l = ${?l} [v]; the appended object holds a merge of an object and a substitution, which resolves inside the new list. typesafe/config fails with an internal error (BugOrBroken) for the same reason as array-and-object-concatenation/018",
+  "expect": {
+    "x": {
+      "p": 1
+    },
+    "l": [
+      {
+        "a": {
+          "p": 1
+        }
+      }
+    ]
+  },
+  "java": "unsupported",
+  "java_error": "BugOrBroken",
+  "resolve": true
+}
