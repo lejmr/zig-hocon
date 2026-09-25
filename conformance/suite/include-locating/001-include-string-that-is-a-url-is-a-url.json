@@ -1,6 +1,6 @@
 {
   "spec": "HOCON.md#include-semantics-locating-resources",
   "rule": "include-semantics-locating-resources.2",
-  "why": "a quoted include name with a known URL scheme is a URL, not a file adjacent to this one; the resource behind it does not exist, so the include is ignored like any other missing one",
+  "why": "a quoted include name with a known URL scheme is a URL, not a file adjacent to this one. With nothing behind the URL the include is ignored, so a parser that read the string as a filename would also get {}; the row records the rule, it cannot distinguish the two readings",
   "expect": {}
 }

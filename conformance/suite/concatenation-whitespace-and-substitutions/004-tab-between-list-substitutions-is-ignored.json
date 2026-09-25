@@ -1,5 +1,5 @@
 {
-  "spec": "HOCON.md#concatenation-with-whitespace-and-substitutions",
+  "spec": "HOCON.md#note-concatenation-with-whitespace-and-substitutions",
   "rule": "note-concatenation-with-whitespace-and-substitutions.2",
   "why": "whitespace between two list substitutions is ignored, tabs included, and the lists concatenate",
   "expect": {

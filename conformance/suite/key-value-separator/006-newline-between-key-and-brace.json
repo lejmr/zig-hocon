@@ -1,0 +1,11 @@
+{
+  "spec": "HOCON.md#key-value-separator",
+  "rule": "key-value-separator.2",
+  "why": "the separator may be omitted before {, and the spec does not say whether a newline may stand between the key and the brace; typesafe/config and pyhocon accept it, hocon-rs rejects it",
+  "expect": {
+    "foo": {
+      "a": 1
+    }
+  },
+  "review": "the spec is silent on a newline between a key and its brace; implementations disagree"
+}

@@ -1,0 +1,8 @@
+{
+  "spec": "HOCON.md#unchanged-from-json",
+  "rule": "unchanged-from-json.1",
+  "why": "the file is UTF-8, so a multi-byte sequence is one character",
+  "expect": {
+    "a": "é"
+  }
+}

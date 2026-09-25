@@ -1,0 +1,8 @@
+{
+  "spec": "HOCON.md#include-syntax",
+  "rule": "include-syntax.11",
+  "why": "any amount of whitespace, newlines included, may stand between include and the resource name",
+  "expect": {
+    "a": 1
+  }
+}

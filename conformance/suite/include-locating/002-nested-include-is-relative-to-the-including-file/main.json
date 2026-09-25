@@ -1,0 +1,8 @@
+{
+  "spec": "HOCON.md#include-semantics-locating-resources",
+  "rule": "include-semantics-locating-resources.5",
+  "why": "inner.conf includes x.conf, which is found beside inner.conf, not beside main.conf and not in the process's working directory",
+  "expect": {
+    "a": 1
+  }
+}

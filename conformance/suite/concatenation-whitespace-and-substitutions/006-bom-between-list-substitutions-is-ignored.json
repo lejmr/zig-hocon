@@ -1,5 +1,5 @@
 {
-  "spec": "HOCON.md#concatenation-with-whitespace-and-substitutions",
+  "spec": "HOCON.md#note-concatenation-with-whitespace-and-substitutions",
   "rule": "whitespace.2",
   "why": "the BOM must be treated as whitespace, so between two list substitutions it is ignored",
   "expect": {

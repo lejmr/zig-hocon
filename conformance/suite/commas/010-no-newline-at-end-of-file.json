@@ -1,7 +1,0 @@
-{
-  "spec": "HOCON.md#commas",
-  "why": "the last field needs no separator after it, not even a newline; the file may end right after the value, here in the middle of an unquoted string",
-  "expect": {
-    "a": "foo"
-  }
-}

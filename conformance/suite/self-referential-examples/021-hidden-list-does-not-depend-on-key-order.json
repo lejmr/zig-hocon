@@ -1,7 +1,7 @@
 {
   "spec": "HOCON.md#examples-of-self-referential-substitutions",
   "rule": "examples-of-self-referential-substitutions.8",
-  "why": "a reader of w.x must not change whether the hidden list is evaluated. typesafe/config fails here, yet resolves the same file with the reader named o24bbd, which it visits before w (lightbend/config#865)",
+  "why": "a reader of w.x must not change whether the hidden list is evaluated; only objects merge, so the object hides the list whatever else refers to it. typesafe/config fails here, yet resolves the same file with the reader named o24bbd (lightbend/config#865)",
   "expect": {
     "w": {
       "x": 1

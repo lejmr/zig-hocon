@@ -1,0 +1,9 @@
+{
+  "spec": "HOCON.md#whitespace",
+  "rule": "whitespace.3",
+  "why": "a carriage return is whitespace and the line feed beside it is the newline, so CRLF line endings separate fields; if the CR were text the first value would be \"1\\r\"",
+  "expect": {
+    "a": 1,
+    "b": 2
+  }
+}

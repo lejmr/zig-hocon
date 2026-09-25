@@ -1,0 +1,7 @@
+{
+  "spec": "HOCON.md#path-expressions",
+  "rule": "path-expressions.3",
+  "why": "inside quotes a dot is not a separator, so ${\"b.c\"} names one field called b.c, which does not exist; it does not reach b's field c",
+  "error": "UnresolvedSubstitution",
+  "resolve": true
+}

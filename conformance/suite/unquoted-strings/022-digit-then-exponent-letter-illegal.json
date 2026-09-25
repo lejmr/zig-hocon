@@ -1,0 +1,10 @@
+{
+  "spec": "HOCON.md#unquoted-strings",
+  "rule": "unquoted-strings.13",
+  "why": "1e begins with a digit, so the run of number characters 1e must be parsed as a number, and it is not one; typesafe/config falls back to the unquoted string \"1e\", the same leniency it shows for -foo",
+  "error": "Parse",
+  "java": "lenient",
+  "java_expect": {
+    "a": "1e"
+  }
+}

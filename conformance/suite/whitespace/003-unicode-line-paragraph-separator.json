@@ -1,6 +1,6 @@
 {
   "spec": "HOCON.md#whitespace",
   "rule": "whitespace.4",
-  "why": "the Unicode line separator (Zl, U+2028) and paragraph separator (Zp, U+2029) count as whitespace",
+  "why": "the line and paragraph separators U+2028 and U+2029 are whitespace but not newlines, so they do not separate two fields: 1 b concatenates and the second = is a stray token",
   "error": "Parse"
 }

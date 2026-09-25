@@ -1,0 +1,10 @@
+{
+  "spec": "HOCON.md#substitutions",
+  "rule": "substitutions.2",
+  "why": "a substitution path has the syntax of an object key, so a quoted element may contain a space and names the field written the same way",
+  "expect": {
+    "b c": 1,
+    "a": 1
+  },
+  "resolve": true
+}

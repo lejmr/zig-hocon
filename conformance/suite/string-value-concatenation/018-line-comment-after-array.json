@@ -1,9 +1,0 @@
-{
-  "spec": "HOCON.md#comments",
-  "why": "a // comment after an array is not text in a concatenation; the value is just the array",
-  "expect": {
-    "x": [
-      1
-    ]
-  }
-}

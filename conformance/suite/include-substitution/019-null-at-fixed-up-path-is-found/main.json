@@ -1,0 +1,13 @@
+{
+  "spec": "HOCON.md#include-semantics-substitution",
+  "rule": "include-semantics-substitution.1",
+  "why": "a.x is present, set to null, so the lookup at the fixed-up path succeeds and the original path x is not consulted",
+  "expect": {
+    "a": {
+      "x": null,
+      "y": null
+    },
+    "x": 7
+  },
+  "resolve": true
+}

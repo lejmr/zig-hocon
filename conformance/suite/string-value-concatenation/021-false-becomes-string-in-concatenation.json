@@ -1,0 +1,8 @@
+{
+  "spec": "HOCON.md#string-value-concatenation",
+  "rule": "string-value-concatenation.7",
+  "why": "false becomes the string \"false\" in a concatenation, as true does",
+  "expect": {
+    "a": "false foo"
+  }
+}

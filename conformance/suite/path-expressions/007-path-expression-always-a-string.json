@@ -1,7 +1,0 @@
-{
-  "spec": "HOCON.md#path-expressions",
-  "why": "a path expression is always converted to a string, so the key true becomes the string true rather than a boolean",
-  "expect": {
-    "true": 1
-  }
-}

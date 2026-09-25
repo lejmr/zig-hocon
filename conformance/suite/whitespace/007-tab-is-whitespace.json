@@ -1,0 +1,8 @@
+{
+  "spec": "HOCON.md#whitespace",
+  "rule": "whitespace.3",
+  "why": "a tab is whitespace around a key and a separator",
+  "expect": {
+    "a": 1
+  }
+}

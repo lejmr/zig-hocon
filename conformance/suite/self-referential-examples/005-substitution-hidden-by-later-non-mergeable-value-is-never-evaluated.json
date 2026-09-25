@@ -4,5 +4,6 @@
   "why": "if a substitution is hidden by a later non-object value that could not be merged with it, it is never evaluated and no error is reported, no matter what it would have resolved to; foo ends up 42",
   "expect": {
     "foo": 42
-  }
+  },
+  "resolve": true
 }

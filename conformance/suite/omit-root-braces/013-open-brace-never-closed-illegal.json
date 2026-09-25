@@ -1,0 +1,6 @@
+{
+  "spec": "HOCON.md#omit-root-braces",
+  "rule": "omit-root-braces.4",
+  "why": "an opening brace with no closing brace is unbalanced",
+  "error": "Parse"
+}

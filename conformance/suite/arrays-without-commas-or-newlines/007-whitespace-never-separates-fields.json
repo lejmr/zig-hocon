@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#note-arrays-without-commas-or-newlines",
   "why": "non-newline whitespace is never a field separator, so two field definitions cannot be written on one line separated only by spaces",
-  "error": "Parse"
+  "error": "Parse",
+  "rule": "note-arrays-without-commas-or-newlines.3"
 }

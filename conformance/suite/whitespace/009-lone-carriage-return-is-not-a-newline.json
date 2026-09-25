@@ -1,0 +1,6 @@
+{
+  "spec": "HOCON.md#whitespace",
+  "rule": "whitespace.4",
+  "why": "a lone carriage return is whitespace but not a newline, so 1 b concatenates and the second = is a stray token",
+  "error": "Parse"
+}

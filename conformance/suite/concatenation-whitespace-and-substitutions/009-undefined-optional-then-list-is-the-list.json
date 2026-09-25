@@ -1,5 +1,5 @@
 {
-  "spec": "HOCON.md#concatenation-with-whitespace-and-substitutions",
+  "spec": "HOCON.md#note-concatenation-with-whitespace-and-substitutions",
   "rule": "substitutions.18",
   "why": "the mirror of 008: an undefined optional substitution before an array becomes an empty array too. typesafe/config keeps the whitespace before the list as text and rejects it, while accepting 008 (noted on lightbend/config#862)",
   "expect": {

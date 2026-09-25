@@ -1,0 +1,6 @@
+{
+  "spec": "HOCON.md#commas",
+  "rule": "commas.7",
+  "why": "the array comma rules apply to object fields: two trailing commas are invalid",
+  "error": "Parse"
+}

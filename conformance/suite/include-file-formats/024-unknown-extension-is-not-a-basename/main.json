@@ -1,0 +1,10 @@
+{
+  "spec": "HOCON.md#include-semantics-file-formats-and-extensions",
+  "rule": "include-semantics-locating-resources.3",
+  "why": "x.txt has an extension, so it is not a basename to probe; it is a file adjacent to the including one and of the same type. The spec does not define what counts as an extension, and this row reads any dotted suffix as one. typesafe/config probes every name that does not end in .conf, .json or .properties as a basename and finds nothing",
+  "expect": {
+    "a": 1
+  },
+  "java": "diverges",
+  "java_expect": {}
+}

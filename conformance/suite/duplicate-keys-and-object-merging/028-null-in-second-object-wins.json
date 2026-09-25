@@ -1,0 +1,10 @@
+{
+  "spec": "HOCON.md#duplicate-keys-and-object-merging",
+  "rule": "duplicate-keys-and-object-merging.5",
+  "why": "null is a non-object value, so the second object's null is used for b rather than dropped",
+  "expect": {
+    "a": {
+      "b": null
+    }
+  }
+}

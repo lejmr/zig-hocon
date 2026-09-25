@@ -1,6 +1,6 @@
 {
   "spec": "HOCON.md#include-semantics-file-formats-and-extensions",
   "rule": "duplicate-keys-and-object-merging.3",
-  "why": "the .json file is found through a basename, so it is parsed as JSON; JSON objects do not merge duplicate keys; the second a is an error rather than an override",
+  "why": "the .json file is found through a basename, so it is parsed as JSON; the spec's own footing is that duplicate keys are invalid JSON (L194-195), so the second a is an error rather than an override",
   "error": "Parse"
 }

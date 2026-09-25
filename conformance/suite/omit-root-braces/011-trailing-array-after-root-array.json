@@ -1,7 +1,6 @@
 {
   "spec": "HOCON.md#omit-root-braces",
   "rule": "omit-root-braces.1",
-  "why": "two arrays side by side concatenate when only non-newline whitespace separates them, which would make this document [1,2,3]; but nothing in the spec says a root value may be a concatenation, and typesafe/config calls the second bracket a trailing token. pyhocon rejects it too, with a different error",
-  "review": "oracle rejected this — illegal per spec, or unsupported by java?",
+  "why": "two arrays side by side concatenate when only non-newline whitespace separates them, which would make this document [1,2,3]; but a document is one array or one object at the root, and nothing in the spec lets a root value be a concatenation of two. typesafe/config, pyhocon and hocon-rs all reject it",
   "error": "Parse"
 }

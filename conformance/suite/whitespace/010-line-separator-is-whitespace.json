@@ -1,0 +1,8 @@
+{
+  "spec": "HOCON.md#whitespace",
+  "rule": "whitespace.1",
+  "why": "U+2028 around the separator is whitespace, not part of the key or the value",
+  "expect": {
+    "a": 1
+  }
+}

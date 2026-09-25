@@ -1,0 +1,6 @@
+{
+  "spec": "HOCON.md#include-syntax",
+  "rule": "include-syntax.7",
+  "why": "an unquoted include at the start of a key is never a key; followed by a separator instead of a quoted name it is an include with an invalid argument",
+  "error": "Parse"
+}

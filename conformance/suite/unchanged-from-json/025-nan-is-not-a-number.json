@@ -1,0 +1,8 @@
+{
+  "spec": "HOCON.md#unchanged-from-json",
+  "rule": "unchanged-from-json.4",
+  "why": "NaN is not a JSON number, so the bare token is an unquoted string",
+  "expect": {
+    "a": "NaN"
+  }
+}

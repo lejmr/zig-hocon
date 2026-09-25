@@ -1,6 +1,6 @@
 {
   "spec": "HOCON.md#commas",
   "rule": "commas.1",
-  "why": "two fields need a comma or a newline between them; on one line with neither, the second field is not where a field may start",
+  "why": "two fields need a comma or a newline between them; on one line with neither, 1 b becomes a value concatenation and the second = is a stray token",
   "error": "Parse"
 }
