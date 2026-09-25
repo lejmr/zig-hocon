@@ -1,0 +1,8 @@
+{
+  "spec": "HOCON.md#include-semantics-file-formats-and-extensions",
+  "item": "S14e.1",
+  "why": "a basename with only base.conf present loads just that file",
+  "expect": {
+    "a": 1
+  }
+}

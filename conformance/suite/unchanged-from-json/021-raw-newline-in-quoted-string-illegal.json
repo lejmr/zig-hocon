@@ -1,0 +1,6 @@
+{
+  "spec": "HOCON.md#unchanged-from-json",
+  "item": "S1.2.4",
+  "why": "JSON forbids unescaped control characters in strings, and a raw newline is one; a quoted string cannot span lines",
+  "error": "Parse"
+}

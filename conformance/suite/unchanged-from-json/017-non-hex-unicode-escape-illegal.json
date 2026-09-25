@@ -1,0 +1,6 @@
+{
+  "spec": "HOCON.md#unchanged-from-json",
+  "item": "S1.2.3",
+  "why": "\\u must be followed by exactly four hex digits; zzzz are not hex digits",
+  "error": "Parse"
+}

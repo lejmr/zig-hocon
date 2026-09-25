@@ -1,0 +1,6 @@
+{
+  "spec": "HOCON.md#include-syntax",
+  "item": "S14a.4",
+  "why": "a classpath() include names a resource; when it does not exist the include is ignored like any other missing include, and an implementation without a classpath has nothing to find there either",
+  "expect": {}
+}

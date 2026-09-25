@@ -1,0 +1,8 @@
+{
+  "spec": "HOCON.md#comments",
+  "item": "S2.2",
+  "why": "a comment and a blank line before an explicit root object are ignored",
+  "expect": {
+    "a": 1
+  }
+}

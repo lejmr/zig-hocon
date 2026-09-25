@@ -1,0 +1,16 @@
+{
+  "spec": "HOCON.md#include-semantics-file-formats-and-extensions",
+  "item": "S14e.1",
+  "why": "a .json file found through a basename is parsed as JSON and contributes its object",
+  "expect": {
+    "a": 1,
+    "b": [
+      1,
+      2
+    ],
+    "c": {
+      "d": true,
+      "e": null
+    }
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "spec": "HOCON.md#unchanged-from-json",
+  "item": "S1.2.3",
+  "why": "the file ends after two of the four hex digits a \\u escape requires",
+  "error": "Parse"
+}

@@ -1,0 +1,6 @@
+{
+  "spec": "HOCON.md#include-syntax",
+  "item": "S14a.5",
+  "why": "required(...) must be closed too",
+  "error": "Parse"
+}

@@ -1,0 +1,11 @@
+{
+  "spec": "HOCON.md#comments",
+  "item": "S2.2",
+  "why": "comments and blank lines between array elements are ignored, and do not join or separate elements",
+  "expect": {
+    "a": [
+      1,
+      2
+    ]
+  }
+}

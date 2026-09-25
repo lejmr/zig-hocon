@@ -1,0 +1,6 @@
+{
+  "spec": "HOCON.md#include-semantics-file-formats-and-extensions",
+  "item": "S14e.1",
+  "why": "required() makes the missing basename an error",
+  "error": "IO"
+}

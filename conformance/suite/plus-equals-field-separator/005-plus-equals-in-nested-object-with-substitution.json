@@ -1,0 +1,15 @@
+{
+  "spec": "HOCON.md#the--field-separator",
+  "item": "S13b.1",
+  "why": "inside an object, += desugars to a self-reference by the field's full path o.a; the appended element may itself be a substitution",
+  "expect": {
+    "o": {
+      "a": [
+        1,
+        2
+      ]
+    },
+    "x": 2
+  },
+  "resolve": true
+}

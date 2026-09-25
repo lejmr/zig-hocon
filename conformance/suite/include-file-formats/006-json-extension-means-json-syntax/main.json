@@ -1,0 +1,10 @@
+{
+  "spec": "HOCON.md#include-semantics-file-formats-and-extensions",
+  "item": "S14e.1",
+  "why": "a file named .json is in JSON format, and an unquoted value is not JSON. typesafe/config parses a .json named outright with the HOCON parser, so the file is accepted; the same file found through a basename is rejected",
+  "error": "Parse",
+  "java": "lenient",
+  "java_expect": {
+    "a": "b"
+  }
+}

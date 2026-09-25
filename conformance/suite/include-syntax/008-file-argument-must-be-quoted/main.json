@@ -1,0 +1,6 @@
+{
+  "spec": "HOCON.md#include-syntax",
+  "item": "S14a.10",
+  "why": "the argument inside file() must be a single quoted string; an unquoted name is a syntax error",
+  "error": "Parse"
+}

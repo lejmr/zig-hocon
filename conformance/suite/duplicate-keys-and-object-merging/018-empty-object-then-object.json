@@ -1,0 +1,10 @@
+{
+  "spec": "HOCON.md#duplicate-keys-and-object-merging",
+  "item": "S7.2",
+  "why": "an empty object merges with a later object like any object; the result is the later object's fields",
+  "expect": {
+    "a": {
+      "x": 1
+    }
+  }
+}

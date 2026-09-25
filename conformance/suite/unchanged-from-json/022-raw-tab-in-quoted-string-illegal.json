@@ -1,0 +1,6 @@
+{
+  "spec": "HOCON.md#unchanged-from-json",
+  "item": "S1.2.4",
+  "why": "a raw tab is a control character too, so it must be written as \\t inside quotes",
+  "error": "Parse"
+}

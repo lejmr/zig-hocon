@@ -1,0 +1,8 @@
+{
+  "spec": "HOCON.md#unchanged-from-json",
+  "item": "S1.3",
+  "why": "a number beyond 32 bits is still a number and keeps its exact value",
+  "expect": {
+    "a": 9999999999
+  }
+}

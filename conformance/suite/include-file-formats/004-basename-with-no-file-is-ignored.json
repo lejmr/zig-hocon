@@ -1,0 +1,6 @@
+{
+  "spec": "HOCON.md#include-semantics-file-formats-and-extensions",
+  "item": "S14e.1",
+  "why": "a basename that exists with no extension at all is a missing include, and a missing include is ignored",
+  "expect": {}
+}

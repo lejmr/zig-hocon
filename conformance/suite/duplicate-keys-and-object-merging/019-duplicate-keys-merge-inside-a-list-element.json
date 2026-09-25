@@ -1,0 +1,14 @@
+{
+  "spec": "HOCON.md#duplicate-keys-and-object-merging",
+  "item": "S7.1",
+  "why": "an object that is a list element follows the same duplicate-key rules: the later value, here resolved from a substitution, wins",
+  "expect": {
+    "l": [
+      {
+        "a": 2
+      }
+    ],
+    "x": 2
+  },
+  "resolve": true
+}

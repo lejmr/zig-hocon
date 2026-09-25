@@ -1,0 +1,8 @@
+{
+  "spec": "HOCON.md#include-semantics-file-formats-and-extensions",
+  "item": "S14e.1",
+  "why": "a basename with only base.properties present loads it as Java properties, whose values are all strings",
+  "expect": {
+    "a": "1"
+  }
+}

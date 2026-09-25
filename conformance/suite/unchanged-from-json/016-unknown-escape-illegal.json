@@ -1,0 +1,6 @@
+{
+  "spec": "HOCON.md#unchanged-from-json",
+  "item": "S1.2.2",
+  "why": "only the JSON escape sequences exist; \\q is not one of them, so the string is invalid",
+  "error": "Parse"
+}

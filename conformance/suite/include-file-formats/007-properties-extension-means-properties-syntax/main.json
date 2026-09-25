@@ -1,0 +1,11 @@
+{
+  "spec": "HOCON.md#include-semantics-file-formats-and-extensions",
+  "item": "S14e.1",
+  "why": "a file named .properties is in Java properties format, where the first = separates key from value and values are strings. typesafe/config parses a .properties named outright with the HOCON parser and fails on the second =; the same file found through a basename is read as properties",
+  "expect": {
+    "a": "b=c",
+    "n": "1"
+  },
+  "java": "unsupported",
+  "java_error": "Parse"
+}

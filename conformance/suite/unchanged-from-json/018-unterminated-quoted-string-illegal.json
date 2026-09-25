@@ -1,0 +1,6 @@
+{
+  "spec": "HOCON.md#unchanged-from-json",
+  "item": "S1.2.5",
+  "why": "a quoted string that is still open at the end of the file is invalid",
+  "error": "Parse"
+}

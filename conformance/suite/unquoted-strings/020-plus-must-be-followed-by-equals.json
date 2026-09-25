@@ -1,0 +1,6 @@
+{
+  "spec": "HOCON.md#unquoted-strings",
+  "item": "S8.1",
+  "why": "+ is a forbidden character in an unquoted string and outside quotes only forms the += separator; a + with nothing after it, here at the end of the file, is invalid",
+  "error": "Parse"
+}

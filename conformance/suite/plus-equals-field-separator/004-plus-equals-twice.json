@@ -1,0 +1,13 @@
+{
+  "spec": "HOCON.md#the--field-separator",
+  "item": "S13b.1",
+  "why": "each += appends to the value the previous line left, so two of them append two elements",
+  "expect": {
+    "a": [
+      1,
+      2,
+      3
+    ]
+  },
+  "resolve": true
+}

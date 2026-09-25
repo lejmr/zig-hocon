@@ -1,0 +1,10 @@
+{
+  "spec": "HOCON.md#comments",
+  "item": "S2.2",
+  "why": "comments and blank lines inside an object body are ignored",
+  "expect": {
+    "a": {
+      "b": 1
+    }
+  }
+}

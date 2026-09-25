@@ -1,0 +1,6 @@
+{
+  "spec": "HOCON.md#include-syntax",
+  "item": "S14a.2",
+  "why": "the string inside url() is interpreted as a URL, and x.conf has no scheme, so it is not one",
+  "error": "Parse"
+}

@@ -1,0 +1,6 @@
+{
+  "spec": "HOCON.md#include-syntax",
+  "item": "S14a.3",
+  "why": "file(\"...\") must be closed; the line ends before the parenthesis",
+  "error": "Parse"
+}

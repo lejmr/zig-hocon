@@ -1,0 +1,16 @@
+{
+  "spec": "HOCON.md#include-semantics-merging",
+  "item": "S14b.2",
+  "why": "the included file may contain substitutions like any other; typesafe/config refuses an include nested in a list when the included file is not fully resolved",
+  "expect": {
+    "a": [
+      {
+        "x": 1
+      }
+    ],
+    "y": 1
+  },
+  "java": "unsupported",
+  "java_error": "Parse",
+  "resolve": true
+}

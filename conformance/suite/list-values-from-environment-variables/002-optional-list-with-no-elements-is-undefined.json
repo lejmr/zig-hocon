@@ -1,0 +1,9 @@
+{
+  "spec": "HOCON.md#list-values-from-environment-variables",
+  "item": "S13c.4",
+  "why": "with no CONFORMANCE_LIST_0 set, an optional ${?X[]} is undefined and the field is not created. typesafe/config 1.4.5 rejects the syntax",
+  "expect": {},
+  "java": "unsupported",
+  "java_error": "BadPath",
+  "resolve": true
+}

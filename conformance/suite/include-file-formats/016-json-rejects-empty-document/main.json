@@ -1,0 +1,6 @@
+{
+  "spec": "HOCON.md#include-semantics-file-formats-and-extensions",
+  "item": "S14e.1",
+  "why": "the .json file is found through a basename, so it is parsed as JSON; an empty document is not JSON, although it is an empty HOCON object",
+  "error": "Parse"
+}

@@ -1,0 +1,12 @@
+{
+  "spec": "HOCON.md#include-semantics-substitution",
+  "item": "S14c.1",
+  "why": "a substitution that is one piece of a concatenation in the included file is fixed up like a bare one: p.x is not set, so the original path x is used",
+  "expect": {
+    "p": {
+      "a": "1 y"
+    },
+    "x": 1
+  },
+  "resolve": true
+}

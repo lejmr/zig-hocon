@@ -1,0 +1,17 @@
+{
+  "spec": "HOCON.md#the--field-separator",
+  "item": "S13b.3",
+  "why": "b has no previous value, so b += 1 is b = ${?b} [1] with the optional part undefined: [1]. typesafe/config refuses += inside a list because its desugared path cannot name a list element",
+  "expect": {
+    "a": [
+      {
+        "b": [
+          1
+        ]
+      }
+    ]
+  },
+  "java": "unsupported",
+  "java_error": "Parse",
+  "resolve": true
+}

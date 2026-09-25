@@ -1,0 +1,12 @@
+{
+  "spec": "HOCON.md#include-semantics-file-formats-and-extensions",
+  "item": "S14e.2",
+  "why": "a name without an extension is a basename: all of base.properties, base.json and base.conf exist, so all three are loaded and merged, properties first and HOCON last, so the .conf value wins where they overlap",
+  "expect": {
+    "a": "conf",
+    "b": "json",
+    "c": "conf",
+    "d": "json",
+    "e": "props"
+  }
+}
