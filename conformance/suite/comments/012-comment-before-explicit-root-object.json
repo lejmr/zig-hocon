@@ -1,0 +1,8 @@
+{
+  "spec": "HOCON.md#comments",
+  "rule": "omit-root-braces.3",
+  "why": "a comment and a blank line before an explicit root object are ignored",
+  "expect": {
+    "a": 1
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "spec": "HOCON.md#list-values-from-environment-variables",
+  "rule": "list-values-from-environment-variables.2",
+  "why": "the [] suffix collects CONFORMANCE_LIST_0, CONFORMANCE_LIST_1, ... until an index is missing, into a list of strings. typesafe/config 1.4.5 predates the syntax and rejects the path",
+  "expect": {
+    "a": [
+      "x",
+      "y"
+    ]
+  },
+  "env": {
+    "CONFORMANCE_LIST_0": "x",
+    "CONFORMANCE_LIST_1": "y"
+  },
+  "java": "unsupported",
+  "java_error": "BadPath",
+  "resolve": true
+}

@@ -1,0 +1,14 @@
+{
+  "spec": "HOCON.md#include-semantics-substitution",
+  "rule": "include-semantics-substitution.3",
+  "why": "a substitution that is a list element in the included file is fixed up as well",
+  "expect": {
+    "p": {
+      "l": [
+        1
+      ]
+    },
+    "x": 1
+  },
+  "resolve": true
+}

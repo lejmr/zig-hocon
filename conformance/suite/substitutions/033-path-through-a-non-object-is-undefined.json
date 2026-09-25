@@ -1,0 +1,7 @@
+{
+  "spec": "HOCON.md#substitutions",
+  "rule": "substitutions.14",
+  "why": "a is a number, so a.x names nothing; a required substitution to an undefined path is an error",
+  "error": "UnresolvedSubstitution",
+  "resolve": true
+}

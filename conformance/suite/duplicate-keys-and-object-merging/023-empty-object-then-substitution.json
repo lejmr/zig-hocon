@@ -1,0 +1,14 @@
+{
+  "spec": "HOCON.md#duplicate-keys-and-object-merging",
+  "rule": "duplicate-keys-and-object-merging.2",
+  "why": "an empty object followed by a substitution that resolves to an object merges into that object",
+  "expect": {
+    "a": {
+      "p": 1
+    },
+    "x": {
+      "p": 1
+    }
+  },
+  "resolve": true
+}

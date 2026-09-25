@@ -1,0 +1,16 @@
+{
+  "spec": "HOCON.md#include-semantics-merging",
+  "rule": "include-semantics-merging.5",
+  "why": "the included file leaves a as an object merged with a substitution; that whole stack merges with the object the including file set earlier",
+  "expect": {
+    "a": {
+      "m": 1,
+      "n": 2,
+      "z": 0
+    },
+    "q": {
+      "n": 2
+    }
+  },
+  "resolve": true
+}

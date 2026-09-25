@@ -1,0 +1,6 @@
+{
+  "spec": "HOCON.md#unchanged-from-json",
+  "rule": "unchanged-from-json.2",
+  "why": "a backslash with nothing after it is not an escape and the string is still open at the end of the file",
+  "error": "Parse"
+}

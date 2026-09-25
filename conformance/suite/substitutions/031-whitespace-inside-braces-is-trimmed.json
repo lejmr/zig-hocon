@@ -1,0 +1,9 @@
+{
+  "spec": "HOCON.md#substitutions",
+  "rule": "substitutions.2",
+  "why": "the path inside ${} has the syntax of an object key, and whitespace before the first and after the last element of a key is discarded, so ${ b } is ${b}",
+  "expect": {
+    "a": 1,
+    "b": 1
+  }
+}

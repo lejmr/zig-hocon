@@ -1,0 +1,12 @@
+{
+  "spec": "HOCON.md#include-semantics-merging",
+  "rule": "include-syntax.6",
+  "why": "an include statement may stand wherever a field may, including in an object that is a list element",
+  "expect": {
+    "a": [
+      {
+        "x": 1
+      }
+    ]
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "spec": "HOCON.md#include-semantics-merging",
+  "rule": "include-semantics-merging.5",
+  "why": "the earlier value is a number, so the included object stack replaces it and merges only within itself",
+  "expect": {
+    "a": {
+      "m": 1,
+      "n": 2
+    },
+    "q": {
+      "n": 2
+    }
+  },
+  "resolve": true
+}

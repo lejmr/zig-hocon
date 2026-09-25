@@ -1,0 +1,12 @@
+{
+  "spec": "HOCON.md#duplicate-keys-and-object-merging",
+  "rule": "duplicate-keys-and-object-merging.1",
+  "why": "a string concatenation is a non-object value, so the later object replaces it rather than merging with it",
+  "expect": {
+    "a": {
+      "z": 1
+    },
+    "x": 1
+  },
+  "resolve": true
+}

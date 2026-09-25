@@ -1,0 +1,8 @@
+{
+  "spec": "HOCON.md#unchanged-from-json",
+  "rule": "unchanged-from-json.2",
+  "why": "the JSON escapes \\/ \\b \\f and \\r are valid in a quoted string and mean slash, backspace, form feed and carriage return",
+  "expect": {
+    "a": "/\b\f\r"
+  }
+}

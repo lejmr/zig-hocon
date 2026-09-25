@@ -1,0 +1,20 @@
+{
+  "spec": "HOCON.md#duplicate-keys-and-object-merging",
+  "rule": "duplicate-keys-and-object-merging.2",
+  "why": "four values for a, two of them substitutions that resolve to objects: all four merge in order",
+  "expect": {
+    "a": {
+      "p": 1,
+      "q": 2,
+      "r": 3,
+      "s": 4
+    },
+    "x": {
+      "q": 2
+    },
+    "y": {
+      "s": 4
+    }
+  },
+  "resolve": true
+}

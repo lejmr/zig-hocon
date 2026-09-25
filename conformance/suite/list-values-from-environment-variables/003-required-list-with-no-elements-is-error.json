@@ -1,0 +1,7 @@
+{
+  "spec": "HOCON.md#list-values-from-environment-variables",
+  "rule": "list-values-from-environment-variables.4",
+  "why": "with no CONFORMANCE_LIST_0 set, a required ${X[]} is an error",
+  "error": "UnresolvedSubstitution",
+  "resolve": true
+}

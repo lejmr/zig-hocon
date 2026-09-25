@@ -1,0 +1,8 @@
+{
+  "spec": "HOCON.md#key-value-separator",
+  "rule": "key-value-separator.1",
+  "why": "= stands wherever JSON allows :, and JSON allows any whitespace, newlines included, between the separator and the value",
+  "expect": {
+    "a": 1
+  }
+}

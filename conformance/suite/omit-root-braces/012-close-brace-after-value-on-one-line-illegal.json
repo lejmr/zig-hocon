@@ -1,0 +1,6 @@
+{
+  "spec": "HOCON.md#omit-root-braces",
+  "rule": "omit-root-braces.4",
+  "why": "a close brace with no open brace is invalid wherever it stands, on the same line as a value as much as on its own",
+  "error": "Parse"
+}

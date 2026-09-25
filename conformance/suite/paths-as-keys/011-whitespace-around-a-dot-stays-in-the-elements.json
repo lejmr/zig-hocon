@@ -1,0 +1,10 @@
+{
+  "spec": "HOCON.md#paths-as-keys",
+  "rule": "paths-as-keys.4",
+  "why": "whitespace inside a key is part of the key, and a dot splits the key into elements, so the elements here are 'a ' and ' b' with their spaces",
+  "expect": {
+    "a ": {
+      " b": 1
+    }
+  }
+}

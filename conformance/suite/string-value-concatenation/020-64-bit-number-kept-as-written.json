@@ -1,0 +1,8 @@
+{
+  "spec": "HOCON.md#string-value-concatenation",
+  "rule": "string-value-concatenation.10",
+  "why": "a number in a concatenation is stringified as it appeared in the file, whatever its size",
+  "expect": {
+    "a": "9999999999 x"
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "spec": "HOCON.md#include-semantics-file-formats-and-extensions",
+  "rule": "include-semantics-file-formats-and-extensions.2",
+  "why": "the .json file is found through a basename, so it is parsed as JSON; a JSON key is a plain string, not a path expression, so a.b stays a single key",
+  "expect": {
+    "a.b": 1
+  }
+}

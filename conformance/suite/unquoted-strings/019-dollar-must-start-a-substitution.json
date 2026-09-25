@@ -1,0 +1,6 @@
+{
+  "spec": "HOCON.md#unquoted-strings",
+  "rule": "unquoted-strings.2",
+  "why": "$ is a forbidden character in an unquoted string, and outside quotes it may only begin ${; $foo is neither",
+  "error": "Parse"
+}

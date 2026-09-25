@@ -1,0 +1,17 @@
+{
+  "spec": "HOCON.md#include-semantics-file-formats-and-extensions",
+  "rule": "java-properties-mapping.3",
+  "why": "in a properties file a dotted key is a path, so a.b and a.c build an object at a; a value at a itself is dropped because an object is already there, and values are strings",
+  "expect": {
+    "a": {
+      "b": "1",
+      "c": "2"
+    },
+    "d": "3",
+    "e": {
+      "f": {
+        "g": "5"
+      }
+    }
+  }
+}

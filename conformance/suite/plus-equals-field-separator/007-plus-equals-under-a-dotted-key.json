@@ -1,0 +1,16 @@
+{
+  "spec": "HOCON.md#the--field-separator",
+  "rule": "the--field-separator.2",
+  "why": "the self-reference += desugars to uses the full path of the field, o.p.a, even when the enclosing key was written as the path o.p",
+  "expect": {
+    "o": {
+      "p": {
+        "a": [
+          1,
+          2
+        ]
+      }
+    }
+  },
+  "resolve": true
+}

@@ -1,0 +1,6 @@
+{
+  "spec": "HOCON.md#unquoted-strings",
+  "rule": "unquoted-strings.13",
+  "why": "1+2 begins like a number and is not one; + is a forbidden character, so the token cannot fall back to an unquoted string either",
+  "error": "Parse"
+}

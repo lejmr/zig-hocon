@@ -1,0 +1,21 @@
+{
+  "spec": "HOCON.md#include-semantics-substitution",
+  "rule": "include-semantics-substitution.3",
+  "why": "an object merged with a substitution in the included file keeps working after the fix-up, whichever of the two is on top: q is found at p.q",
+  "expect": {
+    "p": {
+      "o": {
+        "m": 1,
+        "n": 2
+      },
+      "r": {
+        "m": 1,
+        "n": 2
+      },
+      "q": {
+        "n": 2
+      }
+    }
+  },
+  "resolve": true
+}

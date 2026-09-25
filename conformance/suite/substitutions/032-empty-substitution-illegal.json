@@ -1,0 +1,6 @@
+{
+  "spec": "HOCON.md#substitutions",
+  "rule": "substitutions.1",
+  "why": "${} contains no path expression at all, so it is neither a substitution nor anything else",
+  "error": "BadPath"
+}

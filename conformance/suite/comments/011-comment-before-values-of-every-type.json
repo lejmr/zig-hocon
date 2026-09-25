@@ -1,0 +1,11 @@
+{
+  "spec": "HOCON.md#comments",
+  "rule": "comments.1",
+  "why": "a comment before a field is ignored whatever type its value has",
+  "expect": {
+    "a": 1.5,
+    "b": null,
+    "c": 9999999999,
+    "d": true
+  }
+}

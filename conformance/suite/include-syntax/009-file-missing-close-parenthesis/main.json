@@ -1,0 +1,6 @@
+{
+  "spec": "HOCON.md#include-syntax",
+  "rule": "include-syntax.3",
+  "why": "file(\"...\") must be closed; the line ends before the parenthesis",
+  "error": "Parse"
+}
