@@ -2,3 +2,5 @@ config.jar
 config-*.jar
 *.class
 venv/
+org.jacoco.*.jar
+config-*-src.tar.gz

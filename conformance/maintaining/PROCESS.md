@@ -140,3 +140,20 @@ would for an application. `run.sh` hands adapters the path to `main.conf`.
 A case that needs environment variables carries `"env": {"NAME": "value"}` in
 its sidecar. `run.sh` sets them for the adapter; `fill-expected.py` runs the
 oracle in a separate process with that environment for each such case.
+
+## What the reference implementation runs
+
+`java-coverage.sh` runs the whole suite through typesafe/config under JaCoCo
+and prints, per class, how many lines of the parser and resolver the cases
+reach. `java-coverage.py` holds the scope: the classes a `.conf` file can drive
+at all, the methods that exist only for the Java API (Map views, rendering
+options, document editing, serialization), the lines that are diagnostics or
+bug guards, and a table of lines a file cannot reach with the reason for each.
+Everything left is the denominator, and `coverage/uncovered.txt` lists what the
+suite still misses, line by line with its source.
+
+That list is where new cases come from: a line no case reaches is a rule no
+case asks about. `java-coverage.sh --probe` takes candidate inputs on stdin and
+says which of those lines they would reach, so a case can be shaped before it
+is written. The whole-library figure is printed alongside, so the scope stays a
+visible choice rather than a hidden one.
