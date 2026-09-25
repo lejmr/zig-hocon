@@ -4,11 +4,11 @@
   "version": "pyhocon 0.3.63",
   "mode": "spec",
   "command": "conformance/adapters/oracle.sh hocon-py",
-  "ran_at": "2026-09-24T19:35:13Z",
-  "suite_digest": "861d53fa812067bd",
-  "total": 322,
-  "passed": 252,
-  "percent": 78.3,
+  "ran_at": "2026-09-25T20:45:10Z",
+  "suite_digest": "ebb5354038d08af8",
+  "total": 401,
+  "passed": 297,
+  "percent": 74.1,
   "sections": {
     "array-and-object-concatenation": {
       "total": 17,
@@ -19,12 +19,12 @@
       "passed": 7
     },
     "commas": {
-      "total": 8,
-      "passed": 4
+      "total": 10,
+      "passed": 6
     },
     "comments": {
-      "total": 6,
-      "passed": 6
+      "total": 12,
+      "passed": 12
     },
     "concatenation-whitespace-and-substitutions": {
       "total": 9,
@@ -35,32 +35,44 @@
       "passed": 3
     },
     "duplicate-keys-and-object-merging": {
-      "total": 17,
-      "passed": 15
+      "total": 24,
+      "passed": 20
     },
     "duration-format": {
       "total": 9,
       "passed": 2
     },
+    "include-file-formats": {
+      "total": 20,
+      "passed": 2
+    },
+    "include-locating": {
+      "total": 1,
+      "passed": 1
+    },
     "include-merging": {
-      "total": 9,
-      "passed": 9
+      "total": 15,
+      "passed": 15
     },
     "include-missing-and-required": {
       "total": 6,
       "passed": 6
     },
     "include-substitution": {
-      "total": 15,
-      "passed": 10
+      "total": 18,
+      "passed": 12
     },
     "include-syntax": {
-      "total": 7,
-      "passed": 7
+      "total": 12,
+      "passed": 11
     },
     "key-value-separator": {
+      "total": 4,
+      "passed": 4
+    },
+    "list-values-from-environment-variables": {
       "total": 3,
-      "passed": 3
+      "passed": 2
     },
     "multi-line-strings": {
       "total": 7,
@@ -71,23 +83,23 @@
       "passed": 4
     },
     "omit-root-braces": {
-      "total": 11,
-      "passed": 10
+      "total": 12,
+      "passed": 11
     },
     "path-expressions": {
       "total": 20,
       "passed": 13
     },
     "paths-as-keys": {
-      "total": 10,
-      "passed": 8
+      "total": 11,
+      "passed": 9
     },
     "period-format": {
       "total": 7,
       "passed": 3
     },
     "plus-equals-field-separator": {
-      "total": 3,
+      "total": 7,
       "passed": 0
     },
     "self-referential-examples": {
@@ -103,28 +115,28 @@
       "passed": 4
     },
     "string-value-concatenation": {
-      "total": 19,
-      "passed": 17
+      "total": 20,
+      "passed": 18
     },
     "substitution-fallback-to-environment": {
       "total": 8,
       "passed": 7
     },
     "substitutions": {
-      "total": 29,
-      "passed": 26
+      "total": 35,
+      "passed": 30
     },
     "unchanged-from-json": {
-      "total": 14,
-      "passed": 7
+      "total": 23,
+      "passed": 12
     },
     "units-format": {
       "total": 6,
       "passed": 5
     },
     "unquoted-strings": {
-      "total": 18,
-      "passed": 13
+      "total": 21,
+      "passed": 15
     },
     "value-concatenation": {
       "total": 4,
@@ -168,12 +180,20 @@
     "commas/006-object-trailing-comma.conf": "pass",
     "commas/007-object-newline-no-comma.conf": "pass",
     "commas/008-object-double-comma-invalid.conf": "fail",
+    "commas/009-fields-on-one-line-need-a-comma.conf": "pass",
+    "commas/010-no-newline-at-end-of-file.conf": "pass",
     "comments/001-hash-comment.conf": "pass",
     "comments/002-double-slash-comment.conf": "pass",
     "comments/003-whole-line-comment.conf": "pass",
     "comments/004-comment-stops-at-newline.conf": "pass",
     "comments/005-hash-inside-quoted-string-is-not-a-comment.conf": "pass",
     "comments/006-double-slash-inside-quoted-string-is-not-a-comment.conf": "pass",
+    "comments/007-comment-between-separator-and-value.conf": "pass",
+    "comments/008-comment-then-blank-line-then-field.conf": "pass",
+    "comments/009-comment-inside-object.conf": "pass",
+    "comments/010-comments-inside-array.conf": "pass",
+    "comments/011-comment-before-values-of-every-type.conf": "pass",
+    "comments/012-comment-before-explicit-root-object.conf": "pass",
     "concatenation-whitespace-and-substitutions/001-unquoted-whitespace-between-substitutions-is-significant-for-strings.conf": "pass",
     "concatenation-whitespace-and-substitutions/002-quoted-whitespace-between-substitutions-is-error.conf": "pass",
     "concatenation-whitespace-and-substitutions/003-unquoted-whitespace-between-object-and-list-substitutions-is-ignored.conf": "pass",
@@ -205,6 +225,13 @@
     "duplicate-keys-and-object-merging/015-earlier-receiver-value-is-evaluated-once-merged.conf": "pass",
     "duplicate-keys-and-object-merging/016-null-deeper-in-a-merge-stack-stays-at-its-key.conf": "fail",
     "duplicate-keys-and-object-merging/017-lookup-into-nested-null-merges.conf": "pass",
+    "duplicate-keys-and-object-merging/018-empty-object-then-object.conf": "pass",
+    "duplicate-keys-and-object-merging/019-duplicate-keys-merge-inside-a-list-element.conf": "pass",
+    "duplicate-keys-and-object-merging/020-objects-and-substitutions-alternate.conf": "pass",
+    "duplicate-keys-and-object-merging/021-later-object-replaces-earlier-concatenation.conf": "fail",
+    "duplicate-keys-and-object-merging/022-scalar-then-empty-object-then-object.conf": "fail",
+    "duplicate-keys-and-object-merging/023-empty-object-then-substitution.conf": "pass",
+    "duplicate-keys-and-object-merging/024-merge-stack-nested-inside-a-merge-stack.conf": "pass",
     "duration-format/001-bare-number-is-milliseconds.conf": "pass",
     "duration-format/002-uppercase-unit-is-illegal.conf": "pass",
     "duration-format/003-nanoseconds-spellings.conf": "fail",
@@ -214,6 +241,27 @@
     "duration-format/007-minutes-spellings.conf": "fail",
     "duration-format/008-hours-spellings.conf": "fail",
     "duration-format/009-days-spellings.conf": "fail",
+    "include-file-formats/001-basename-loads-every-extension/main.conf": "fail",
+    "include-file-formats/002-basename-with-only-conf/main.conf": "fail",
+    "include-file-formats/003-basename-with-only-properties/main.conf": "fail",
+    "include-file-formats/004-basename-with-no-file-is-ignored.conf": "pass",
+    "include-file-formats/005-required-basename-with-no-file-is-error.conf": "pass",
+    "include-file-formats/006-json-extension-means-json-syntax/main.conf": "fail",
+    "include-file-formats/007-properties-extension-means-properties-syntax/main.conf": "fail",
+    "include-file-formats/008-properties-keys-are-paths/main.conf": "fail",
+    "include-file-formats/010-json-file-with-every-value-type/main.conf": "fail",
+    "include-file-formats/011-json-rejects-unquoted-values/main.conf": "fail",
+    "include-file-formats/012-json-rejects-substitutions/main.conf": "fail",
+    "include-file-formats/013-json-rejects-trailing-comma/main.conf": "fail",
+    "include-file-formats/014-json-rejects-duplicate-keys/main.conf": "fail",
+    "include-file-formats/015-json-array-needs-commas/main.conf": "fail",
+    "include-file-formats/016-json-rejects-empty-document/main.conf": "fail",
+    "include-file-formats/017-json-rejects-scalar-root/main.conf": "fail",
+    "include-file-formats/019-json-key-must-be-a-string/main.conf": "fail",
+    "include-file-formats/020-json-newline-is-not-a-separator/main.conf": "fail",
+    "include-file-formats/022-json-dotted-key-is-one-key/main.conf": "fail",
+    "include-file-formats/023-json-leading-zero-illegal/main.conf": "fail",
+    "include-locating/001-include-string-that-is-a-url-is-a-url.conf": "pass",
     "include-merging/001-included-keys-merge-in-place/main.conf": "pass",
     "include-merging/002-included-conf-array-root-is-error/main.conf": "pass",
     "include-merging/003-included-json-array-root-is-error/main.conf": "pass",
@@ -223,6 +271,12 @@
     "include-merging/007-included-scalar-replaces-earlier-object/main.conf": "pass",
     "include-merging/008-later-key-overrides-included-key/main.conf": "pass",
     "include-merging/009-later-object-merges-with-included-object/main.conf": "pass",
+    "include-merging/010-include-inside-an-object-inside-a-list/main.conf": "pass",
+    "include-merging/011-include-inside-a-list-with-a-substitution/main.conf": "pass",
+    "include-merging/012-included-merge-stack-over-earlier-object/main.conf": "pass",
+    "include-merging/013-included-merge-stack-over-earlier-substitution/main.conf": "pass",
+    "include-merging/014-included-merge-stack-over-earlier-scalar/main.conf": "pass",
+    "include-merging/015-included-object-on-top-of-substitution-over-earlier-substitution/main.conf": "pass",
     "include-missing-and-required/001-missing-include-ignored/main.conf": "pass",
     "include-missing-and-required/002-missing-include-is-empty-object/main.conf": "pass",
     "include-missing-and-required/003-missing-file-include-ignored/main.conf": "pass",
@@ -244,6 +298,9 @@
     "include-substitution/013-missing-leaf-under-existing-object-falls-back/main.conf": "pass",
     "include-substitution/014-unrelated-key-does-not-change-the-result/main.conf": "pass",
     "include-substitution/015-undefined-at-both-paths-is-error/main.conf": "pass",
+    "include-substitution/016-substitution-inside-a-concatenation-is-fixed-up/main.conf": "pass",
+    "include-substitution/017-substitution-inside-a-list-is-fixed-up/main.conf": "pass",
+    "include-substitution/018-substitution-in-a-merge-stack-is-fixed-up/main.conf": "fail",
     "include-syntax/001-include-later-in-key-is-literal.conf": "pass",
     "include-syntax/002-include-as-object-value-is-string.conf": "pass",
     "include-syntax/003-include-as-array-element-is-string.conf": "pass",
@@ -251,9 +308,18 @@
     "include-syntax/005-no-substitution-in-include-argument.conf": "pass",
     "include-syntax/006-include-argument-must-be-quoted.conf": "pass",
     "include-syntax/007-quoted-include-is-ordinary-key.conf": "pass",
+    "include-syntax/008-file-argument-must-be-quoted/main.conf": "pass",
+    "include-syntax/009-file-missing-close-parenthesis/main.conf": "pass",
+    "include-syntax/010-required-missing-close-parenthesis/main.conf": "pass",
+    "include-syntax/011-url-argument-must-be-a-url/main.conf": "pass",
+    "include-syntax/012-missing-classpath-resource-is-ignored.conf": "fail",
     "key-value-separator/001-equals-as-separator.conf": "pass",
     "key-value-separator/002-omitted-separator-before-object.conf": "pass",
     "key-value-separator/003-omitted-separator-unquoted-key.conf": "pass",
+    "key-value-separator/004-value-on-the-line-after-the-separator.conf": "pass",
+    "list-values-from-environment-variables/001-list-from-indexed-variables.conf": "fail",
+    "list-values-from-environment-variables/002-optional-list-with-no-elements-is-undefined.conf": "pass",
+    "list-values-from-environment-variables/003-required-list-with-no-elements-is-error.conf": "pass",
     "multi-line-strings/001-basic-triple-quote.conf": "pass",
     "multi-line-strings/002-newlines-and-whitespace-preserved.conf": "pass",
     "multi-line-strings/003-unicode-escape-not-interpreted.conf": "pass",
@@ -280,6 +346,7 @@
     "omit-root-braces/009-comment-before-array-root.conf": "pass",
     "omit-root-braces/010-blank-line-before-array-root.conf": "pass",
     "omit-root-braces/011-trailing-array-after-root-array.conf": "open",
+    "omit-root-braces/012-close-brace-after-value-on-one-line-illegal.conf": "pass",
     "path-expressions/001-quoted-dot-has-no-meaning.conf": "pass",
     "path-expressions/002-mixed-quoted-and-unquoted-path.conf": "fail",
     "path-expressions/003-number-then-unquoted-string.conf": "pass",
@@ -310,6 +377,7 @@
     "paths-as-keys/008-include-cannot-begin-key.conf": "fail",
     "paths-as-keys/009-include-not-at-start-is-ordinary.conf": "fail",
     "paths-as-keys/010-path-key-merges-with-brace-object.conf": "pass",
+    "paths-as-keys/011-whitespace-around-a-dot-stays-in-the-elements.conf": "pass",
     "period-format/001-bare-number-is-days.conf": "pass",
     "period-format/002-uppercase-unit-is-illegal.conf": "pass",
     "period-format/003-days-spellings.conf": "fail",
@@ -320,6 +388,10 @@
     "plus-equals-field-separator/001-plus-equals-desugars-to-optional-self-ref-array.conf": "fail",
     "plus-equals-field-separator/002-plus-equals-appends-to-existing-array.conf": "fail",
     "plus-equals-field-separator/003-plus-equals-errors-on-non-array-previous-value.conf": "fail",
+    "plus-equals-field-separator/004-plus-equals-twice.conf": "fail",
+    "plus-equals-field-separator/005-plus-equals-in-nested-object-with-substitution.conf": "fail",
+    "plus-equals-field-separator/006-plus-equals-inside-a-list-element.conf": "fail",
+    "plus-equals-field-separator/007-plus-equals-under-a-dotted-key.conf": "fail",
     "self-referential-examples/001-isolated-self-reference-is-an-error.conf": "pass",
     "self-referential-examples/002-self-reference-resolves-to-earlier-merged-value.conf": "pass",
     "self-referential-examples/003-self-reference-before-any-value-is-undefined.conf": "pass",
@@ -373,6 +445,7 @@
     "string-value-concatenation/017-operator-like-text-between-arrays.conf": "pass",
     "string-value-concatenation/018-line-comment-after-array.conf": "pass",
     "string-value-concatenation/019-hash-comment-after-array-without-space.conf": "pass",
+    "string-value-concatenation/020-64-bit-number-kept-as-written.conf": "pass",
     "substitution-fallback-to-environment/001-env-fallback-for-undefined-path.conf": "pass",
     "substitution-fallback-to-environment/002-required-substitution-resolved-from-env.conf": "pass",
     "substitution-fallback-to-environment/003-config-value-wins-over-env.conf": "pass",
@@ -410,6 +483,12 @@
     "substitutions/028-optional-substitution-to-null-value-is-defined.conf": "fail",
     "substitutions/029-substitution-path-quoted-element.conf": "pass",
     "substitutions/030-quoted-key-is-not-a-substitution.conf": "pass",
+    "substitutions/031-whitespace-inside-braces-is-trimmed.conf": "fail",
+    "substitutions/032-empty-substitution-illegal.conf": "pass",
+    "substitutions/033-path-through-a-non-object-is-undefined.conf": "pass",
+    "substitutions/034-optional-path-through-a-non-object-is-omitted.conf": "fail",
+    "substitutions/035-quoted-path-element-with-space-is-undefined.conf": "pass",
+    "substitutions/036-empty-quoted-path-element-is-undefined.conf": "pass",
     "unchanged-from-json/001-quoted-string-json-format.conf": "fail",
     "unchanged-from-json/002-string-value-type.conf": "pass",
     "unchanged-from-json/003-number-value-type.conf": "pass",
@@ -424,6 +503,15 @@
     "unchanged-from-json/012-number-with-trailing-dot-illegal.conf": "fail",
     "unchanged-from-json/013-trailing-dot-before-exponent-illegal.conf": "fail",
     "unchanged-from-json/014-negative-leading-zeros-illegal.conf": "fail",
+    "unchanged-from-json/015-remaining-json-escapes.conf": "fail",
+    "unchanged-from-json/016-unknown-escape-illegal.conf": "fail",
+    "unchanged-from-json/017-non-hex-unicode-escape-illegal.conf": "fail",
+    "unchanged-from-json/018-unterminated-quoted-string-illegal.conf": "pass",
+    "unchanged-from-json/019-backslash-at-end-of-file-illegal.conf": "pass",
+    "unchanged-from-json/020-unicode-escape-cut-off-by-end-of-file-illegal.conf": "pass",
+    "unchanged-from-json/021-raw-newline-in-quoted-string-illegal.conf": "pass",
+    "unchanged-from-json/022-raw-tab-in-quoted-string-illegal.conf": "fail",
+    "unchanged-from-json/023-64-bit-integer.conf": "pass",
     "units-format/001-number-value-is-default-unit.conf": "pass",
     "units-format/002-quoted-string-with-no-unit-uses-default-unit.conf": "pass",
     "units-format/003-string-with-unit-name-specifies-interpretation.conf": "fail",
@@ -448,6 +536,9 @@
     "unquoted-strings/016-control-char-allowed-unquoted.conf": "pass",
     "unquoted-strings/017-control-char-forbidden-in-quoted.conf": "fail",
     "unquoted-strings/018-leading-dot-is-not-a-number.conf": "fail",
+    "unquoted-strings/019-dollar-must-start-a-substitution.conf": "pass",
+    "unquoted-strings/020-plus-must-be-followed-by-equals.conf": "pass",
+    "unquoted-strings/021-plus-inside-a-number-illegal.conf": "fail",
     "value-concatenation/001-simple-values-concatenate-to-string.conf": "pass",
     "value-concatenation/002-arrays-concatenate-into-one-array.conf": "pass",
     "value-concatenation/003-objects-concatenate-by-merging.conf": "pass",
@@ -468,9 +559,15 @@
     "duplicate-keys-and-object-merging/013-top-level-null-before-object-with-substitution.conf": "{\"v\":{\"x\":1},\"pending\":1,\"a\":{\"helper\":0,\"x\":1}}",
     "duplicate-keys-and-object-merging/016-null-deeper-in-a-merge-stack-stays-at-its-key.conf": "rejected",
     "duplicate-keys-and-object-merging/017-lookup-into-nested-null-merges.conf": "{\"a\":{\"n\":{\"d\":{\"x\":1}}},\"p\":{\"x\":1},\"o24bbd\":{\"x\":1}}",
+    "include-file-formats/006-json-extension-means-json-syntax/main.conf": "{\"a\":\"b\"}",
+    "include-file-formats/007-properties-extension-means-properties-syntax/main.conf": "rejected",
+    "include-file-formats/023-json-leading-zero-illegal/main.conf": "{}",
+    "include-merging/011-include-inside-a-list-with-a-substitution/main.conf": "{\"a\":[{\"x\":1}],\"y\":1}",
     "include-substitution/009-undefined-optional-at-fixed-up-path-falls-back/main.conf": "{\"common\":{\"x\":{},\"a\":0},\"x\":{\"y\":0}}",
     "include-substitution/011-optional-reference-falls-back-too/main.conf": "{\"common\":{\"x\":{},\"a\":0},\"x\":{\"y\":0}}",
     "include-substitution/014-unrelated-key-does-not-change-the-result/main.conf": "{\"common\":{\"x\":{},\"a\":0},\"x\":{\"y\":0},\"zzz\":{}}",
+    "list-values-from-environment-variables/001-list-from-indexed-variables.conf": "rejected",
+    "list-values-from-environment-variables/002-optional-list-with-no-elements-is-undefined.conf": "{}",
     "omit-root-braces/006-array-root-unaffected.conf": "[1,2,3]",
     "omit-root-braces/007-array-root-of-objects.conf": "[{\"a\":1},{\"b\":2}]",
     "omit-root-braces/008-empty-array-root.conf": "[]",
@@ -478,6 +575,7 @@
     "omit-root-braces/010-blank-line-before-array-root.conf": "[1,2]",
     "omit-root-braces/011-trailing-array-after-root-array.conf": "rejected",
     "paths-as-keys/008-include-cannot-begin-key.conf": "{\"include\":{\"foo\":42}}",
+    "plus-equals-field-separator/006-plus-equals-inside-a-list-element.conf": "{\"a\":[{\"b\":1}]}",
     "self-referential-examples/015-list-hidden-by-substituted-object-is-never-evaluated.conf": "{\"wrapper\":{},\"replacement\":{}}",
     "self-referential-examples/016-object-hidden-by-substituted-scalar-is-never-evaluated.conf": "rejected",
     "self-referential-examples/017-object-hidden-by-substituted-concatenation-is-never-evaluated.conf": "rejected",
@@ -624,6 +722,29 @@
       "java": "diverges"
     },
     {
+      "case": "duplicate-keys-and-object-merging/021-later-object-replaces-earlier-concatenation.conf",
+      "spec": "HOCON.md#duplicate-keys-and-object-merging",
+      "rule": "a string concatenation is a non-object value, so the later object replaces it rather than merging with it",
+      "expected": {
+        "a": {
+          "z": 1
+        },
+        "x": 1
+      },
+      "got": "rejected (exit 1)"
+    },
+    {
+      "case": "duplicate-keys-and-object-merging/022-scalar-then-empty-object-then-object.conf",
+      "spec": "HOCON.md#duplicate-keys-and-object-merging",
+      "rule": "the number cuts the merge off from anything before it; the empty object and the object after it still merge with each other",
+      "expected": {
+        "a": {
+          "x": 1
+        }
+      },
+      "got": "rejected (exit 1)"
+    },
+    {
       "case": "duration-format/003-nanoseconds-spellings.conf",
       "spec": "HOCON.md#duration-format",
       "rule": "exactly ns, nano, nanos, nanosecond, nanoseconds are the supported unit strings for nanoseconds",
@@ -741,6 +862,171 @@
       }
     },
     {
+      "case": "include-file-formats/001-basename-loads-every-extension/main.conf",
+      "spec": "HOCON.md#include-semantics-file-formats-and-extensions",
+      "rule": "a name without an extension is a basename: all of base.properties, base.json and base.conf exist, so all three are loaded and merged, properties first and HOCON last, so the .conf value wins where they overlap",
+      "expected": {
+        "a": "conf",
+        "b": "json",
+        "c": "conf",
+        "d": "json",
+        "e": "props"
+      },
+      "got": {}
+    },
+    {
+      "case": "include-file-formats/002-basename-with-only-conf/main.conf",
+      "spec": "HOCON.md#include-semantics-file-formats-and-extensions",
+      "rule": "a basename with only base.conf present loads just that file",
+      "expected": {
+        "a": 1
+      },
+      "got": {}
+    },
+    {
+      "case": "include-file-formats/003-basename-with-only-properties/main.conf",
+      "spec": "HOCON.md#include-semantics-file-formats-and-extensions",
+      "rule": "a basename with only base.properties present loads it as Java properties, whose values are all strings",
+      "expected": {
+        "a": "1"
+      },
+      "got": {}
+    },
+    {
+      "case": "include-file-formats/006-json-extension-means-json-syntax/main.conf",
+      "spec": "HOCON.md#include-semantics-file-formats-and-extensions",
+      "rule": "a file named .json is in JSON format, and an unquoted value is not JSON. typesafe/config parses a .json named outright with the HOCON parser, so the file is accepted; the same file found through a basename is rejected",
+      "expected": "rejected",
+      "got": "{\"a\":\"b\"}",
+      "java": "lenient"
+    },
+    {
+      "case": "include-file-formats/007-properties-extension-means-properties-syntax/main.conf",
+      "spec": "HOCON.md#include-semantics-file-formats-and-extensions",
+      "rule": "a file named .properties is in Java properties format, where the first = separates key from value and values are strings. typesafe/config parses a .properties named outright with the HOCON parser and fails on the second =; the same file found through a basename is read as properties",
+      "expected": {
+        "a": "b=c",
+        "n": "1"
+      },
+      "got": "rejected (exit 1)",
+      "java": "unsupported"
+    },
+    {
+      "case": "include-file-formats/008-properties-keys-are-paths/main.conf",
+      "spec": "HOCON.md#include-semantics-file-formats-and-extensions",
+      "rule": "in a properties file a dotted key is a path, so a.b and a.c build an object at a; a value at a itself is dropped because an object is already there, and values are strings",
+      "expected": {
+        "a": {
+          "b": "1",
+          "c": "2"
+        },
+        "d": "3",
+        "e": {
+          "f": {
+            "g": "5"
+          }
+        }
+      },
+      "got": {}
+    },
+    {
+      "case": "include-file-formats/010-json-file-with-every-value-type/main.conf",
+      "spec": "HOCON.md#include-semantics-file-formats-and-extensions",
+      "rule": "a .json file found through a basename is parsed as JSON and contributes its object",
+      "expected": {
+        "a": 1,
+        "b": [
+          1,
+          2
+        ],
+        "c": {
+          "d": true,
+          "e": null
+        }
+      },
+      "got": {}
+    },
+    {
+      "case": "include-file-formats/011-json-rejects-unquoted-values/main.conf",
+      "spec": "HOCON.md#include-semantics-file-formats-and-extensions",
+      "rule": "the .json file is found through a basename, so it is parsed as JSON; an unquoted value is a HOCON extension, not JSON",
+      "expected": "rejected",
+      "got": "{}"
+    },
+    {
+      "case": "include-file-formats/012-json-rejects-substitutions/main.conf",
+      "spec": "HOCON.md#include-semantics-file-formats-and-extensions",
+      "rule": "the .json file is found through a basename, so it is parsed as JSON; ${} is a HOCON extension, not JSON",
+      "expected": "rejected",
+      "got": "{}"
+    },
+    {
+      "case": "include-file-formats/013-json-rejects-trailing-comma/main.conf",
+      "spec": "HOCON.md#include-semantics-file-formats-and-extensions",
+      "rule": "the .json file is found through a basename, so it is parsed as JSON; JSON has no trailing commas",
+      "expected": "rejected",
+      "got": "{}"
+    },
+    {
+      "case": "include-file-formats/014-json-rejects-duplicate-keys/main.conf",
+      "spec": "HOCON.md#include-semantics-file-formats-and-extensions",
+      "rule": "the .json file is found through a basename, so it is parsed as JSON; JSON objects do not merge duplicate keys; the second a is an error rather than an override",
+      "expected": "rejected",
+      "got": "{}"
+    },
+    {
+      "case": "include-file-formats/015-json-array-needs-commas/main.conf",
+      "spec": "HOCON.md#include-semantics-file-formats-and-extensions",
+      "rule": "the .json file is found through a basename, so it is parsed as JSON; JSON separates array elements with commas only; whitespace does not concatenate or separate",
+      "expected": "rejected",
+      "got": "{}"
+    },
+    {
+      "case": "include-file-formats/016-json-rejects-empty-document/main.conf",
+      "spec": "HOCON.md#include-semantics-file-formats-and-extensions",
+      "rule": "the .json file is found through a basename, so it is parsed as JSON; an empty document is not JSON, although it is an empty HOCON object",
+      "expected": "rejected",
+      "got": "{}"
+    },
+    {
+      "case": "include-file-formats/017-json-rejects-scalar-root/main.conf",
+      "spec": "HOCON.md#include-semantics-file-formats-and-extensions",
+      "rule": "the .json file is found through a basename, so it is parsed as JSON; a JSON document included here must be an object; a bare number is neither an object nor valid as an included root",
+      "expected": "rejected",
+      "got": "{}"
+    },
+    {
+      "case": "include-file-formats/019-json-key-must-be-a-string/main.conf",
+      "spec": "HOCON.md#include-semantics-file-formats-and-extensions",
+      "rule": "the .json file is found through a basename, so it is parsed as JSON; a JSON key is a quoted string; a number cannot be a key",
+      "expected": "rejected",
+      "got": "{}"
+    },
+    {
+      "case": "include-file-formats/020-json-newline-is-not-a-separator/main.conf",
+      "spec": "HOCON.md#include-semantics-file-formats-and-extensions",
+      "rule": "the .json file is found through a basename, so it is parsed as JSON; in JSON a newline between fields does not stand in for the comma",
+      "expected": "rejected",
+      "got": "{}"
+    },
+    {
+      "case": "include-file-formats/022-json-dotted-key-is-one-key/main.conf",
+      "spec": "HOCON.md#include-semantics-file-formats-and-extensions",
+      "rule": "the .json file is found through a basename, so it is parsed as JSON; a JSON key is a plain string, not a path expression, so a.b stays a single key",
+      "expected": {
+        "a.b": 1
+      },
+      "got": {}
+    },
+    {
+      "case": "include-file-formats/023-json-leading-zero-illegal/main.conf",
+      "spec": "HOCON.md#include-semantics-file-formats-and-extensions",
+      "rule": "the .json file is found through a basename, so it is parsed as JSON; JSON forbids a leading zero on a number. typesafe/config reads 01 as 1, the same leniency it shows in HOCON",
+      "expected": "rejected",
+      "got": "{}",
+      "java": "lenient"
+    },
+    {
       "case": "include-substitution/001-substitution-relativized-to-include-scope/main.conf",
       "spec": "HOCON.md#include-semantics-substitution",
       "rule": "a substitution in an included file must be fixed up to be relative to the app's configuration root, so ${x} in a file included at key a becomes ${a.x}",
@@ -823,6 +1109,47 @@
           "y": 0
         }
       }
+    },
+    {
+      "case": "include-substitution/018-substitution-in-a-merge-stack-is-fixed-up/main.conf",
+      "spec": "HOCON.md#include-semantics-substitution",
+      "rule": "an object merged with a substitution in the included file keeps working after the fix-up, whichever of the two is on top: q is found at p.q",
+      "expected": {
+        "p": {
+          "o": {
+            "m": 1,
+            "n": 2
+          },
+          "r": {
+            "m": 1,
+            "n": 2
+          },
+          "q": {
+            "n": 2
+          }
+        }
+      },
+      "got": "rejected (exit 1)"
+    },
+    {
+      "case": "include-syntax/012-missing-classpath-resource-is-ignored.conf",
+      "spec": "HOCON.md#include-syntax",
+      "rule": "a classpath() include names a resource; when it does not exist the include is ignored like any other missing include, and an implementation without a classpath has nothing to find there either",
+      "expected": {},
+      "got": "rejected (exit 1)"
+    },
+    {
+      "case": "list-values-from-environment-variables/001-list-from-indexed-variables.conf",
+      "spec": "HOCON.md#list-values-from-environment-variables",
+      "rule": "the [] suffix collects CONFORMANCE_LIST_0, CONFORMANCE_LIST_1, ... until an index is missing, into a list of strings. typesafe/config 1.4.5 predates the syntax and rejects the path",
+      "expected": {
+        "a": [
+          "x",
+          "y"
+        ]
+      },
+      "got": "rejected (exit 1)",
+      "java": "unsupported"
     },
     {
       "case": "numerically-indexed-objects-to-arrays/003-concatenation-converts-numeric-object-to-array.conf",
@@ -1057,6 +1384,85 @@
       "got": "{\"a\":\"1 b\"}"
     },
     {
+      "case": "plus-equals-field-separator/004-plus-equals-twice.conf",
+      "spec": "HOCON.md#the--field-separator",
+      "rule": "each += appends to the value the previous line left, so two of them append two elements",
+      "expected": {
+        "a": [
+          1,
+          2,
+          3
+        ]
+      },
+      "got": {
+        "a": 3
+      }
+    },
+    {
+      "case": "plus-equals-field-separator/005-plus-equals-in-nested-object-with-substitution.conf",
+      "spec": "HOCON.md#the--field-separator",
+      "rule": "inside an object, += desugars to a self-reference by the field's full path o.a; the appended element may itself be a substitution",
+      "expected": {
+        "o": {
+          "a": [
+            1,
+            2
+          ]
+        },
+        "x": 2
+      },
+      "got": {
+        "o": {
+          "a": 2
+        },
+        "x": 2
+      }
+    },
+    {
+      "case": "plus-equals-field-separator/006-plus-equals-inside-a-list-element.conf",
+      "spec": "HOCON.md#the--field-separator",
+      "rule": "b has no previous value, so b += 1 is b = ${?b} [1] with the optional part undefined: [1]. typesafe/config refuses += inside a list because its desugared path cannot name a list element",
+      "expected": {
+        "a": [
+          {
+            "b": [
+              1
+            ]
+          }
+        ]
+      },
+      "got": {
+        "a": [
+          {
+            "b": 1
+          }
+        ]
+      },
+      "java": "unsupported"
+    },
+    {
+      "case": "plus-equals-field-separator/007-plus-equals-under-a-dotted-key.conf",
+      "spec": "HOCON.md#the--field-separator",
+      "rule": "the self-reference += desugars to uses the full path of the field, o.p.a, even when the enclosing key was written as the path o.p",
+      "expected": {
+        "o": {
+          "p": {
+            "a": [
+              1,
+              2
+            ]
+          }
+        }
+      },
+      "got": {
+        "o": {
+          "p": {
+            "a": 2
+          }
+        }
+      }
+    },
+    {
       "case": "self-referential-examples/016-object-hidden-by-substituted-scalar-is-never-evaluated.conf",
       "spec": "HOCON.md#examples-of-self-referential-substitutions",
       "rule": "${replacement} resolves to 42, a non-object, so the earlier object is hidden and never evaluated -- as with the literal in 005. typesafe/config 1.4.5 evaluates it; 1.4.9 and later do not",
@@ -1209,7 +1615,7 @@
         "a": "null bar"
       },
       "got": {
-        "a": "<pyhocon.config_tree.NoneValue object at 0x106671910>bar"
+        "a": "<pyhocon.config_tree.NoneValue object at 0x102703350>bar"
       }
     },
     {
@@ -1273,6 +1679,25 @@
       }
     },
     {
+      "case": "substitutions/031-whitespace-inside-braces-is-trimmed.conf",
+      "spec": "HOCON.md#substitutions",
+      "rule": "the path inside ${} has the syntax of an object key, and whitespace before the first and after the last element of a key is discarded, so ${ b } is ${b}",
+      "expected": {
+        "a": 1,
+        "b": 1
+      },
+      "got": "rejected (exit 1)"
+    },
+    {
+      "case": "substitutions/034-optional-path-through-a-non-object-is-omitted.conf",
+      "spec": "HOCON.md#substitutions",
+      "rule": "the same path with the optional form: undefined, so the field is not created",
+      "expected": {
+        "a": 1
+      },
+      "got": "rejected (exit 1)"
+    },
+    {
       "case": "unchanged-from-json/001-quoted-string-json-format.conf",
       "spec": "HOCON.md#unchanged-from-json",
       "rule": "quoted strings are in the same format as JSON strings, so JSON escapes like \\n, \\t, \\\", \\\\ and \\u unicode escapes are honored",
@@ -1332,6 +1757,38 @@
       "java": "lenient"
     },
     {
+      "case": "unchanged-from-json/015-remaining-json-escapes.conf",
+      "spec": "HOCON.md#unchanged-from-json",
+      "rule": "the JSON escapes \\/ \\b \\f and \\r are valid in a quoted string and mean slash, backspace, form feed and carriage return",
+      "expected": {
+        "a": "/\b\f\r"
+      },
+      "got": {
+        "a": "\\/\\b\\f\r"
+      }
+    },
+    {
+      "case": "unchanged-from-json/016-unknown-escape-illegal.conf",
+      "spec": "HOCON.md#unchanged-from-json",
+      "rule": "only the JSON escape sequences exist; \\q is not one of them, so the string is invalid",
+      "expected": "rejected",
+      "got": "{\"a\":\"\\\\q\"}"
+    },
+    {
+      "case": "unchanged-from-json/017-non-hex-unicode-escape-illegal.conf",
+      "spec": "HOCON.md#unchanged-from-json",
+      "rule": "\\u must be followed by exactly four hex digits; zzzz are not hex digits",
+      "expected": "rejected",
+      "got": "{\"a\":\"\\\\uzzzz\"}"
+    },
+    {
+      "case": "unchanged-from-json/022-raw-tab-in-quoted-string-illegal.conf",
+      "spec": "HOCON.md#unchanged-from-json",
+      "rule": "a raw tab is a control character too, so it must be written as \\t inside quotes",
+      "expected": "rejected",
+      "got": "{\"a\":\"x  y\"}"
+    },
+    {
       "case": "units-format/003-string-with-unit-name-specifies-interpretation.conf",
       "spec": "HOCON.md#units-format",
       "rule": "a string value with a unit name has that name specify the value's interpretation",
@@ -1385,6 +1842,13 @@
       "got": {
         "a": 0.33
       }
+    },
+    {
+      "case": "unquoted-strings/021-plus-inside-a-number-illegal.conf",
+      "spec": "HOCON.md#unquoted-strings",
+      "rule": "1+2 begins like a number and is not one; + is a forbidden character, so the token cannot fall back to an unquoted string either",
+      "expected": "rejected",
+      "got": "{\"a\":\"12\"}"
     },
     {
       "case": "whitespace/001-nonbreaking-space-as-whitespace.conf",

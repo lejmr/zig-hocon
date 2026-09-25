@@ -4,11 +4,11 @@
   "version": "typesafe/config 1.4.5",
   "mode": "java",
   "command": "conformance/adapters/oracle.sh hocon-java",
-  "ran_at": "2026-09-24T19:33:36Z",
-  "suite_digest": "861d53fa812067bd",
-  "total": 322,
-  "passed": 321,
-  "percent": 99.7,
+  "ran_at": "2026-09-25T20:43:32Z",
+  "suite_digest": "ebb5354038d08af8",
+  "total": 401,
+  "passed": 400,
+  "percent": 99.8,
   "sections": {
     "array-and-object-concatenation": {
       "total": 17,
@@ -19,12 +19,12 @@
       "passed": 7
     },
     "commas": {
-      "total": 8,
-      "passed": 8
+      "total": 10,
+      "passed": 10
     },
     "comments": {
-      "total": 6,
-      "passed": 6
+      "total": 12,
+      "passed": 12
     },
     "concatenation-whitespace-and-substitutions": {
       "total": 9,
@@ -35,30 +35,42 @@
       "passed": 5
     },
     "duplicate-keys-and-object-merging": {
-      "total": 17,
-      "passed": 17
+      "total": 24,
+      "passed": 24
     },
     "duration-format": {
       "total": 9,
       "passed": 9
     },
+    "include-file-formats": {
+      "total": 20,
+      "passed": 20
+    },
+    "include-locating": {
+      "total": 1,
+      "passed": 1
+    },
     "include-merging": {
-      "total": 9,
-      "passed": 9
+      "total": 15,
+      "passed": 15
     },
     "include-missing-and-required": {
       "total": 6,
       "passed": 6
     },
     "include-substitution": {
-      "total": 15,
-      "passed": 15
+      "total": 18,
+      "passed": 18
     },
     "include-syntax": {
-      "total": 7,
-      "passed": 7
+      "total": 12,
+      "passed": 12
     },
     "key-value-separator": {
+      "total": 4,
+      "passed": 4
+    },
+    "list-values-from-environment-variables": {
       "total": 3,
       "passed": 3
     },
@@ -71,24 +83,24 @@
       "passed": 8
     },
     "omit-root-braces": {
-      "total": 11,
-      "passed": 10
+      "total": 12,
+      "passed": 11
     },
     "path-expressions": {
       "total": 20,
       "passed": 20
     },
     "paths-as-keys": {
-      "total": 10,
-      "passed": 10
+      "total": 11,
+      "passed": 11
     },
     "period-format": {
       "total": 7,
       "passed": 7
     },
     "plus-equals-field-separator": {
-      "total": 3,
-      "passed": 3
+      "total": 7,
+      "passed": 7
     },
     "self-referential-examples": {
       "total": 23,
@@ -103,28 +115,28 @@
       "passed": 5
     },
     "string-value-concatenation": {
-      "total": 19,
-      "passed": 19
+      "total": 20,
+      "passed": 20
     },
     "substitution-fallback-to-environment": {
       "total": 8,
       "passed": 8
     },
     "substitutions": {
-      "total": 29,
-      "passed": 29
+      "total": 35,
+      "passed": 35
     },
     "unchanged-from-json": {
-      "total": 14,
-      "passed": 14
+      "total": 23,
+      "passed": 23
     },
     "units-format": {
       "total": 6,
       "passed": 6
     },
     "unquoted-strings": {
-      "total": 18,
-      "passed": 18
+      "total": 21,
+      "passed": 21
     },
     "value-concatenation": {
       "total": 4,
@@ -168,12 +180,20 @@
     "commas/006-object-trailing-comma.conf": "pass",
     "commas/007-object-newline-no-comma.conf": "pass",
     "commas/008-object-double-comma-invalid.conf": "pass",
+    "commas/009-fields-on-one-line-need-a-comma.conf": "pass",
+    "commas/010-no-newline-at-end-of-file.conf": "pass",
     "comments/001-hash-comment.conf": "pass",
     "comments/002-double-slash-comment.conf": "pass",
     "comments/003-whole-line-comment.conf": "pass",
     "comments/004-comment-stops-at-newline.conf": "pass",
     "comments/005-hash-inside-quoted-string-is-not-a-comment.conf": "pass",
     "comments/006-double-slash-inside-quoted-string-is-not-a-comment.conf": "pass",
+    "comments/007-comment-between-separator-and-value.conf": "pass",
+    "comments/008-comment-then-blank-line-then-field.conf": "pass",
+    "comments/009-comment-inside-object.conf": "pass",
+    "comments/010-comments-inside-array.conf": "pass",
+    "comments/011-comment-before-values-of-every-type.conf": "pass",
+    "comments/012-comment-before-explicit-root-object.conf": "pass",
     "concatenation-whitespace-and-substitutions/001-unquoted-whitespace-between-substitutions-is-significant-for-strings.conf": "pass",
     "concatenation-whitespace-and-substitutions/002-quoted-whitespace-between-substitutions-is-error.conf": "pass",
     "concatenation-whitespace-and-substitutions/003-unquoted-whitespace-between-object-and-list-substitutions-is-ignored.conf": "pass",
@@ -205,6 +225,13 @@
     "duplicate-keys-and-object-merging/015-earlier-receiver-value-is-evaluated-once-merged.conf": "pass",
     "duplicate-keys-and-object-merging/016-null-deeper-in-a-merge-stack-stays-at-its-key.conf": "pass",
     "duplicate-keys-and-object-merging/017-lookup-into-nested-null-merges.conf": "pass",
+    "duplicate-keys-and-object-merging/018-empty-object-then-object.conf": "pass",
+    "duplicate-keys-and-object-merging/019-duplicate-keys-merge-inside-a-list-element.conf": "pass",
+    "duplicate-keys-and-object-merging/020-objects-and-substitutions-alternate.conf": "pass",
+    "duplicate-keys-and-object-merging/021-later-object-replaces-earlier-concatenation.conf": "pass",
+    "duplicate-keys-and-object-merging/022-scalar-then-empty-object-then-object.conf": "pass",
+    "duplicate-keys-and-object-merging/023-empty-object-then-substitution.conf": "pass",
+    "duplicate-keys-and-object-merging/024-merge-stack-nested-inside-a-merge-stack.conf": "pass",
     "duration-format/001-bare-number-is-milliseconds.conf": "pass",
     "duration-format/002-uppercase-unit-is-illegal.conf": "pass",
     "duration-format/003-nanoseconds-spellings.conf": "pass",
@@ -214,6 +241,27 @@
     "duration-format/007-minutes-spellings.conf": "pass",
     "duration-format/008-hours-spellings.conf": "pass",
     "duration-format/009-days-spellings.conf": "pass",
+    "include-file-formats/001-basename-loads-every-extension/main.conf": "pass",
+    "include-file-formats/002-basename-with-only-conf/main.conf": "pass",
+    "include-file-formats/003-basename-with-only-properties/main.conf": "pass",
+    "include-file-formats/004-basename-with-no-file-is-ignored.conf": "pass",
+    "include-file-formats/005-required-basename-with-no-file-is-error.conf": "pass",
+    "include-file-formats/006-json-extension-means-json-syntax/main.conf": "pass",
+    "include-file-formats/007-properties-extension-means-properties-syntax/main.conf": "pass",
+    "include-file-formats/008-properties-keys-are-paths/main.conf": "pass",
+    "include-file-formats/010-json-file-with-every-value-type/main.conf": "pass",
+    "include-file-formats/011-json-rejects-unquoted-values/main.conf": "pass",
+    "include-file-formats/012-json-rejects-substitutions/main.conf": "pass",
+    "include-file-formats/013-json-rejects-trailing-comma/main.conf": "pass",
+    "include-file-formats/014-json-rejects-duplicate-keys/main.conf": "pass",
+    "include-file-formats/015-json-array-needs-commas/main.conf": "pass",
+    "include-file-formats/016-json-rejects-empty-document/main.conf": "pass",
+    "include-file-formats/017-json-rejects-scalar-root/main.conf": "pass",
+    "include-file-formats/019-json-key-must-be-a-string/main.conf": "pass",
+    "include-file-formats/020-json-newline-is-not-a-separator/main.conf": "pass",
+    "include-file-formats/022-json-dotted-key-is-one-key/main.conf": "pass",
+    "include-file-formats/023-json-leading-zero-illegal/main.conf": "pass",
+    "include-locating/001-include-string-that-is-a-url-is-a-url.conf": "pass",
     "include-merging/001-included-keys-merge-in-place/main.conf": "pass",
     "include-merging/002-included-conf-array-root-is-error/main.conf": "pass",
     "include-merging/003-included-json-array-root-is-error/main.conf": "pass",
@@ -223,6 +271,12 @@
     "include-merging/007-included-scalar-replaces-earlier-object/main.conf": "pass",
     "include-merging/008-later-key-overrides-included-key/main.conf": "pass",
     "include-merging/009-later-object-merges-with-included-object/main.conf": "pass",
+    "include-merging/010-include-inside-an-object-inside-a-list/main.conf": "pass",
+    "include-merging/011-include-inside-a-list-with-a-substitution/main.conf": "pass",
+    "include-merging/012-included-merge-stack-over-earlier-object/main.conf": "pass",
+    "include-merging/013-included-merge-stack-over-earlier-substitution/main.conf": "pass",
+    "include-merging/014-included-merge-stack-over-earlier-scalar/main.conf": "pass",
+    "include-merging/015-included-object-on-top-of-substitution-over-earlier-substitution/main.conf": "pass",
     "include-missing-and-required/001-missing-include-ignored/main.conf": "pass",
     "include-missing-and-required/002-missing-include-is-empty-object/main.conf": "pass",
     "include-missing-and-required/003-missing-file-include-ignored/main.conf": "pass",
@@ -244,6 +298,9 @@
     "include-substitution/013-missing-leaf-under-existing-object-falls-back/main.conf": "pass",
     "include-substitution/014-unrelated-key-does-not-change-the-result/main.conf": "pass",
     "include-substitution/015-undefined-at-both-paths-is-error/main.conf": "pass",
+    "include-substitution/016-substitution-inside-a-concatenation-is-fixed-up/main.conf": "pass",
+    "include-substitution/017-substitution-inside-a-list-is-fixed-up/main.conf": "pass",
+    "include-substitution/018-substitution-in-a-merge-stack-is-fixed-up/main.conf": "pass",
     "include-syntax/001-include-later-in-key-is-literal.conf": "pass",
     "include-syntax/002-include-as-object-value-is-string.conf": "pass",
     "include-syntax/003-include-as-array-element-is-string.conf": "pass",
@@ -251,9 +308,18 @@
     "include-syntax/005-no-substitution-in-include-argument.conf": "pass",
     "include-syntax/006-include-argument-must-be-quoted.conf": "pass",
     "include-syntax/007-quoted-include-is-ordinary-key.conf": "pass",
+    "include-syntax/008-file-argument-must-be-quoted/main.conf": "pass",
+    "include-syntax/009-file-missing-close-parenthesis/main.conf": "pass",
+    "include-syntax/010-required-missing-close-parenthesis/main.conf": "pass",
+    "include-syntax/011-url-argument-must-be-a-url/main.conf": "pass",
+    "include-syntax/012-missing-classpath-resource-is-ignored.conf": "pass",
     "key-value-separator/001-equals-as-separator.conf": "pass",
     "key-value-separator/002-omitted-separator-before-object.conf": "pass",
     "key-value-separator/003-omitted-separator-unquoted-key.conf": "pass",
+    "key-value-separator/004-value-on-the-line-after-the-separator.conf": "pass",
+    "list-values-from-environment-variables/001-list-from-indexed-variables.conf": "pass",
+    "list-values-from-environment-variables/002-optional-list-with-no-elements-is-undefined.conf": "pass",
+    "list-values-from-environment-variables/003-required-list-with-no-elements-is-error.conf": "pass",
     "multi-line-strings/001-basic-triple-quote.conf": "pass",
     "multi-line-strings/002-newlines-and-whitespace-preserved.conf": "pass",
     "multi-line-strings/003-unicode-escape-not-interpreted.conf": "pass",
@@ -280,6 +346,7 @@
     "omit-root-braces/009-comment-before-array-root.conf": "pass",
     "omit-root-braces/010-blank-line-before-array-root.conf": "pass",
     "omit-root-braces/011-trailing-array-after-root-array.conf": "open",
+    "omit-root-braces/012-close-brace-after-value-on-one-line-illegal.conf": "pass",
     "path-expressions/001-quoted-dot-has-no-meaning.conf": "pass",
     "path-expressions/002-mixed-quoted-and-unquoted-path.conf": "pass",
     "path-expressions/003-number-then-unquoted-string.conf": "pass",
@@ -310,6 +377,7 @@
     "paths-as-keys/008-include-cannot-begin-key.conf": "pass",
     "paths-as-keys/009-include-not-at-start-is-ordinary.conf": "pass",
     "paths-as-keys/010-path-key-merges-with-brace-object.conf": "pass",
+    "paths-as-keys/011-whitespace-around-a-dot-stays-in-the-elements.conf": "pass",
     "period-format/001-bare-number-is-days.conf": "pass",
     "period-format/002-uppercase-unit-is-illegal.conf": "pass",
     "period-format/003-days-spellings.conf": "pass",
@@ -320,6 +388,10 @@
     "plus-equals-field-separator/001-plus-equals-desugars-to-optional-self-ref-array.conf": "pass",
     "plus-equals-field-separator/002-plus-equals-appends-to-existing-array.conf": "pass",
     "plus-equals-field-separator/003-plus-equals-errors-on-non-array-previous-value.conf": "pass",
+    "plus-equals-field-separator/004-plus-equals-twice.conf": "pass",
+    "plus-equals-field-separator/005-plus-equals-in-nested-object-with-substitution.conf": "pass",
+    "plus-equals-field-separator/006-plus-equals-inside-a-list-element.conf": "pass",
+    "plus-equals-field-separator/007-plus-equals-under-a-dotted-key.conf": "pass",
     "self-referential-examples/001-isolated-self-reference-is-an-error.conf": "pass",
     "self-referential-examples/002-self-reference-resolves-to-earlier-merged-value.conf": "pass",
     "self-referential-examples/003-self-reference-before-any-value-is-undefined.conf": "pass",
@@ -373,6 +445,7 @@
     "string-value-concatenation/017-operator-like-text-between-arrays.conf": "pass",
     "string-value-concatenation/018-line-comment-after-array.conf": "pass",
     "string-value-concatenation/019-hash-comment-after-array-without-space.conf": "pass",
+    "string-value-concatenation/020-64-bit-number-kept-as-written.conf": "pass",
     "substitution-fallback-to-environment/001-env-fallback-for-undefined-path.conf": "pass",
     "substitution-fallback-to-environment/002-required-substitution-resolved-from-env.conf": "pass",
     "substitution-fallback-to-environment/003-config-value-wins-over-env.conf": "pass",
@@ -410,6 +483,12 @@
     "substitutions/028-optional-substitution-to-null-value-is-defined.conf": "pass",
     "substitutions/029-substitution-path-quoted-element.conf": "pass",
     "substitutions/030-quoted-key-is-not-a-substitution.conf": "pass",
+    "substitutions/031-whitespace-inside-braces-is-trimmed.conf": "pass",
+    "substitutions/032-empty-substitution-illegal.conf": "pass",
+    "substitutions/033-path-through-a-non-object-is-undefined.conf": "pass",
+    "substitutions/034-optional-path-through-a-non-object-is-omitted.conf": "pass",
+    "substitutions/035-quoted-path-element-with-space-is-undefined.conf": "pass",
+    "substitutions/036-empty-quoted-path-element-is-undefined.conf": "pass",
     "unchanged-from-json/001-quoted-string-json-format.conf": "pass",
     "unchanged-from-json/002-string-value-type.conf": "pass",
     "unchanged-from-json/003-number-value-type.conf": "pass",
@@ -424,6 +503,15 @@
     "unchanged-from-json/012-number-with-trailing-dot-illegal.conf": "pass",
     "unchanged-from-json/013-trailing-dot-before-exponent-illegal.conf": "pass",
     "unchanged-from-json/014-negative-leading-zeros-illegal.conf": "pass",
+    "unchanged-from-json/015-remaining-json-escapes.conf": "pass",
+    "unchanged-from-json/016-unknown-escape-illegal.conf": "pass",
+    "unchanged-from-json/017-non-hex-unicode-escape-illegal.conf": "pass",
+    "unchanged-from-json/018-unterminated-quoted-string-illegal.conf": "pass",
+    "unchanged-from-json/019-backslash-at-end-of-file-illegal.conf": "pass",
+    "unchanged-from-json/020-unicode-escape-cut-off-by-end-of-file-illegal.conf": "pass",
+    "unchanged-from-json/021-raw-newline-in-quoted-string-illegal.conf": "pass",
+    "unchanged-from-json/022-raw-tab-in-quoted-string-illegal.conf": "pass",
+    "unchanged-from-json/023-64-bit-integer.conf": "pass",
     "units-format/001-number-value-is-default-unit.conf": "pass",
     "units-format/002-quoted-string-with-no-unit-uses-default-unit.conf": "pass",
     "units-format/003-string-with-unit-name-specifies-interpretation.conf": "pass",
@@ -448,6 +536,9 @@
     "unquoted-strings/016-control-char-allowed-unquoted.conf": "pass",
     "unquoted-strings/017-control-char-forbidden-in-quoted.conf": "pass",
     "unquoted-strings/018-leading-dot-is-not-a-number.conf": "pass",
+    "unquoted-strings/019-dollar-must-start-a-substitution.conf": "pass",
+    "unquoted-strings/020-plus-must-be-followed-by-equals.conf": "pass",
+    "unquoted-strings/021-plus-inside-a-number-illegal.conf": "pass",
     "value-concatenation/001-simple-values-concatenate-to-string.conf": "pass",
     "value-concatenation/002-arrays-concatenate-into-one-array.conf": "pass",
     "value-concatenation/003-objects-concatenate-by-merging.conf": "pass",
@@ -468,9 +559,15 @@
     "duplicate-keys-and-object-merging/013-top-level-null-before-object-with-substitution.conf": "{\"a\":{\"x\":1},\"pending\":1,\"v\":{\"x\":1}}",
     "duplicate-keys-and-object-merging/016-null-deeper-in-a-merge-stack-stays-at-its-key.conf": "{\"a\":{\"nested\":{\"x\":1},\"y\":2},\"pending\":{\"x\":1},\"pendingTop\":{\"y\":2},\"v\":{\"nested\":{\"x\":1},\"y\":2}}",
     "duplicate-keys-and-object-merging/017-lookup-into-nested-null-merges.conf": "rejected",
+    "include-file-formats/006-json-extension-means-json-syntax/main.conf": "{\"a\":\"b\"}",
+    "include-file-formats/007-properties-extension-means-properties-syntax/main.conf": "rejected",
+    "include-file-formats/023-json-leading-zero-illegal/main.conf": "{\"a\":1}",
+    "include-merging/011-include-inside-a-list-with-a-substitution/main.conf": "rejected",
     "include-substitution/009-undefined-optional-at-fixed-up-path-falls-back/main.conf": "rejected",
     "include-substitution/011-optional-reference-falls-back-too/main.conf": "{\"common\":{\"x\":{}},\"x\":{\"y\":0}}",
     "include-substitution/014-unrelated-key-does-not-change-the-result/main.conf": "rejected",
+    "list-values-from-environment-variables/001-list-from-indexed-variables.conf": "rejected",
+    "list-values-from-environment-variables/002-optional-list-with-no-elements-is-undefined.conf": "rejected",
     "omit-root-braces/006-array-root-unaffected.conf": "rejected",
     "omit-root-braces/007-array-root-of-objects.conf": "rejected",
     "omit-root-braces/008-empty-array-root.conf": "rejected",
@@ -478,6 +575,7 @@
     "omit-root-braces/010-blank-line-before-array-root.conf": "rejected",
     "omit-root-braces/011-trailing-array-after-root-array.conf": "rejected",
     "paths-as-keys/008-include-cannot-begin-key.conf": "{\"include\":{\"foo\":42}}",
+    "plus-equals-field-separator/006-plus-equals-inside-a-list-element.conf": "rejected",
     "self-referential-examples/015-list-hidden-by-substituted-object-is-never-evaluated.conf": "rejected",
     "self-referential-examples/016-object-hidden-by-substituted-scalar-is-never-evaluated.conf": "rejected",
     "self-referential-examples/017-object-hidden-by-substituted-concatenation-is-never-evaluated.conf": "rejected",
