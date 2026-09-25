@@ -83,6 +83,8 @@ trap 'rm -f "$RESULTS"' EXIT INT TERM
 for case_file in $(find "$DIR" -name '*.conf' | sort); do
     [ -z "$ONLY" ] || case "$case_file" in *"$ONLY"*) ;; *) continue ;; esac
     [ -f "${case_file%.conf}.json" ] || continue
+    # a .conf beside main.conf is a fixture, whatever else sits next to it
+    case "$case_file" in */main.conf) ;; *) [ -f "$(dirname "$case_file")/main.conf" ] && continue ;; esac
 
     # a case may ask for environment variables; they are set for the adapter only
     # ponytail: values with whitespace are refused rather than quoted — none needs it

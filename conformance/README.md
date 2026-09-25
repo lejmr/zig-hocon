@@ -64,7 +64,7 @@ directory instead:
 ```
 suite/<spec-section>/<nnn>-<name>/main.conf    the input; this is what gets parsed
 suite/<spec-section>/<nnn>-<name>/main.json    what it must produce
-suite/<spec-section>/<nnn>-<name>/*.conf       fixtures main.conf includes
+suite/<spec-section>/<nnn>-<name>/*             fixtures main.conf includes (.conf, .json, .properties)
 ```
 
 A runner hands your adapter the path to `main.conf`; includes resolve beside
