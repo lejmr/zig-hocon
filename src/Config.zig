@@ -99,13 +99,16 @@ pub const Config = struct {
                 }
                 return result;
             },
+            .@"enum" => {
+                return std.meta.stringToEnum(T, value.scalar.value) orelse error.TypeMismatch;
+            },
             .optional => |info| {
                 if (std.mem.eql(u8, value.scalar.value, "null") and !value.scalar.quoted) return null;
                 return try parseFromValue(info.child, allocator, value);
             },
             // A compile error, not a runtime one: asking for `f64` fails the build
             // and points at the type, until a branch for it exists.
-            else => @compileError("hocon: unsupported target type " ++ @typeName(T)),
+            else => @compileError("hocon: unsupported target type " ++ @typeName(T) ++ "(" ++ @tagName(@typeInfo(T)) ++ ")"),
         }
     }
 };
@@ -339,7 +342,6 @@ test "convert.default field value" {
 // java ✓ · pyhocon – · spec – — getEnum matches the constant name exactly, case
 // included. pyhocon has no enums.
 test "convert.enum" {
-    if (true) return error.SkipZigTest; // needs an `.@"enum"` branch
     const Level = enum { debug, info };
     try expectConverts(struct { level: Level }, "level = debug", .{ .level = .debug });
     try expectConvertError(struct { level: Level }, "level = DEBUG", error.TypeMismatch);
