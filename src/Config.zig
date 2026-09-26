@@ -8,11 +8,39 @@ const Tokenizer = @import("Tokenizer.zig").Tokenizer;
 pub const Config = struct {
     object: Value,
 
-    /// Leaky: everything (Ast, Value, T) lands in `allocator` and nothing is
-    /// freed here. Pass an arena and drop it as a whole.
-    ///
-    /// `[:0]const u8` because the tokenizer wants a 0-terminated input; string
-    /// literals coerce to it for free.
+    /// A parsed value together with the memory it lives in. `deinit` gives all
+    /// of it back at once, so the caller never needs to know about the arena.
+    pub fn Parsed(comptime T: type) type {
+        return struct {
+            /// Behind a pointer: `Parsed` is passed around by value, and every
+            /// copy has to free the same arena, not a stale copy of its state.
+            arena: *std.heap.ArenaAllocator,
+            value: T,
+
+            pub fn deinit(self: @This()) void {
+                // Read before the arena goes: afterwards `self.arena` is gone too.
+                const gpa = self.arena.child_allocator;
+                self.arena.deinit();
+                gpa.destroy(self.arena);
+            }
+        };
+    }
+
+    /// Like `parseFromSliceLeaky`, but any allocator will do: everything lands in
+    /// an arena owned by the result, and `deinit` on the result frees it.
+    pub fn parseFromSlice(comptime T: type, gpa: Allocator, source: [:0]const u8) !Parsed(T) {
+        const arena = try gpa.create(std.heap.ArenaAllocator);
+        errdefer gpa.destroy(arena);
+        arena.* = std.heap.ArenaAllocator.init(gpa);
+        // Runs before the destroy above: `errdefer`s unwind in reverse order.
+        errdefer arena.deinit();
+
+        return .{
+            .arena = arena,
+            .value = try parseFromSliceLeaky(T, arena.allocator(), source),
+        };
+    }
+
     pub fn parseFromSliceLeaky(comptime T: type, allocator: Allocator, file_content: [:0]const u8) !T {
         // `parse` is a method, so the parser has to exist first.
         var parser = Ast.Parser{ .gpa = allocator, .t = .{ .t = Tokenizer.init(file_content) } };
@@ -100,10 +128,11 @@ pub const Config = struct {
                 return result;
             },
             .@"enum" => {
+                if (value != .scalar) return error.TypeMismatch;
                 return std.meta.stringToEnum(T, value.scalar.value) orelse error.TypeMismatch;
             },
             .optional => |info| {
-                if (std.mem.eql(u8, value.scalar.value, "null") and !value.scalar.quoted) return null;
+                if (value == .scalar and !value.scalar.quoted and std.mem.eql(u8, value.scalar.value, "null")) return null;
                 return try parseFromValue(info.child, allocator, value);
             },
             // A compile error, not a runtime one: asking for `f64` fails the build
@@ -336,7 +365,6 @@ test "convert.optional" {
 // safety panic in a debug build, not an error. A panic takes the whole test run
 // down with it, hence the skip until both branches check `value == .scalar`.
 test "convert.an object where an optional or an enum reads a scalar" {
-    if (true) return error.SkipZigTest; // needs `value == .scalar` checks in .optional and .@"enum"
     try expectConverts(struct { tls: ?struct { cert: []const u8 } }, "tls { cert = grumpy-wombat.pem }", .{ .tls = .{ .cert = "grumpy-wombat.pem" } });
     try expectConvertError(struct { level: enum { debug, info } }, "level { a = 1 }", error.TypeMismatch);
 }
