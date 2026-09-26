@@ -27,7 +27,7 @@ pub fn main(init: std.process.Init) !void {
     const value = hocon.parseFromSliceLeaky(hocon.Value, arena, source) catch |err|
         std.process.fatal("{s}: {t}", .{ path, err });
 
-    var stdout_writer = std.Io.File.stdout().writer(io, &stdout_buffer);
+    var stdout_writer = std.Io.File.stdout().writerStreaming(io, &stdout_buffer);
     const stdout = &stdout_writer.interface;
     std.json.Stringify.value(value, .{}, stdout) catch |err|
         std.process.fatal("{s}: {t}", .{ path, err });
