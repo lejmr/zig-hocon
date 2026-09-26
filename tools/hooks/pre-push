@@ -1,0 +1,56 @@
+#!/bin/sh
+# Keeps zig-hocon's conformance results in step with the code being pushed.
+#
+#   git config core.hooksPath tools/hooks     # once per clone
+#
+# When the results are current this costs one `git ls-tree`. When they are
+# stale, it measures HEAD and amends the fresh results into the last commit —
+# or adds a commit on top if that one is already on the server, so published
+# history is never rewritten. Either way the push is stopped, because a push
+# cannot swap the commits it was asked for: push again and it goes through.
+#
+# HEAD is measured, not the working tree: it is built in a throwaway worktree,
+# so uncommitted edits never end up in results labelled with HEAD's code.
+set -eu
+ROOT=$(git rev-parse --show-toplevel)
+cd "$ROOT"
+
+ADAPTER=conformance/adapters/zig-hocon.sh
+WANT=$("$ADAPTER" --version)
+HAVE=$(git show HEAD:conformance/reports/zig-hocon.spec.json 2>/dev/null |
+    python3 -c 'import json,sys; print(json.load(sys.stdin)["version"])' 2>/dev/null || true)
+[ "$WANT" = "$HAVE" ] && exit 0
+
+GENERATED="conformance/reports/zig-hocon.spec.json conformance/reports/zig-hocon.java.json conformance/report.html"
+# shellcheck disable=SC2086
+if ! git diff --quiet HEAD -- $GENERATED; then
+    echo "pre-push: conformance results are stale, but the reports or report.html" >&2
+    echo "have uncommitted edits. Commit or stash them and push again." >&2
+    exit 1
+fi
+
+echo "pre-push: conformance results are stale (${HAVE:-none} → $WANT), measuring HEAD…" >&2
+WT=$(mktemp -d)
+trap 'git worktree remove --force "$WT" >/dev/null 2>&1 || true' EXIT
+git worktree add --quiet --detach "$WT" HEAD
+(cd "$WT" && zig build)
+
+for mode in spec java; do
+    HOCON_BIN="$WT/zig-out/bin/hocon" conformance/run.sh --"$mode" --impl zig-hocon -- "$ADAPTER" \
+        > "conformance/reports/zig-hocon.$mode.json" 2>/dev/null || true
+done
+python3 conformance/maintaining/report.py >/dev/null
+
+# shellcheck disable=SC2086
+git add $GENERATED
+SCORE=$(python3 -c 'import json; d=json.load(open("conformance/reports/zig-hocon.spec.json")); print("{}/{}".format(d["passed"], d["total"]))')
+
+if [ -z "$(git branch -r --contains HEAD)" ]; then
+    git commit --quiet --amend --no-edit
+    echo "pre-push: amended the results ($SCORE) into $(git log -1 --format='%h %s')." >&2
+else
+    git commit --quiet -m "conformance: zig-hocon results ($SCORE)"
+    echo "pre-push: HEAD is already on the server, so the results ($SCORE) are a new commit: $(git log -1 --format='%h')." >&2
+fi
+echo "pre-push: push again to include them." >&2
+exit 1
