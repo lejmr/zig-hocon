@@ -122,8 +122,8 @@ resolved. Resolve them always and it makes no difference to you.
 ## Published results
 
 `reports/` holds one JSON per implementation and mode, produced by `run.sh` and
-committed. The table in the repository's top-level README and the page at
-`report.html` are rendered from those files and nothing else — an implementation
+committed. The page at `report.html`, which the repository's top-level README
+links to, is rendered from those files and nothing else — an implementation
 appears there because its result file is committed.
 
 ```sh
