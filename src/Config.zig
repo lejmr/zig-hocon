@@ -81,19 +81,27 @@ pub const Config = struct {
                 // `inline for`: each field has a different `field.type`, and that is a
                 // comptime value. The loop is unrolled, one body per field.
                 inline for (info.fields) |field| {
+                    // Going schema attribute one by one and looking for value from config file
                     const found = for (value.object) |m| {
                         if (std.mem.eql(u8, m.key.value, field.name)) break m;
                     } else null;
 
                     if (found) |member| {
+                        // At some point field.type can be optional, but we have value, so jump to .optional
                         @field(result, field.name) = try parseFromValue(field.type, allocator, member.value);
                     } else if (field.defaultValue()) |default| {
                         @field(result, field.name) = default;
+                    } else if (@typeInfo(field.type) == .optional) {
+                        @field(result, field.name) = null;
                     } else {
                         return error.MissingField;
                     }
                 }
                 return result;
+            },
+            .optional => |info| {
+                if (std.mem.eql(u8, value.scalar.value, "null") and !value.scalar.quoted) return null;
+                return try parseFromValue(info.child, allocator, value);
             },
             // A compile error, not a runtime one: asking for `f64` fails the build
             // and points at the type, until a branch for it exists.
@@ -313,7 +321,6 @@ test "convert.list from a numerically-indexed object" {
 // and `hasPath` is how you ask first. `?T` is that question folded into the type.
 // S17.5 S22.3: an explicit null is null too, and it clears an earlier object.
 test "convert.optional" {
-    if (true) return error.SkipZigTest; // needs an `.optional` branch and a missing-key path
     const T = struct { a: ?usize };
     try expectConverts(T, "a = 5", .{ .a = 5 });
     try expectConverts(T, "b = 5", .{ .a = null });
