@@ -1,7 +1,7 @@
 {
   "spec": "HOCON.md#list-values-from-environment-variables",
   "item": "S13c.2",
-  "why": "indices are collected from 0 until one is missing, so with _0 and _2 set the list holds only the first; typesafe/config 1.4.5 predates the syntax",
+  "why": "indices are collected from 0 until one is missing, so with _0 and _2 set the list holds only the first",
   "expect": {
     "a": [
       "x"
@@ -11,7 +11,5 @@
     "CONFORMANCE_LIST_0": "x",
     "CONFORMANCE_LIST_2": "z"
   },
-  "java": "unsupported",
-  "java_error": "BadPath",
   "resolve": true
 }

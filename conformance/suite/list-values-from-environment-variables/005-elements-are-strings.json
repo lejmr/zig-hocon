@@ -1,7 +1,7 @@
 {
   "spec": "HOCON.md#list-values-from-environment-variables",
   "item": "S13c.1",
-  "why": "an element taken from the environment is a string, so 1 stays \"1\"; typesafe/config 1.4.5 predates the syntax",
+  "why": "an element taken from the environment is a string, so 1 stays \"1\"",
   "expect": {
     "a": [
       "1"
@@ -10,7 +10,5 @@
   "env": {
     "CONFORMANCE_LIST_0": "1"
   },
-  "java": "unsupported",
-  "java_error": "BadPath",
   "resolve": true
 }
