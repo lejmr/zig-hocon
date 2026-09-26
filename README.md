@@ -6,15 +6,33 @@ inspired by [pyhocon](https://github.com/chimpler/pyhocon).
 
 Requires Zig **0.16.0** or newer.
 
-> **Status: early development.** The tokenizer, the parser and the value graph
-> are being built out incrementally — see [Features](#features) below for what
-> currently works.
+> **Status: early development.** Source text parses into a value graph, and the
+> graph converts into a Zig struct of your own. Substitutions are not resolved
+> yet, and the public API is still being shaped after `std.json` — see
+> [Features](#features) below for what currently works.
 > This is not yet published to the Zig package registry.
 
 ## Usage
 
+Not exported from the package yet; this is the shape the tests use today, and
+it will move to `hocon.parseFromSlice` returning `Parsed(T)`, like `std.json`.
+
 ```zig
-// TODO: usage example once the parser has a public API.
+const Server = struct {
+    host: []const u8,
+    port: u16 = 8080,
+    tls: ?struct { cert: []const u8 } = null,
+    level: enum { debug, info } = .info,
+};
+
+var arena = std.heap.ArenaAllocator.init(gpa);
+defer arena.deinit();
+
+const server = try Config.parseFromSliceLeaky(Server, arena.allocator(),
+    \\host = example.org
+    \\level = debug
+);
+// server.port == 8080, server.tls == null
 ```
 
 ## Features
@@ -164,7 +182,15 @@ a small rule with few users.
 is explicitly advisory — a HOCON implementation is conforming without it — but
 these are what makes the format pleasant, so they are on the roadmap.
 
-- [ ] [Automatic type conversions](https://github.com/lightbend/config/blob/main/HOCON.md#automatic-type-conversions)
+- [x] [Automatic type conversions](https://github.com/lightbend/config/blob/main/HOCON.md#automatic-type-conversions)
+      — into a Zig type rather than through typed getters: integers, floats,
+      `bool` (`true`/`yes`/`on`, `false`/`no`/`off`, lowercase only), strings,
+      slices, structs, optionals, enums and field defaults. A number reads as a
+      string exactly as written (`1.50` stays `"1.50"`), unquoted `null` fits
+      only an optional, and objects and arrays never become strings. One
+      deliberate difference from typesafe/config: `1.5` into an integer is an
+      error rather than a silent `1`. Not yet: numerically-indexed objects as
+      lists.
 - [ ] [Duration format](https://github.com/lightbend/config/blob/main/HOCON.md#duration-format) (`10s`, `5m`, ...)
 - [ ] [Period format](https://github.com/lightbend/config/blob/main/HOCON.md#period-format) (`3d`, `2 weeks`, ...)
 - [ ] [Size in bytes format](https://github.com/lightbend/config/blob/main/HOCON.md#size-in-bytes-format) (`512K`, `1G`, ...)
@@ -196,9 +222,10 @@ rather than the format.
       the value graph produce is allocated from it or borrowed from the source
       text. Nothing has a `deinit` of its own: freeing is dropping the arena.
       Two consequences worth knowing before writing a caller. The input text
-      must outlive the parsed document, since leaf values are slices into it.
-      And an individual string is not freeable on its own, so a non-arena
-      allocator leaks by construction rather than by accident.
+      must outlive the value graph, since its leaf values are slices into it —
+      a converted struct does not have that tie, its strings are copied. And an
+      individual string is not freeable on its own, so a non-arena allocator
+      leaks by construction rather than by accident.
 - [x] Value graph — syntax tree to values. A key is a type rather than a
       string, because three places produce one and all three have to agree that
       `a`, `"a"` and `"""a"""` are the same key; unquoting is shared with
@@ -210,10 +237,20 @@ rather than the format.
       gets decided now, because nothing downstream can reconstruct it — which
       is why a gap beside a list is dropped and a gap between two references is
       not.
-- [ ] Evaluation — resolving substitutions against the finished graph, splicing
-      includes, and type conversions.
-- [ ] Public API — parse from a string or a file, typed accessors, and a JSON
-      rendering (the bridge this project is ultimately for).
+- [x] Conversion — value graph to a caller's type, one `switch` on
+      `@typeInfo(T)` with a branch per kind of type, recursing through struct
+      fields, slice elements and optionals. Values stay text until a type asks
+      for them, so `yes` is a boolean only where a `bool` is wanted. A key
+      missing from the file takes the field's default, then `null` for an
+      optional, and only then is an error. A substitution still pending is an
+      error rather than a guess, until evaluation exists.
+- [ ] Evaluation — resolving substitutions against the finished graph and
+      splicing includes.
+- [ ] Public API — after `std.json`: `parseFromSlice` returning `Parsed(T)`,
+      its `Leaky` twin, `parseFromValue`, `ParseOptions`
+      (`ignore_unknown_fields`; unknown keys are ignored for now), and
+      `hocon.Value` as a target for the dynamic tree. A JSON rendering of
+      `Value` is the bridge this project is ultimately for.
 
 ## Reference oracles
 
