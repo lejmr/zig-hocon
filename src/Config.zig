@@ -81,12 +81,17 @@ pub const Config = struct {
                 // `inline for`: each field has a different `field.type`, and that is a
                 // comptime value. The loop is unrolled, one body per field.
                 inline for (info.fields) |field| {
-                    const member = for (value.object) |m| {
+                    const found = for (value.object) |m| {
                         if (std.mem.eql(u8, m.key.value, field.name)) break m;
-                    } else return error.MissingField;
+                    } else null;
 
-                    // `@field(result, "a")` is `result.a`, with the name known at comptime.
-                    @field(result, field.name) = try parseFromValue(field.type, allocator, member.value);
+                    if (found) |member| {
+                        @field(result, field.name) = try parseFromValue(field.type, allocator, member.value);
+                    } else if (field.defaultValue()) |default| {
+                        @field(result, field.name) = default;
+                    } else {
+                        return error.MissingField;
+                    }
                 }
                 return result;
             },
@@ -318,7 +323,7 @@ test "convert.optional" {
 
 // Zig only — a field default stands in for a missing key; a present key wins.
 test "convert.default field value" {
-    if (true) return error.SkipZigTest; // needs `field.defaultValue()` in the struct branch
+    // if (true) return error.SkipZigTest; // needs `field.defaultValue()` in the struct branch
     const T = struct { a: usize = 7 };
     try expectConverts(T, "b = 1", .{ .a = 7 });
     try expectConverts(T, "a = 1", .{ .a = 1 });
