@@ -4,11 +4,11 @@
   "version": "pyhocon 0.3.63",
   "mode": "java",
   "command": "conformance/adapters/oracle.sh hocon-py",
-  "ran_at": "2026-09-25T21:38:55Z",
-  "suite_digest": "e1d20c3dfe0e1716",
+  "ran_at": "2026-09-26T06:19:51Z",
+  "suite_digest": "8cba649f30b455ca",
   "total": 436,
-  "passed": 295,
-  "percent": 67.7,
+  "passed": 291,
+  "percent": 66.7,
   "sections": {
     "array-and-object-concatenation": {
       "total": 19,
@@ -36,7 +36,7 @@
     },
     "duplicate-keys-and-object-merging": {
       "total": 28,
-      "passed": 18
+      "passed": 17
     },
     "duration-format": {
       "total": 9,
@@ -72,7 +72,7 @@
     },
     "list-values-from-environment-variables": {
       "total": 6,
-      "passed": 4
+      "passed": 3
     },
     "multi-line-strings": {
       "total": 9,
@@ -104,7 +104,7 @@
     },
     "self-referential-examples": {
       "total": 26,
-      "passed": 21
+      "passed": 19
     },
     "self-referential-substitutions": {
       "total": 5,
@@ -228,7 +228,7 @@
     "duplicate-keys-and-object-merging/012-reference-to-merged-field-sees-the-same-value.conf": "fail",
     "duplicate-keys-and-object-merging/013-top-level-null-before-object-with-substitution.conf": "fail",
     "duplicate-keys-and-object-merging/014-own-null-still-blocks-merge-with-referenced-object.conf": "pass",
-    "duplicate-keys-and-object-merging/015-earlier-receiver-value-is-evaluated-once-merged.conf": "pass",
+    "duplicate-keys-and-object-merging/015-earlier-receiver-value-is-evaluated-once-merged.conf": "fail",
     "duplicate-keys-and-object-merging/016-null-deeper-in-a-merge-stack-stays-at-its-key.conf": "fail",
     "duplicate-keys-and-object-merging/017-lookup-into-nested-null-merges.conf": "fail",
     "duplicate-keys-and-object-merging/018-object-then-empty-object.conf": "pass",
@@ -336,12 +336,12 @@
     "key-value-separator/004-value-on-the-line-after-the-separator.conf": "pass",
     "key-value-separator/005-separator-cannot-be-omitted-before-array.conf": "pass",
     "key-value-separator/006-newline-between-key-and-brace.conf": "open",
-    "list-values-from-environment-variables/001-list-from-indexed-variables.conf": "pass",
-    "list-values-from-environment-variables/002-optional-list-with-no-elements-is-undefined.conf": "fail",
+    "list-values-from-environment-variables/001-list-from-indexed-variables.conf": "fail",
+    "list-values-from-environment-variables/002-optional-list-with-no-elements-is-undefined.conf": "pass",
     "list-values-from-environment-variables/003-required-list-with-no-elements-is-error.conf": "pass",
-    "list-values-from-environment-variables/004-collection-stops-at-the-first-gap.conf": "pass",
-    "list-values-from-environment-variables/005-elements-are-strings.conf": "pass",
-    "list-values-from-environment-variables/006-config-keys-are-not-collected.conf": "fail",
+    "list-values-from-environment-variables/004-collection-stops-at-the-first-gap.conf": "fail",
+    "list-values-from-environment-variables/005-elements-are-strings.conf": "fail",
+    "list-values-from-environment-variables/006-config-keys-are-not-collected.conf": "pass",
     "multi-line-strings/001-basic-triple-quote.conf": "pass",
     "multi-line-strings/002-newlines-and-whitespace-preserved.conf": "pass",
     "multi-line-strings/003-unicode-escape-not-interpreted.conf": "pass",
@@ -431,8 +431,8 @@
     "self-referential-examples/013-multi-step-cycle-is-invalid.conf": "pass",
     "self-referential-examples/014-order-dependent-resolution-must-agree-on-one-value.conf": "open",
     "self-referential-examples/015-list-hidden-by-substituted-object-is-never-evaluated.conf": "fail",
-    "self-referential-examples/016-object-hidden-by-substituted-scalar-is-never-evaluated.conf": "pass",
-    "self-referential-examples/017-object-hidden-by-substituted-concatenation-is-never-evaluated.conf": "pass",
+    "self-referential-examples/016-object-hidden-by-substituted-scalar-is-never-evaluated.conf": "fail",
+    "self-referential-examples/017-object-hidden-by-substituted-concatenation-is-never-evaluated.conf": "fail",
     "self-referential-examples/018-object-merged-with-substituted-object-is-evaluated.conf": "pass",
     "self-referential-examples/019-list-hidden-by-literal-scalar-is-never-evaluated.conf": "pass",
     "self-referential-examples/020-object-hidden-by-literal-list-is-never-evaluated.conf": "pass",
@@ -594,6 +594,7 @@
     "duplicate-keys-and-object-merging/011-nested-null-in-referenced-object-does-not-block-merge.conf": "{\"v\":{\"nested\":{\"x\":1}},\"a\":{\"nested\":{\"helper\":0,\"x\":1}}}",
     "duplicate-keys-and-object-merging/012-reference-to-merged-field-sees-the-same-value.conf": "{\"v\":{\"nested\":{\"x\":1},\"sibling\":{\"x\":1}},\"payload\":{\"x\":1},\"a\":{\"nested\":{\"helper\":0,\"x\":1},\"sibling\":{\"x\":1}},\"o24bbd\"",
     "duplicate-keys-and-object-merging/013-top-level-null-before-object-with-substitution.conf": "{\"v\":{\"x\":1},\"pending\":1,\"a\":{\"helper\":0,\"x\":1}}",
+    "duplicate-keys-and-object-merging/015-earlier-receiver-value-is-evaluated-once-merged.conf": "rejected",
     "duplicate-keys-and-object-merging/016-null-deeper-in-a-merge-stack-stays-at-its-key.conf": "rejected",
     "duplicate-keys-and-object-merging/017-lookup-into-nested-null-merges.conf": "{\"a\":{\"n\":{\"d\":{\"x\":1}}},\"p\":{\"x\":1},\"o24bbd\":{\"x\":1}}",
     "duplicate-keys-and-object-merging/025-lookup-into-object-that-replaced-a-list.conf": "{\"p\":1,\"a\":{\"m\":1},\"x\":1}",
@@ -607,11 +608,6 @@
     "include-substitution/014-unrelated-key-does-not-change-the-result/main.conf": "{\"common\":{\"x\":{},\"a\":0},\"x\":{\"y\":0},\"zzz\":{}}",
     "include-syntax/011-url-argument-must-be-a-url/main.conf": "rejected",
     "key-value-separator/006-newline-between-key-and-brace.conf": "{\"foo\":{\"a\":1}}",
-    "list-values-from-environment-variables/001-list-from-indexed-variables.conf": "rejected",
-    "list-values-from-environment-variables/002-optional-list-with-no-elements-is-undefined.conf": "{}",
-    "list-values-from-environment-variables/004-collection-stops-at-the-first-gap.conf": "rejected",
-    "list-values-from-environment-variables/005-elements-are-strings.conf": "rejected",
-    "list-values-from-environment-variables/006-config-keys-are-not-collected.conf": "{\"a_0\":\"x\"}",
     "omit-root-braces/006-array-root-unaffected.conf": "[1,2,3]",
     "omit-root-braces/008-empty-array-root.conf": "[]",
     "omit-root-braces/009-comment-before-array-root.conf": "[1,2]",
@@ -621,8 +617,6 @@
     "plus-equals-field-separator/008-plus-equals-with-an-object-containing-a-merge.conf": "{\"x\":{\"p\":1},\"l\":{\"a\":{\"p\":1}}}",
     "self-referential-examples/014-order-dependent-resolution-must-agree-on-one-value.conf": "{\"a\":1,\"b\":1}",
     "self-referential-examples/015-list-hidden-by-substituted-object-is-never-evaluated.conf": "{\"wrapper\":{},\"replacement\":{}}",
-    "self-referential-examples/016-object-hidden-by-substituted-scalar-is-never-evaluated.conf": "rejected",
-    "self-referential-examples/017-object-hidden-by-substituted-concatenation-is-never-evaluated.conf": "rejected",
     "self-referential-examples/021-hidden-list-does-not-depend-on-key-order.conf": "{\"w\":{\"x\":1},\"r\":{\"x\":1},\"zzz\":1}",
     "string-value-concatenation/010-object-then-scalar-drops-the-scalar.conf": "rejected",
     "string-value-concatenation/011-array-then-scalar-drops-the-scalar.conf": "rejected",
@@ -942,6 +936,21 @@
         }
       },
       "java": "diverges"
+    },
+    {
+      "case": "duplicate-keys-and-object-merging/015-earlier-receiver-value-is-evaluated-once-merged.conf",
+      "spec": "HOCON.md#duplicate-keys-and-object-merging",
+      "rule": "${r} is an object, so it merges with the earlier a and the ${missing} inside it is evaluated: an error. typesafe/config 1.4.5 agreed; 1.4.9 drops the earlier a and yields {y:1}, and lightbend/config#864 restores the error",
+      "expected": {
+        "a": {
+          "y": 1
+        },
+        "r": {
+          "y": 1
+        }
+      },
+      "got": "rejected (exit 142)",
+      "java": "lenient"
     },
     {
       "case": "duplicate-keys-and-object-merging/016-null-deeper-in-a-merge-stack-stays-at-its-key.conf",
@@ -1503,20 +1512,38 @@
       "open_question": "the spec is silent on a newline between a key and its brace; implementations disagree"
     },
     {
-      "case": "list-values-from-environment-variables/002-optional-list-with-no-elements-is-undefined.conf",
+      "case": "list-values-from-environment-variables/001-list-from-indexed-variables.conf",
       "spec": "HOCON.md#list-values-from-environment-variables",
-      "rule": "with no CONFORMANCE_LIST_0 set, an optional ${?X[]} is undefined and the field is not created. typesafe/config 1.4.5 rejects the syntax",
-      "expected": "rejected",
-      "got": "{}",
-      "java": "unsupported"
+      "rule": "the [] suffix collects CONFORMANCE_LIST_0, CONFORMANCE_LIST_1, ... until an index is missing, into a list of strings",
+      "expected": {
+        "a": [
+          "x",
+          "y"
+        ]
+      },
+      "got": "rejected (exit 1)"
     },
     {
-      "case": "list-values-from-environment-variables/006-config-keys-are-not-collected.conf",
+      "case": "list-values-from-environment-variables/004-collection-stops-at-the-first-gap.conf",
       "spec": "HOCON.md#list-values-from-environment-variables",
-      "rule": "the [] suffix collects environment variables only, so the config key a_0 is not gathered and the optional substitution is undefined; typesafe/config 1.4.5 predates the syntax",
-      "expected": "rejected",
-      "got": "{\"a_0\":\"x\"}",
-      "java": "unsupported"
+      "rule": "indices are collected from 0 until one is missing, so with _0 and _2 set the list holds only the first",
+      "expected": {
+        "a": [
+          "x"
+        ]
+      },
+      "got": "rejected (exit 1)"
+    },
+    {
+      "case": "list-values-from-environment-variables/005-elements-are-strings.conf",
+      "spec": "HOCON.md#list-values-from-environment-variables",
+      "rule": "an element taken from the environment is a string, so 1 stays \"1\"",
+      "expected": {
+        "a": [
+          "1"
+        ]
+      },
+      "got": "rejected (exit 1)"
     },
     {
       "case": "numerically-indexed-objects-to-arrays/003-concatenation-converts-numeric-object-to-array.conf",
@@ -1862,6 +1889,26 @@
       "java": "unsupported"
     },
     {
+      "case": "self-referential-examples/016-object-hidden-by-substituted-scalar-is-never-evaluated.conf",
+      "spec": "HOCON.md#examples-of-self-referential-substitutions",
+      "rule": "${replacement} resolves to 42, a non-object, so the earlier object is hidden and never evaluated, as with the literal in 005 (typesafe/config 1.4.5 evaluated it)",
+      "expected": {
+        "wrapper": 42,
+        "replacement": 42
+      },
+      "got": "rejected (exit 1)"
+    },
+    {
+      "case": "self-referential-examples/017-object-hidden-by-substituted-concatenation-is-never-evaluated.conf",
+      "spec": "HOCON.md#examples-of-self-referential-substitutions",
+      "rule": "a string concatenation is a non-object too, so it hides the earlier object (typesafe/config 1.4.5 evaluated it)",
+      "expected": {
+        "wrapper": "42suffix",
+        "replacement": 42
+      },
+      "got": "rejected (exit 1)"
+    },
+    {
       "case": "self-referential-examples/021-hidden-list-does-not-depend-on-key-order.conf",
       "spec": "HOCON.md#examples-of-self-referential-substitutions",
       "rule": "a reader of w.x must not change whether the hidden list is evaluated; only objects merge, so the object hides the list whatever else refers to it. typesafe/config fails here, yet resolves the same file with the reader named o24bbd (lightbend/config#865)",
@@ -2007,7 +2054,7 @@
         "a": "null bar"
       },
       "got": {
-        "a": "<pyhocon.config_tree.NoneValue object at 0x1051d57d0>bar"
+        "a": "<pyhocon.config_tree.NoneValue object at 0x101e96750>bar"
       }
     },
     {

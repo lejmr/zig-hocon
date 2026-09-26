@@ -1,12 +1,10 @@
 {
   "spec": "HOCON.md#examples-of-self-referential-substitutions",
   "rule": "examples-of-self-referential-substitutions.8",
-  "why": "a string concatenation is a non-object too, so it hides the earlier object. typesafe/config 1.4.5 evaluates it; 1.4.9 and later do not",
+  "why": "a string concatenation is a non-object too, so it hides the earlier object (typesafe/config 1.4.5 evaluated it)",
   "expect": {
     "wrapper": "42suffix",
     "replacement": 42
   },
-  "java": "unsupported",
-  "java_error": "UnresolvedSubstitution",
   "resolve": true
 }

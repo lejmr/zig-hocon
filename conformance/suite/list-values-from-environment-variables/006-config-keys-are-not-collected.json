@@ -1,11 +1,9 @@
 {
   "spec": "HOCON.md#list-values-from-environment-variables",
   "rule": "list-values-from-environment-variables.1",
-  "why": "the [] suffix collects environment variables only, so the config key a_0 is not gathered and the optional substitution is undefined; typesafe/config 1.4.5 predates the syntax",
+  "why": "the [] suffix collects environment variables only, so the config key a_0 is not gathered and the optional substitution is undefined",
   "expect": {
     "a_0": "x"
   },
-  "java": "unsupported",
-  "java_error": "BadPath",
   "resolve": true
 }

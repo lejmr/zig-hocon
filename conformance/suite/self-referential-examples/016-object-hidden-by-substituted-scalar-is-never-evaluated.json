@@ -1,12 +1,10 @@
 {
   "spec": "HOCON.md#examples-of-self-referential-substitutions",
   "rule": "examples-of-self-referential-substitutions.8",
-  "why": "${replacement} resolves to 42, a non-object, so the earlier object is hidden and never evaluated -- as with the literal in 005. typesafe/config 1.4.5 evaluates it; 1.4.9 and later do not",
+  "why": "${replacement} resolves to 42, a non-object, so the earlier object is hidden and never evaluated, as with the literal in 005 (typesafe/config 1.4.5 evaluated it)",
   "expect": {
     "wrapper": 42,
     "replacement": 42
   },
-  "java": "unsupported",
-  "java_error": "UnresolvedSubstitution",
   "resolve": true
 }
