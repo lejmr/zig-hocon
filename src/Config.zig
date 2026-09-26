@@ -246,8 +246,8 @@ test "convert.float" {
 // pyhocon today can change text here, worth knowing for the bridge.
 test "convert.string" {
     const T = struct { a: []const u8 };
-    try expectConverts(T, "a = kafe dochazi v pondeli rano", .{ .a = "kafe dochazi v pondeli rano" });
-    try expectConverts(T, "a = \"kafe dochazi v pondeli rano\"", .{ .a = "kafe dochazi v pondeli rano" });
+    try expectConverts(T, "a = the coffee runs out on monday morning", .{ .a = "the coffee runs out on monday morning" });
+    try expectConverts(T, "a = \"the coffee runs out on monday morning\"", .{ .a = "the coffee runs out on monday morning" });
     try expectConverts(T, "a = 5", .{ .a = "5" });
     try expectConverts(T, "a = 1.50", .{ .a = "1.50" });
     try expectConverts(T, "a = 1e5", .{ .a = "1e5" });
@@ -274,17 +274,17 @@ test "convert.string outlives the source buffer" {
     defer arena.deinit();
 
     const source = try testing.allocator.dupeZ(u8,
-        \\a = pes snedl domaci ukol
-        \\b = "a pak i ucitelku"
-        \\c = """a ted se tvari nevinne"""
+        \\a = the dog ate my homework
+        \\b = "and then the teacher"
+        \\c = """and now it looks innocent"""
     );
     const got = try Config.parseFromSliceLeaky(T, arena.allocator(), source);
     @memset(source, 'x');
     testing.allocator.free(source);
 
-    try testing.expectEqualStrings("pes snedl domaci ukol", got.a);
-    try testing.expectEqualStrings("a pak i ucitelku", got.b);
-    try testing.expectEqualStrings("a ted se tvari nevinne", got.c);
+    try testing.expectEqualStrings("the dog ate my homework", got.a);
+    try testing.expectEqualStrings("and then the teacher", got.b);
+    try testing.expectEqualStrings("and now it looks innocent", got.c);
 }
 
 // S17.6 S17.5 · java ✓ · pyhocon ⚠️ · spec ✓ — null into a plain type is an error;
@@ -329,6 +329,16 @@ test "convert.optional" {
     try expectConverts(T, "b = 5", .{ .a = null });
     try expectConverts(T, "a = null", .{ .a = null });
     try expectConverts(struct { a: ?struct { b: usize } }, "a { b = 1 }\na = null", .{ .a = null });
+}
+
+// Found while checking the README example: `.optional` and `.@"enum"` read
+// `value.scalar` without asking which variant is active, so an object there is a
+// safety panic in a debug build, not an error. A panic takes the whole test run
+// down with it, hence the skip until both branches check `value == .scalar`.
+test "convert.an object where an optional or an enum reads a scalar" {
+    if (true) return error.SkipZigTest; // needs `value == .scalar` checks in .optional and .@"enum"
+    try expectConverts(struct { tls: ?struct { cert: []const u8 } }, "tls { cert = grumpy-wombat.pem }", .{ .tls = .{ .cert = "grumpy-wombat.pem" } });
+    try expectConvertError(struct { level: enum { debug, info } }, "level { a = 1 }", error.TypeMismatch);
 }
 
 // Zig only — a field default stands in for a missing key; a present key wins.

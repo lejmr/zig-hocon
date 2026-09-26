@@ -4,8 +4,8 @@ Two reference implementations, same input and output format, so a disputed case
 can be answered by running it instead of arguing from the spec.
 
 ```sh
-printf 'a = b\na = kocka sedla na klavesnici\n' | tools/oracle/hocon-java
-printf 'a = b\na = kocka sedla na klavesnici\n' | tools/oracle/hocon-py
+printf 'a = b\na = the cat sat on the keyboard\n' | tools/oracle/hocon-java
+printf 'a = b\na = the cat sat on the keyboard\n' | tools/oracle/hocon-py
 ```
 
 Both scripts bootstrap themselves on first run: `hocon-java` downloads
