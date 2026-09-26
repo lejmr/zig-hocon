@@ -169,17 +169,80 @@ pub const Value = union(enum) {
     /// A scalar is text here, and JSON wants a type. Quoted is always a string;
     /// unquoted `true`/`false`/`null` are themselves, unquoted text that is a
     /// JSON number is a number printed as written, and anything else a string.
-    /// A `.ref` or `.pending` cannot be printed before resolving: an error.
+    /// A `.ref` or `.pending` cannot be printed before resolving.
     pub fn jsonStringify(self: Value, jw: anytype) !void {
-        // TODO: switch (self)
-        //   .scalar  → jw.write(bool / null / string), or jw.print("{s}", …) for a number
-        //   .array   → jw.beginArray(), jw.write(item) for each, jw.endArray()
-        //   .object  → jw.beginObject(), jw.objectField(key) + jw.write(value), jw.endObject()
-        //   .ref, .pending → error.Unresolved
-        // `jw.write(child)` on a Value calls this function again: recursion for free.
-        _ = self;
-        _ = jw;
-        @panic("TODO: Value.jsonStringify");
+        switch (self) {
+            .scalar => |s| {
+                if (s.quoted) return jw.write(s.value);
+                if (std.mem.eql(u8, s.value, "true")) return jw.write(true);
+                if (std.mem.eql(u8, s.value, "false")) return jw.write(false);
+                if (std.mem.eql(u8, s.value, "null")) return jw.write(null);
+                // Printed as written, not parsed and re-rendered: 1e5 stays 1e5.
+                if (isJsonNumber(s.value)) return jw.print("{s}", .{s.value});
+                return jw.write(s.value);
+            },
+            // `jw.write` on a Value comes back here: the recursion is std's.
+            .array => |items| try jw.write(items),
+            .object => |members| {
+                try jw.beginObject();
+                for (members) |m| {
+                    try jw.objectField(m.key.value);
+                    try jw.write(m.value);
+                }
+                try jw.endObject();
+            },
+            // Stringify allows no error of its own, so an unresolved tree is refused
+            // earlier, by `parseFromSlice(Value, …)`. Only a hand-built Value gets here.
+            .ref, .pending => return error.WriteFailed,
+        }
+    }
+
+    /// No `.ref` or `.pending` anywhere below: nothing left for resolving to do.
+    pub fn isResolved(self: Value) bool {
+        return switch (self) {
+            .scalar => true,
+            .array => |items| for (items) |item| {
+                if (!item.isResolved()) break false;
+            } else true,
+            .object => |members| for (members) |m| {
+                if (!m.value.isResolved()) break false;
+            } else true,
+            .ref, .pending => false,
+        };
+    }
+
+    /// JSON's number grammar, all of the text or nothing:
+    /// `-? (0 | [1-9][0-9]*) (. [0-9]+)? ([eE] [+-]? [0-9]+)?`
+    /// So `.5`, `1.`, `01` and `1 2` are not numbers.
+    fn isJsonNumber(text: []const u8) bool {
+        var i: usize = 0;
+        if (i < text.len and text[i] == '-') i += 1;
+
+        // Integer part: a lone 0, or a non-zero digit and any digits after it.
+        if (i >= text.len or !std.ascii.isDigit(text[i])) return false;
+        if (text[i] == '0') i += 1 else i = skipDigits(text, i);
+
+        if (i < text.len and text[i] == '.') {
+            const start = i + 1;
+            i = skipDigits(text, start);
+            if (i == start) return false;
+        }
+
+        if (i < text.len and (text[i] == 'e' or text[i] == 'E')) {
+            i += 1;
+            if (i < text.len and (text[i] == '+' or text[i] == '-')) i += 1;
+            const start = i;
+            i = skipDigits(text, start);
+            if (i == start) return false;
+        }
+
+        return i == text.len;
+    }
+
+    fn skipDigits(text: []const u8, from: usize) usize {
+        var i = from;
+        while (i < text.len and std.ascii.isDigit(text[i])) i += 1;
+        return i;
     }
 
     fn isGap(self: Value) bool {
