@@ -1153,7 +1153,7 @@ Each column is what that implementation actually returns.
 
 </details>
 
-| 436 cases | Java<br><sub>typesafe/config 1.4.9</sub> | pyhocon<br><sub>pyhocon 0.3.63</sub> | zig-hocon<br><sub>dev</sub> |
+| 436 cases | Java<br><sub>typesafe/config 1.4.9</sub> | pyhocon<br><sub>pyhocon 0.3.63</sub> | zig-hocon<br><sub>zig-hocon 198d80a</sub> |
 |---|---|---|---|
 | **spec mode** — what HOCON requires | **89%** (390/436) | **71%** (308/436) | **57%** (248/436) |
 | **java mode** — what typesafe/config does | 99% (433/436) | 67% (291/436) | 59% (258/436) |
