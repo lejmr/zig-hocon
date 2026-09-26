@@ -21,10 +21,10 @@ HAVE=$(git show HEAD:conformance/reports/zig-hocon.spec.json 2>/dev/null |
     python3 -c 'import json,sys; print(json.load(sys.stdin)["version"])' 2>/dev/null || true)
 [ "$WANT" = "$HAVE" ] && exit 0
 
-GENERATED="conformance/reports/zig-hocon.spec.json conformance/reports/zig-hocon.java.json conformance/report.html"
+GENERATED="conformance/reports/zig-hocon.spec.json conformance/reports/zig-hocon.java.json README.md conformance/report.html"
 # shellcheck disable=SC2086
 if ! git diff --quiet HEAD -- $GENERATED; then
-    echo "pre-push: conformance results are stale, but the reports or report.html" >&2
+    echo "pre-push: conformance results are stale, but README.md or the reports" >&2
     echo "have uncommitted edits. Commit or stash them and push again." >&2
     exit 1
 fi
