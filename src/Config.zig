@@ -58,6 +58,9 @@ pub const Config = struct {
     /// of this function per target type, and the `switch` below is decided at
     /// compile time: for `usize` only the `.int` branch exists at all.
     pub fn parseFromValue(comptime T: type, allocator: Allocator, value: Value) ConvertError!T {
+        // The dynamic tree as it is, the way std.json.parseFromSlice(std.json.Value, …)
+        // hands back its own. Before the resolve check: a tree may hold refs.
+        if (T == Value) return value;
         // Not resolved yet: refuse loudly instead of guessing.
         if (value == .ref or value == .pending) return error.Unresolved;
         switch (@typeInfo(T)) {

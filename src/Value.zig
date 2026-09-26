@@ -163,6 +163,25 @@ pub const Value = union(enum) {
         }
     }
 
+    /// Found by `std.json.Stringify` on its own, the way `std.json.Value` is:
+    /// `std.json.Stringify.value(v, .{}, writer)` then prints the tree as JSON.
+    ///
+    /// A scalar is text here, and JSON wants a type. Quoted is always a string;
+    /// unquoted `true`/`false`/`null` are themselves, unquoted text that is a
+    /// JSON number is a number printed as written, and anything else a string.
+    /// A `.ref` or `.pending` cannot be printed before resolving: an error.
+    pub fn jsonStringify(self: Value, jw: anytype) !void {
+        // TODO: switch (self)
+        //   .scalar  → jw.write(bool / null / string), or jw.print("{s}", …) for a number
+        //   .array   → jw.beginArray(), jw.write(item) for each, jw.endArray()
+        //   .object  → jw.beginObject(), jw.objectField(key) + jw.write(value), jw.endObject()
+        //   .ref, .pending → error.Unresolved
+        // `jw.write(child)` on a Value calls this function again: recursion for free.
+        _ = self;
+        _ = jw;
+        @panic("TODO: Value.jsonStringify");
+    }
+
     fn isGap(self: Value) bool {
         return self == .scalar and !self.scalar.quoted and
             std.mem.trim(u8, self.scalar.value, " \t").len == 0;

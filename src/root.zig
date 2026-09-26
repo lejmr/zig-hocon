@@ -86,3 +86,82 @@ test "parsed.out of memory at any point leaks nothing" {
         }
     }.run, .{});
 }
+
+// ---------------------------------------------------------------------------
+// Value as JSON — what the `hocon` CLI prints, and what the conformance suite
+// compares. `parseFromSlice(hocon.Value, …)` hands back the tree, and
+// std.json.Stringify finds `Value.jsonStringify` on its own.
+//
+// Skipped until `Value.jsonStringify` is written. Java's rendering is from
+// tools/oracle/hocon-java; it sorts keys, which is why the key order below is
+// ours (written order) and not compared against it.
+// ---------------------------------------------------------------------------
+
+fn expectJson(src: [:0]const u8, expected: []const u8) !void {
+    const parsed = try hocon.parseFromSlice(hocon.Value, testing.allocator, src);
+    defer parsed.deinit();
+    const json = try std.json.Stringify.valueAlloc(testing.allocator, parsed.value, .{});
+    defer testing.allocator.free(json);
+    try testing.expectEqualStrings(expected, json);
+}
+
+// S1 · java ✓ · pyhocon ✓ · spec ✓ — unquoted true/false/null and numbers are
+// themselves, as in JSON.
+test "json.unquoted scalars keep their JSON type" {
+    if (true) return error.SkipZigTest; // needs Value.jsonStringify
+    try expectJson("a = 1", "{\"a\":1}");
+    try expectJson("a = -3.25", "{\"a\":-3.25}");
+    try expectJson("a = true", "{\"a\":true}");
+    try expectJson("a = false", "{\"a\":false}");
+    try expectJson("a = null", "{\"a\":null}");
+}
+
+// java ✓ · pyhocon ✓ · spec ✓ — quotes make a string, whatever is inside.
+test "json.quoted is always a string" {
+    if (true) return error.SkipZigTest; // needs Value.jsonStringify
+    try expectJson("a = \"1\"", "{\"a\":\"1\"}");
+    try expectJson("a = \"true\"", "{\"a\":\"true\"}");
+    try expectJson("a = \"null\"", "{\"a\":\"null\"}");
+    try expectJson("a = \"say \\\"hi\\\"\"", "{\"a\":\"say \\\"hi\\\"\"}");
+}
+
+// string-value-concatenation.10 · java ≈ · pyhocon ≈ · spec ✓ — a number prints as written. Both oracles
+// renormalise 1e5 (java 100000, pyhocon 100000.0): the same JSON value, other text.
+test "json.a number prints as written" {
+    if (true) return error.SkipZigTest; // needs Value.jsonStringify
+    try expectJson("a = 1e5", "{\"a\":1e5}");
+    try expectJson("a = 1.50", "{\"a\":1.50}");
+}
+
+// A number is JSON's number grammar, all of the text or nothing.
+// `-foo` · java ✓ · pyhocon ✓ — a string (FINDINGS.md: the spec would not even
+//          parse it, see unquoted-strings/012).
+// `.5`   · java ✓ · pyhocon ⚠️ 0.5 — JSON numbers need a digit before the dot.
+// `1.`   · java ⚠️ 1 · pyhocon ✓ — nor may they end in one.
+// `1 2`  · java ✓ · pyhocon ✓ — one unquoted text with a space, not a number.
+test "json.almost a number is a string" {
+    if (true) return error.SkipZigTest; // needs Value.jsonStringify
+    try expectJson("a = -foo", "{\"a\":\"-foo\"}");
+    try expectJson("a = .5", "{\"a\":\".5\"}");
+    try expectJson("a = 1.", "{\"a\":\"1.\"}");
+    try expectJson("a = 1 2", "{\"a\":\"1 2\"}");
+    try expectJson("a = true foo", "{\"a\":\"true foo\"}");
+    try expectJson("a = the dog ate my homework", "{\"a\":\"the dog ate my homework\"}");
+}
+
+// java ✓ · pyhocon ✓ · spec ✓ — containers nest, and keys come out in the order
+// they were written.
+test "json.objects and arrays" {
+    if (true) return error.SkipZigTest; // needs Value.jsonStringify
+    try expectJson("a { b = [1, x, {c = 2}] }", "{\"a\":{\"b\":[1,\"x\",{\"c\":2}]}}");
+    try expectJson("b = 1\na = 2", "{\"b\":1,\"a\":2}");
+    try expectJson("a { b = 1 }\na { c = 2 }", "{\"a\":{\"b\":1,\"c\":2}}");
+    try expectJson("a = []\nb {}", "{\"a\":[],\"b\":{}}");
+    try expectJson("", "{}");
+}
+
+// Nothing resolves substitutions yet, so a tree holding one cannot be printed.
+test "json.an unresolved substitution is an error" {
+    if (true) return error.SkipZigTest; // needs Value.jsonStringify
+    try testing.expectError(error.Unresolved, expectJson("a = ${b}", ""));
+}
