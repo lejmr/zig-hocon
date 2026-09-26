@@ -4,3 +4,4 @@ zig-out/
 tools/oracle/rust-oracle/target/
 ROADMAP.md
 .DS_Store
+tools/bench/rust/target/

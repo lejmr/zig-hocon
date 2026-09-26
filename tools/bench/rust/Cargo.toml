@@ -1,0 +1,16 @@
+# The two Rust HOCON crates, for tools/bench/run.sh. Same versions as the Rust
+# oracle on the oracle-corpus branch.
+[package]
+name = "hocon-bench-rust"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+hocon-rs = "0.2"
+hocon = "0.9"
+serde_json = "1"
+
+[profile.release]
+codegen-units = 1
+lto = true

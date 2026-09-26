@@ -2,9 +2,10 @@
 //
 //   java -cp config.jar Bench.java <file>...
 //
-// Prints `<file>\t<median ns>\t<runs>` per file. Each file gets two seconds of
-// warm-up first, so the JIT has compiled the parser before anything is timed;
-// then it runs until a second has passed and at least five runs are in.
+// Prints `<file>\t<median ns>\t<runs>\t<first ns>` per file. The first parse is
+// timed on its own, with the JIT still cold; then two seconds of warm-up, so the
+// parser is compiled before the median is taken over runs until a second has
+// passed and at least five are in.
 import com.typesafe.config.ConfigFactory;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -17,6 +18,9 @@ public class Bench {
     public static void main(String[] args) throws Exception {
         for (String path : args) {
             String text = Files.readString(Path.of(path));
+            long firstStart = System.nanoTime();
+            sink += ConfigFactory.parseString(text).resolve().root().size();
+            long first = System.nanoTime() - firstStart;
             long warmUntil = System.nanoTime() + 2_000_000_000L;
             while (System.nanoTime() < warmUntil) sink += ConfigFactory.parseString(text).resolve().root().size();
 
@@ -30,7 +34,7 @@ public class Bench {
                 total += t;
             }
             Collections.sort(times);
-            System.out.println(path + "\t" + times.get(times.size() / 2) + "\t" + times.size());
+            System.out.println(path + "\t" + times.get(times.size() / 2) + "\t" + times.size() + "\t" + first);
         }
         if (sink == 42) System.err.println();
     }
