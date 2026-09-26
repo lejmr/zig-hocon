@@ -7,17 +7,18 @@ inspired by [pyhocon](https://github.com/chimpler/pyhocon).
 Requires Zig **0.16.0** or newer.
 
 > **Status: early development.** Source text parses into a value graph, and the
-> graph converts into a Zig struct of your own. Substitutions are not resolved
-> yet, and the public API is still being shaped after `std.json` — see
+> graph converts into a Zig struct of your own through `hocon.parseFromSlice`,
+> shaped after `std.json`. Substitutions are not resolved yet — see
 > [Features](#features) below for what currently works.
 > This is not yet published to the Zig package registry.
 
 ## Usage
 
-Not exported from the package yet; this is the shape the tests use today, and
-it will move to `hocon.parseFromSlice` returning `Parsed(T)`, like `std.json`.
+Describe the config as a struct and parse into it, the way `std.json` does:
 
 ```zig
+const hocon = @import("hocon");
+
 const Server = struct {
     host: []const u8,
     port: u16 = 8080,
@@ -25,14 +26,34 @@ const Server = struct {
     level: enum { debug, info } = .info,
 };
 
-var arena = std.heap.ArenaAllocator.init(gpa);
-defer arena.deinit();
-
-const server = try Config.parseFromSliceLeaky(Server, arena.allocator(),
+const parsed = try hocon.parseFromSlice(Server, gpa,
     \\host = example.org
     \\level = debug
 );
-// server.port == 8080, server.tls == null
+defer parsed.deinit();
+
+const server = parsed.value; // server.port == 8080, server.tls == null
+```
+
+`parsed` owns an arena with everything the result points to, and `deinit` gives
+it back in one go — any allocator will do. Strings in the result are copies, so
+the source can be freed as soon as the call returns. When you already have an
+arena of your own, `parseFromSliceLeaky(Server, arena, source)` returns the
+plain struct and allocates straight into it.
+
+Reading the file is yours for now. Zig 0.16 hands back the 0-terminated buffer
+the parser takes when asked for a `0` sentinel, so the whole thing is:
+
+```zig
+const source = try std.Io.Dir.cwd().readFileAllocOptions(
+    io, "server.conf", gpa, .limited(1 << 20), .of(u8), 0,
+);
+defer gpa.free(source);
+
+const parsed = try hocon.parseFromSlice(Server, gpa, source);
+defer parsed.deinit();
+
+const server = parsed.value;
 ```
 
 ## Features
@@ -220,12 +241,16 @@ rather than the format.
       it means to evaluation.
 - [x] Memory — one arena owns the whole document, and everything the parser and
       the value graph produce is allocated from it or borrowed from the source
-      text. Nothing has a `deinit` of its own: freeing is dropping the arena.
-      Two consequences worth knowing before writing a caller. The input text
+      text. Nothing inside has a `deinit` of its own: freeing is dropping the
+      arena. `Parsed(T)` is that arena packaged with the result, so its single
+      `deinit` is the only one a caller sees; the arena lives behind a pointer,
+      which keeps any copy of `Parsed` freeing the same memory. The input text
       must outlive the value graph, since its leaf values are slices into it —
-      a converted struct does not have that tie, its strings are copied. And an
-      individual string is not freeable on its own, so a non-arena allocator
-      leaks by construction rather than by accident.
+      a converted struct does not have that tie, its strings are copied. The
+      `Leaky` variants skip the packaging and expect an arena from the caller:
+      an individual string is not freeable on its own, so any other allocator
+      leaks by construction. A failed parse, out of memory at any allocation
+      included, gives everything back.
 - [x] Value graph — syntax tree to values. A key is a type rather than a
       string, because three places produce one and all three have to agree that
       `a`, `"a"` and `"""a"""` are the same key; unquoting is shared with
@@ -246,11 +271,13 @@ rather than the format.
       error rather than a guess, until evaluation exists.
 - [ ] Evaluation — resolving substitutions against the finished graph and
       splicing includes.
-- [ ] Public API — after `std.json`: `parseFromSlice` returning `Parsed(T)`,
-      its `Leaky` twin, `parseFromValue`, `ParseOptions`
-      (`ignore_unknown_fields`; unknown keys are ignored for now), and
-      `hocon.Value` as a target for the dynamic tree. A JSON rendering of
-      `Value` is the bridge this project is ultimately for.
+- [x] Public API, first cut — `hocon.parseFromSlice` returning `Parsed(T)` and
+      its `parseFromSliceLeaky` twin, named and shaped after `std.json`.
+- [ ] Public API, the rest — `ParseOptions` (`ignore_unknown_fields`; unknown
+      keys are ignored for now), `parseFromValue`, `hocon.Value` as a target for
+      the dynamic tree, and `parseFromFile` taking an `std.Io` and a directory,
+      which `include` will need anyway. A JSON rendering of `Value` is the
+      bridge this project is ultimately for.
 
 ## Reference oracles
 
