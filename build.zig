@@ -27,6 +27,20 @@ pub fn build(b: *std.Build) void {
     const run_step = b.step("run", "Run the hocon CLI: zig build run -- file.conf");
     run_step.dependOn(&run_exe.step);
 
+    // `zig build bench -Doptimize=ReleaseFast`: the parse-speed runner that
+    // tools/bench/run.sh compares against typesafe/config and pyhocon.
+    const bench = b.addExecutable(.{
+        .name = "hocon-bench",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tools/bench/bench.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{.{ .name = "hocon", .module = mod }},
+        }),
+    });
+    const bench_step = b.step("bench", "Build the parse-speed runner used by tools/bench/run.sh");
+    bench_step.dependOn(&b.addInstallArtifact(bench, .{}).step);
+
     const mod_tests = b.addTest(.{
         .root_module = mod,
     });
