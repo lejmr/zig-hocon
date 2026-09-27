@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="BuildScanner">
+    <option name="projects">
+      <list><![CDATA[{
+  "name": "hocon",
+  "version": "0.1.0",
+  "path": "/Users/milos/src/tries/2026-07-23-zig-hocon",
+  "steps": [
+    {
+      "name": "install",
+      "description": "Copy build artifacts to prefix path",
+      "kind": "install_artifact"
+    },
+    {
+      "name": "uninstall",
+      "description": "Remove build artifacts from prefix path",
+      "kind": "uninstall"
+    },
+    {
+      "name": "run",
+      "description": "Run the hocon CLI: zig build run -- file.conf",
+      "kind": "run"
+    },
+    {
+      "name": "bench",
+      "description": "Build the parse-speed runner used by tools/bench/run.sh",
+      "kind": "install_artifact"
+    },
+    {
+      "name": "test",
+      "description": "Run tests",
+      "kind": "run"
+    }
+  ],
+  "modules": [
+    {
+      "root": "src/root.zig",
+      "public": true,
+      "imports": []
+    },
+    {
+      "root": "src/main.zig",
+      "public": false,
+      "imports": [
+        {
+          "name": "hocon",
+          "owner": 0,
+          "module": 0
+        }
+      ]
+    },
+    {
+      "root": "tools/bench/bench.zig",
+      "public": false,
+      "imports": [
+        {
+          "name": "hocon",
+          "owner": 0,
+          "module": 0
+        }
+      ]
+    }
+  ],
+  "dependencies": []
+}]]></list>
+    </option>
+  </component>
+  <component name="ZigToolchain" toolchain="16a978ba-7ce2-4d00-ad99-82976636753e" />
+</project>

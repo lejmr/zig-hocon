@@ -5,6 +5,7 @@
 #
 #   tools/bench/run.sh                      # 1 KB … 10 MB
 #   tools/bench/run.sh 1000 100000          # sizes in bytes
+#   REFS=1 tools/bench/run.sh               # the same with substitutions (gen.py --refs)
 #
 # Each parser is timed inside its own process on text already in memory, so
 # JVM and Python start-up are not in the numbers. Every file gets a fresh
@@ -20,6 +21,8 @@ set -eu
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 cd "$ROOT"
 OUT=zig-out/bench
+GEN=
+[ -n "${REFS:-}" ] && { OUT=zig-out/bench-refs; GEN=--refs; }
 SIZES=${*:-1000 10000 100000 1000000 10000000}
 
 JAVA=java
@@ -33,11 +36,11 @@ zig build -Doptimize=ReleaseFast
 zig build bench -Doptimize=ReleaseFast
 (cd tools/bench/rust && cargo build --release --quiet)
 RUST=tools/bench/rust/target/release
-python3 tools/bench/gen.py "$OUT" $SIZES
+python3 tools/bench/gen.py $GEN "$OUT" $SIZES
 
 # Same work: all three must print the same JSON for a mid-sized file.
 probe="$OUT/10000.conf"
-[ -f "$probe" ] || python3 tools/bench/gen.py "$OUT" 10000
+[ -f "$probe" ] || python3 tools/bench/gen.py $GEN "$OUT" 10000
 zig-out/bin/hocon "$probe" > "$OUT/zig.json"
 conformance/adapters/oracle.sh hocon-java "$probe" > "$OUT/java.json"
 conformance/adapters/oracle.sh hocon-py "$probe" > "$OUT/py.json"
