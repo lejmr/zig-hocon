@@ -372,6 +372,7 @@ wins and the row says so. Where it stands today:
 | implementation | against the spec | against typesafe/config |
 |---|---|---|
 | Java <sub>typesafe/config 1.4.9</sub> | 89% (390/436) | 99% (433/436) |
+| Java main <sub>typesafe/config main@275f872, unreleased</sub> | 92% (403/436) | 96% (419/436) |
 | pyhocon <sub>pyhocon 0.3.63</sub> | 71% (308/436) | 67% (291/436) |
 | zig-hocon <sub>zig-hocon code@136b586</sub> | 57% (248/436) | 59% (258/436) |
 
