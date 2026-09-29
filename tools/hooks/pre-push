@@ -21,7 +21,7 @@ HAVE=$(git show HEAD:conformance/reports/zig-hocon.spec.json 2>/dev/null |
     python3 -c 'import json,sys; print(json.load(sys.stdin)["version"])' 2>/dev/null || true)
 [ "$WANT" = "$HAVE" ] && exit 0
 
-GENERATED="conformance/reports/zig-hocon.spec.json conformance/reports/zig-hocon.java.json README.md conformance/report.html"
+GENERATED="conformance/reports/zig-hocon.spec.json conformance/reports/zig-hocon.java.json conformance/reports/zig-hocon.java-main.json README.md conformance/report.html"
 # shellcheck disable=SC2086
 if ! git diff --quiet HEAD -- $GENERATED; then
     echo "pre-push: conformance results are stale, but README.md or the reports" >&2
@@ -35,9 +35,11 @@ trap 'git worktree remove --force "$WT" >/dev/null 2>&1 || true' EXIT
 git worktree add --quiet --detach "$WT" HEAD
 (cd "$WT" && zig build)
 
-for mode in spec java; do
-    HOCON_BIN="$WT/zig-out/bin/hocon" conformance/run.sh --"$mode" --impl zig-hocon -- "$ADAPTER" \
-        > "conformance/reports/zig-hocon.$mode.json" 2>/dev/null || true
+# the spec, the typesafe/config release, and typesafe/config main
+for run in "spec:--spec" "java:--java" "java-main:--java-version main"; do
+    # shellcheck disable=SC2086
+    HOCON_BIN="$WT/zig-out/bin/hocon" conformance/run.sh ${run#*:} --impl zig-hocon -- "$ADAPTER" \
+        > "conformance/reports/zig-hocon.${run%%:*}.json" 2>/dev/null || true
 done
 python3 conformance/maintaining/report.py >/dev/null
 

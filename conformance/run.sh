@@ -35,9 +35,13 @@
 #   --java            score against what typesafe/config does, on the rows where
 #                     the two disagree — compatibility with the JVM world rather
 #                     than conformance; see conformance/PROCESS.md
+#   --java-version V  which typesafe/config --java scores against: 1.4.9 (the
+#                     default, the latest release) or a later one, e.g. main.
+#                     Rows a newer typesafe/config fixed say so in `java_since`
 set -eu
 
 MODE=spec
+JAVA_VERSION=1.4.9
 FORMAT=json
 ONLY=
 IMPL=
@@ -51,6 +55,7 @@ while [ $# -gt 0 ]; do
         --mode) MODE=$2; shift 2 ;;
         --spec) MODE=spec; shift ;;
         --java) MODE=java; shift ;;
+        --java-version) MODE=java; JAVA_VERSION=$2; shift 2 ;;
         --only) ONLY=$2; shift 2 ;;
         --text) FORMAT=text; shift ;;
         --impl) IMPL=$2; shift 2 ;;
@@ -99,11 +104,21 @@ for k, v in json.load(open(sys.argv[1])).get("env", {}).items():
     printf '%s\037%s\037%s\036' "$case_file" "$status" "$out" >> "$RESULTS"
 done
 
-COMMAND="$*" MODE="$MODE" FORMAT="$FORMAT" RESULTS="$RESULTS" DIR="$DIR" IMPL="$IMPL" VERSION="$VERSION" \
+COMMAND="$*" MODE="$MODE" JAVA_VERSION="$JAVA_VERSION" FORMAT="$FORMAT" RESULTS="$RESULTS" DIR="$DIR" IMPL="$IMPL" VERSION="$VERSION" \
   RAN_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ) python3 - <<'PY'
 import hashlib, json, os, pathlib, sys
 
 mode, root = os.environ["MODE"], pathlib.Path(os.environ["DIR"])
+java_version = os.environ["JAVA_VERSION"]
+
+
+def at_least(version, since):
+    """Whether typesafe/config `version` already has what `since` names. `main`
+    is newer than any release and a release never has what only main has."""
+    if since == "main" or version == "main":
+        return version == "main"
+    return [int(x) for x in version.split(".")] >= [int(x) for x in since.split(".")]
+
 records = [r for r in pathlib.Path(os.environ["RESULTS"]).read_text(errors="replace").split("\036") if r]
 
 sections, failures, verdicts, outputs, passed = {}, [], {}, {}, 0
@@ -111,6 +126,13 @@ for record in records:
     path, status, out = record.split("\037", 2)
     case = pathlib.Path(path)
     meta = json.loads(case.with_suffix(".json").read_text())
+
+    # a row typesafe/config changed after that release: from `java_since` on it
+    # does what the spec says, or what `java_since` records instead
+    since = meta.get("java_since")
+    if mode == "java" and since and at_least(java_version, since["version"]):
+        meta = {k: v for k, v in meta.items() if k not in ("java_expect", "java_error")}
+        meta.update({k: since[k] for k in ("java_expect", "java_error") if k in since})
 
     # on a row where the spec and typesafe/config disagree, java mode scores
     # against what typesafe/config does instead
@@ -174,6 +196,7 @@ report = {
     "implementation": os.environ["IMPL"],
     "version": os.environ["VERSION"],
     "mode": mode,
+    **({"java_version": java_version} if mode == "java" else {}),
     "command": os.environ["COMMAND"],
     "ran_at": os.environ["RAN_AT"],
     "suite_digest": digest.hexdigest()[:16],

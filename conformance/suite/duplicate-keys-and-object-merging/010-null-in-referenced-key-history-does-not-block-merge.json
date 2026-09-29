@@ -26,5 +26,9 @@
       "x": 1
     }
   },
-  "resolve": true
+  "resolve": true,
+  "java_since": {
+    "version": "main",
+    "by": "lightbend/config#864"
+  }
 }

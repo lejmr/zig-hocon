@@ -6,5 +6,12 @@
   "java": "lenient",
   "java_expect": {
     "a": -0.33
+  },
+  "java_since": {
+    "version": "main",
+    "by": "lightbend/config#861",
+    "java_expect": {
+      "a": "-.33"
+    }
   }
 }

@@ -63,6 +63,20 @@ HOCON forbids that typesafe/config waves through. `a = 01`, `a = -foo` and
 `include.foo : 42` are all of this kind. An implementation aiming at
 compatibility may copy the leniency; one aiming at conformance must not.
 
+`java_expect` / `java_error` record the typesafe/config release, 1.4.9. When a
+later typesafe/config changes a row, the row says since when and by what, and
+`run.sh --java-version <v>` scores against that version instead:
+
+```json
+"java_since": {"version": "main", "by": "lightbend/config#861", "java_expect": {"a": "-.33"}}
+```
+
+From `version` on, typesafe/config does what `java_since` records, or, when it
+records nothing, what the spec says. `main` is newer than every release and no
+release has it; once a release ships the change, `version` becomes that
+release. The row keeps `java` and its old `java_expect`, because the release
+people run still behaves that way.
+
 ### What a runner must do with this
 
 A runner reads the suite in one of two modes, and must support both:

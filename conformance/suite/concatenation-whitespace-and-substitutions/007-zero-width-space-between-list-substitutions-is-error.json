@@ -16,5 +16,9 @@
       1,
       2
     ]
+  },
+  "java_since": {
+    "version": "main",
+    "by": "lightbend/config#862"
   }
 }

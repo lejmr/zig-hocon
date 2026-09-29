@@ -34,7 +34,8 @@ matter; stderr is yours.
 
 ```sh
 conformance/run.sh --spec -- ./my-adapter.sh   # default: what HOCON requires
-conformance/run.sh --java -- ./my-adapter.sh   # what typesafe/config does
+conformance/run.sh --java -- ./my-adapter.sh   # what typesafe/config 1.4.9 does
+conformance/run.sh --java-version main -- ./my-adapter.sh   # what its unreleased main does
 ```
 
 They ask the same question on every row but a handful — the ones where the
