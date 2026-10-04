@@ -106,7 +106,10 @@ done
 
 COMMAND="$*" MODE="$MODE" JAVA_VERSION="$JAVA_VERSION" FORMAT="$FORMAT" RESULTS="$RESULTS" DIR="$DIR" IMPL="$IMPL" VERSION="$VERSION" \
   RAN_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ) python3 - <<'PY'
-import hashlib, json, os, pathlib, sys
+import hashlib, json, os, pathlib, re, sys
+
+# a lone surrogate has no UTF-8 form; print it as the JSON escape it came in as
+safe = lambda text: re.sub(r"[\ud800-\udfff]", lambda m: "\\u{:04x}".format(ord(m.group())), text)
 
 mode, root = os.environ["MODE"], pathlib.Path(os.environ["DIR"])
 java_version = os.environ["JAVA_VERSION"]
@@ -210,7 +213,7 @@ report = {
 }
 
 if os.environ["FORMAT"] == "json":
-    json.dump(report, sys.stdout, indent=2, ensure_ascii=False)
+    sys.stdout.write(safe(json.dumps(report, indent=2, ensure_ascii=False)))
     print()
 else:
     bar = lambda p, n: "#" * round(20 * p / n) + "." * (20 - round(20 * p / n)) if n else ""
@@ -224,8 +227,8 @@ else:
         for f in failures:
             print("\n  {}\n    rule     {}\n    expected {}\n    got      {}".format(
                 f["case"], (f["rule"] or "")[:100],
-                json.dumps(f["expected"], ensure_ascii=False)[:100],
-                json.dumps(f["got"], ensure_ascii=False)[:100]))
+                safe(json.dumps(f["expected"], ensure_ascii=False))[:100],
+                safe(json.dumps(f["got"], ensure_ascii=False))[:100]))
     else:
         print("\n  everything this suite can check, checks out")
 
