@@ -371,10 +371,10 @@ wins and the row says so. Where it stands today:
 
 | implementation | against the spec | against typesafe/config 1.4.9 | against typesafe/config main |
 |---|---|---|---|
-| Java <sub>typesafe/config 1.4.9</sub> | 89% (390/436) | 99% (433/436) | 96% (419/436) |
-| Java main <sub>typesafe/config main@275f872, unreleased</sub> | 92% (403/436) | 96% (419/436) | 99% (433/436) |
-| pyhocon <sub>pyhocon 0.3.63</sub> | 71% (308/436) | 67% (291/436) | 69% (300/436) |
-| zig-hocon <sub>zig-hocon code@65ecfe2</sub> | 57% (248/436) | 59% (258/436) | 61% (267/436) |
+| Java <sub>typesafe/config 1.4.9</sub> | 90% (399/445) | 99% (442/445) | 96% (428/445) |
+| Java main <sub>typesafe/config main@275f872, unreleased</sub> | 93% (412/445) | 96% (428/445) | 99% (442/445) |
+| pyhocon <sub>pyhocon 0.3.63</sub> | 70% (312/445) | 66% (295/445) | 68% (304/445) |
+| zig-hocon <sub>zig-hocon code@2a79c7b</sub> | 56% (251/445) | 59% (261/445) | 61% (270/445) |
 
 <!-- conformance:end -->
 

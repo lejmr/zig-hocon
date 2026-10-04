@@ -4,11 +4,11 @@
   "version": "pyhocon 0.3.63",
   "mode": "spec",
   "command": "conformance/adapters/oracle.sh hocon-py",
-  "ran_at": "2026-09-29T05:25:33Z",
-  "suite_digest": "681bed653505e98f",
-  "total": 436,
-  "passed": 308,
-  "percent": 70.6,
+  "ran_at": "2026-10-04T19:50:40Z",
+  "suite_digest": "1c8f34cbde37c8ae",
+  "total": 445,
+  "passed": 312,
+  "percent": 70.1,
   "sections": {
     "array-and-object-concatenation": {
       "total": 19,
@@ -43,12 +43,12 @@
       "passed": 2
     },
     "include-file-formats": {
-      "total": 21,
+      "total": 23,
       "passed": 3
     },
     "include-locating": {
-      "total": 2,
-      "passed": 2
+      "total": 5,
+      "passed": 4
     },
     "include-merging": {
       "total": 15,
@@ -63,7 +63,7 @@
       "passed": 12
     },
     "include-syntax": {
-      "total": 16,
+      "total": 15,
       "passed": 12
     },
     "key-value-separator": {
@@ -83,12 +83,12 @@
       "passed": 3
     },
     "omit-root-braces": {
-      "total": 13,
-      "passed": 13
+      "total": 14,
+      "passed": 14
     },
     "path-expressions": {
-      "total": 19,
-      "passed": 12
+      "total": 20,
+      "passed": 13
     },
     "paths-as-keys": {
       "total": 11,
@@ -123,11 +123,11 @@
       "passed": 7
     },
     "substitutions": {
-      "total": 36,
+      "total": 37,
       "passed": 28
     },
     "unchanged-from-json": {
-      "total": 26,
+      "total": 27,
       "passed": 13
     },
     "units-format": {
@@ -135,7 +135,7 @@
       "passed": 5
     },
     "unquoted-strings": {
-      "total": 23,
+      "total": 24,
       "passed": 16
     },
     "value-concatenation": {
@@ -272,8 +272,13 @@
     "include-file-formats/022-json-dotted-key-is-one-key/main.conf": "fail",
     "include-file-formats/023-json-leading-zero-illegal/main.conf": "fail",
     "include-file-formats/024-unknown-extension-is-not-a-basename/main.conf": "pass",
+    "include-file-formats/025-json-is-parsed-after-properties/main.conf": "fail",
+    "include-file-formats/026-conf-is-parsed-after-json/main.conf": "fail",
     "include-locating/001-include-string-that-is-a-url-is-a-url.conf": "pass",
     "include-locating/002-nested-include-is-relative-to-the-including-file/main.conf": "pass",
+    "include-locating/003-plain-name-is-a-file-beside-the-including-one/main.conf": "pass",
+    "include-locating/004-absolute-path-stays-absolute/main.conf": "pass",
+    "include-locating/005-file-argument-is-not-relative-to-the-including-file/main.conf": "fail",
     "include-merging/001-included-keys-merge-in-place/main.conf": "pass",
     "include-merging/002-included-conf-array-root-is-error/main.conf": "pass",
     "include-merging/003-included-json-array-root-is-error/main.conf": "pass",
@@ -325,7 +330,6 @@
     "include-syntax/009-file-missing-close-parenthesis/main.conf": "pass",
     "include-syntax/010-required-missing-close-parenthesis/main.conf": "pass",
     "include-syntax/011-url-argument-must-be-a-url/main.conf": "open",
-    "include-syntax/012-missing-classpath-resource-is-ignored.conf": "fail",
     "include-syntax/013-newlines-between-include-and-name/main.conf": "fail",
     "include-syntax/014-whitespace-inside-parentheses/main.conf": "pass",
     "include-syntax/015-include-followed-by-separator-is-not-a-key.conf": "fail",
@@ -371,6 +375,7 @@
     "omit-root-braces/012-close-brace-after-value-on-one-line-illegal.conf": "pass",
     "omit-root-braces/013-open-brace-never-closed-illegal.conf": "pass",
     "omit-root-braces/014-comment-only-file.conf": "pass",
+    "omit-root-braces/015-bare-number-root-illegal.conf": "pass",
     "path-expressions/001-quoted-dot-has-no-meaning.conf": "pass",
     "path-expressions/002-mixed-quoted-and-unquoted-path.conf": "fail",
     "path-expressions/003-number-then-unquoted-string.conf": "pass",
@@ -390,6 +395,7 @@
     "path-expressions/020-negative-leading-dot-key-is-a-path.conf": "pass",
     "path-expressions/021-quoted-dot-in-substitution-path-is-literal.conf": "pass",
     "path-expressions/022-keyword-in-substitution-path-is-a-string.conf": "pass",
+    "path-expressions/023-substitution-in-dotted-key-illegal.conf": "pass",
     "paths-as-keys/001-two-element-path-expands.conf": "pass",
     "paths-as-keys/002-three-element-path-expands.conf": "pass",
     "paths-as-keys/003-merge-sibling-paths.conf": "pass",
@@ -514,6 +520,7 @@
     "substitutions/037-path-into-a-list-element-is-undefined.conf": "fail",
     "substitutions/038-whitespace-after-question-mark.conf": "fail",
     "substitutions/039-undefined-optional-with-number-is-a-string.conf": "fail",
+    "substitutions/040-null-blocks-environment-lookup.conf": "fail",
     "unchanged-from-json/001-quoted-string-json-format.conf": "fail",
     "unchanged-from-json/002-string-value-type.conf": "pass",
     "unchanged-from-json/003-number-value-type.conf": "pass",
@@ -540,6 +547,7 @@
     "unchanged-from-json/024-raw-utf8-in-quoted-string.conf": "fail",
     "unchanged-from-json/025-nan-is-not-a-number.conf": "pass",
     "unchanged-from-json/026-surrogate-pair-escape.conf": "fail",
+    "unchanged-from-json/027-unpaired-surrogate-escape-is-kept.conf": "fail",
     "units-format/001-number-value-is-default-unit.conf": "pass",
     "units-format/002-quoted-string-with-no-unit-uses-default-unit.conf": "pass",
     "units-format/003-string-with-unit-name-specifies-interpretation.conf": "fail",
@@ -569,6 +577,7 @@
     "unquoted-strings/021-plus-inside-a-number-illegal.conf": "fail",
     "unquoted-strings/022-digit-then-exponent-letter-illegal.conf": "fail",
     "unquoted-strings/023-unquoted-string-ends-at-end-of-file.conf": "pass",
+    "unquoted-strings/024-escape-sequence-in-unquoted-string-illegal.conf": "fail",
     "value-concatenation/001-simple-values-concatenate-to-string.conf": "pass",
     "value-concatenation/004-string-concatenation-allowed-in-field-keys.conf": "pass",
     "whitespace/001-nonbreaking-space-as-whitespace.conf": "fail",
@@ -1087,6 +1096,38 @@
       "java": "lenient"
     },
     {
+      "case": "include-file-formats/025-json-is-parsed-after-properties/main.conf",
+      "spec": "HOCON.md#include-semantics-file-formats-and-extensions",
+      "rule": "base.properties and base.json both exist; JSON is parsed next-to-last, after properties, so its value for a wins",
+      "expected": {
+        "a": "json"
+      },
+      "got": {}
+    },
+    {
+      "case": "include-file-formats/026-conf-is-parsed-after-json/main.conf",
+      "spec": "HOCON.md#include-semantics-file-formats-and-extensions",
+      "rule": "base.json and base.conf both exist; HOCON is parsed last, after JSON, so its value for a wins",
+      "expected": {
+        "a": "conf"
+      },
+      "got": {}
+    },
+    {
+      "case": "include-locating/005-file-argument-is-not-relative-to-the-including-file/main.conf",
+      "spec": "HOCON.md#include-semantics-locating-resources",
+      "rule": "a file() argument is not interpreted relative to the including file, so the marker beside sub/inner.conf is not loaded; nothing of that name exists elsewhere and the include is ignored",
+      "expected": {
+        "inner": 1,
+        "own": 1
+      },
+      "got": {
+        "own": 1,
+        "inner": 1,
+        "marker": "relativized"
+      }
+    },
+    {
       "case": "include-substitution/001-substitution-relativized-to-include-scope/main.conf",
       "spec": "HOCON.md#include-semantics-substitution",
       "rule": "a substitution in an included file must be fixed up to be relative to the app's configuration root, so ${x} in a file included at key a becomes ${a.x}",
@@ -1217,13 +1258,6 @@
       "expected": "rejected",
       "got": "rejected",
       "open_question": "the spec says only that the string inside url() is interpreted as a URL; it does not say whether a string that is not a URL is an error or an unresolvable, hence ignorable, resource. typesafe/config rejects it"
-    },
-    {
-      "case": "include-syntax/012-missing-classpath-resource-is-ignored.conf",
-      "spec": "HOCON.md#include-syntax",
-      "rule": "a classpath() include names a resource; when it does not exist the include is ignored like any other missing include, and an implementation without a classpath has nothing to find there either",
-      "expected": {},
-      "got": "rejected (exit 1)"
     },
     {
       "case": "include-syntax/013-newlines-between-include-and-name/main.conf",
@@ -1794,7 +1828,7 @@
         "a": "null bar"
       },
       "got": {
-        "a": "<pyhocon.config_tree.NoneValue object at 0x10662f7d0>bar"
+        "a": "<pyhocon.config_tree.NoneValue object at 0x105111950>bar"
       }
     },
     {
@@ -1922,6 +1956,18 @@
       "java": "diverges"
     },
     {
+      "case": "substitutions/040-null-blocks-environment-lookup.conf",
+      "spec": "HOCON.md#substitutions",
+      "rule": "the configuration sets CONFORMANCE_NULLED to null, so the substitution resolves to that null and the environment variable of the same name is never consulted",
+      "expected": {
+        "CONFORMANCE_NULLED": null,
+        "a": null
+      },
+      "got": {
+        "CONFORMANCE_NULLED": null
+      }
+    },
+    {
       "case": "unchanged-from-json/001-quoted-string-json-format.conf",
       "spec": "HOCON.md#unchanged-from-json",
       "rule": "quoted strings are in the same format as JSON strings, so JSON escapes like \\n, \\t, \\\", \\\\ and \\u unicode escapes are honored",
@@ -2035,6 +2081,17 @@
       }
     },
     {
+      "case": "unchanged-from-json/027-unpaired-surrogate-escape-is-kept.conf",
+      "spec": "HOCON.md#unchanged-from-json",
+      "rule": "quoted strings are JSON strings, and JSON's grammar accepts any \\uXXXX escape, an unpaired surrogate included, so the string holds that one code unit",
+      "expected": {
+        "a": "\ud83d"
+      },
+      "got": {
+        "a": "\\ud83d"
+      }
+    },
+    {
       "case": "units-format/003-string-with-unit-name-specifies-interpretation.conf",
       "spec": "HOCON.md#units-format",
       "rule": "a string value with a unit name has that name specify the value's interpretation",
@@ -2103,6 +2160,13 @@
       "expected": "rejected",
       "got": "{\"a\":\"1e\"}",
       "java": "lenient"
+    },
+    {
+      "case": "unquoted-strings/024-escape-sequence-in-unquoted-string-illegal.conf",
+      "spec": "HOCON.md#unquoted-strings",
+      "rule": "unquoted strings support no escaping, so \\u00e9 is not decoded, and the backslash it needs is forbidden in an unquoted string; the quoted \"caf\\u00e9\" is how to write it",
+      "expected": "rejected",
+      "got": "{\"a\":\"caf\\\\u00e9\"}"
     },
     {
       "case": "whitespace/001-nonbreaking-space-as-whitespace.conf",

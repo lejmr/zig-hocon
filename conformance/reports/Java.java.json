@@ -5,10 +5,10 @@
   "mode": "java",
   "java_version": "1.4.9",
   "command": "conformance/adapters/oracle.sh hocon-java",
-  "ran_at": "2026-09-29T05:20:29Z",
-  "suite_digest": "681bed653505e98f",
-  "total": 436,
-  "passed": 433,
+  "ran_at": "2026-10-04T19:51:32Z",
+  "suite_digest": "1c8f34cbde37c8ae",
+  "total": 445,
+  "passed": 442,
   "percent": 99.3,
   "sections": {
     "array-and-object-concatenation": {
@@ -44,12 +44,12 @@
       "passed": 9
     },
     "include-file-formats": {
-      "total": 21,
-      "passed": 21
+      "total": 23,
+      "passed": 23
     },
     "include-locating": {
-      "total": 2,
-      "passed": 2
+      "total": 5,
+      "passed": 5
     },
     "include-merging": {
       "total": 15,
@@ -64,8 +64,8 @@
       "passed": 19
     },
     "include-syntax": {
-      "total": 16,
-      "passed": 15
+      "total": 15,
+      "passed": 14
     },
     "key-value-separator": {
       "total": 6,
@@ -84,12 +84,12 @@
       "passed": 7
     },
     "omit-root-braces": {
-      "total": 13,
-      "passed": 13
+      "total": 14,
+      "passed": 14
     },
     "path-expressions": {
-      "total": 19,
-      "passed": 19
+      "total": 20,
+      "passed": 20
     },
     "paths-as-keys": {
       "total": 11,
@@ -124,20 +124,20 @@
       "passed": 8
     },
     "substitutions": {
-      "total": 36,
-      "passed": 36
+      "total": 37,
+      "passed": 37
     },
     "unchanged-from-json": {
-      "total": 26,
-      "passed": 26
+      "total": 27,
+      "passed": 27
     },
     "units-format": {
       "total": 6,
       "passed": 6
     },
     "unquoted-strings": {
-      "total": 23,
-      "passed": 23
+      "total": 24,
+      "passed": 24
     },
     "value-concatenation": {
       "total": 2,
@@ -273,8 +273,13 @@
     "include-file-formats/022-json-dotted-key-is-one-key/main.conf": "pass",
     "include-file-formats/023-json-leading-zero-illegal/main.conf": "pass",
     "include-file-formats/024-unknown-extension-is-not-a-basename/main.conf": "pass",
+    "include-file-formats/025-json-is-parsed-after-properties/main.conf": "pass",
+    "include-file-formats/026-conf-is-parsed-after-json/main.conf": "pass",
     "include-locating/001-include-string-that-is-a-url-is-a-url.conf": "pass",
     "include-locating/002-nested-include-is-relative-to-the-including-file/main.conf": "pass",
+    "include-locating/003-plain-name-is-a-file-beside-the-including-one/main.conf": "pass",
+    "include-locating/004-absolute-path-stays-absolute/main.conf": "pass",
+    "include-locating/005-file-argument-is-not-relative-to-the-including-file/main.conf": "pass",
     "include-merging/001-included-keys-merge-in-place/main.conf": "pass",
     "include-merging/002-included-conf-array-root-is-error/main.conf": "pass",
     "include-merging/003-included-json-array-root-is-error/main.conf": "pass",
@@ -326,7 +331,6 @@
     "include-syntax/009-file-missing-close-parenthesis/main.conf": "pass",
     "include-syntax/010-required-missing-close-parenthesis/main.conf": "pass",
     "include-syntax/011-url-argument-must-be-a-url/main.conf": "open",
-    "include-syntax/012-missing-classpath-resource-is-ignored.conf": "pass",
     "include-syntax/013-newlines-between-include-and-name/main.conf": "pass",
     "include-syntax/014-whitespace-inside-parentheses/main.conf": "pass",
     "include-syntax/015-include-followed-by-separator-is-not-a-key.conf": "pass",
@@ -372,6 +376,7 @@
     "omit-root-braces/012-close-brace-after-value-on-one-line-illegal.conf": "pass",
     "omit-root-braces/013-open-brace-never-closed-illegal.conf": "pass",
     "omit-root-braces/014-comment-only-file.conf": "pass",
+    "omit-root-braces/015-bare-number-root-illegal.conf": "pass",
     "path-expressions/001-quoted-dot-has-no-meaning.conf": "pass",
     "path-expressions/002-mixed-quoted-and-unquoted-path.conf": "pass",
     "path-expressions/003-number-then-unquoted-string.conf": "pass",
@@ -391,6 +396,7 @@
     "path-expressions/020-negative-leading-dot-key-is-a-path.conf": "pass",
     "path-expressions/021-quoted-dot-in-substitution-path-is-literal.conf": "pass",
     "path-expressions/022-keyword-in-substitution-path-is-a-string.conf": "pass",
+    "path-expressions/023-substitution-in-dotted-key-illegal.conf": "pass",
     "paths-as-keys/001-two-element-path-expands.conf": "pass",
     "paths-as-keys/002-three-element-path-expands.conf": "pass",
     "paths-as-keys/003-merge-sibling-paths.conf": "pass",
@@ -515,6 +521,7 @@
     "substitutions/037-path-into-a-list-element-is-undefined.conf": "pass",
     "substitutions/038-whitespace-after-question-mark.conf": "pass",
     "substitutions/039-undefined-optional-with-number-is-a-string.conf": "pass",
+    "substitutions/040-null-blocks-environment-lookup.conf": "pass",
     "unchanged-from-json/001-quoted-string-json-format.conf": "pass",
     "unchanged-from-json/002-string-value-type.conf": "pass",
     "unchanged-from-json/003-number-value-type.conf": "pass",
@@ -541,6 +548,7 @@
     "unchanged-from-json/024-raw-utf8-in-quoted-string.conf": "pass",
     "unchanged-from-json/025-nan-is-not-a-number.conf": "pass",
     "unchanged-from-json/026-surrogate-pair-escape.conf": "pass",
+    "unchanged-from-json/027-unpaired-surrogate-escape-is-kept.conf": "pass",
     "units-format/001-number-value-is-default-unit.conf": "pass",
     "units-format/002-quoted-string-with-no-unit-uses-default-unit.conf": "pass",
     "units-format/003-string-with-unit-name-specifies-interpretation.conf": "pass",
@@ -570,6 +578,7 @@
     "unquoted-strings/021-plus-inside-a-number-illegal.conf": "pass",
     "unquoted-strings/022-digit-then-exponent-letter-illegal.conf": "pass",
     "unquoted-strings/023-unquoted-string-ends-at-end-of-file.conf": "pass",
+    "unquoted-strings/024-escape-sequence-in-unquoted-string-illegal.conf": "pass",
     "value-concatenation/001-simple-values-concatenate-to-string.conf": "pass",
     "value-concatenation/004-string-concatenation-allowed-in-field-keys.conf": "pass",
     "whitespace/001-nonbreaking-space-as-whitespace.conf": "pass",
