@@ -14,6 +14,7 @@ import collections
 import json
 import os
 import pathlib
+import re
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
@@ -118,7 +119,10 @@ def main(argv):
             continue
         stale.append(str(side.relative_to(suite.ROOT)))
         if not check:
-            side.write_text(json.dumps(want, indent=2, ensure_ascii=False) + "\n")
+            text = json.dumps(want, indent=2, ensure_ascii=False)
+            # a lone surrogate has no UTF-8 form; keep it as the JSON escape it came in as
+            text = re.sub(r"[\ud800-\udfff]", lambda m: "\\u{:04x}".format(ord(m.group())), text)
+            side.write_text(text + "\n")
 
     if stale and (check or orphans):
         print("needs attention:\n  " + "\n  ".join(stale))

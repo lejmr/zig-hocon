@@ -24,8 +24,25 @@ public class Oracle {
             if (resolve) line = line.substring("resolve:".length());
             boolean file = line.startsWith("file:");
             if (file) line = line.substring("file:".length());
-            System.out.println(file ? runFile(line, resolve) : run(unescape(line), resolve));
+            System.out.println(escapeLoneSurrogates(file ? runFile(line, resolve) : run(unescape(line), resolve)));
         }
+    }
+
+    // a lone surrogate has no UTF-8 encoding, so stdout would print it as '?';
+    // inside a JSON string the \\uXXXX escape keeps it exact
+    static String escapeLoneSurrogates(String s) {
+        StringBuilder b = new StringBuilder();
+        for (int i = 0; i < s.length(); i++) {
+            char ch = s.charAt(i);
+            if (Character.isHighSurrogate(ch) && i + 1 < s.length() && Character.isLowSurrogate(s.charAt(i + 1))) {
+                b.append(ch).append(s.charAt(++i));
+            } else if (Character.isSurrogate(ch)) {
+                b.append(String.format("\\u%04x", (int) ch));
+            } else {
+                b.append(ch);
+            }
+        }
+        return b.toString();
     }
 
     static String run(String src, boolean resolve) {
