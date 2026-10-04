@@ -1,0 +1,13 @@
+{
+  "spec": "HOCON.md#substitutions",
+  "rule": "substitutions.12",
+  "why": "the configuration sets CONFORMANCE_NULLED to null, so the substitution resolves to that null and the environment variable of the same name is never consulted",
+  "env": {
+    "CONFORMANCE_NULLED": "from-env"
+  },
+  "expect": {
+    "CONFORMANCE_NULLED": null,
+    "a": null
+  },
+  "resolve": true
+}

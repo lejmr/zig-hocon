@@ -1,0 +1,9 @@
+{
+  "spec": "HOCON.md#include-semantics-locating-resources",
+  "rule": "include-semantics-locating-resources.7",
+  "why": "a file() argument is not interpreted relative to the including file, so the marker beside sub/inner.conf is not loaded; nothing of that name exists elsewhere and the include is ignored",
+  "expect": {
+    "inner": 1,
+    "own": 1
+  }
+}

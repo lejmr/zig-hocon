@@ -1,0 +1,8 @@
+{
+  "spec": "HOCON.md#include-semantics-file-formats-and-extensions",
+  "rule": "include-semantics-file-formats-and-extensions.4",
+  "why": "base.json and base.conf both exist; HOCON is parsed last, after JSON, so its value for a wins",
+  "expect": {
+    "a": "conf"
+  }
+}

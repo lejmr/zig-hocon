@@ -1,0 +1,8 @@
+{
+  "spec": "HOCON.md#include-semantics-file-formats-and-extensions",
+  "rule": "include-semantics-file-formats-and-extensions.5",
+  "why": "base.properties and base.json both exist; JSON is parsed next-to-last, after properties, so its value for a wins",
+  "expect": {
+    "a": "json"
+  }
+}

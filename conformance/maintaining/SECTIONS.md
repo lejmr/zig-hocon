@@ -9,23 +9,23 @@ observable parse behaviour.
 |---|---|---|---|
 | 59 | Goals / Background | — | — |
 | 92 | Definitions | — | — |
-| 115 | Unchanged from JSON | `unchanged-from-json` | ✅ 26 cases |
+| 115 | Unchanged from JSON | `unchanged-from-json` | ✅ 27 cases |
 | 123 | Comments | `comments` | ✅ 14 cases |
-| 128 | Omit root braces | `omit-root-braces` | ✅ 13 cases |
+| 128 | Omit root braces | `omit-root-braces` | ✅ 14 cases |
 | 141 | Key-value separator | `key-value-separator` | ✅ 6 cases |
 | 149 | Commas | `commas` | ✅ 13 cases |
 | 165 | Whitespace | `whitespace` | ✅ 13 cases |
 | 186 | Duplicate keys and object merging | `duplicate-keys-and-object-merging` | ✅ 28 cases |
-| 240 | Unquoted strings | `unquoted-strings` | ✅ 23 cases |
+| 240 | Unquoted strings | `unquoted-strings` | ✅ 24 cases |
 | 288 | Multi-line strings | `multi-line-strings` | ✅ 9 cases |
 | 304 | Value concatenation | `value-concatenation` | ✅ 2 cases |
 | 321 | String value concatenation | `string-value-concatenation` | ✅ 18 cases |
 | 382 | Array and object concatenation | `array-and-object-concatenation` | ✅ 19 cases |
 | 435 | Concatenation with whitespace and substitutions | `concatenation-whitespace-and-substitutions` | ✅ 9 cases |
 | 444 | Arrays without commas or newlines | `arrays-without-commas-or-newlines` | ✅ 7 cases |
-| 472 | Path expressions | `path-expressions` | ✅ 19 cases |
+| 472 | Path expressions | `path-expressions` | ✅ 20 cases |
 | 521 | Paths as keys | `paths-as-keys` | ✅ 11 cases |
-| 574 | Substitutions | `substitutions` | ✅ 36 cases |
+| 574 | Substitutions | `substitutions` | ✅ 37 cases |
 | 653 | Self-referential substitutions | `self-referential-substitutions` | ✅ 5 cases |
 | 719 | The += field separator | `plus-equals-field-separator` | ✅ 8 cases |
 | 738 | Examples of self-referential substitutions | `self-referential-examples` | ✅ 26 cases |
@@ -34,8 +34,8 @@ observable parse behaviour.
 | 982 | Include semantics: merging | `include-merging` | ✅ 15 cases |
 | 1008 | Include semantics: substitution | `include-substitution` | ✅ 19 cases |
 | 1051 | Include semantics: missing and required files | `include-missing-and-required` | ✅ 6 cases |
-| 1074 | Include semantics: file formats and extensions | `include-file-formats` | ✅ 21 cases |
-| 1109 | Include semantics: locating resources | `include-locating` | ✅ 2 cases |
+| 1074 | Include semantics: file formats and extensions | `include-file-formats` | ✅ 23 cases |
+| 1109 | Include semantics: locating resources | `include-locating` | ✅ 5 cases |
 | 1184 | Conversion of numerically-indexed objects to arrays | `numerically-indexed-objects-to-arrays` | ✅ 7 cases |
 | 1221 | MIME Type | — | — |
 | 1230 | Automatic type conversions | — | — typed accessors, no parse behaviour |

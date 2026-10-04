@@ -1,5 +1,6 @@
 {
   "spec": "HOCON.md#period-format",
+  "rule": "period-format.2",
   "why": "the supported unit strings for period are case-sensitive and must be lowercase, so an uppercase unit is not one of the supported strings",
   "expect": {
     "p": "10D"

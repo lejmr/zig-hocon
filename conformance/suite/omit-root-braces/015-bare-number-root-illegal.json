@@ -1,0 +1,6 @@
+{
+  "spec": "HOCON.md#omit-root-braces",
+  "rule": "omit-root-braces.3",
+  "why": "the file does not begin with { or [, so it is read as if wrapped in braces, and a bare number there is a key with no value",
+  "error": "Parse"
+}

@@ -1,0 +1,6 @@
+{
+  "spec": "HOCON.md#unquoted-strings",
+  "rule": "unquoted-strings.5",
+  "why": "unquoted strings support no escaping, so \\u00e9 is not decoded, and the backslash it needs is forbidden in an unquoted string; the quoted \"caf\\u00e9\" is how to write it",
+  "error": "Parse"
+}

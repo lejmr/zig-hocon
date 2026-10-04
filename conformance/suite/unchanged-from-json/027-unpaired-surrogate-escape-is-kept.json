@@ -1,0 +1,8 @@
+{
+  "spec": "HOCON.md#unchanged-from-json",
+  "rule": "unchanged-from-json.2",
+  "why": "quoted strings are JSON strings, and JSON's grammar accepts any \\uXXXX escape, an unpaired surrogate included, so the string holds that one code unit",
+  "expect": {
+    "a": "\ud83d"
+  }
+}

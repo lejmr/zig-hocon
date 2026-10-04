@@ -1,0 +1,6 @@
+{
+  "spec": "HOCON.md#path-expressions",
+  "rule": "path-expressions.2",
+  "why": "a key is a path expression, and a path expression may not contain a substitution, not even as a later element of a dotted key",
+  "error": "BadPath"
+}

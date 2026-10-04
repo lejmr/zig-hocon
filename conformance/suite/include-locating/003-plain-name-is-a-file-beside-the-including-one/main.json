@@ -1,0 +1,9 @@
+{
+  "spec": "HOCON.md#include-semantics-locating-resources",
+  "rule": "include-semantics-locating-resources.3",
+  "why": "x.conf is not a URL, so it names a file adjacent to main.conf",
+  "expect": {
+    "own": 1,
+    "x": "adjacent"
+  }
+}

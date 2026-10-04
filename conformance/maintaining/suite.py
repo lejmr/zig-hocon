@@ -123,14 +123,15 @@ def version(cmd):
     return first[0][:80] if out.returncode == 0 and first else "unknown"
 
 
-def spec_items():
-    """The rule inventory: id -> text. The denominator for coverage."""
+def rules():
+    """RULES.md: rule id -> (spec line, sentence). Every normative sentence of
+    spec/HOCON.md in a section the suite covers; the denominator for coverage."""
     out = {}
-    path = pathlib.Path(__file__).resolve().parent / "spec-items.md"
+    path = pathlib.Path(__file__).resolve().parent / "RULES.md"
     for line in path.read_text().splitlines():
-        m = re.match(r"- \*\*(S[\dA-Za-z.]+)\*\* (.*)", line)
+        m = re.match(r"\| `([a-z0-9-]+\.\d+)` \| L(\d+) \| (.*) \|$", line)
         if m:
-            out[m.group(1)] = m.group(2)
+            out[m.group(1)] = (int(m.group(2)), m.group(3))
     return out
 
 
