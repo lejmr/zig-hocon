@@ -85,18 +85,22 @@ def spec_coverage(rules, tagged):
                 continue  # overlaps the previous rule's span; the first one keeps it
             parts.append(html.escape(text[pos:start]))
             cases = tagged.get(rule, [])
+            soft = rule.rsplit(".", 1)[0] in NOT_MEASURED
             parts.append('<mark class="{}" title="{}">{}</mark>'.format(
-                "ok" if cases else "gap",
-                html.escape(rule + (" — " + ", ".join(cases) if cases else " — no case")),
+                "soft" if cases and soft else "ok" if cases else "gap",
+                html.escape(rule + (" — " + ", ".join(cases) if cases else " — no case")
+                            + (" — case cannot be measured yet, see COVERAGE.md" if soft else "")),
                 html.escape(text[start:end])))
             pos = end
         parts.append(html.escape(text[pos:]))
         out.append('<p data-line="{}">{}</p>'.format(a, "".join(parts)))
 
-    checked = sum(1 for r in rules if tagged.get(r))
+    soft = sum(1 for r in rules if tagged.get(r) and r.rsplit(".", 1)[0] in NOT_MEASURED)
+    checked = sum(1 for r in rules if tagged.get(r)) - soft
     return SPEC_TEMPLATE.replace("__BODY__", "\n".join(out)) \
         .replace("__CHECKED__", str(checked)).replace("__TOTAL__", str(len(rules))) \
-        .replace("__GAPS__", str(len(rules) - checked)) \
+        .replace("__SOFT__", str(soft)) \
+        .replace("__GAPS__", str(len(rules) - checked - soft)) \
         .replace("__UNPLACED__", "" if not unplaced else
                  "<p class=note>Not found verbatim in the spec, so not marked: {}</p>".format(
                      ", ".join("<code>{}</code>".format(html.escape(r)) for r in unplaced)))
@@ -107,9 +111,9 @@ SPEC_TEMPLATE = """<!doctype html>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>HOCON spec coverage</title>
 <style>
-:root { --bg: #fff; --fg: #1d2429; --muted: #68737d; --ok: #cdeccd; --gap: #f7c9c9; --code: #f3f5f7; }
+:root { --bg: #fff; --fg: #1d2429; --muted: #68737d; --ok: #cdeccd; --gap: #f7c9c9; --soft: #f5e6b3; --code: #f3f5f7; }
 @media (prefers-color-scheme: dark) {
-  :root { --bg: #14181c; --fg: #d9dee3; --muted: #8a949e; --ok: #22502a; --gap: #6b2626; --code: #1e242a; }
+  :root { --bg: #14181c; --fg: #d9dee3; --muted: #8a949e; --ok: #22502a; --gap: #6b2626; --soft: #5a4a14; --code: #1e242a; }
 }
 body { margin: 0 auto; max-width: 48rem; padding: 0 16px 4rem; background: var(--bg); color: var(--fg);
   font: 16px/1.55 system-ui, sans-serif; }
@@ -117,7 +121,7 @@ h1, h2, h3, h4 { line-height: 1.25; margin: 2em 0 .5em; }
 p { white-space: pre-wrap; margin: 0 0 1em; }
 pre { background: var(--code); padding: .6em .8em; overflow-x: auto; font-size: 14px; }
 mark { color: inherit; border-radius: 2px; padding: 0 1px; cursor: help; }
-mark.ok { background: var(--ok); } mark.gap { background: var(--gap); }
+mark.ok { background: var(--ok); } mark.gap { background: var(--gap); } mark.soft { background: var(--soft); }
 .legend { position: sticky; top: 0; background: var(--bg); padding: .6em 0; border-bottom: 1px solid var(--code);
   color: var(--muted); font-size: 14px; }
 .legend mark { padding: 0 .4em; }
@@ -126,11 +130,72 @@ mark.ok { background: var(--ok); } mark.gap { background: var(--gap); }
 <div class="legend">
   <mark class="ok">__CHECKED__ rules with a case</mark> &nbsp;
   <mark class="gap">__GAPS__ rules without one</mark> &nbsp;
+  <mark class="soft">__SOFT__ with a case the protocol cannot measure</mark> &nbsp;
   unmarked text is not a rule — __TOTAL__ rules in RULES.md. Hover a mark for the id and its cases.
 </div>
 __UNPLACED__
 __BODY__
 """
+
+
+def not_measured(cases, metas):
+    """The COVERAGE.md section on the cases the oracle protocol cannot score:
+    what they pin, what an implementation's typed accessors must do, how to
+    check them by hand today, and what it takes to let the suite do it."""
+    rows = [(suite.key_of(c), suite.encode(c.open(newline="").read()), m.get("why", ""))
+            for c, m in zip(cases, metas) if suite.key_of(c).split("/")[0] in NOT_MEASURED]
+    return (["", "## Not measured: the typed accessors", "",
+        "{} cases in {} have a rule, a case and a green score in every column, and the score says "
+        "nothing. `tools/oracle/Oracle.java` does `parseString(src).root().render()` and never calls "
+        "`getDuration()`, `getPeriod()` or `getBytes()`, so `expect` on these rows is the text surviving "
+        "the parse: `t = 10MS` expects `{{\"t\": \"10MS\"}}`, and a parser that has never heard of units "
+        "passes. The rules and the inputs are right. The protocol cannot see the answer."
+        .format(len(rows), ", ".join("`{}`".format(d) for d in sorted(NOT_MEASURED))), "",
+        "This is the line the suite draws, on purpose: it measures the tree a parser produces from a file. "
+        "HOCON has no type in the file (`10m` is minutes to a duration and months to a period; `10` is "
+        "milliseconds, days or bytes depending on what is asked), so units and conversions are properties of "
+        "the accessor the application calls, not of the parse. The spec files them under API Recommendations "
+        "for the same reason.", "",
+        "### What an implementation's interface should provide", "",
+        "A way to ask for a value *as* a type (`getDuration(path)` in typesafe/config, a typed target "
+        "such as `struct { t: Duration }` in a language with comptime types), with these rules behind it:", "",
+        "- **Units format** (`units-format.*`): optional whitespace, a number, optional whitespace, an optional "
+        "unit of letters only, optional whitespace. No unit means the accessor's default unit. An unknown unit is "
+        "an error, never a silent default.",
+        "- **Duration** (`duration-format.*`): bare number is milliseconds; units are exactly the strings in "
+        "RULES.md and lowercase only, so `10MS` is an error. typesafe/config accepts a fractional number and "
+        "truncates to whole nanoseconds.",
+        "- **Period** (`period-format.*`): bare number is days; `d`, `w`, `m`/`mo`, `y`; the result is "
+        "years, months and days, not a count of anything.",
+        "- **Size in bytes** (`size-in-bytes-format.*`): bare number is bytes; `B`; powers of ten `kB`…`YB` and "
+        "their long forms; powers of two `K`/`Ki`/`KiB`…`Y`/`Yi`/`YiB`; a single letter means a power of two "
+        "and may be upper- or lowercase. `1YB` does not fit in 64 bits.",
+        "- **Automatic type conversions** (spec, API Recommendations; not in RULES.md yet): number ↔ string "
+        "as written in the file; `true`/`yes`/`on` and `false`/`no`/`off` to boolean, nothing else; string "
+        "`\"null\"` to null only on request; a numerically-indexed object to an array. Never: null to anything, "
+        "object or array to anything, anything to object, anything to array except the indexed object.", "",
+        "### How to check an implementation today, by hand", "",
+        "Parse the input, ask for each key with the accessor its section names, and compare with the sentence "
+        "in the last column. A row that matches passes; a row that silently returns the text fails, whatever "
+        "`run.sh` says.", "",
+        "| case | input | the accessor must |", "|---|---|---|"]
+    + ["| `{}` | `{}` | {} |".format(k, i.replace("|", "\\|"), w.replace("|", "\\|")) for k, i, w in rows]
+    + ["", "### What it takes for the suite to measure it", "",
+        "One addition to the sidecar and the adapter contract, so a case can say what to ask for:", "",
+        "```json", '"as": {"t": "duration"}', "```", "",
+        "- `run.sh` hands the adapter `--as t=duration` the way it hands it `env` today.",
+        "- The adapter answers with the converted value in place of the text: an integer of nanoseconds for a "
+        "duration, an integer of bytes for a size, `{\"years\": y, \"months\": m, \"days\": d}` for a period; "
+        "a rejection is a rejection, as now.",
+        "- `Oracle.java` fills `expect` from `getDuration(path).toNanos()`, `getBytes(path)` and "
+        "`getPeriod(path)`, so expected values still come from the reference implementation, never by hand.",
+        "- An adapter that does not know `--as` exits non-zero and the row fails. That is the honest result.", "",
+        "The same request with `int`, `boolean` and `string` is what brings Automatic type conversions into "
+        "RULES.md. It is one mechanism, not four.", "",
+        "This is a change to the protocol every adapter speaks, so it is a decision for the maintainer, "
+        "recorded in `PROCESS.md` when made. If you think the line belongs elsewhere, the argument that moves "
+        "it is a case the protocol can score, or a protocol change with the oracle filling `expect`; "
+        "an argument about where units *ought* to live has been had, and the spec settled it."])
 
 
 def load_runs():
@@ -209,6 +274,7 @@ def main(argv):
          "suite does not check — not a rule an implementation fails. `COVERAGE.html` is the",
          "spec itself with every rule marked: green has a case, red has none.", "", "## Unchecked", ""]
         + ["- `{}` L{} {}".format(r, line, text) for r, (line, text) in rules.items() if r not in known]
+        + not_measured(cases, metas)
         + ["", "## Cases pointing at a rule that is not in RULES.md", ""]
         + (["- `{}` → `{}`".format(f, r) for r in tagged if r not in rules for f in tagged[r]] or ["none"])
         + [""])
