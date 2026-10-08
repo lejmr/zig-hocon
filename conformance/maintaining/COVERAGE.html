@@ -1,0 +1,1223 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HOCON spec coverage</title>
+<style>
+:root { --bg: #fff; --fg: #1d2429; --muted: #68737d; --ok: #cdeccd; --gap: #f7c9c9; --code: #f3f5f7; }
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #14181c; --fg: #d9dee3; --muted: #8a949e; --ok: #22502a; --gap: #6b2626; --code: #1e242a; }
+}
+body { margin: 0 auto; max-width: 48rem; padding: 0 16px 4rem; background: var(--bg); color: var(--fg);
+  font: 16px/1.55 system-ui, sans-serif; }
+h1, h2, h3, h4 { line-height: 1.25; margin: 2em 0 .5em; }
+p { white-space: pre-wrap; margin: 0 0 1em; }
+pre { background: var(--code); padding: .6em .8em; overflow-x: auto; font-size: 14px; }
+mark { color: inherit; border-radius: 2px; padding: 0 1px; cursor: help; }
+mark.ok { background: var(--ok); } mark.gap { background: var(--gap); }
+.legend { position: sticky; top: 0; background: var(--bg); padding: .6em 0; border-bottom: 1px solid var(--code);
+  color: var(--muted); font-size: 14px; }
+.legend mark { padding: 0 .4em; }
+.note { color: var(--muted); font-size: 14px; }
+</style>
+<div class="legend">
+  <mark class="ok">272 rules with a case</mark> &nbsp;
+  <mark class="gap">15 rules without one</mark> &nbsp;
+  unmarked text is not a rule — 287 rules in RULES.md. Hover a mark for the id and its cases.
+</div>
+
+<h1>HOCON (Human-Optimized Config Object Notation)</h1>
+<p data-line="57">This is an informal spec, but hopefully it&#x27;s clear.</p>
+<h2>Goals / Background</h2>
+<p data-line="61">The primary goal is: keep the semantics (tree structure; set of
+types; encoding/escaping) from JSON, but make it more convenient
+as a human-editable config file format.</p>
+<p data-line="65">The following features are desirable, to support human usage:</p>
+<p data-line="67"> - less noisy / less pedantic syntax
+ - ability to refer to another part of the configuration (set a value to
+   another value)
+ - import/include another configuration file into the current file
+ - a mapping to a flat properties list such as Java&#x27;s system properties
+ - ability to get values from environment variables
+ - ability to write comments</p>
+<p data-line="75">Implementation-wise, the format should have these properties:</p>
+<p data-line="77"> - a JSON superset, that is, all valid JSON should be valid and
+   should result in the same in-memory data that a JSON parser
+   would have produced.
+ - be deterministic; the format is flexible, but it is not
+   heuristic. It should be clear what&#x27;s invalid and invalid files
+   should generate errors.
+ - require minimal look-ahead; should be able to tokenize the file
+   by looking at only the next three characters. (right now, the
+   only reason to look at three is to find &quot;//&quot; comments;
+   otherwise you can parse looking at two.)</p>
+<p data-line="88">HOCON is significantly harder to specify and to parse than
+JSON. Think of it as moving the work from the person maintaining
+the config file to the computer program.</p>
+<h2>Definitions</h2>
+<p data-line="94"> - a _key_ is a string JSON would have to the left of `:` and a _value_ is
+   anything JSON would have to the right of `:`. i.e. the two
+   halves of an object _field_.</p>
+<p data-line="98"> - a _value_ is any &quot;value&quot; as defined in the JSON spec, plus
+   unquoted strings and substitutions as defined in this spec.</p>
+<p data-line="101"> - a _simple value_ is any value excluding an object or array
+   value.</p>
+<p data-line="104"> - a _field_ is a key, any separator such as &#x27;:&#x27;, and a value.</p>
+<p data-line="106"> - references to a _file_ (&quot;the file being parsed&quot;) can be
+   understood to mean any byte stream being parsed, not just
+   literal files in a filesystem.</p>
+<h2>Syntax</h2>
+<p data-line="112">Much of this is defined with reference to JSON; you can find the
+JSON spec at https://json.org/ of course.</p>
+<h3>Unchanged from JSON</h3>
+<p data-line="117"> - <mark class="ok" title="unchanged-from-json.1 — unchanged-from-json/024-raw-utf8-in-quoted-string.conf">files must be valid UTF-8</mark>
+ - <mark class="ok" title="unchanged-from-json.2 — unchanged-from-json/001-quoted-string-json-format.conf, unchanged-from-json/015-remaining-json-escapes.conf, unchanged-from-json/016-unknown-escape-illegal.conf, unchanged-from-json/017-non-hex-unicode-escape-illegal.conf, unchanged-from-json/018-unterminated-quoted-string-illegal.conf, unchanged-from-json/019-backslash-at-end-of-file-illegal.conf, unchanged-from-json/020-unicode-escape-cut-off-by-end-of-file-illegal.conf, unchanged-from-json/026-surrogate-pair-escape.conf, unchanged-from-json/027-unpaired-surrogate-escape-is-kept.conf">quoted strings are in the same format as JSON strings</mark>
+ - <mark class="ok" title="unchanged-from-json.3 — unchanged-from-json/002-string-value-type.conf, unchanged-from-json/003-number-value-type.conf, unchanged-from-json/004-object-value-type.conf, unchanged-from-json/005-array-value-type.conf, unchanged-from-json/006-boolean-value-type.conf, unchanged-from-json/007-null-value-type.conf">values have possible types: string, number, object, array, boolean, null</mark>
+ - <mark class="ok" title="unchanged-from-json.4 — unchanged-from-json/008-number-format-decimal-and-exponent.conf, unchanged-from-json/009-number-leading-zero-illegal.conf, unchanged-from-json/010-negative-number-without-integer-part-illegal.conf, unchanged-from-json/011-negative-exponent-number-without-integer-part-illegal.conf, unchanged-from-json/012-number-with-trailing-dot-illegal.conf, unchanged-from-json/013-trailing-dot-before-exponent-illegal.conf, unchanged-from-json/014-negative-leading-zeros-illegal.conf, unchanged-from-json/023-64-bit-integer.conf, unchanged-from-json/025-nan-is-not-a-number.conf">allowed number formats matches JSON; as in JSON, some possible
+   floating-point values are not represented, such as `NaN`</mark></p>
+<h3>Comments</h3>
+<p data-line="125"><mark class="ok" title="comments.1 — comments/001-hash-comment.conf, comments/002-double-slash-comment.conf, comments/003-whole-line-comment.conf, comments/004-comment-stops-at-newline.conf, comments/005-hash-inside-quoted-string-is-not-a-comment.conf, comments/006-double-slash-inside-quoted-string-is-not-a-comment.conf, comments/007-comment-between-separator-and-value.conf, comments/008-comment-then-blank-line-then-field.conf, comments/009-comment-inside-object.conf, comments/010-comments-inside-array.conf, comments/011-comment-before-values-of-every-type.conf, comments/013-line-comment-after-array.conf, comments/014-hash-comment-after-array-without-space.conf">Anything between `//` or `#` and the next newline is considered a comment
+and ignored, unless the `//` or `#` is inside a quoted string.</mark></p>
+<h3>Omit root braces</h3>
+<p data-line="130"><mark class="ok" title="omit-root-braces.1 — omit-root-braces/011-trailing-array-after-root-array.conf">JSON documents must have an array or object at the root.</mark> <mark class="ok" title="omit-root-braces.2 — include-file-formats/016-json-rejects-empty-document/main.conf, include-file-formats/017-json-rejects-scalar-root/main.conf">Empty
+files are invalid documents, as are files containing only a
+non-array non-object value such as a string.</mark></p>
+<p data-line="134"><mark class="ok" title="omit-root-braces.3 — comments/012-comment-before-explicit-root-object.conf, omit-root-braces/001-implicit-root-object.conf, omit-root-braces/002-explicit-root-object-unaffected.conf, omit-root-braces/004-empty-file.conf, omit-root-braces/005-bare-string-root-illegal.conf, omit-root-braces/006-array-root-unaffected.conf, omit-root-braces/008-empty-array-root.conf, omit-root-braces/009-comment-before-array-root.conf, omit-root-braces/010-blank-line-before-array-root.conf, omit-root-braces/014-comment-only-file.conf, omit-root-braces/015-bare-number-root-illegal.conf">In HOCON, if the file does not begin with a square bracket or
+curly brace, it is parsed as if it were enclosed with `{}` curly
+braces.</mark></p>
+<p data-line="138"><mark class="ok" title="omit-root-braces.4 — omit-root-braces/003-missing-open-brace-with-close-brace-illegal.conf, omit-root-braces/012-close-brace-after-value-on-one-line-illegal.conf, omit-root-braces/013-open-brace-never-closed-illegal.conf">A HOCON file is invalid if it omits the opening `{` but still has
+a closing `}`; the curly braces must be balanced.</mark></p>
+<h3>Key-value separator</h3>
+<p data-line="143"><mark class="ok" title="key-value-separator.1 — key-value-separator/001-equals-as-separator.conf, key-value-separator/004-value-on-the-line-after-the-separator.conf">The `=` character can be used anywhere JSON allows `:`, i.e. to
+separate keys from values.</mark></p>
+<p data-line="146"><mark class="ok" title="key-value-separator.2 — key-value-separator/002-omitted-separator-before-object.conf, key-value-separator/003-omitted-separator-unquoted-key.conf, key-value-separator/005-separator-cannot-be-omitted-before-array.conf, key-value-separator/006-newline-between-key-and-brace.conf">If a key is followed by `{`, the `:` or `=` may be omitted.</mark> So
+`&quot;foo&quot; {}` means `&quot;foo&quot; : {}`</p>
+<h3>Commas</h3>
+<p data-line="151"><mark class="ok" title="commas.1 — commas/002-array-newline-no-comma.conf, commas/007-object-newline-no-comma.conf, commas/009-fields-on-one-line-need-a-comma.conf">Values in arrays, and fields in objects, need not have a comma
+between them as long as they have at least one ASCII newline
+(`\n`, decimal value 10) between them.</mark></p>
+<p data-line="155"><mark class="ok" title="commas.2 — commas/001-array-trailing-comma.conf">The last element in an array or last field in an object may be
+followed by a single comma.</mark> <mark class="ok" title="commas.3 — commas/001-array-trailing-comma.conf">This extra comma is ignored.</mark></p>
+<p data-line="158"> - `[1,2,3,]` and `[1,2,3]` are the same array.
+ - `[1\n2\n3]` and `[1,2,3]` are the same array.
+ - <mark class="ok" title="commas.4 — commas/003-array-double-trailing-comma-invalid.conf">`[1,2,3,,]` is invalid because it has two trailing commas.</mark>
+ - <mark class="ok" title="commas.5 — commas/004-array-initial-comma-invalid.conf">`[,1,2,3]` is invalid because it has an initial comma.</mark>
+ - <mark class="ok" title="commas.6 — commas/005-array-double-comma-invalid.conf">`[1,,2,3]` is invalid because it has two commas in a row.</mark>
+ - <mark class="ok" title="commas.7 — commas/006-object-trailing-comma.conf, commas/008-object-double-comma-invalid.conf, commas/011-trailing-comma-at-implicit-root.conf, commas/012-leading-comma-at-implicit-root-illegal.conf, commas/013-double-trailing-comma-in-object-illegal.conf, commas/014-leading-comma-in-object-illegal.conf">these same comma rules apply to fields in objects.</mark></p>
+<h3>Whitespace</h3>
+<p data-line="167">The JSON spec simply says &quot;whitespace&quot;; in HOCON whitespace is
+defined as follows:</p>
+<p data-line="170"> - <mark class="ok" title="whitespace.1 — concatenation-whitespace-and-substitutions/005-nonbreaking-space-between-list-substitutions-is-ignored.conf, whitespace/001-nonbreaking-space-as-whitespace.conf, whitespace/006-special-nonbreaking-spaces.conf, whitespace/010-line-separator-is-whitespace.conf, whitespace/012-ideographic-space-is-whitespace.conf">any Unicode space separator (Zs category), line separator (Zl
+   category), or paragraph separator (Zp category), including
+   nonbreaking spaces (such as 0x00A0, 0x2007, and 0x202F).</mark>
+   <mark class="ok" title="whitespace.2 — concatenation-whitespace-and-substitutions/006-bom-between-list-substitutions-is-ignored.conf, whitespace/002-bom-at-start-is-whitespace.conf, whitespace/013-bom-inside-the-document-is-whitespace.conf">The BOM (0xFEFF) must also be treated as whitespace.</mark>
+ - <mark class="ok" title="whitespace.3 — whitespace/004-vertical-tab-form-feed-whitespace.conf, whitespace/007-tab-is-whitespace.conf, whitespace/008-crlf-line-endings.conf, whitespace/011-ascii-separator-controls-are-whitespace.conf">tab (`\t` 0x0009), newline (&#x27;\n&#x27; 0x000A), vertical tab (&#x27;\v&#x27;
+   0x000B)`, form feed (`\f&#x27; 0x000C), carriage return (&#x27;\r&#x27;
+   0x000D), file separator (0x001C), group separator (0x001D),
+   record separator (0x001E), unit separator (0x001F).</mark></p>
+<p data-line="179">In Java, the `isWhitespace()` method covers these characters with
+the exception of nonbreaking spaces and the BOM.</p>
+<p data-line="182"><mark class="ok" title="whitespace.4 — whitespace/003-unicode-line-paragraph-separator.conf, whitespace/005-ascii-separator-control-chars.conf, whitespace/009-lone-carriage-return-is-not-a-newline.conf">While all Unicode separators should be treated as whitespace, in
+this spec &quot;newline&quot; refers only and specifically to ASCII newline
+0x000A.</mark></p>
+<h3>Duplicate keys and object merging</h3>
+<p data-line="188">The JSON spec does not clarify how duplicate keys in the same
+object should be handled. <mark class="ok" title="duplicate-keys-and-object-merging.1 — duplicate-keys-and-object-merging/001-later-scalar-wins.conf, duplicate-keys-and-object-merging/008-arrays-are-not-objects.conf, duplicate-keys-and-object-merging/009-later-null-overrides.conf, duplicate-keys-and-object-merging/019-duplicate-keys-merge-inside-a-list-element.conf, duplicate-keys-and-object-merging/021-later-object-replaces-earlier-concatenation.conf, duplicate-keys-and-object-merging/025-lookup-into-object-that-replaced-a-list.conf, duplicate-keys-and-object-merging/026-missing-key-in-object-that-replaced-a-list.conf">In HOCON, duplicate keys that appear
+later override those that appear earlier, unless both values are
+objects.</mark> <mark class="ok" title="duplicate-keys-and-object-merging.2 — duplicate-keys-and-object-merging/002-objects-merge.conf, duplicate-keys-and-object-merging/015-earlier-receiver-value-is-evaluated-once-merged.conf, duplicate-keys-and-object-merging/018-object-then-empty-object.conf, duplicate-keys-and-object-merging/020-objects-and-substitutions-alternate.conf, duplicate-keys-and-object-merging/023-empty-object-then-substitution.conf, duplicate-keys-and-object-merging/024-merge-stack-nested-inside-a-merge-stack.conf">If both values are objects, then the objects are merged.</mark></p>
+<p data-line="193">Note: this would make HOCON a non-superset of JSON if you assume
+that JSON requires duplicate keys to have a behavior. <mark class="ok" title="duplicate-keys-and-object-merging.3 — include-file-formats/014-json-rejects-duplicate-keys/main.conf">The
+assumption here is that duplicate keys are invalid JSON.</mark></p>
+<p data-line="197">To merge objects:</p>
+<p data-line="199"> - <mark class="ok" title="duplicate-keys-and-object-merging.4 — duplicate-keys-and-object-merging/007-merge-keeps-fields-from-either-side.conf">add fields present in only one of the two objects to the merged
+   object.</mark>
+ - <mark class="ok" title="duplicate-keys-and-object-merging.5 — duplicate-keys-and-object-merging/004-merge-scalar-field-later-wins.conf, duplicate-keys-and-object-merging/027-nested-object-then-scalar-inside-merge.conf, duplicate-keys-and-object-merging/028-null-in-second-object-wins.conf">for non-object-valued fields present in both objects,
+   the field found in the second object must be used.</mark>
+ - <mark class="ok" title="duplicate-keys-and-object-merging.6 — duplicate-keys-and-object-merging/005-merge-nested-object-recursive.conf">for object-valued fields present in both objects, the
+   object values should be recursively merged according to
+   these same rules.</mark></p>
+<p data-line="207"><mark class="ok" title="duplicate-keys-and-object-merging.7 — duplicate-keys-and-object-merging/014-own-null-still-blocks-merge-with-referenced-object.conf, duplicate-keys-and-object-merging/022-scalar-then-empty-object-then-object.conf">Object merge can be prevented by setting the key to another value
+first.</mark> <mark class="ok" title="duplicate-keys-and-object-merging.8 — duplicate-keys-and-object-merging/003-scalar-breaks-the-merge.conf">This is because merging is always done two values at a
+time; if you set a key to an object, a non-object, then an object,
+first the non-object falls back to the object (non-object always
+wins), and then the object falls back to the non-object (no
+merging, object is the new value).</mark> So the two objects never see
+each other.</p>
+<p data-line="215">These two are equivalent:</p>
+<p data-line="217">    {
+        &quot;foo&quot; : { &quot;a&quot; : 42 },
+        &quot;foo&quot; : { &quot;b&quot; : 43 }
+    }</p>
+<p data-line="222">    {
+        &quot;foo&quot; : { &quot;a&quot; : 42, &quot;b&quot; : 43 }
+    }</p>
+<p data-line="226">And these two are equivalent:</p>
+<p data-line="228">    {
+        &quot;foo&quot; : { &quot;a&quot; : 42 },
+        &quot;foo&quot; : null,
+        &quot;foo&quot; : { &quot;b&quot; : 43 }
+    }</p>
+<p data-line="234">    {
+        &quot;foo&quot; : { &quot;b&quot; : 43 }
+    }</p>
+<p data-line="238"><mark class="ok" title="duplicate-keys-and-object-merging.9 — duplicate-keys-and-object-merging/006-null-prevents-merge.conf">The intermediate setting of `&quot;foo&quot;` to `null` prevents the object merge.</mark></p>
+<h3>Unquoted strings</h3>
+<p data-line="242"><mark class="ok" title="unquoted-strings.1 — unquoted-strings/001-simple-unquoted-string.conf">A sequence of characters outside of a quoted string is a string
+value if:</mark></p>
+<p data-line="245"> - <mark class="ok" title="unquoted-strings.2 — unquoted-strings/003-unquoted-cannot-contain-at-sign.conf, unquoted-strings/011-unquoted-cannot-contain-backslash.conf, unquoted-strings/015-reserved-forbidden-char-no-current-meaning.conf, unquoted-strings/019-dollar-must-start-a-substitution.conf, unquoted-strings/020-plus-must-be-followed-by-equals.conf">it does not contain &quot;forbidden characters&quot;: &#x27;$&#x27;, &#x27;&quot;&#x27;, &#x27;{&#x27;, &#x27;}&#x27;,
+   &#x27;[&#x27;, &#x27;]&#x27;, &#x27;:&#x27;, &#x27;=&#x27;, &#x27;,&#x27;, &#x27;+&#x27;, &#x27;#&#x27;, &#x27;`&#x27;, &#x27;^&#x27;, &#x27;?&#x27;, &#x27;!&#x27;, &#x27;@&#x27;,
+   &#x27;*&#x27;, &#x27;&amp;&#x27;, &#x27;\&#x27; (backslash), or whitespace.</mark>
+ - <mark class="ok" title="unquoted-strings.3 — unquoted-strings/004-double-slash-starts-comment.conf, unquoted-strings/005-single-slash-allowed.conf">it does not contain the two-character string &quot;//&quot; (which
+   starts a comment)</mark>
+ - <mark class="ok" title="unquoted-strings.4 — unquoted-strings/007-footrue-is-one-unquoted-string.conf">its initial characters do not parse as `true`, `false`, `null`,
+   or a number.</mark></p>
+<p data-line="253"><mark class="ok" title="unquoted-strings.5 — unquoted-strings/024-escape-sequence-in-unquoted-string-illegal.conf">Unquoted strings are used literally, they do not support any kind
+of escaping.</mark> <mark class="ok" title="unquoted-strings.6 — unquoted-strings/002-quoted-alternative-for-forbidden-char.conf">Quoted strings may always be used as an alternative
+when you need to write a character that is not permitted in an
+unquoted string.</mark></p>
+<p data-line="258"><mark class="ok" title="unquoted-strings.7 — unquoted-strings/006-truefoo-parses-as-true-then-foo.conf">`truefoo` parses as the boolean token `true` followed by the
+unquoted string `foo`.</mark> <mark class="ok" title="unquoted-strings.8 — unquoted-strings/007-footrue-is-one-unquoted-string.conf">However, `footrue` parses as the unquoted
+string `footrue`.</mark> <mark class="ok" title="unquoted-strings.9 — unquoted-strings/008-number-then-suffix-string.conf, unquoted-strings/009-digits-not-at-start-stay-string.conf">Similarly, `10.0bar` is the number `10.0` then
+the unquoted string `bar` but `bar10.0` is the unquoted string
+`bar10.0`.</mark> (In practice, this distinction doesn&#x27;t matter much
+because of value concatenation; see later section.)</p>
+<p data-line="265"><mark class="ok" title="unquoted-strings.10 — unquoted-strings/014-hash-starts-comment-not-forbidden-char-in-string.conf, unquoted-strings/023-unquoted-string-ends-at-end-of-file.conf">In general, once an unquoted string begins, it continues until a
+forbidden character or the two-character string &quot;//&quot; is
+encountered.</mark> <mark class="ok" title="unquoted-strings.11 — unquoted-strings/010-embedded-null-not-recognized.conf">Embedded (non-initial) booleans, nulls, and numbers
+are not recognized as such, they are part of the string.</mark></p>
+<p data-line="270"><mark class="ok" title="unquoted-strings.12 — unquoted-strings/012-unquoted-cannot-start-with-hyphen.conf, unquoted-strings/018-leading-dot-is-not-a-number.conf">An unquoted string may not _begin_ with the digits 0-9 or with a
+hyphen (`-`, 0x002D) because those are valid characters to begin a
+JSON number.</mark> <mark class="ok" title="unquoted-strings.13 — unquoted-strings/013-negative-number-then-string.conf, unquoted-strings/021-plus-inside-a-number-illegal.conf, unquoted-strings/022-digit-then-exponent-letter-illegal.conf">The initial number character, plus any valid-in-JSON
+number characters that follow it, must be parsed as a number
+value.</mark> Again, these characters are not special _inside_ an
+unquoted string; they only trigger number parsing if they appear
+initially.</p>
+<p data-line="278"><mark class="ok" title="unquoted-strings.14 — unchanged-from-json/021-raw-newline-in-quoted-string-illegal.conf, unchanged-from-json/022-raw-tab-in-quoted-string-illegal.conf, unquoted-strings/017-control-char-forbidden-in-quoted.conf">Note that quoted JSON strings may not contain control characters
+(control characters include some whitespace characters, such as
+newline).</mark> This rule is from the JSON spec. <mark class="ok" title="unquoted-strings.15 — unquoted-strings/016-control-char-allowed-unquoted.conf">However, unquoted
+strings have no restriction on control characters, other than the
+ones listed as &quot;forbidden characters&quot; above.</mark></p>
+<p data-line="284">Some of the &quot;forbidden characters&quot; are forbidden because they
+already have meaning in JSON or HOCON, others are essentially
+reserved keywords to allow future extensions to this spec.</p>
+<h3>Multi-line strings</h3>
+<p data-line="290">Multi-line strings are similar to Python or Scala, using triple
+quotes. <mark class="ok" title="multi-line-strings.1 — multi-line-strings/001-basic-triple-quote.conf, multi-line-strings/006-unterminated-is-illegal.conf, multi-line-strings/008-backslash-kept-literally.conf">If the three-character sequence `&quot;&quot;&quot;` appears, then all
+Unicode characters until a closing `&quot;&quot;&quot;` sequence are used
+unmodified to create a string value.</mark> <mark class="ok" title="multi-line-strings.2 — multi-line-strings/002-newlines-and-whitespace-preserved.conf">Newlines and whitespace
+receive no special treatment.</mark> <mark class="ok" title="multi-line-strings.3 — multi-line-strings/003-unicode-escape-not-interpreted.conf">Unlike Scala, and unlike JSON quoted
+strings, Unicode escapes are not interpreted in triple-quoted
+strings.</mark></p>
+<p data-line="298">In Python, `&quot;&quot;&quot;foo&quot;&quot;&quot;&quot;` is a syntax error (a triple-quoted string
+followed by a dangling unbalanced quote). In Scala, it is a
+four-character string `foo&quot;`. <mark class="ok" title="multi-line-strings.4 — multi-line-strings/004-extra-quote-becomes-part-of-string.conf, multi-line-strings/005-five-closing-quotes-two-extra.conf, multi-line-strings/007-fewer-than-three-quotes-does-not-close.conf, multi-line-strings/009-six-quotes-are-an-empty-string.conf">HOCON works like Scala; any sequence
+of at least three quotes ends the multi-line string, and any
+&quot;extra&quot; quotes are part of the string.</mark></p>
+<h3>Value concatenation</h3>
+<p data-line="306">The value of an object field or array element may consist of
+multiple values which are combined. There are three kinds of value
+concatenation:</p>
+<p data-line="310"> - <mark class="ok" title="value-concatenation.2 — value-concatenation/001-simple-values-concatenate-to-string.conf">if all the values are simple values (neither objects nor
+   arrays), they are concatenated into a string.</mark>
+ - <mark class="ok" title="value-concatenation.3 — array-and-object-concatenation/001-arrays-concatenate.conf">if all the values are arrays, they are concatenated into
+   one array.</mark>
+ - <mark class="ok" title="value-concatenation.4 — array-and-object-concatenation/002-objects-concatenate.conf">if all the values are objects, they are merged (as with
+   duplicate keys) into one object.</mark></p>
+<p data-line="317"><mark class="ok" title="value-concatenation.5 — value-concatenation/004-string-concatenation-allowed-in-field-keys.conf">String value concatenation is allowed in field keys, in addition
+to field values and array elements.</mark> Objects and arrays do not make
+sense as field keys.</p>
+<h4>String value concatenation</h4>
+<p data-line="323">String value concatenation is the trick that makes unquoted
+strings work; it also supports substitutions (`${foo}` syntax) in
+strings.</p>
+<p data-line="327"><mark class="ok" title="string-value-concatenation.1 — string-value-concatenation/002-only-simple-values-participate.conf">Only simple values participate in string value
+concatenation.</mark> Recall that a simple value is any value other than
+arrays and objects.</p>
+<p data-line="331"><mark class="ok" title="string-value-concatenation.2 — string-value-concatenation/022-quoted-and-unquoted-strings-concatenate.conf">As long as simple values are separated only by non-newline
+whitespace, the _whitespace between them is preserved_ and the
+values, along with the whitespace, are concatenated into a string.</mark></p>
+<p data-line="335"><mark class="ok" title="string-value-concatenation.3 — string-value-concatenation/004-concatenation-never-spans-newline.conf">String value concatenations never span a newline, or a character
+that is not part of a simple value.</mark></p>
+<p data-line="338"><mark class="ok" title="string-value-concatenation.4 — string-value-concatenation/005-array-element-string-concatenation.conf">A string value concatenation may appear in any place that a string
+may appear, including object keys, object values, and array
+elements.</mark></p>
+<p data-line="342">Whenever a value would appear in JSON, a HOCON parser instead
+collects multiple values (including the whitespace between them)
+and concatenates those values into a string.</p>
+<p data-line="346"><mark class="ok" title="string-value-concatenation.5 — string-value-concatenation/003-leading-and-trailing-whitespace-trimmed.conf">Whitespace before the first and after the last simple value must
+be discarded.</mark> <mark class="ok" title="string-value-concatenation.6 — string-value-concatenation/003-leading-and-trailing-whitespace-trimmed.conf">Only whitespace _between_ simple values must be
+preserved.</mark></p>
+<p data-line="350">So for example ` foo bar baz ` parses as three unquoted strings,
+and the three are value-concatenated into one string. The inner
+whitespace is kept and the leading and trailing whitespace is
+trimmed. The equivalent string, written in quoted form, would be
+`&quot;foo bar baz&quot;`.</p>
+<p data-line="356">Value concatenating `foo bar` (two unquoted strings with
+whitespace) and quoted string `&quot;foo bar&quot;` would result in the same
+in-memory representation, seven characters.</p>
+<p data-line="360">For purposes of string value concatenation, non-string values are
+converted to strings as follows (strings shown as quoted strings):</p>
+<p data-line="363"> - <mark class="ok" title="string-value-concatenation.7 — string-value-concatenation/006-boolean-becomes-string-in-concatenation.conf, string-value-concatenation/021-false-becomes-string-in-concatenation.conf">`true` and `false` become the strings `&quot;true&quot;` and `&quot;false&quot;`.</mark>
+ - <mark class="ok" title="string-value-concatenation.8 — string-value-concatenation/007-null-becomes-string-in-concatenation.conf">`null` becomes the string `&quot;null&quot;`.</mark>
+ - <mark class="ok" title="string-value-concatenation.9 — string-value-concatenation/022-quoted-and-unquoted-strings-concatenate.conf">quoted and unquoted strings are themselves.</mark>
+ - <mark class="ok" title="string-value-concatenation.10 — string-value-concatenation/008-number-kept-as-written-in-concatenation.conf, string-value-concatenation/020-64-bit-number-kept-as-written.conf">numbers should be kept as they were originally written in the
+   file.</mark> For example, if you parse `1e5` then you might render
+   it alternatively as `1E5` with capital `E`, or just `100000`.
+   For purposes of value concatenation, it should be rendered
+   as it was written in the file.
+ - <mark class="ok" title="string-value-concatenation.11 — string-value-concatenation/001-substitution-in-string-concatenation.conf">a substitution is replaced with its value which is then
+   converted to a string as above.</mark>
+ - <mark class="ok" title="string-value-concatenation.12 — concatenation-whitespace-and-substitutions/007-zero-width-space-between-list-substitutions-is-error.conf, string-value-concatenation/002-only-simple-values-participate.conf, string-value-concatenation/010-object-then-scalar-drops-the-scalar.conf, string-value-concatenation/011-array-then-scalar-drops-the-scalar.conf, string-value-concatenation/012-scalar-then-object-is-an-error.conf, string-value-concatenation/014-array-then-unquoted-text-without-space.conf, string-value-concatenation/015-object-then-unquoted-text-without-space.conf, string-value-concatenation/016-text-between-arrays-is-not-dropped.conf">it is invalid for arrays or objects to appear in a string value
+   concatenation.</mark></p>
+<p data-line="376"><mark class="ok" title="string-value-concatenation.13 — string-value-concatenation/009-single-boolean-not-converted-to-string.conf">A single value is never converted to a string.</mark> That is, it would
+be wrong to value concatenate `true` by itself; that should be
+parsed as a boolean-typed value. Only `true foo` (`true` with
+another simple value on the same line) should be parsed as a value
+concatenation and converted to a string.</p>
+<h4>Array and object concatenation</h4>
+<p data-line="384"><mark class="ok" title="array-and-object-concatenation.1 — array-and-object-concatenation/001-arrays-concatenate.conf, array-and-object-concatenation/002-objects-concatenate.conf, array-and-object-concatenation/003-mixing-array-and-object-is-error.conf, array-and-object-concatenation/016-mixing-object-then-array-is-error.conf">Arrays can be concatenated with arrays, and objects with objects,
+but it is an error if they are mixed.</mark></p>
+<p data-line="387"><mark class="ok" title="array-and-object-concatenation.2 — array-and-object-concatenation/004-substitution-counts-as-array-for-concatenation.conf, array-and-object-concatenation/005-substitution-counts-as-object-for-concatenation.conf, array-and-object-concatenation/010-worked-example-object-inheritance.conf, array-and-object-concatenation/011-worked-example-array-path-append.conf, array-and-object-concatenation/012-worked-example-self-referential-array-concat.conf, array-and-object-concatenation/014-substitution-object-with-literal-array-is-error.conf, array-and-object-concatenation/015-substitution-array-with-literal-object-is-error.conf, array-and-object-concatenation/018-object-with-inner-merge-concatenated-with-substitution.conf, array-and-object-concatenation/019-self-referential-object-concatenation-with-inner-merge.conf">For purposes of concatenation, &quot;array&quot; also means &quot;substitution
+that resolves to an array&quot; and &quot;object&quot; also means &quot;substitution
+that resolves to an object.&quot;</mark></p>
+<p data-line="391"><mark class="ok" title="array-and-object-concatenation.3 — array-and-object-concatenation/001-arrays-concatenate.conf">Within a field value or array element, if only non-newline
+whitespace separates the end of a first array or object or
+substitution from the start of a second array or object or
+substitution, the two values are concatenated.</mark> <mark class="ok" title="array-and-object-concatenation.4 — array-and-object-concatenation/013-newlines-within-value-still-allow-concatenation.conf">Newlines may occur
+_within_ the array or object, but not _between_ them.</mark> <mark class="ok" title="array-and-object-concatenation.5 — array-and-object-concatenation/006-newline-between-values-prevents-concatenation.conf, array-and-object-concatenation/017-newline-between-arrays-in-field-value-prevents-concatenation.conf">Newlines
+_between_ prevent concatenation.</mark></p>
+<p data-line="398"><mark class="ok" title="array-and-object-concatenation.6 — array-and-object-concatenation/007-object-concatenation-merges-and-second-overrides.conf">For objects, &quot;concatenation&quot; means &quot;merging&quot;, so the second object
+overrides the first.</mark></p>
+<p data-line="401"><mark class="ok" title="array-and-object-concatenation.7 — array-and-object-concatenation/008-array-cannot-be-field-key.conf, array-and-object-concatenation/009-object-cannot-be-field-key.conf">Arrays and objects cannot be field keys, whether concatenation is
+involved or not.</mark></p>
+<p data-line="404">Here are several ways to define `a` to the same object value:</p>
+<p data-line="406">    // one object
+    a : { b : 1, c : 2 }
+    // two objects that are merged via concatenation rules
+    a : { b : 1 } { c : 2 }
+    // two fields that are merged
+    a : { b : 1 }
+    a : { c : 2 }</p>
+<p data-line="414">Here are several ways to define `a` to the same array value:</p>
+<p data-line="416">    // one array
+    a : [ 1, 2, 3, 4 ]
+    // two arrays that are concatenated
+    a : [ 1, 2 ] [ 3, 4 ]
+    // a later definition referring to an earlier
+    // (see &quot;self-referential substitutions&quot; below)
+    a : [ 1, 2 ]
+    a : ${a} [ 3, 4 ]</p>
+<p data-line="425">A common use of object concatenation is &quot;inheritance&quot;:</p>
+<p data-line="427">    data-center-generic = { cluster-size = 6 }
+    data-center-east = ${data-center-generic} { name = &quot;east&quot; }</p>
+<p data-line="430">A common use of array concatenation is to add to paths:</p>
+<p data-line="432">    path = [ /bin ]
+    path = ${path} [ /usr/bin ]</p>
+<h4>Note: Concatenation with whitespace and substitutions</h4>
+<p data-line="437"><mark class="ok" title="note-concatenation-with-whitespace-and-substitutions.1 — concatenation-whitespace-and-substitutions/001-unquoted-whitespace-between-substitutions-is-significant-for-strings.conf">When concatenating substitutions such as `${foo} ${bar}`, the
+substitutions may turn out to be strings (which makes the
+whitespace between them significant) or may turn out to be objects
+or lists (which makes it irrelevant).</mark> <mark class="ok" title="note-concatenation-with-whitespace-and-substitutions.2 — concatenation-whitespace-and-substitutions/003-unquoted-whitespace-between-object-and-list-substitutions-is-ignored.conf, concatenation-whitespace-and-substitutions/004-tab-between-list-substitutions-is-ignored.conf">Unquoted whitespace must be
+ignored in between substitutions which resolve to objects or
+lists.</mark> <mark class="ok" title="note-concatenation-with-whitespace-and-substitutions.3 — concatenation-whitespace-and-substitutions/002-quoted-whitespace-between-substitutions-is-error.conf">Quoted whitespace should be an error.</mark></p>
+<h4>Note: Arrays without commas or newlines</h4>
+<p data-line="446"><mark class="ok" title="note-arrays-without-commas-or-newlines.1 — arrays-without-commas-or-newlines/001-newlines-instead-of-commas.conf, arrays-without-commas-or-newlines/003-newline-separates-two-arrays-into-elements.conf">Arrays allow you to use newlines instead of commas, but not
+whitespace instead of commas.</mark> <mark class="ok" title="note-arrays-without-commas-or-newlines.2 — arrays-without-commas-or-newlines/002-whitespace-instead-of-comma-concatenates-into-one-element.conf, arrays-without-commas-or-newlines/004-same-line-whitespace-concatenates-two-arrays-into-one-element.conf, arrays-without-commas-or-newlines/005-unquoted-string-concatenation-with-substitutions-in-array.conf, arrays-without-commas-or-newlines/006-two-elements-each-a-substitution-concatenation.conf">Non-newline whitespace will produce
+concatenation rather than separate elements.</mark></p>
+<p data-line="450">    // this is an array with one element, the string &quot;1 2 3 4&quot;
+    [ 1 2 3 4 ]
+    // this is an array of four integers
+    [ 1
+      2
+      3
+      4 ]</p>
+<p data-line="458">    // an array of one element, the array [ 1, 2, 3, 4 ]
+    [ [ 1, 2 ] [ 3, 4 ] ]
+    // an array of two arrays
+    [ [ 1, 2 ]
+      [ 3, 4 ] ]</p>
+<p data-line="464">If this gets confusing, just use commas. The concatenation
+behavior is useful rather than surprising in cases like:</p>
+<p data-line="467">    [ This is an unquoted string my name is ${name}, Hello ${world} ]
+    [ ${a} ${b}, ${x} ${y} ]</p>
+<p data-line="470"><mark class="ok" title="note-arrays-without-commas-or-newlines.3 — arrays-without-commas-or-newlines/007-whitespace-never-separates-fields.conf">Non-newline whitespace is never an element or field separator.</mark></p>
+<h3>Path expressions</h3>
+<p data-line="474">Path expressions are used to write out a path through the object
+graph. <mark class="ok" title="path-expressions.1 — path-expressions/015-dotted-path-in-substitution.conf">They appear in two places; in substitutions, like
+`${foo.bar}`, and as the keys in objects like `{ foo.bar : 42 }`.</mark></p>
+<p data-line="478"><mark class="ok" title="path-expressions.2 — path-expressions/017-whitespace-concatenation-in-path.conf, path-expressions/023-substitution-in-dotted-key-illegal.conf">Path expressions are syntactically identical to a value
+concatenation, except that they may not contain
+substitutions.</mark> This means that you can&#x27;t nest substitutions inside
+other substitutions, and you can&#x27;t have substitutions in keys.</p>
+<p data-line="483"><mark class="ok" title="path-expressions.3 — path-expressions/001-quoted-dot-has-no-meaning.conf, path-expressions/018-quoted-element-in-substitution-path.conf, path-expressions/021-quoted-dot-in-substitution-path-is-literal.conf">When concatenating the path expression, any `.` characters outside
+quoted strings are understood as path separators, while inside
+quoted strings `.` has no special meaning.</mark> <mark class="ok" title="path-expressions.4 — path-expressions/002-mixed-quoted-and-unquoted-path.conf">So
+`foo.bar.&quot;hello.world&quot;` would be a path with three elements,
+looking up key `foo`, key `bar`, then key `hello.world`.</mark></p>
+<p data-line="489"><mark class="ok" title="path-expressions.5 — path-expressions/020-negative-leading-dot-key-is-a-path.conf">The main tricky point is that `.` characters in numbers do count
+as a path separator.</mark> <mark class="ok" title="path-expressions.6 — path-expressions/016-number-keeps-original-text-in-path.conf">When dealing with a number as part of a path
+expression, it&#x27;s essential to retain the _original_ string
+representation of the number as it appeared in the file (rather
+than converting it back to a string with a generic
+number-to-string library function).</mark></p>
+<p data-line="496"> - <mark class="ok" title="path-expressions.7 — path-expressions/003-number-then-unquoted-string.conf">`10.0foo` is a number then unquoted string `foo` and should
+   be the two-element path with `10` and `0foo` as the elements.</mark>
+ - <mark class="ok" title="path-expressions.8 — path-expressions/004-unquoted-string-with-dot.conf">`foo10.0` is an unquoted string with a `.` in it, so this would
+   be a two-element path with `foo10` and `0` as the elements.</mark>
+ - <mark class="ok" title="path-expressions.9 — path-expressions/005-unquoted-concatenated-with-quoted-number.conf">`foo&quot;10.0&quot;` is an unquoted then a quoted string which are
+   concatenated, so this is a single-element path.</mark>
+ - <mark class="ok" title="path-expressions.10 — path-expressions/006-all-numeric-path.conf">`1.2.3` is the three-element path with `1`,`2`,`3`</mark></p>
+<p data-line="504"><mark class="ok" title="path-expressions.11 — path-expressions/022-keyword-in-substitution-path-is-a-string.conf">Unlike value concatenations, path expressions are _always_
+converted to a string, even if they are just a single value.</mark></p>
+<p data-line="507"><mark class="ok" title="path-expressions.12 — path-expressions/008-value-concatenation-keeps-boolean.conf">If you have an array or element value consisting of the single
+value `true`, it&#x27;s a value concatenation and retains its character
+as a boolean value.</mark></p>
+<p data-line="511"><mark class="ok" title="path-expressions.13 — path-expressions/022-keyword-in-substitution-path-is-a-string.conf">If you have a path expression (in a key or substitution) then it
+must always be converted to a string, so `true` becomes the string
+that would be quoted as `&quot;true&quot;`.</mark></p>
+<p data-line="515"><mark class="ok" title="path-expressions.14 — substitutions/036-empty-quoted-path-element.conf">If a path element is an empty string, it must always be quoted.</mark>
+<mark class="ok" title="path-expressions.15 — path-expressions/009-empty-path-element-quoted-is-valid.conf">That is, `a.&quot;&quot;.b` is a valid path with three elements, and the
+middle element is an empty string.</mark> <mark class="ok" title="path-expressions.16 — path-expressions/010-consecutive-dots-invalid.conf, path-expressions/019-empty-element-in-substitution-path-invalid.conf">But `a..b` is invalid and
+should generate an error.</mark> <mark class="ok" title="path-expressions.17 — path-expressions/011-path-starting-with-dot-invalid.conf, path-expressions/012-path-ending-with-dot-invalid.conf">Following the same rule, a path that
+starts or ends with a `.` is invalid and should generate an error.</mark></p>
+<h3>Paths as keys</h3>
+<p data-line="523"><mark class="ok" title="paths-as-keys.1 — paths-as-keys/001-two-element-path-expands.conf, paths-as-keys/002-three-element-path-expands.conf">If a key is a path expression with multiple elements, it is
+expanded to create an object for each path element other than the
+last.</mark> <mark class="ok" title="paths-as-keys.2 — paths-as-keys/001-two-element-path-expands.conf">The last path element, combined with the value, becomes a
+field in the most-nested object.</mark></p>
+<p data-line="528">In other words:</p>
+<p data-line="530">    foo.bar : 42</p>
+<p data-line="532">is equivalent to:</p>
+<p data-line="534">    foo { bar : 42 }</p>
+<p data-line="536">and:</p>
+<p data-line="538">    foo.bar.baz : 42</p>
+<p data-line="540">is equivalent to:</p>
+<p data-line="542">    foo { bar { baz : 42 } }</p>
+<p data-line="544">and so on. <mark class="ok" title="paths-as-keys.3 — paths-as-keys/003-merge-sibling-paths.conf, paths-as-keys/010-path-key-merges-with-brace-object.conf">These values are merged in the usual way; which implies
+that:</mark></p>
+<p data-line="547">    a.x : 42, a.y : 43</p>
+<p data-line="549">is equivalent to:</p>
+<p data-line="551">    a { x : 42, y : 43 }</p>
+<p data-line="553"><mark class="ok" title="paths-as-keys.4 — paths-as-keys/004-whitespace-in-key.conf, paths-as-keys/011-whitespace-around-a-dot-stays-in-the-elements.conf">Because path expressions work like value concatenations, you can
+have whitespace in keys:</mark></p>
+<p data-line="556">    a b c : 42</p>
+<p data-line="558">is equivalent to:</p>
+<p data-line="560">    &quot;a b c&quot; : 42</p>
+<p data-line="562"><mark class="ok" title="paths-as-keys.5 — paths-as-keys/005-unquoted-true-key-becomes-string.conf">Because path expressions are always converted to strings, even
+single values that would normally have another type become
+strings.</mark></p>
+<p data-line="566">   - <mark class="ok" title="paths-as-keys.6 — paths-as-keys/005-unquoted-true-key-becomes-string.conf">`true : 42` is `&quot;true&quot; : 42`</mark>
+   - <mark class="ok" title="paths-as-keys.7 — paths-as-keys/006-unquoted-number-key-becomes-string.conf">`3 : 42` is `&quot;3&quot; : 42`</mark>
+   - <mark class="ok" title="paths-as-keys.8 — paths-as-keys/007-decimal-key-splits-on-dot.conf">`3.14 : 42` is `&quot;3&quot; : { &quot;14&quot; : 42 }`</mark></p>
+<p data-line="570"><mark class="ok" title="paths-as-keys.9 — paths-as-keys/008-include-cannot-begin-key.conf">As a special rule, the unquoted string `include` may not begin a
+path expression in a key, because it has a special interpretation
+(see below).</mark></p>
+<h3>Substitutions</h3>
+<p data-line="576">Substitutions are a way of referring to other parts of the
+configuration tree.</p>
+<p data-line="579"><mark class="ok" title="substitutions.1 — substitutions/001-basic-substitution.conf, substitutions/002-optional-substitution-syntax.conf, substitutions/026-unterminated-substitution-is-error.conf, substitutions/032-empty-substitution-illegal.conf">The syntax is `${pathexpression}` or `${?pathexpression}` where
+the `pathexpression` is a path expression as described above.</mark> <mark class="ok" title="substitutions.2 — substitutions/031-whitespace-inside-braces-is-trimmed.conf, substitutions/035-quoted-path-element-with-space.conf">This
+path expression has the same syntax that you could use for an
+object key.</mark></p>
+<p data-line="584"><mark class="ok" title="substitutions.3 — substitutions/003-optional-substitution-whitespace-illegal.conf, substitutions/038-whitespace-after-question-mark.conf">The `?` in `${?pathexpression}` must not have whitespace before
+it; the three characters `${?` must be exactly like that, grouped
+together.</mark></p>
+<p data-line="588">For substitutions which are not found in the configuration tree,
+implementations may try to resolve them by looking at system
+environment variables or other external sources of configuration.
+(More detail on environment variables in a later section.)</p>
+<p data-line="593"><mark class="ok" title="substitutions.4 — substitutions/004-substitution-not-parsed-in-quoted-string.conf, substitutions/030-quoted-key-is-not-a-substitution.conf">Substitutions are not parsed inside quoted strings.</mark> <mark class="ok" title="substitutions.5 — substitutions/005-substitution-value-concatenation-unquoted.conf">To get a
+string containing a substitution, you must use value concatenation
+with the substitution in the unquoted portion:</mark></p>
+<p data-line="597">    key : ${animal.favorite} is my favorite animal</p>
+<p data-line="599"><mark class="ok" title="substitutions.6 — substitutions/006-substitution-value-concatenation-quoted-tail.conf">Or you could quote the non-substitution portion:</mark></p>
+<p data-line="601">    key : ${animal.favorite}&quot; is my favorite animal&quot;</p>
+<p data-line="603"><mark class="ok" title="substitutions.7 — substitutions/007-substitution-path-absolute.conf">Substitutions are resolved by looking up the path in the
+configuration.</mark> <mark class="ok" title="substitutions.8 — substitutions/007-substitution-path-absolute.conf">The path begins with the root configuration object,
+i.e. it is &quot;absolute&quot; rather than &quot;relative.&quot;</mark></p>
+<p data-line="607"><mark class="ok" title="substitutions.9 — substitutions/008-substitution-forward-reference.conf">Substitution processing is performed as the last parsing step, so
+a substitution can look forward in the configuration.</mark> <mark class="gap" title="substitutions.10 — no case">If a
+configuration consists of multiple files, it may even end up
+retrieving a value from another file.</mark></p>
+<p data-line="612"><mark class="ok" title="substitutions.11 — duplicate-keys-and-object-merging/010-null-in-referenced-key-history-does-not-block-merge.conf, duplicate-keys-and-object-merging/011-nested-null-in-referenced-object-does-not-block-merge.conf, duplicate-keys-and-object-merging/012-reference-to-merged-field-sees-the-same-value.conf, duplicate-keys-and-object-merging/013-top-level-null-before-object-with-substitution.conf, duplicate-keys-and-object-merging/016-null-deeper-in-a-merge-stack-stays-at-its-key.conf, duplicate-keys-and-object-merging/017-lookup-into-nested-null-merges.conf, substitutions/009-substitution-latest-duplicate-key.conf, substitutions/010-substitution-latest-duplicate-key-object-merge.conf">If a key has been specified more than once, the substitution will
+always evaluate to its latest-assigned value (that is, it will
+evaluate to the merged object, or the last non-object value that
+was set, in the entire document being parsed including all
+included files).</mark></p>
+<p data-line="618"><mark class="ok" title="substitutions.12 — substitutions/040-null-blocks-environment-lookup.conf">If a configuration sets a value to `null` then it should not be
+looked up in the external source.</mark> Unfortunately there is no way to
+&quot;undo&quot; this in a later configuration file; if you have `{ &quot;HOME&quot; :
+null }` in a root object, then `${HOME}` will never look at the
+environment variable. There is no equivalent to JavaScript&#x27;s
+`delete` operation in other words.</p>
+<p data-line="625"><mark class="ok" title="substitutions.13 — substitutions/028-optional-substitution-to-null-value-is-defined.conf, substitutions/037-path-into-a-list-element-is-undefined.conf">If a substitution does not match any value present in the
+configuration and is not resolved by an external source, then it
+is undefined.</mark> <mark class="ok" title="substitutions.14 — substitutions/011-undefined-required-substitution-is-error.conf, substitutions/033-path-through-a-non-object-is-undefined.conf">An undefined substitution with the `${foo}` syntax
+is invalid and should generate an error.</mark></p>
+<p data-line="630">If a substitution with the `${?foo}` syntax is undefined:</p>
+<p data-line="632"> - <mark class="ok" title="substitutions.15 — substitutions/012-undefined-optional-substitution-field-not-created.conf, substitutions/034-optional-path-through-a-non-object-is-omitted.conf">if it is the value of an object field then the field should not
+   be created.</mark> <mark class="ok" title="substitutions.16 — self-referential-examples/022-undefined-optional-does-not-hide.conf, substitutions/013-undefined-optional-substitution-keeps-previous-value.conf">If the field would have overridden a previously-set
+   value for the same field, then the previous value remains.</mark>
+ - <mark class="ok" title="substitutions.17 — substitutions/014-undefined-optional-substitution-array-element-not-added.conf">if it is an array element then the element should not be added.</mark>
+ - <mark class="ok" title="substitutions.18 — concatenation-whitespace-and-substitutions/008-list-then-undefined-optional-is-the-list.conf, concatenation-whitespace-and-substitutions/009-undefined-optional-then-list-is-the-list.conf, substitutions/015-undefined-optional-substitution-concatenation-string-empty.conf, substitutions/016-undefined-optional-substitution-concatenation-object-empty.conf, substitutions/017-undefined-optional-substitution-concatenation-array-empty.conf, substitutions/039-undefined-optional-with-number-is-a-string.conf">if it is part of a value concatenation with another string then
+   it should become an empty string; if part of a value
+   concatenation with an object or array it should become an empty
+   object or array.</mark>
+ - <mark class="ok" title="substitutions.19 — substitutions/012-undefined-optional-substitution-field-not-created.conf">`foo : ${?bar}` would avoid creating field `foo` if `bar` is
+   undefined.</mark> <mark class="ok" title="substitutions.20 — substitutions/018-two-optional-substitutions-both-undefined-field-not-created.conf, substitutions/019-two-optional-substitutions-one-defined-field-created.conf">`foo : ${?bar}${?baz}` would also avoid creating the
+   field if _both_ `bar` and `baz` are undefined.</mark></p>
+<p data-line="644"><mark class="ok" title="substitutions.21 — substitutions/020-substitution-not-allowed-in-key.conf, substitutions/021-substitution-not-allowed-nested-in-path-expression.conf">Substitutions are only allowed in field values and array
+elements (value concatenations), they are not allowed in keys or
+nested inside other substitutions (path expressions).</mark></p>
+<p data-line="648"><mark class="ok" title="substitutions.22 — substitutions/025-substitution-preserves-type-string-booleans-null.conf">A substitution is replaced with any value type (number, object,
+string, array, true, false, null).</mark> <mark class="ok" title="substitutions.23 — substitutions/022-substitution-preserves-type-array.conf, substitutions/025-substitution-preserves-type-string-booleans-null.conf">If the substitution is the only
+part of a value, then the type is preserved.</mark> <mark class="ok" title="substitutions.24 — substitutions/024-substitution-concatenation-forms-string.conf">Otherwise, it is
+value-concatenated to form a string.</mark></p>
+<h4>Self-Referential Substitutions</h4>
+<p data-line="655">The big picture:</p>
+<p data-line="657"> - <mark class="ok" title="self-referential-substitutions.1 — substitutions/008-substitution-forward-reference.conf">substitutions normally &quot;look forward&quot; and use the final value
+   for their path expression</mark>
+ - <mark class="ok" title="self-referential-substitutions.2 — self-referential-substitutions/001-path-builds-on-older-value.conf">when this would create a cycle, when possible the cycle must be
+   broken by looking backward only (thus removing one of the
+   substitutions that&#x27;s a link in the cycle)</mark></p>
+<p data-line="663">The idea is to allow a new value for a field to be based on the
+older value:</p>
+<p data-line="666">    path : &quot;a:b:c&quot;
+    path : ${path}&quot;:d&quot;</p>
+<p data-line="669">A _self-referential field_ is one which:</p>
+<p data-line="671"> - <mark class="ok" title="self-referential-substitutions.3 — self-referential-substitutions/002-self-referential-concatenation.conf">has a substitution, or value concatenation containing a
+   substitution, as its value</mark>
+ - <mark class="ok" title="self-referential-substitutions.4 — self-referential-substitutions/002-self-referential-concatenation.conf">where this field value refers to the field being defined,
+   either directly or by referring to one or more other
+   substitutions which eventually point back to the field being
+   defined</mark></p>
+<p data-line="678">Examples of self-referential fields:</p>
+<p data-line="680"> - <mark class="ok" title="self-referential-substitutions.5 — self-referential-examples/001-isolated-self-reference-is-an-error.conf">`a : ${a}`</mark>
+ - <mark class="ok" title="self-referential-substitutions.6 — self-referential-substitutions/002-self-referential-concatenation.conf">`a : ${a}bc`</mark>
+ - <mark class="ok" title="self-referential-substitutions.7 — self-referential-substitutions/006-self-referential-array-concatenation.conf">`path : ${path} [ /usr/bin ]`</mark></p>
+<p data-line="684"><mark class="ok" title="self-referential-substitutions.8 — self-referential-substitutions/003-object-containing-self-reference-is-not-self-referential.conf, self-referential-substitutions/004-array-containing-self-reference-is-not-self-referential.conf">Note that an object or array with a substitution inside it is
+_not_ considered self-referential for this purpose.</mark> The
+self-referential rules do _not_ apply to:</p>
+<p data-line="688"> - <mark class="ok" title="self-referential-substitutions.9 — self-referential-substitutions/003-object-containing-self-reference-is-not-self-referential.conf">`a : { b : ${a} }`</mark>
+ - <mark class="ok" title="self-referential-substitutions.10 — self-referential-substitutions/004-array-containing-self-reference-is-not-self-referential.conf">`a : [${a}]`</mark></p>
+<p data-line="691"><mark class="ok" title="self-referential-substitutions.11 — self-referential-substitutions/003-object-containing-self-reference-is-not-self-referential.conf, self-referential-substitutions/004-array-containing-self-reference-is-not-self-referential.conf">These cases are unbreakable cycles that generate an error.</mark> (If
+&quot;looking backward&quot; were allowed for these, something like
+`a={ x : 42, y : ${a.x} }` would look backward for a
+nonexistent `a` while resolving `${a.x}`.)</p>
+<p data-line="696">A possible implementation is:</p>
+<p data-line="698"> - substitutions are resolved by looking up paths in a document.
+   Cycles only arise when the lookup document is an ancestor
+   node of the substitution node.
+ - while resolving a potentially self-referential field (any
+   substitution or value concatenation that contains a
+   substitution), remove that field and all fields which override
+   it from the lookup document.</p>
+<p data-line="706">The simplest form of this implementation will report a circular
+reference as missing; in `a : ${a}` you would remove `a : ${a}`
+while resolving `${a}`, leaving an empty document to look up
+`${a}` in. You can give a more helpful error message if, rather
+than simply removing the field, you leave a marker value
+describing the cycle. Then generate an error if you return to that
+marker value during resolution.</p>
+<p data-line="714"><mark class="ok" title="self-referential-substitutions.12 — self-referential-examples/025-optional-two-field-cycle-is-undefined.conf">Cycles should be treated the same as a missing value when
+resolving an optional substitution (i.e. the `${?foo}` syntax).</mark>
+<mark class="ok" title="self-referential-substitutions.13 — self-referential-examples/004-optional-self-reference-disappears-silently.conf">If `${?foo}` refers to itself then it&#x27;s as if it referred to a
+nonexistent value.</mark></p>
+<h4>The `+=` field separator</h4>
+<p data-line="721"><mark class="ok" title="the--field-separator.1 — plus-equals-field-separator/001-plus-equals-desugars-to-optional-self-ref-array.conf">Fields may have `+=` as a separator rather than `:` or `=`.</mark> <mark class="ok" title="the--field-separator.2 — plus-equals-field-separator/005-plus-equals-in-nested-object-with-substitution.conf, plus-equals-field-separator/007-plus-equals-under-a-dotted-key.conf, plus-equals-field-separator/008-plus-equals-with-an-object-containing-a-merge.conf, self-referential-examples/023-append-does-not-hide.conf">A
+field with `+=` transforms into a self-referential array
+concatenation, like this:</mark></p>
+<p data-line="725">    a += b</p>
+<p data-line="727">becomes:</p>
+<p data-line="729">    a = ${?a} [b]</p>
+<p data-line="731"><mark class="ok" title="the--field-separator.3 — plus-equals-field-separator/002-plus-equals-appends-to-existing-array.conf, plus-equals-field-separator/004-plus-equals-twice.conf">`+=` appends an element to a previous array.</mark> <mark class="ok" title="the--field-separator.4 — plus-equals-field-separator/003-plus-equals-errors-on-non-array-previous-value.conf">If the previous value
+was not an array, an error will result just as it would in the
+long form `a = ${?a} [b]`.</mark> <mark class="ok" title="the--field-separator.5 — plus-equals-field-separator/001-plus-equals-desugars-to-optional-self-ref-array.conf, plus-equals-field-separator/006-plus-equals-inside-a-list-element.conf">Note that the previous value is
+optional (`${?a}` not `${a}`), which allows `a += b` to be the
+first mention of `a` in the file (it is not necessary to have `a =
+[]` first).</mark></p>
+<h4>Examples of Self-Referential Substitutions</h4>
+<p data-line="740"><mark class="ok" title="examples-of-self-referential-substitutions.1 — self-referential-examples/001-isolated-self-reference-is-an-error.conf">In isolation (with no merges involved), a self-referential field
+is an error because the substitution cannot be resolved:</mark></p>
+<p data-line="743">    foo : ${foo} // an error</p>
+<p data-line="745"><mark class="ok" title="examples-of-self-referential-substitutions.2 — self-referential-examples/002-self-reference-resolves-to-earlier-merged-value.conf">When `foo : ${foo}` is merged with an earlier value for `foo`,
+however, the substitution can be resolved to that earlier value.</mark>
+<mark class="ok" title="examples-of-self-referential-substitutions.3 — self-referential-examples/002-self-reference-resolves-to-earlier-merged-value.conf">When merging two objects, the self-reference in the overriding
+field refers to the overridden field.</mark> Say you have:</p>
+<p data-line="750">    foo : { a : 1 }</p>
+<p data-line="752">and then:</p>
+<p data-line="754">    foo : ${foo}</p>
+<p data-line="756"><mark class="ok" title="examples-of-self-referential-substitutions.4 — self-referential-examples/002-self-reference-resolves-to-earlier-merged-value.conf">Then `${foo}` resolves to `{ a : 1 }`, the value of the overridden
+field.</mark></p>
+<p data-line="759"><mark class="ok" title="examples-of-self-referential-substitutions.5 — self-referential-examples/003-self-reference-before-any-value-is-undefined.conf">It would be an error if these two fields were reversed, so first:</mark></p>
+<p data-line="761">    foo : ${foo}</p>
+<p data-line="763">and then second:</p>
+<p data-line="765">    foo : { a : 1 }</p>
+<p data-line="767"><mark class="ok" title="examples-of-self-referential-substitutions.6 — self-referential-examples/003-self-reference-before-any-value-is-undefined.conf">Here the `${foo}` self-reference comes before `foo` has a value,
+so it is undefined, exactly as if the substitution referenced a
+path not found in the document.</mark></p>
+<p data-line="771"><mark class="ok" title="examples-of-self-referential-substitutions.7 — self-referential-examples/004-optional-self-reference-disappears-silently.conf">Because `foo : ${foo}` conceptually looks to previous definitions
+of `foo` for a value, the error should be treated as &quot;undefined&quot;
+rather than &quot;intractable cycle&quot;; as a result, the optional
+substitution syntax `${?foo}` does not create a cycle:</mark></p>
+<p data-line="776">    foo : ${?foo} // this field just disappears silently</p>
+<p data-line="778"><mark class="ok" title="examples-of-self-referential-substitutions.8 — self-referential-examples/015-list-hidden-by-substituted-object-is-never-evaluated.conf, self-referential-examples/016-object-hidden-by-substituted-scalar-is-never-evaluated.conf, self-referential-examples/017-object-hidden-by-substituted-concatenation-is-never-evaluated.conf, self-referential-examples/018-object-merged-with-substituted-object-is-evaluated.conf, self-referential-examples/019-list-hidden-by-literal-scalar-is-never-evaluated.conf, self-referential-examples/020-object-hidden-by-literal-list-is-never-evaluated.conf, self-referential-examples/021-hidden-list-does-not-depend-on-key-order.conf">If a substitution is hidden by a value that could not be merged
+with it (by a non-object value) then it is never evaluated and no
+error will be reported.</mark> So for example:</p>
+<p data-line="782">    foo : ${does-not-exist}
+    foo : 42</p>
+<p data-line="785"><mark class="ok" title="examples-of-self-referential-substitutions.9 — self-referential-examples/005-substitution-hidden-by-later-non-mergeable-value-is-never-evaluated.conf">In this case, no matter what `${does-not-exist}` resolves to, we
+know `foo` is `42`, so `${does-not-exist}` is never evaluated and
+there is no error.</mark> <mark class="ok" title="examples-of-self-referential-substitutions.10 — self-referential-examples/006-self-reference-cycle-ignored-when-overridden-by-literal.conf">The same is true for cycles like `foo : ${foo},
+foo : 42`, where the initial self-reference must simply be ignored.</mark></p>
+<p data-line="790"><mark class="ok" title="examples-of-self-referential-substitutions.11 — self-referential-examples/007-self-reference-in-path-expression-resolves-to-value-below.conf">A self-reference resolves to the value &quot;below&quot; even if it&#x27;s part
+of a path expression.</mark> So for example:</p>
+<p data-line="793">    foo : { a : { c : 1 } }
+    foo : ${foo.a}
+    foo : { a : 2 }</p>
+<p data-line="797"><mark class="ok" title="examples-of-self-referential-substitutions.12 — self-referential-examples/007-self-reference-in-path-expression-resolves-to-value-below.conf">Here, `${foo.a}` would refer to `{ c : 1 }` rather than `2` and so
+the final merge would be `{ a : 2, c : 1 }`.</mark></p>
+<p data-line="800">Recall that for a field to be self-referential, it must have a
+substitution or value concatenation as its value. <mark class="ok" title="examples-of-self-referential-substitutions.13 — self-referential-examples/008-object-may-refer-to-sibling-path-within-itself.conf">If a field has
+an object or array value, for example, then it is not
+self-referential even if there is a reference to the field itself
+inside that object or array.</mark></p>
+<p data-line="806"><mark class="ok" title="examples-of-self-referential-substitutions.14 — self-referential-examples/008-object-may-refer-to-sibling-path-within-itself.conf">Implementations must be careful to allow objects to refer to paths
+within themselves, for example:</mark></p>
+<p data-line="809">    bar : { foo : 42,
+            baz : ${bar.foo}
+          }</p>
+<p data-line="813">Here, if an implementation resolved all substitutions in `bar` as
+part of resolving the substitution `${bar.foo}`, there would be a
+cycle. <mark class="ok" title="examples-of-self-referential-substitutions.15 — self-referential-examples/024-substitution-target-is-fetched-lazily.conf">The implementation must only resolve the `foo` field in
+`bar`, rather than recursing the entire `bar` object.</mark></p>
+<p data-line="818"><mark class="ok" title="examples-of-self-referential-substitutions.16 — self-referential-examples/009-non-cycling-reference-looks-forward-across-merge.conf">Because there is no inherent cycle here, the substitution must
+&quot;look forward&quot; (including looking at the field currently being
+defined).</mark> <mark class="ok" title="examples-of-self-referential-substitutions.17 — self-referential-examples/009-non-cycling-reference-looks-forward-across-merge.conf">To make this clearer, `bar.baz` would be `43` in:</mark></p>
+<p data-line="822">    bar : { foo : 42,
+            baz : ${bar.foo}
+          }
+    bar : { foo : 43 }</p>
+<p data-line="827"><mark class="ok" title="examples-of-self-referential-substitutions.18 — self-referential-examples/010-mutually-referring-objects-are-not-self-referential.conf">Mutually-referring objects should also work, and are not
+self-referential (so they look forward):</mark></p>
+<p data-line="830">    // bar.a should end up as 4
+    bar : { a : ${foo.d}, b : 1 }
+    bar.b = 3
+    // foo.c should end up as 3
+    foo : { c : ${bar.b}, d : 2 }
+    foo.d = 4</p>
+<p data-line="837"><mark class="ok" title="examples-of-self-referential-substitutions.19 — self-referential-examples/011-optional-self-reference-in-concatenation-looks-back.conf">Another tricky case is an optional self-reference in a value
+concatenation, in this example `a` should be `foo` not `foofoo`
+because the self reference has to &quot;look back&quot; to an undefined `a`:</mark></p>
+<p data-line="841">    a = ${?a}foo</p>
+<p data-line="843">In general, in resolving a substitution, the implementation must:</p>
+<p data-line="845"> - <mark class="ok" title="examples-of-self-referential-substitutions.20 — self-referential-examples/024-substitution-target-is-fetched-lazily.conf">lazy-evaluate the substitution target so there&#x27;s no
+   &quot;circularity by side effect&quot;</mark>
+ - <mark class="ok" title="examples-of-self-referential-substitutions.21 — self-referential-examples/009-non-cycling-reference-looks-forward-across-merge.conf">&quot;look forward&quot; and use the final value for the path
+   specified in the substitution</mark>
+ - <mark class="ok" title="examples-of-self-referential-substitutions.22 — self-referential-substitutions/001-path-builds-on-older-value.conf">if a cycle results, the implementation must &quot;look back&quot;
+   in the merge stack to try to resolve the cycle</mark>
+ - <mark class="ok" title="examples-of-self-referential-substitutions.23 — self-referential-examples/012-mutual-non-self-cycle-is-unresolvable.conf">if neither lazy evaluation nor &quot;looking only backward&quot; resolves
+   a cycle, the substitution is missing which is an error unless
+   the `${?foo}` optional-substitution syntax was used.</mark></p>
+<p data-line="855">For example, this is not possible to resolve:</p>
+<p data-line="857">    bar : ${foo}
+    foo : ${bar}</p>
+<p data-line="860"><mark class="ok" title="examples-of-self-referential-substitutions.24 — self-referential-examples/013-multi-step-cycle-is-invalid.conf">A multi-step loop like this should also be detected as invalid:</mark></p>
+<p data-line="862">    a : ${b}
+    b : ${c}
+    c : ${a}</p>
+<p data-line="866">Some cases have undefined behavior because the behavior depends on
+the order in which two fields are resolved, and that order is not
+defined. For example:</p>
+<p data-line="870">    a : 1
+    b : 2
+    a : ${b}
+    b : ${a}</p>
+<p data-line="875"><mark class="ok" title="examples-of-self-referential-substitutions.25 — self-referential-examples/014-order-dependent-resolution-must-agree-on-one-value.conf">Implementations are allowed to handle this by setting both `a` and
+`b` to 1, setting both to `2`, or generating an error.</mark> Ideally
+this situation would generate an error, but that may be difficult
+to implement. Making the behavior defined would require always
+working with ordered maps rather than unordered maps, which is too
+constraining. Implementations only have to track order for
+duplicate instances of the same field (i.e. merges).</p>
+<p data-line="883"><mark class="ok" title="examples-of-self-referential-substitutions.26 — self-referential-examples/014-order-dependent-resolution-must-agree-on-one-value.conf">Implementations must set both `a` and `b` to the same value in
+this case, however.</mark> In practice this means that all substitutions
+must be memoized (resolved once, with the result
+retained). <mark class="ok" title="examples-of-self-referential-substitutions.27 — self-referential-examples/026-memoized-by-instance-not-by-path.conf">Memoization should be keyed by the substitution
+&quot;instance&quot; (the specific occurrence of the `${}` expression)
+rather than by the path inside the `${}` expression, because
+substitutions may be resolved differently depending on their
+position in the file.</mark></p>
+<h4>List values from environment variables</h4>
+<p data-line="895">Environment variables are inherently single string values, but
+sometimes it&#x27;s useful to populate a list-valued configuration
+setting from the environment. The `[]` suffix on a substitution
+enables this:</p>
+<p data-line="900">    my-list = ${MY_LIST[]}</p>
+<p data-line="902"><mark class="ok" title="list-values-from-environment-variables.1 — list-values-from-environment-variables/006-config-keys-are-not-collected.conf">This is only supported for environment variables and not system properties or path expressions</mark></p>
+<p data-line="904"><mark class="ok" title="list-values-from-environment-variables.2 — list-values-from-environment-variables/001-list-from-indexed-variables.conf, list-values-from-environment-variables/004-collection-stops-at-the-first-gap.conf">When a substitution with the `[]` suffix is resolved via
+environment variable fallback, the implementation will look up
+`MY_LIST_0`, `MY_LIST_1`, `MY_LIST_2`, and so on (incrementing
+the index) until an environment variable is not found.</mark> <mark class="gap" title="list-values-from-environment-variables.3 — no case">The
+collected values form a list.</mark></p>
+<p data-line="910">- If no element is found (i.e. <mark class="ok" title="list-values-from-environment-variables.4 — list-values-from-environment-variables/002-optional-list-with-no-elements-is-undefined.conf, list-values-from-environment-variables/003-required-list-with-no-elements-is-error.conf">`MY_LIST_0` is not set), a
+  required substitution `${MY_LIST[]}` is an error, while an
+  optional substitution `${?MY_LIST[]}` is treated as undefined
+  (the key is removed from the config).</mark>
+- <mark class="ok" title="list-values-from-environment-variables.5 — list-values-from-environment-variables/005-elements-are-strings.conf">Each element value is a string, as with all environment
+  variables.</mark> Automatic type conversion applies when the
+  application requests another type (e.g. `getIntList()`).
+- <mark class="gap" title="list-values-from-environment-variables.6 — no case">The separator between the base name and the index is `_`.</mark></p>
+<h3>Includes</h3>
+<h4>Include syntax</h4>
+<p data-line="923"><mark class="gap" title="include-syntax.1 — no case">An _include statement_ consists of the unquoted string `include`
+followed by whitespace and then either:</mark>
+ - <mark class="gap" title="include-syntax.2 — no case">a single _quoted_ string which is interpreted heuristically as
+   URL, filename, or classpath resource.</mark>
+ - <mark class="ok" title="include-syntax.3 — include-syntax/009-file-missing-close-parenthesis/main.conf, include-syntax/011-url-argument-must-be-a-url/main.conf">`url()`, `file()`, or `classpath()` surrounding a quoted string
+   which is then interpreted as a URL, file, or classpath.</mark> <mark class="ok" title="include-syntax.4 — include-syntax/008-file-argument-must-be-quoted/main.conf">The
+   string must be quoted, unlike in CSS.</mark>
+ - <mark class="ok" title="include-syntax.5 — include-syntax/010-required-missing-close-parenthesis/main.conf">`required()` surrounding one of the above</mark></p>
+<p data-line="932"><mark class="ok" title="include-syntax.6 — include-merging/010-include-inside-an-object-inside-a-list/main.conf">An include statement can appear in place of an object field.</mark></p>
+<p data-line="934"><mark class="ok" title="include-syntax.7 — include-syntax/015-include-followed-by-separator-is-not-a-key.conf">If the unquoted string `include` appears at the start of a path
+expression where an object key would be expected, then it is not
+interpreted as a path expression or a key.</mark></p>
+<p data-line="938"><mark class="gap" title="include-syntax.8 — no case">Instead, the next value must be a _quoted_ string or a quoted
+string surrounded by `url()`, `file()`, or `classpath()`.</mark>
+This value is the _resource name_.</p>
+<p data-line="942"><mark class="ok" title="include-syntax.9 — include-syntax/016-comma-separates-include-from-next-field/main.conf">Together, the unquoted `include` and the resource name substitute
+for an object field syntactically, and are separated from the
+following object fields or includes by the usual comma (and as
+usual the comma may be omitted if there&#x27;s a newline).</mark></p>
+<p data-line="947"><mark class="ok" title="include-syntax.10 — include-syntax/006-include-argument-must-be-quoted.conf">If an unquoted `include` at the start of a key is followed by
+anything other than a single quoted string or the
+`url(&quot;&quot;)`/`file(&quot;&quot;)`/`classpath(&quot;&quot;)` syntax, it is invalid and an
+error should be generated.</mark></p>
+<p data-line="952"><mark class="ok" title="include-syntax.11 — include-syntax/013-newlines-between-include-and-name/main.conf">There can be any amount of whitespace, including newlines, between
+the unquoted `include` and the resource name.</mark> <mark class="ok" title="include-syntax.12 — include-syntax/014-whitespace-inside-parentheses/main.conf">For `url()` etc.,
+whitespace is allowed inside the parentheses `()` (outside of the
+quotes).</mark></p>
+<p data-line="957"><mark class="ok" title="include-syntax.13 — include-syntax/004-no-concatenation-on-include-argument.conf">Value concatenation is NOT performed on the &quot;argument&quot; to
+`include` or `url()` etc.</mark> <mark class="gap" title="include-syntax.14 — no case">The argument must be a single quoted
+string.</mark> <mark class="ok" title="include-syntax.15 — include-syntax/005-no-substitution-in-include-argument.conf">No substitutions are allowed, and the argument may not be
+an unquoted string or any other kind of value.</mark></p>
+<p data-line="962"><mark class="ok" title="include-syntax.16 — include-syntax/001-include-later-in-key-is-literal.conf, include-syntax/002-include-as-object-value-is-string.conf, include-syntax/003-include-as-array-element-is-string.conf, paths-as-keys/009-include-not-at-start-is-ordinary.conf">Unquoted `include` has no special meaning if it is not the start
+of a key&#x27;s path expression.</mark></p>
+<p data-line="965">It may appear later in the key:</p>
+<p data-line="967">    # this is valid
+    { foo include : 42 }
+    # equivalent to
+    { &quot;foo include&quot; : 42 }</p>
+<p data-line="972">It may appear as an object or array value:</p>
+<p data-line="974">    { foo : include } # value is the string &quot;include&quot;
+    [ include ]       # array of one string &quot;include&quot;</p>
+<p data-line="977"><mark class="ok" title="include-syntax.17 — include-syntax/007-quoted-include-is-ordinary-key.conf">You can quote `&quot;include&quot;` if you want a key that starts with the
+word `&quot;include&quot;`, only unquoted `include` is special:</mark></p>
+<p data-line="980">    { &quot;include&quot; : 42 }</p>
+<h4>Include semantics: merging</h4>
+<p data-line="984">An _including file_ contains the include statement and an
+_included file_ is the one specified in the include statement.
+(They need not be regular files on a filesystem, but assume they
+are for the moment.)</p>
+<p data-line="989"><mark class="gap" title="include-semantics-merging.1 — no case">An included file must contain an object, not an array.</mark> This is
+significant because both JSON and HOCON allow arrays as root
+values in a document.</p>
+<p data-line="993"><mark class="ok" title="include-semantics-merging.2 — include-merging/002-included-conf-array-root-is-error/main.conf, include-merging/003-included-json-array-root-is-error/main.conf">If an included file contains an array as the root value, it is
+invalid and an error should be generated.</mark></p>
+<p data-line="996"><mark class="gap" title="include-semantics-merging.3 — no case">The included file should be parsed, producing a root object.</mark> <mark class="ok" title="include-semantics-merging.4 — include-merging/001-included-keys-merge-in-place/main.conf, include-merging/004-include-inside-nested-object/main.conf, include-merging/011-include-inside-a-list-with-a-substitution/main.conf">The
+keys from the root object are conceptually substituted for the
+include statement in the including file.</mark></p>
+<p data-line="1000"> - <mark class="ok" title="include-semantics-merging.5 — include-merging/005-included-scalar-overrides-earlier-key/main.conf, include-merging/006-included-object-merges-with-earlier-object/main.conf, include-merging/007-included-scalar-replaces-earlier-object/main.conf, include-merging/012-included-merge-stack-over-earlier-object/main.conf, include-merging/013-included-merge-stack-over-earlier-substitution/main.conf, include-merging/014-included-merge-stack-over-earlier-scalar/main.conf, include-merging/015-included-object-on-top-of-substitution-over-earlier-substitution/main.conf">If a key in the included object occurred prior to the include
+   statement in the including object, the included key&#x27;s value
+   overrides or merges with the earlier value, exactly as with
+   duplicate keys found in a single file.</mark>
+ - <mark class="ok" title="include-semantics-merging.6 — include-merging/008-later-key-overrides-included-key/main.conf, include-merging/009-later-object-merges-with-included-object/main.conf">If the including file repeats a key from an earlier-included
+   object, the including file&#x27;s value would override or merge
+   with the one from the included file.</mark></p>
+<h4>Include semantics: substitution</h4>
+<p data-line="1010"><mark class="ok" title="include-semantics-substitution.1 — include-substitution/004-relativized-path-tried-before-original/main.conf, include-substitution/005-neither-path-defined-is-error/main.conf, include-substitution/006-optional-substitution-with-neither-path-is-omitted/main.conf, include-substitution/009-undefined-optional-at-fixed-up-path-falls-back/main.conf, include-substitution/010-undefined-optional-at-fixed-up-path-with-no-original/main.conf, include-substitution/011-optional-reference-falls-back-too/main.conf, include-substitution/012-earlier-value-at-fixed-up-path-wins/main.conf, include-substitution/014-unrelated-key-does-not-change-the-result/main.conf, include-substitution/015-undefined-at-both-paths-is-error/main.conf, include-substitution/019-null-at-fixed-up-path-is-found/main.conf">Substitutions in included files are looked up at two different
+paths; first, relative to the root of the included file; second,
+relative to the root of the including configuration.</mark></p>
+<p data-line="1014">Recall that substitution happens as a final step, _after_
+parsing. <mark class="gap" title="include-semantics-substitution.2 — no case">It should be done for the entire app&#x27;s configuration, not
+for single files in isolation.</mark></p>
+<p data-line="1018"><mark class="ok" title="include-semantics-substitution.3 — include-substitution/007-nested-include-relativized-through-both-levels/main.conf, include-substitution/016-substitution-inside-a-concatenation-is-fixed-up/main.conf, include-substitution/017-substitution-inside-a-list-is-fixed-up/main.conf, include-substitution/018-substitution-in-a-merge-stack-is-fixed-up/main.conf">Therefore, if an included file contains substitutions, they must
+be &quot;fixed up&quot; to be relative to the app&#x27;s configuration root.</mark></p>
+<p data-line="1021">Say for example that the root configuration is this:</p>
+<p data-line="1023">    { a : { include &quot;foo.conf&quot; } }</p>
+<p data-line="1025">And &quot;foo.conf&quot; might look like this:</p>
+<p data-line="1027">    { x : 10, y : ${x} }</p>
+<p data-line="1029">If you parsed &quot;foo.conf&quot; in isolation, then `${x}` would evaluate
+to 10, the value at the path `x`. <mark class="ok" title="include-semantics-substitution.4 — include-substitution/001-substitution-relativized-to-include-scope/main.conf">If you include &quot;foo.conf&quot; in an
+object at key `a`, however, then it must be fixed up to be
+`${a.x}` rather than `${x}`.</mark></p>
+<p data-line="1034">Say that the root configuration redefines `a.x`, like this:</p>
+<p data-line="1036">    {
+        a : { include &quot;foo.conf&quot; }
+        a : { x : 42 }
+    }</p>
+<p data-line="1041"><mark class="ok" title="include-semantics-substitution.5 — include-substitution/002-relativized-path-sees-later-redefinition/main.conf">Then the `${x}` in &quot;foo.conf&quot;, which has been fixed up to
+`${a.x}`, would evaluate to `42` rather than to `10`.</mark>
+Substitution happens _after_ parsing the whole configuration.</p>
+<p data-line="1045">However, there are plenty of cases where the included file might
+intend to refer to the application&#x27;s root config. For example, to
+get a value from a system property or from the reference
+configuration. <mark class="ok" title="include-semantics-substitution.6 — include-substitution/003-original-path-tried-as-fallback/main.conf, include-substitution/008-original-path-falls-back-to-environment/main.conf, include-substitution/013-missing-leaf-under-existing-object-falls-back/main.conf">So it&#x27;s not enough to only look up the &quot;fixed up&quot;
+path, it&#x27;s necessary to look up the original path as well.</mark></p>
+<h4>Include semantics: missing files and required files</h4>
+<p data-line="1053"><mark class="ok" title="include-semantics-missing-files-and-required-files.1 — include-file-formats/004-basename-with-no-file-is-ignored.conf, include-missing-and-required/001-missing-include-ignored/main.conf, include-missing-and-required/002-missing-include-is-empty-object/main.conf, include-missing-and-required/003-missing-file-include-ignored/main.conf">By default, if an included file does not exist then the include statement should
+be silently ignored (as if the included file contained only an
+empty object).</mark></p>
+<p data-line="1057"><mark class="ok" title="include-semantics-missing-files-and-required-files.2 — include-file-formats/005-required-basename-with-no-file-is-error.conf, include-missing-and-required/004-required-missing-is-error/main.conf, include-missing-and-required/005-required-file-missing-is-error/main.conf, include-missing-and-required/006-required-present-is-included/main.conf">If however an included resource is mandatory then the name of the
+included resource may be wrapped with `required()`, in which case
+file parsing will fail with an error if the resource cannot be resolved.</mark></p>
+<p data-line="1061">The syntax for this is</p>
+<p data-line="1063">    include required(&quot;foo.conf&quot;)
+    include required(file(&quot;foo.conf&quot;))
+    include required(classpath(&quot;foo.conf&quot;))
+    include required(url(&quot;http://localhost/foo.conf&quot;))</p>
+<p data-line="1069">Other IO errors probably should not be ignored but implementations
+will have to make a judgment which IO errors reflect an ignorable
+missing file, and which reflect a problem to bring to the user&#x27;s
+attention.</p>
+<h4>Include semantics: file formats and extensions</h4>
+<p data-line="1076">Implementations may support including files in other formats.
+Those formats must be compatible with the JSON type system, or
+have some documented mapping to JSON&#x27;s type system.</p>
+<p data-line="1080"><mark class="ok" title="include-semantics-file-formats-and-extensions.1 — include-file-formats/006-json-extension-means-json-syntax/main.conf">If an implementation supports multiple formats, then the extension
+may be omitted from the name of included files:</mark></p>
+<p data-line="1083">    include &quot;foo&quot;</p>
+<p data-line="1085"><mark class="ok" title="include-semantics-file-formats-and-extensions.2 — include-file-formats/002-basename-with-only-conf/main.conf, include-file-formats/010-json-file-with-every-value-type/main.conf, include-file-formats/011-json-rejects-unquoted-values/main.conf, include-file-formats/012-json-rejects-substitutions/main.conf, include-file-formats/013-json-rejects-trailing-comma/main.conf, include-file-formats/015-json-array-needs-commas/main.conf, include-file-formats/019-json-key-must-be-a-string/main.conf, include-file-formats/020-json-newline-is-not-a-separator/main.conf, include-file-formats/022-json-dotted-key-is-one-key/main.conf, include-file-formats/023-json-leading-zero-illegal/main.conf">If a filename has no extension, the implementation should treat it
+as a basename and try loading the file with all known extensions.</mark></p>
+<p data-line="1088"><mark class="ok" title="include-semantics-file-formats-and-extensions.3 — include-file-formats/001-basename-loads-every-extension/main.conf">If the file exists with multiple extensions, they should _all_ be
+loaded and merged together.</mark></p>
+<p data-line="1091"><mark class="ok" title="include-semantics-file-formats-and-extensions.4 — include-file-formats/026-conf-is-parsed-after-json/main.conf">Files in HOCON format should be parsed last.</mark> <mark class="ok" title="include-semantics-file-formats-and-extensions.5 — include-file-formats/025-json-is-parsed-after-properties/main.conf">Files in JSON format
+should be parsed next-to-last.</mark></p>
+<p data-line="1094">In short, `include &quot;foo&quot;` might be equivalent to:</p>
+<p data-line="1096">    include &quot;foo.properties&quot;
+    include &quot;foo.json&quot;
+    include &quot;foo.conf&quot;</p>
+<p data-line="1100"><mark class="gap" title="include-semantics-file-formats-and-extensions.6 — no case">This same extension-based behavior is applied to classpath
+resources and files.</mark></p>
+<p data-line="1103">For URLs, a basename without extension is not allowed; only the
+exact URL specified is used. The format will be chosen based on
+the Content-Type if available, or by the extension of the path
+component of the URL if no Content-Type is set. This is true even
+for file: URLs.</p>
+<h4>Include semantics: locating resources</h4>
+<p data-line="1111"><mark class="gap" title="include-semantics-locating-resources.1 — no case">A quoted string not surrounded by `url()`, `file()`, `classpath()`
+must be interpreted heuristically.</mark> The heuristic is to treat the
+quoted string as:</p>
+<p data-line="1115"> - <mark class="ok" title="include-semantics-locating-resources.2 — include-locating/001-include-string-that-is-a-url-is-a-url.conf">a URL, if the quoted string is a valid URL with a known
+   protocol.</mark>
+ - <mark class="ok" title="include-semantics-locating-resources.3 — include-file-formats/024-unknown-extension-is-not-a-basename/main.conf, include-locating/003-plain-name-is-a-file-beside-the-including-one/main.conf">otherwise, a file or other resource &quot;adjacent to&quot; the one being
+   parsed and of the same type as the one being parsed.</mark> The meaning
+   of &quot;adjacent to&quot;, and the string itself, has to be specified
+   separately for each kind of resource.
+ - On the Java Virtual Machine, if an include statement does not
+   identify a valid URL or an existing resource &quot;adjacent to&quot; the
+   including resource, implementations may wish to fall back to a
+   classpath resource.  This allows configurations found in files
+   or URLs to access classpath resources in a natural way.</p>
+<p data-line="1127">Implementations may vary in the kinds of resources they can
+include.</p>
+<p data-line="1130">For resources located on the Java classpath:</p>
+<p data-line="1132"> - included resources are looked up by calling `getResource()` on
+   the same class loader used to look up the including resource.
+ - if the included resource name is absolute (starts with &#x27;/&#x27;)
+   then it should be passed to `getResource()` with the &#x27;/&#x27;
+   removed.
+ - if the included resource name does not start with &#x27;/&#x27; then it
+   should have the &quot;directory&quot; of the including resource
+   prepended to it, before passing it to `getResource()`.  If the
+   including resource is not absolute (no &#x27;/&#x27;) and has no &quot;parent
+   directory&quot; (is just a single path element), then the included
+   relative resource name should be left as-is.
+ - it would be wrong to use `getResource()` to get a URL and then
+   locate the included name relative to that URL, because a class
+   loader is not required to have a one-to-one mapping between
+   paths in its URLs and the paths it handles in `getResource()`.
+   In other words, the &quot;adjacent to&quot; computation should be done
+   on the resource name not on the resource&#x27;s URL.</p>
+<p data-line="1150">For plain files on the filesystem:</p>
+<p data-line="1152"> - <mark class="ok" title="include-semantics-locating-resources.4 — include-locating/004-absolute-path-stays-absolute/main.conf">if the included file is an absolute path then it should be kept
+   absolute and loaded as such.</mark>
+ - <mark class="ok" title="include-semantics-locating-resources.5 — include-locating/002-nested-include-is-relative-to-the-including-file/main.conf">if the included file is a relative path, then it should be
+   located relative to the directory containing the including
+   file.</mark>  <mark class="gap" title="include-semantics-locating-resources.6 — no case">The current working directory of the process parsing a
+   file must NOT be used when interpreting included paths.</mark>
+ - if the file is not found, fall back to the classpath resource.
+   The classpath resource should not have any package name added
+   in front, it should be relative to the &quot;root&quot;; which means any
+   leading &quot;/&quot; should just be removed (absolute is the same as
+   relative since it&#x27;s root-relative). The &quot;/&quot; is handled for
+   consistency with including resources from inside other
+   classpath resources, where the resource name may not be
+   root-relative and &quot;/&quot; allows specifying relative to root.</p>
+<p data-line="1167">URLs:</p>
+<p data-line="1169"> - for files loaded from a URL, &quot;adjacent to&quot; should be based
+   on parsing the URL&#x27;s path component, replacing the last
+   path element with the included name.
+ - file: URLs should behave in exactly the same way as a plain
+   filename</p>
+<p data-line="1175">Implementations need not support files, Java resources, or URLs;
+and they need not support particular URL protocols. However, if
+they do support them they should do so as described above.</p>
+<p data-line="1179"><mark class="ok" title="include-semantics-locating-resources.7 — include-locating/005-file-argument-is-not-relative-to-the-including-file/main.conf">Note that at present, if `url()`/`file()`/`classpath()` are
+specified, the included items are NOT interpreted relative to the
+including items.</mark> <mark class="gap" title="include-semantics-locating-resources.8 — no case">Relative-to-including-file paths only work with
+the heuristic `include &quot;foo.conf&quot;`.</mark> This may change in the future.</p>
+<h3>Conversion of numerically-indexed objects to arrays</h3>
+<p data-line="1186">In some file formats and contexts, such as Java properties files,
+there isn&#x27;t a good way to define arrays. <mark class="gap" title="conversion-of-numerically-indexed-objects-to-arrays.1 — no case">To provide some mechanism
+for this, implementations should support converting objects with
+numeric keys into arrays.</mark> For example, this object:</p>
+<p data-line="1191">    { &quot;0&quot; : &quot;a&quot;, &quot;1&quot; : &quot;b&quot; }</p>
+<p data-line="1193">could be treated as:</p>
+<p data-line="1195">    [ &quot;a&quot;, &quot;b&quot; ]</p>
+<p data-line="1197">This allows creating an array in a properties file like this:</p>
+<p data-line="1199">    foo.0 = &quot;a&quot;
+    foo.1 = &quot;b&quot;</p>
+<p data-line="1202">The details:</p>
+<p data-line="1204"> - <mark class="ok" title="conversion-of-numerically-indexed-objects-to-arrays.2 — numerically-indexed-objects-to-arrays/001-object-with-numeric-keys-stays-object.conf">the conversion should be done lazily when required to avoid
+   a type error, NOT eagerly anytime an object has numeric
+   keys.</mark>
+ - the conversion should be done when you would do an automatic
+   type conversion (see the section &quot;Automatic type conversions&quot;
+   below).
+ - <mark class="ok" title="conversion-of-numerically-indexed-objects-to-arrays.3 — numerically-indexed-objects-to-arrays/003-concatenation-converts-numeric-object-to-array.conf">the conversion should be done in a concatenation when a list
+   is expected and an object with numeric keys is found.</mark>
+ - <mark class="ok" title="conversion-of-numerically-indexed-objects-to-arrays.4 — numerically-indexed-objects-to-arrays/005-empty-object-concatenation-not-converted.conf, numerically-indexed-objects-to-arrays/006-object-without-integer-keys-not-converted.conf">the conversion should not occur if the object is empty or
+   has no keys which parse as positive integers.</mark>
+ - <mark class="ok" title="conversion-of-numerically-indexed-objects-to-arrays.5 — numerically-indexed-objects-to-arrays/004-concatenation-ignores-non-integer-keys.conf, numerically-indexed-objects-to-arrays/008-negative-key-ignored-in-conversion.conf">the conversion should ignore any keys which do not parse
+   as positive integers.</mark>
+ - <mark class="ok" title="conversion-of-numerically-indexed-objects-to-arrays.6 — numerically-indexed-objects-to-arrays/007-sparse-integer-keys-sorted-and-reindexed.conf">the conversion should sort by the integer value of each
+   key and then build the array; if the integer keys are &quot;0&quot; and
+   &quot;2&quot; then the resulting array would have indices &quot;0&quot; and &quot;1&quot;,
+   i.e. missing indices in the object are eliminated.</mark></p>
+<h2>MIME Type</h2>
+<p data-line="1223">Use &quot;application/hocon&quot; for Content-Type.</p>
+<h2>API Recommendations</h2>
+<p data-line="1227">Implementations of HOCON ideally follow certain conventions and
+work in a predictable way.</p>
+<h3>Automatic type conversions</h3>
+<p data-line="1232">If an application asks for a value with a particular type, the
+implementation should attempt to convert types as follows:</p>
+<p data-line="1235"> - number to string: convert the number into a string
+   representation that would be a valid number in JSON.
+ - boolean to string: should become the string &quot;true&quot; or &quot;false&quot;
+ - string to number: parse the number with the JSON rules
+ - string to boolean: the strings &quot;true&quot;, &quot;yes&quot;, &quot;on&quot;, &quot;false&quot;,
+   &quot;no&quot;, &quot;off&quot; should be converted to boolean values. It&#x27;s
+   tempting to support a long list of other ways to write a
+   boolean, but for interoperability and keeping it simple, it&#x27;s
+   recommended to stick to these six.
+ - string to null: the string `&quot;null&quot;` should be converted to a
+   null value if the application specifically asks for a null
+   value, though there&#x27;s probably no reason an app would do this.
+ - numerically-indexed object to array: see the section
+   &quot;Conversion of numerically-indexed objects to arrays&quot; above</p>
+<p data-line="1250">The following type conversions should NOT be performed:</p>
+<p data-line="1252"> - null to anything: If the application asks for a specific type
+   and finds null instead, that should usually result in an error.
+ - object to anything
+ - array to anything
+ - anything to object
+ - anything to array, with the exception of numerically-indexed
+   object to array</p>
+<p data-line="1260">Converting objects and arrays to and from strings is tempting, but
+in practical situations raises thorny issues of quoting and
+double-escaping.</p>
+<h3>Units format</h3>
+<p data-line="1266">Implementations may wish to support interpreting a value with some
+family of units, such as time units or memory size units: `10ms`
+or `512K`. HOCON does not have an extensible type system and there
+is no way to add a &quot;duration&quot; type. However, for example, if an
+application asks for milliseconds, the implementation can try to
+interpret a value as a milliseconds value.</p>
+<p data-line="1273">If an API supports this, for each family of units it should define
+a default unit in the family. For example, the family of duration
+units might default to milliseconds (see below for details on
+durations). The implementation should then interpret values as
+follows:</p>
+<p data-line="1279"> - <mark class="ok" title="units-format.1 — units-format/001-number-value-is-default-unit.conf">if the value is a number, it is taken to be a number in
+   the default unit.</mark>
+ - <mark class="ok" title="units-format.2 — units-format/004-whitespace-optional-around-number-and-unit.conf, units-format/006-unit-before-number-is-illegal.conf">if the value is a string, it is taken to be this sequence:</mark></p>
+<p data-line="1283">     - optional whitespace
+     - a number
+     - optional whitespace
+     - <mark class="ok" title="units-format.6 — units-format/005-unit-name-must-be-letters-only.conf">an optional unit name consisting only of letters (letters
+       are the Unicode `L*` categories, Java `isLetter()`)</mark>
+     - optional whitespace</p>
+<p data-line="1290">   <mark class="ok" title="units-format.8 — units-format/002-quoted-string-with-no-unit-uses-default-unit.conf">If a string value has no unit name, then it should be
+   interpreted with the default unit, as if it were a number.</mark> <mark class="ok" title="units-format.9 — units-format/003-string-with-unit-name-specifies-interpretation.conf">If a
+   string value has a unit name, that name of course specifies the
+   value&#x27;s interpretation.</mark></p>
+<h3>Duration format</h3>
+<p data-line="1297">Implementations may wish to support a `getMilliseconds()` (and
+similar for other time units).</p>
+<p data-line="1300"><mark class="ok" title="duration-format.1 — duration-format/001-bare-number-is-milliseconds.conf">This can use the general &quot;units format&quot; described above; bare
+numbers are taken to be in milliseconds already, while strings are
+parsed as a number plus an optional unit string.</mark></p>
+<p data-line="1304"><mark class="ok" title="duration-format.2 — duration-format/002-uppercase-unit-is-illegal.conf">The supported unit strings for duration are case-sensitive and
+must be lowercase.</mark> Exactly these strings are supported:</p>
+<p data-line="1307"> - <mark class="ok" title="duration-format.4 — duration-format/003-nanoseconds-spellings.conf">`ns`, `nano`, `nanos`, `nanosecond`, `nanoseconds`</mark>
+ - <mark class="ok" title="duration-format.5 — duration-format/004-microseconds-spellings.conf">`us`, `micro`, `micros`, `microsecond`, `microseconds`</mark>
+ - <mark class="ok" title="duration-format.6 — duration-format/005-milliseconds-spellings.conf">`ms`, `milli`, `millis`, `millisecond`, `milliseconds`</mark>
+ - <mark class="ok" title="duration-format.7 — duration-format/006-seconds-spellings.conf">`s`, `second`, `seconds`</mark>
+ - <mark class="ok" title="duration-format.8 — duration-format/007-minutes-spellings.conf">`m`, `minute`, `minutes`</mark>
+ - <mark class="ok" title="duration-format.9 — duration-format/008-hours-spellings.conf">`h`, `hour`, `hours`</mark>
+ - <mark class="ok" title="duration-format.10 — duration-format/009-days-spellings.conf">`d`, `day`, `days`</mark></p>
+<h3>Period Format</h3>
+<p data-line="1317">Similar to the `getDuration()` method, there is a `getPeriod()` method 
+available for getting time units as a `java.time.Period`. </p>
+<p data-line="1320"><mark class="ok" title="period-format.1 — period-format/001-bare-number-is-days.conf">This can use the general &quot;units format&quot; described above; bare
+numbers are taken to be in days, while strings are
+parsed as a number plus an optional unit string.</mark></p>
+<p data-line="1324"><mark class="ok" title="period-format.2 — period-format/002-uppercase-unit-is-illegal.conf">The supported unit strings for period are case-sensitive and
+must be lowercase.</mark> Exactly these strings are supported:</p>
+<p data-line="1327"> - <mark class="ok" title="period-format.4 — period-format/003-days-spellings.conf">`d`, `day`, `days`</mark>
+ - <mark class="ok" title="period-format.5 — period-format/004-weeks-spellings.conf">`w`, `week`, `weeks`</mark>
+ - <mark class="ok" title="period-format.6 — period-format/005-months-spellings.conf, period-format/007-month-m-ambiguous-with-duration-minutes.conf">`m`, `mo`, `month`, `months` (note that if you are using `getTemporal()`
+ which may return either a `java.time.Duration` or a `java.time.Period`
+ you will want to use `mo` rather than `m` to prevent your unit being 
+ parsed as minutes)</mark>
+ - <mark class="ok" title="period-format.7 — period-format/006-years-spellings.conf">`y`, `year`, `years`</mark></p>
+<h3>Size in bytes format</h3>
+<p data-line="1337">Implementations may wish to support a `getBytes()` returning a
+size in bytes.</p>
+<p data-line="1340"><mark class="ok" title="size-in-bytes-format.1 — size-in-bytes-format/001-bare-number-is-bytes.conf">This can use the general &quot;units format&quot; described above; bare
+numbers are taken to be in bytes already, while strings are
+parsed as a number plus an optional unit string.</mark></p>
+<p data-line="1344"><mark class="ok" title="size-in-bytes-format.2 — size-in-bytes-format/004-powers-of-two-suffixes.conf">The one-letter unit strings may be uppercase (note: duration units
+are always lowercase, so this convention is specific to size
+units).</mark></p>
+<p data-line="1348">There is an unfortunate nightmare with size-in-bytes units, that
+they may be in powers or two or powers of ten. The approach
+defined by standards bodies appears to differ from common usage,
+such that following the standard leads to people being confused.
+Worse, common usage varies based on whether people are talking
+about RAM or disk sizes, and various existing operating systems
+and apps do all kinds of different things.  See
+https://en.wikipedia.org/wiki/Binary_prefix#Deviation_between_powers_of_1024_and_powers_of_1000
+for examples. It appears impossible to sort this out without
+causing confusion for someone sometime.</p>
+<p data-line="1359">For single bytes, exactly these strings are supported:</p>
+<p data-line="1361"> - <mark class="ok" title="size-in-bytes-format.4 — size-in-bytes-format/002-single-byte-spellings.conf">`B`, `b`, `byte`, `bytes`</mark></p>
+<p data-line="1363">For powers of ten, exactly these strings are supported:</p>
+<p data-line="1365"> - <mark class="ok" title="size-in-bytes-format.6 — size-in-bytes-format/003-powers-of-ten-suffixes.conf">`kB`, `kilobyte`, `kilobytes`</mark>
+ - <mark class="ok" title="size-in-bytes-format.7 — size-in-bytes-format/003-powers-of-ten-suffixes.conf">`MB`, `megabyte`, `megabytes`</mark>
+ - <mark class="ok" title="size-in-bytes-format.8 — size-in-bytes-format/003-powers-of-ten-suffixes.conf">`GB`, `gigabyte`, `gigabytes`</mark>
+ - <mark class="ok" title="size-in-bytes-format.9 — size-in-bytes-format/003-powers-of-ten-suffixes.conf">`TB`, `terabyte`, `terabytes`</mark>
+ - <mark class="ok" title="size-in-bytes-format.10 — size-in-bytes-format/003-powers-of-ten-suffixes.conf">`PB`, `petabyte`, `petabytes`</mark>
+ - <mark class="ok" title="size-in-bytes-format.11 — size-in-bytes-format/003-powers-of-ten-suffixes.conf">`EB`, `exabyte`, `exabytes`</mark>
+ - <mark class="ok" title="size-in-bytes-format.12 — size-in-bytes-format/003-powers-of-ten-suffixes.conf">`ZB`, `zettabyte`, `zettabytes`</mark>
+ - <mark class="ok" title="size-in-bytes-format.13 — size-in-bytes-format/003-powers-of-ten-suffixes.conf">`YB`, `yottabyte`, `yottabytes`</mark></p>
+<p data-line="1374">For powers of two, exactly these strings are supported:</p>
+<p data-line="1376"> - <mark class="ok" title="size-in-bytes-format.15 — size-in-bytes-format/004-powers-of-two-suffixes.conf">`K`, `k`, `Ki`, `KiB`, `kibibyte`, `kibibytes`</mark>
+ - <mark class="ok" title="size-in-bytes-format.16 — size-in-bytes-format/004-powers-of-two-suffixes.conf">`M`, `m`, `Mi`, `MiB`, `mebibyte`, `mebibytes`</mark>
+ - <mark class="ok" title="size-in-bytes-format.17 — size-in-bytes-format/004-powers-of-two-suffixes.conf">`G`, `g`, `Gi`, `GiB`, `gibibyte`, `gibibytes`</mark>
+ - <mark class="ok" title="size-in-bytes-format.18 — size-in-bytes-format/004-powers-of-two-suffixes.conf">`T`, `t`, `Ti`, `TiB`, `tebibyte`, `tebibytes`</mark>
+ - <mark class="ok" title="size-in-bytes-format.19 — size-in-bytes-format/004-powers-of-two-suffixes.conf">`P`, `p`, `Pi`, `PiB`, `pebibyte`, `pebibytes`</mark>
+ - <mark class="ok" title="size-in-bytes-format.20 — size-in-bytes-format/004-powers-of-two-suffixes.conf">`E`, `e`, `Ei`, `EiB`, `exbibyte`, `exbibytes`</mark>
+ - <mark class="ok" title="size-in-bytes-format.21 — size-in-bytes-format/004-powers-of-two-suffixes.conf">`Z`, `z`, `Zi`, `ZiB`, `zebibyte`, `zebibytes`</mark>
+ - <mark class="ok" title="size-in-bytes-format.22 — size-in-bytes-format/004-powers-of-two-suffixes.conf">`Y`, `y`, `Yi`, `YiB`, `yobibyte`, `yobibytes`</mark></p>
+<p data-line="1385"><mark class="ok" title="size-in-bytes-format.23 — size-in-bytes-format/019-single-letter-abbreviation-means-powers-of-two.conf">It&#x27;s very unclear which units the single-character abbreviations
+(&quot;128K&quot;) should go with; some precedents such as `java -Xmx 2G`
+and the GNU tools such as `ls` map these to powers of two, so this
+spec copies that.</mark> You can certainly find examples of mapping these
+to powers of ten, though. If you don&#x27;t like ambiguity, don&#x27;t use
+the single-letter abbreviations.</p>
+<p data-line="1392">Note: any value in zetta/zebi or yotta/yobi will overflow a 64-bit
+integer, and of course large-enough values in any of the units may
+overflow. Most real-world APIs and apps will not support byte
+counts that overflow a 64-bit integer. The huge units are provided
+just to be complete but probably aren&#x27;t useful in practice. At
+least not in 2014.</p>
+<h3>Config object merging and file merging</h3>
+<p data-line="1401">It may be useful to offer a method to merge two objects. If such a
+method is provided, it should work as if the two objects were
+duplicate values for the same key in the same file. (See the
+section earlier on duplicate key handling.)</p>
+<p data-line="1406"><mark class="ok" title="config-object-merging-and-file-merging.2 — config-and-file-merging/003-non-object-between-files-hides-earlier-object/main.conf">As with duplicate keys, an intermediate non-object value &quot;hides&quot;
+earlier object values.</mark> So say you merge three objects in this
+order:</p>
+<p data-line="1410"> - `{ a : { x : 1 } }`  (first priority)
+ - `{ a : 42 }` (fallback)
+ - `{ a : { y : 2 } }` (another fallback)</p>
+<p data-line="1414"><mark class="ok" title="config-object-merging-and-file-merging.3 — config-and-file-merging/003-non-object-between-files-hides-earlier-object/main.conf">The result would be `{ a : { x : 1 } }`.</mark> <mark class="ok" title="config-object-merging-and-file-merging.4 — config-and-file-merging/003-non-object-between-files-hides-earlier-object/main.conf">The two objects are not
+merged because they are not &quot;adjacent&quot;; the merging is done in
+pairs, and when `42` is paired with `{ y : 2 }`, `42` simply wins
+and loses all information about what it overrode.</mark></p>
+<p data-line="1419">But if you re-ordered like this:</p>
+<p data-line="1421"> - `{ a : { x : 1 } }`  (first priority)
+ - `{ a : { y : 2 } }` (fallback)
+ - `{ a : 42 }` (another fallback)</p>
+<p data-line="1425"><mark class="ok" title="config-object-merging-and-file-merging.5 — config-and-file-merging/004-adjacent-objects-across-files-merge/main.conf">Now the result would be `{ a : { x : 1, y : 2 } }` because the two
+objects are adjacent.</mark></p>
+<p data-line="1428"><mark class="ok" title="config-object-merging-and-file-merging.6 — config-and-file-merging/002-file-merge-is-recursive-and-later-file-wins/main.conf">This rule for merging objects loaded from different files is
+_exactly_ the same behavior as for merging duplicate fields in the
+same file.</mark> All merging works the same way.</p>
+<p data-line="1432">Needless to say, normally it&#x27;s well-defined whether a config
+setting is supposed to be a number or an object. This kind of
+weird pathology where the two are mixed should not be happening.</p>
+<p data-line="1436"><mark class="ok" title="config-object-merging-and-file-merging.7 — config-and-file-merging/005-null-clears-included-object/main.conf">The one place where it matters, though, is that it allows you to
+&quot;clear&quot; an object and start over by setting it to null and then
+setting it back to a new object.</mark> So this behavior gives people a
+way to get rid of default fallback values they don&#x27;t want.</p>
+<h3>Java properties mapping</h3>
+<p data-line="1443">It may be useful to merge Java properties data with data loaded
+from JSON or HOCON. See the Java properties spec here:
+https://docs.oracle.com/javase/8/docs/api/java/util/Properties.html#load-java.io.Reader-</p>
+<p data-line="1447"><mark class="ok" title="java-properties-mapping.1 — include-file-formats/007-properties-extension-means-properties-syntax/main.conf">Java properties parse as a one-level map from string keys to
+string values.</mark></p>
+<p data-line="1450">To convert to HOCON, first split each key on the `.` character,
+keeping any empty strings (including leading and trailing empty
+strings). Note that this is _very different_ from parsing a path
+expression.</p>
+<p data-line="1455">The key split on `.` is a series of path elements. So the
+properties key with just `.` is a path with two elements, both of
+them an empty string. `a.` is a path with two elements, `a` and
+empty string.  (Java&#x27;s `String.split()` does NOT do what you want
+for this.)</p>
+<p data-line="1461">It is impossible to represent a key with a `.` in it in a
+properties file.  If a JSON/HOCON key has a `.` in it, which is
+possible if the key is quoted, then there is no way to refer to it
+as a Java property. It is not recommended to name HOCON keys with
+a `.` in them, since it would be confusing at best in any case.</p>
+<p data-line="1467">Once you have a path for each value, construct a tree of
+JSON-style objects with the string value of each property located
+at that value&#x27;s path.</p>
+<p data-line="1471"><mark class="ok" title="java-properties-mapping.2 — include-file-formats/003-basename-with-only-properties/main.conf">Values from properties files are _always_ strings, even if they
+could be parsed as some other type.</mark> Implementations should do type
+conversion if an app asks for an integer, as described in an
+earlier section.</p>
+<p data-line="1476">When Java loads a properties file, unfortunately it does not
+preserve the order of the file. As a result, there is an
+intractable case where a single key needs to refer to both a
+parent object and a string value. For example, say the Java
+properties file has:</p>
+<p data-line="1482">    a=hello
+    a.b=world</p>
+<p data-line="1485">In this case, `a` needs to be both an object and a string value.
+<mark class="ok" title="java-properties-mapping.3 — include-file-formats/008-properties-keys-are-paths/main.conf">The _object_ must always win in this case... the &quot;object wins&quot;
+rule throws out at most one value (the string) while &quot;string wins&quot;
+would throw out all values in the object.</mark> Unfortunately, when
+properties files are mapped to the JSON structure, there is no way
+to access these strings that conflict with objects.</p>
+<p data-line="1492">The usual rule in HOCON would be that the later assignment in the
+file wins, rather than &quot;object wins&quot;; but implementing that for
+Java properties would require implementing a custom Java
+properties parser, which is surely not worth it and wouldn&#x27;t help
+with system properties anyway.</p>
+<h3>Conventional configuration files for JVM apps</h3>
+<p data-line="1500">By convention, JVM apps have two parts to their configuration:</p>
+<p data-line="1502"> - the _reference_ config is made up of all resources named
+   `reference.conf` on the classpath, merged in the order they
+   are returned by `ClassLoader.getResources()`; also, system
+   property overrides are applied.
+ - the _application_ config can be loaded from anywhere an
+   application likes, but by default if the application doesn&#x27;t
+   provide a config it would be loaded from files
+   `application.{conf,json,properties}` on the classpath and
+   then system property overrides are applied.
+ - the reference config may be different for different class
+   loaders, since each jar may provide a `reference.conf`
+   to go with the code in that jar.
+ - a single JVM may have multiple application configs if
+   it has multiple modules or contexts of some kind.</p>
+<p data-line="1517">The reference config for a given class loader should be merged and
+resolved first, and may be shared among all application configs in
+that class loader. Substitutions in the reference config are not
+affected by any application configs, because the reference config
+should be resolved by itself.</p>
+<p data-line="1523">The application config should then be loaded, have the reference
+config added as a fallback, and have substitutions resolved. This
+means the application config can refer to the reference config in
+its substitutions.</p>
+<h3>Conventional override by system properties</h3>
+<p data-line="1530">For an application&#x27;s config, Java system properties _override_
+settings found in the configuration file. This supports specifying
+config options on the command line.</p>
+<h3>Substitution fallback to environment variables</h3>
+<p data-line="1536"><mark class="ok" title="substitution-fallback-to-environment-variables.1 — substitution-fallback-to-environment/002-required-substitution-resolved-from-env.conf, substitution-fallback-to-environment/003-config-value-wins-over-env.conf">Recall that if a substitution is not present (not even set to
+`null`) within a configuration tree, implementations may search
+for it from external sources.</mark> <mark class="ok" title="substitution-fallback-to-environment-variables.2 — substitution-fallback-to-environment/001-env-fallback-for-undefined-path.conf">One such source could be environment
+variables.</mark></p>
+<p data-line="1541">It&#x27;s recommended that HOCON keys always use lowercase, because
+environment variables generally are capitalized. This avoids
+naming collisions between environment variables and configuration
+properties. <mark class="ok" title="substitution-fallback-to-environment-variables.3 — substitution-fallback-to-environment/005-config-lookup-is-case-sensitive.conf">(While on Windows getenv() is generally not
+case-sensitive, the lookup will be case-sensitive all the way
+until the env variable fallback lookup is reached).</mark></p>
+<p data-line="1548">See also the notes below on Windows and case sensitivity.</p>
+<p data-line="1550"><mark class="ok" title="substitution-fallback-to-environment-variables.4 — substitution-fallback-to-environment/004-null-in-config-blocks-env-lookup.conf">An application can explicitly block looking up a substitution in
+the environment by setting a value in the configuration, with the
+same name as the environment variable.</mark> You could set `HOME : null`
+in your root object to avoid expanding `${HOME}` from the
+environment, for example.</p>
+<p data-line="1556">Environment variables are interpreted as follows:</p>
+<p data-line="1558"> - <mark class="ok" title="substitution-fallback-to-environment-variables.5 — substitution-fallback-to-environment/006-empty-env-var-is-empty-string.conf, substitution-fallback-to-environment/007-empty-env-var-creates-optional-field.conf">env variables set to the empty string are kept as such (set to
+   empty string, rather than undefined)</mark>
+ - System.getenv throws SecurityException: treated as not present
+ - encoding is handled by Java (System.getenv already returns
+   a Unicode string)
+ - <mark class="ok" title="substitution-fallback-to-environment-variables.6 — substitution-fallback-to-environment/008-env-vars-always-become-strings.conf">environment variables always become a string value, though
+   if an app asks for another type automatic type conversion
+   would kick in</mark></p>
+<h3>hyphen-separated vs. camelCase</h3>
+<p data-line="1569">Config keys are encouraged to be `hyphen-separated` rather than
+`camelCase`.</p>
+<h2>Note on Java properties similarity</h2>
+<p data-line="1574">You can write a HOCON file that looks much like a Java properties
+file, and many valid Java properties files will also parse as
+HOCON.</p>
+<p data-line="1578">However, HOCON is not a Java properties superset and the corner
+cases work like JSON, not like properties.</p>
+<p data-line="1581">Differences include but are probably not limited to:</p>
+<p data-line="1583"> - certain characters that can be unquoted in properties files
+   have to be placed in JSON-style double-quoted strings in HOCON
+ - unquoted strings in HOCON do not support escape sequences
+ - unquoted strings in HOCON do not preserve trailing whitespace
+ - multi-line unquoted strings using backslash to continue the
+   line are not allowed in HOCON
+ - in properties files you can omit the value for a key and it&#x27;s
+   interpreted as an empty string, in HOCON you cannot omit the
+   value
+ - properties files support &#x27;!&#x27; as a comment character
+ - HOCON allows comments on the same line as a key or value, while
+   properties files only recognize comment characters if they
+   occur as the first character on the line
+ - HOCON interprets `${}` as a substitution</p>
+<h2>Note on Windows and case sensitivity of environment variables</h2>
+<p data-line="1600">HOCON&#x27;s lookup of environment variable values is always case-sensitive, but
+Linux and Windows differ in their handling of case.</p>
+<p data-line="1603">Linux allows one to define multiple environment variables with the same
+name but with different case; so both &quot;PATH&quot; and &quot;Path&quot; may be defined
+simultaneously. HOCON&#x27;s access to these environment variables on Linux
+is straightforward; ie just make sure you define all your vars with the required case.</p>
+<p data-line="1608">Windows is more confusing. Windows environment variables names may contain a
+mix of upper and lowercase characters, eg &quot;Path&quot;, however Windows does not
+allow one to define multiple instances of the same name but differing in case.
+Whilst accessing env vars in Windows is case-insensitive, accessing env vars in
+HOCON is case-sensitive.
+So if you know that you HOCON needs &quot;PATH&quot; then you must ensure that
+the variable is defined as &quot;PATH&quot; rather than some other name such as
+&quot;Path&quot; or &quot;path&quot;.
+However, Windows does not allow us to change the case of an existing env var; we can&#x27;t
+simply redefine the var with an uppercase name.
+The only way to ensure that your environment variables have the desired case
+is to first undefine all the env vars that you will depend on then redefine
+them with the required case.</p>
+<p data-line="1622">For example, the ambient environment might have this definition ...</p>
+<pre>set Path=A;B;C</pre>
+<p data-line="1627">.. we just don&#x27;t know. But if the HOCON needs &quot;PATH&quot;, then the start script must
+take a precautionary approach and enforce the necessary case as follows ...</p>
+<pre>set OLDPATH=%PATH%
+set PATH=
+set PATH=%OLDPATH%
+
+%JAVA_HOME%/bin/java ....</pre>
+<p data-line="1638">You cannot know what ambient environment variables might exist in the ambient environment
+when your program is invoked, nor what case those definitions might have.
+Therefore the only safe thing to do is redefine all the vars you rely on as shown above.</p>
