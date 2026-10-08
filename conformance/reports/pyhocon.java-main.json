@@ -5,8 +5,8 @@
   "mode": "java",
   "java_version": "main",
   "command": "conformance/adapters/oracle.sh hocon-py",
-  "ran_at": "2026-10-04T19:59:36Z",
-  "suite_digest": "1c8f34cbde37c8ae",
+  "ran_at": "2026-10-08T05:37:51Z",
+  "suite_digest": "2fe52df92f49aea2",
   "total": 445,
   "passed": 304,
   "percent": 68.3,
@@ -1915,7 +1915,7 @@
         "a": "null bar"
       },
       "got": {
-        "a": "<pyhocon.config_tree.NoneValue object at 0x103331950>bar"
+        "a": "<pyhocon.config_tree.NoneValue object at 0x105f99190>bar"
       }
     },
     {
