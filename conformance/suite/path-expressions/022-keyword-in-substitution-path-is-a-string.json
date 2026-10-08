@@ -1,6 +1,9 @@
 {
   "spec": "HOCON.md#path-expressions",
-  "rule": "path-expressions.13",
+  "rule": [
+    "path-expressions.13",
+    "path-expressions.11"
+  ],
   "why": "a path expression is always a string, so true in a substitution names the key true rather than a boolean",
   "expect": {
     "true": 1,

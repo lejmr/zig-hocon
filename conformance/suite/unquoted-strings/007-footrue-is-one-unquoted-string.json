@@ -1,6 +1,9 @@
 {
   "spec": "HOCON.md#unquoted-strings",
-  "rule": "unquoted-strings.8",
+  "rule": [
+    "unquoted-strings.8",
+    "unquoted-strings.4"
+  ],
   "why": "worked example: footrue does not begin with true, false, null, or a number, so it parses as a single unquoted string",
   "expect": {
     "a": "footrue"

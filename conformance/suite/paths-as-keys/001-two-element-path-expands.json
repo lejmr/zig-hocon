@@ -1,6 +1,9 @@
 {
   "spec": "HOCON.md#paths-as-keys",
-  "rule": "paths-as-keys.1",
+  "rule": [
+    "paths-as-keys.1",
+    "paths-as-keys.2"
+  ],
   "why": "a key that is a multi-element path expands to a nested object per element, the last element combined with the value becomes a field in the most-nested object: foo.bar:42 is equivalent to foo{bar:42}",
   "expect": {
     "foo": {

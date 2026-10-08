@@ -1,6 +1,9 @@
 {
   "spec": "HOCON.md#substitutions",
-  "rule": "substitutions.23",
+  "rule": [
+    "substitutions.23",
+    "substitutions.22"
+  ],
   "why": "a substitution is replaced with any value type and, when it is the only part of a value, the type is preserved: here string, true, false and null stay what they were rather than becoming strings",
   "expect": {
     "bf": false,

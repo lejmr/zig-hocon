@@ -1,6 +1,9 @@
 {
   "spec": "HOCON.md#examples-of-self-referential-substitutions",
-  "rule": "examples-of-self-referential-substitutions.7",
+  "rule": [
+    "examples-of-self-referential-substitutions.7",
+    "self-referential-substitutions.13"
+  ],
   "why": "because the self-reference error is treated as undefined rather than an intractable cycle, the optional syntax foo:${?foo} makes the field disappear silently instead of erroring",
   "expect": {},
   "resolve": true

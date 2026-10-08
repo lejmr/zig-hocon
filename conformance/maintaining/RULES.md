@@ -4,11 +4,15 @@ Every rule is one normative sentence of [`spec/HOCON.md`](../../spec/HOCON.md), 
 verbatim. The id is the section's anchor in the spec and the sentence's position
 among the section's rules, so `path-expressions.2` is the second rule under
 [Path expressions](../../spec/HOCON.md#path-expressions). A case names the rule it
-pins in its sidecar (`"rule"`); `report.py` counts the rules no case names.
+pins in its sidecar (`"rule"`, one id or a list when one input pins several);
+`report.py` counts the rules no case names.
 
 A sentence is a rule when a parser's output can be checked against it: the
 parsed config as JSON, or the input being rejected. Rationale, history,
 "for example:" lead-ins, advice about typed getters and JVM internals are not.
+A sentence that only introduces a list ("exactly these strings are supported:")
+is not a rule either; its items are, one each. Items that are fragments of one
+grammar ("optional whitespace", "a number") stay in their introducing sentence.
 
 Ids are stable: when the spec moves, append new rules at the end of their
 section rather than renumbering.
@@ -112,7 +116,6 @@ section rather than renumbering.
 
 | rule | line | sentence |
 |---|---|---|
-| `value-concatenation.1` | L306 | The value of an object field or array element may consist of multiple values which are combined. |
 | `value-concatenation.2` | L310 | if all the values are simple values (neither objects nor arrays), they are concatenated into a string. |
 | `value-concatenation.3` | L312 | if all the values are arrays, they are concatenated into one array. |
 | `value-concatenation.4` | L314 | if all the values are objects, they are merged (as with duplicate keys) into one object. |
@@ -391,12 +394,8 @@ section rather than renumbering.
 | rule | line | sentence |
 |---|---|---|
 | `units-format.1` | L1279 | if the value is a number, it is taken to be a number in the default unit. |
-| `units-format.2` | L1281 | if the value is a string, it is taken to be this sequence: |
-| `units-format.3` | L1283 | optional whitespace |
-| `units-format.4` | L1284 | a number |
-| `units-format.5` | L1285 | optional whitespace |
+| `units-format.2` | L1281 | if the value is a string, it is taken to be this sequence: optional whitespace, a number, optional whitespace, an optional unit name consisting only of letters (letters are the Unicode `L*` categories, Java `isLetter()`), optional whitespace |
 | `units-format.6` | L1286 | an optional unit name consisting only of letters (letters are the Unicode `L*` categories, Java `isLetter()`) |
-| `units-format.7` | L1288 | optional whitespace |
 | `units-format.8` | L1290 | If a string value has no unit name, then it should be interpreted with the default unit, as if it were a number. |
 | `units-format.9` | L1290 | If a string value has a unit name, that name of course specifies the value's interpretation. |
 
@@ -406,7 +405,6 @@ section rather than renumbering.
 |---|---|---|
 | `duration-format.1` | L1300 | This can use the general "units format" described above; bare numbers are taken to be in milliseconds already, while strings are parsed as a number plus an optional unit string. |
 | `duration-format.2` | L1304 | The supported unit strings for duration are case-sensitive and must be lowercase. |
-| `duration-format.3` | L1305 | Exactly these strings are supported: |
 | `duration-format.4` | L1307 | `ns`, `nano`, `nanos`, `nanosecond`, `nanoseconds` |
 | `duration-format.5` | L1308 | `us`, `micro`, `micros`, `microsecond`, `microseconds` |
 | `duration-format.6` | L1309 | `ms`, `milli`, `millis`, `millisecond`, `milliseconds` |
@@ -421,7 +419,6 @@ section rather than renumbering.
 |---|---|---|
 | `period-format.1` | L1320 | This can use the general "units format" described above; bare numbers are taken to be in days, while strings are parsed as a number plus an optional unit string. |
 | `period-format.2` | L1324 | The supported unit strings for period are case-sensitive and must be lowercase. |
-| `period-format.3` | L1325 | Exactly these strings are supported: |
 | `period-format.4` | L1327 | `d`, `day`, `days` |
 | `period-format.5` | L1328 | `w`, `week`, `weeks` |
 | `period-format.6` | L1329 | `m`, `mo`, `month`, `months` (note that if you are using `getTemporal()` which may return either a `java.time.Duration` or a `java.time.Period` you will want to use `mo` rather than `m` to prevent your unit being parsed as minutes) |
@@ -433,9 +430,7 @@ section rather than renumbering.
 |---|---|---|
 | `size-in-bytes-format.1` | L1340 | This can use the general "units format" described above; bare numbers are taken to be in bytes already, while strings are parsed as a number plus an optional unit string. |
 | `size-in-bytes-format.2` | L1344 | The one-letter unit strings may be uppercase (note: duration units are always lowercase, so this convention is specific to size units). |
-| `size-in-bytes-format.3` | L1359 | For single bytes, exactly these strings are supported: |
 | `size-in-bytes-format.4` | L1361 | `B`, `b`, `byte`, `bytes` |
-| `size-in-bytes-format.5` | L1363 | For powers of ten, exactly these strings are supported: |
 | `size-in-bytes-format.6` | L1365 | `kB`, `kilobyte`, `kilobytes` |
 | `size-in-bytes-format.7` | L1366 | `MB`, `megabyte`, `megabytes` |
 | `size-in-bytes-format.8` | L1367 | `GB`, `gigabyte`, `gigabytes` |
@@ -444,7 +439,6 @@ section rather than renumbering.
 | `size-in-bytes-format.11` | L1370 | `EB`, `exabyte`, `exabytes` |
 | `size-in-bytes-format.12` | L1371 | `ZB`, `zettabyte`, `zettabytes` |
 | `size-in-bytes-format.13` | L1372 | `YB`, `yottabyte`, `yottabytes` |
-| `size-in-bytes-format.14` | L1374 | For powers of two, exactly these strings are supported: |
 | `size-in-bytes-format.15` | L1376 | `K`, `k`, `Ki`, `KiB`, `kibibyte`, `kibibytes` |
 | `size-in-bytes-format.16` | L1377 | `M`, `m`, `Mi`, `MiB`, `mebibyte`, `mebibytes` |
 | `size-in-bytes-format.17` | L1378 | `G`, `g`, `Gi`, `GiB`, `gibibyte`, `gibibytes` |
@@ -459,7 +453,6 @@ section rather than renumbering.
 
 | rule | line | sentence |
 |---|---|---|
-| `config-object-merging-and-file-merging.1` | L1401 | If such a method is provided, it should work as if the two objects were duplicate values for the same key in the same file. |
 | `config-object-merging-and-file-merging.2` | L1406 | As with duplicate keys, an intermediate non-object value "hides" earlier object values. |
 | `config-object-merging-and-file-merging.3` | L1414 | The result would be `{ a : { x : 1 } }`. |
 | `config-object-merging-and-file-merging.4` | L1414 | The two objects are not merged because they are not "adjacent"; the merging is done in pairs, and when `42` is paired with `{ y : 2 }`, `42` simply wins and loses all information about what it overrode. |

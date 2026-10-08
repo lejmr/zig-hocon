@@ -1,6 +1,9 @@
 {
   "spec": "HOCON.md#substitutions",
-  "rule": "substitutions.8",
+  "rule": [
+    "substitutions.8",
+    "substitutions.7"
+  ],
   "why": "substitutions are resolved by looking up the path from the root configuration object, absolute rather than relative, so ${a} inside b finds the root a and not the sibling b.a",
   "expect": {
     "a": 5,

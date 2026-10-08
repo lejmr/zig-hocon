@@ -1,6 +1,9 @@
 {
   "spec": "HOCON.md#examples-of-self-referential-substitutions",
-  "rule": "examples-of-self-referential-substitutions.12",
+  "rule": [
+    "examples-of-self-referential-substitutions.12",
+    "examples-of-self-referential-substitutions.11"
+  ],
   "why": "a self-reference resolves to the value below it even as part of a path expression, so ${foo.a} refers to { c : 1 } rather than 2, and the final merge is { a : 2, c : 1 }",
   "expect": {
     "foo": {

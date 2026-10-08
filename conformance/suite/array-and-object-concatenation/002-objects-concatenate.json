@@ -1,6 +1,9 @@
 {
   "spec": "HOCON.md#array-and-object-concatenation",
-  "rule": "array-and-object-concatenation.1",
+  "rule": [
+    "array-and-object-concatenation.1",
+    "value-concatenation.4"
+  ],
   "why": "objects can be concatenated with objects when only non-newline whitespace separates them",
   "expect": {
     "a": {

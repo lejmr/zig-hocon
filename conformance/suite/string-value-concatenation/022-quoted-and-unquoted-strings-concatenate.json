@@ -1,6 +1,9 @@
 {
   "spec": "HOCON.md#string-value-concatenation",
-  "rule": "string-value-concatenation.9",
+  "rule": [
+    "string-value-concatenation.9",
+    "string-value-concatenation.2"
+  ],
   "why": "a quoted string is itself in a concatenation, and the whitespace between it and the unquoted string beside it is kept",
   "expect": {
     "a": "foo bar"

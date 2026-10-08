@@ -1,6 +1,10 @@
 {
   "spec": "HOCON.md#config-object-merging-and-file-merging",
-  "rule": "config-object-merging-and-file-merging.2",
+  "rule": [
+    "config-object-merging-and-file-merging.2",
+    "config-object-merging-and-file-merging.3",
+    "config-object-merging-and-file-merging.4"
+  ],
   "why": "the spec's own example: an intermediate non-object value hides earlier object values because merging is done in pairs, so when 42 is paired with { y : 2 } it simply wins and loses all information about what it overrode, and the two objects are never merged",
   "expect": {
     "a": {

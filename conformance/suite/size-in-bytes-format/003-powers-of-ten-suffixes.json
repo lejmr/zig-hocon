@@ -1,6 +1,15 @@
 {
   "spec": "HOCON.md#size-in-bytes-format",
-  "rule": "size-in-bytes-format.5",
+  "rule": [
+    "size-in-bytes-format.6",
+    "size-in-bytes-format.7",
+    "size-in-bytes-format.8",
+    "size-in-bytes-format.9",
+    "size-in-bytes-format.10",
+    "size-in-bytes-format.11",
+    "size-in-bytes-format.12",
+    "size-in-bytes-format.13"
+  ],
   "why": "every power-of-10 suffix and its long forms name the same unit family; one table, one rule",
   "expect": {
     "EB": "5EB",

@@ -97,8 +97,9 @@ def main(argv):
     rules = suite.rules()
     tagged = {}
     for c, m in zip(cases, metas):
-        if m.get("rule"):
-            tagged.setdefault(m["rule"], []).append(suite.key_of(c))
+        r = m.get("rule")
+        for rule in ([r] if isinstance(r, str) else r or []):
+            tagged.setdefault(rule, []).append(suite.key_of(c))
     known = {r for r in tagged if r in rules}
     coverage = "\n".join(
         ["# Rule coverage", "",
