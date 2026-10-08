@@ -1,6 +1,9 @@
 {
   "spec": "HOCON.md#examples-of-self-referential-substitutions",
-  "rule": "examples-of-self-referential-substitutions.1",
+  "rule": [
+    "examples-of-self-referential-substitutions.1",
+    "self-referential-substitutions.5"
+  ],
   "why": "in isolation, with no merges involved, a self-referential field is an error because the substitution cannot be resolved",
   "error": "UnresolvedSubstitution",
   "resolve": true

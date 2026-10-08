@@ -1,6 +1,16 @@
 {
   "spec": "HOCON.md#size-in-bytes-format",
-  "rule": "size-in-bytes-format.14",
+  "rule": [
+    "size-in-bytes-format.15",
+    "size-in-bytes-format.16",
+    "size-in-bytes-format.17",
+    "size-in-bytes-format.18",
+    "size-in-bytes-format.19",
+    "size-in-bytes-format.20",
+    "size-in-bytes-format.21",
+    "size-in-bytes-format.22",
+    "size-in-bytes-format.2"
+  ],
   "why": "every power-of-2 suffix and its long forms name the same unit family; one table, one rule. The E and e forms are quoted because an unquoted 5E is a number token that is not a number (see unquoted-strings/022)",
   "expect": {
     "E": "5E",

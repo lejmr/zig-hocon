@@ -1,6 +1,9 @@
 {
   "spec": "HOCON.md#string-value-concatenation",
-  "rule": "string-value-concatenation.5",
+  "rule": [
+    "string-value-concatenation.5",
+    "string-value-concatenation.6"
+  ],
   "why": "whitespace before the first and after the last simple value is discarded; only the whitespace between the values is kept",
   "expect": {
     "a": "foo   bar   baz"

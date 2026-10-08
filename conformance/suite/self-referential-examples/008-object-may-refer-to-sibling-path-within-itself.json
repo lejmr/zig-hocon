@@ -1,6 +1,9 @@
 {
   "spec": "HOCON.md#examples-of-self-referential-substitutions",
-  "rule": "examples-of-self-referential-substitutions.14",
+  "rule": [
+    "examples-of-self-referential-substitutions.14",
+    "examples-of-self-referential-substitutions.13"
+  ],
   "why": "an implementation must allow an object to refer to a path within itself without treating it as a cycle, by resolving only the referenced field rather than recursing the whole enclosing object; bar.baz ends up 42",
   "expect": {
     "bar": {

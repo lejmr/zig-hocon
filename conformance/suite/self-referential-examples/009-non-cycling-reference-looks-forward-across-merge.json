@@ -1,6 +1,10 @@
 {
   "spec": "HOCON.md#examples-of-self-referential-substitutions",
-  "rule": "examples-of-self-referential-substitutions.17",
+  "rule": [
+    "examples-of-self-referential-substitutions.17",
+    "examples-of-self-referential-substitutions.16",
+    "examples-of-self-referential-substitutions.21"
+  ],
   "why": "because there is no inherent cycle here, the substitution must look forward including the field's own later merges, so bar.baz ends up 43 once foo is overridden to 43",
   "expect": {
     "bar": {

@@ -1,6 +1,9 @@
 {
   "spec": "HOCON.md#substitutions",
-  "rule": "substitutions.15",
+  "rule": [
+    "substitutions.15",
+    "substitutions.19"
+  ],
   "why": "if an undefined ${?foo} substitution is the value of an object field, the field should not be created",
   "expect": {},
   "resolve": true
