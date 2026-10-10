@@ -45,9 +45,8 @@ pub const Config = struct {
         // `parse` is a method, so the parser has to exist first.
         var parser = Ast.Parser{ .gpa = allocator, .t = .{ .t = Tokenizer.init(file_content) } };
         const ast = try parser.parse();
-        const obj = try Value.fromNode(allocator, ast);
-
-        // Resolve: not yet, `.ref` and `.pending` end in error.Unresolved below.
+        var obj = try Value.fromNode(allocator, ast);
+        try obj.resolve(allocator);
         return parseFromValue(T, allocator, obj);
     }
 
@@ -239,9 +238,33 @@ test "convert.struct errors" {
     try expectConvertError(struct { a: struct { b: usize } }, "a = 1", error.TypeMismatch);
 }
 
-// Resolve does not exist yet, so a substitution must not pass as a value.
+// java ✓ · pyhocon ✓ · spec ✓ — a required substitution with nothing behind it.
 test "convert.an unresolved substitution is an error" {
     try expectConvertError(struct { a: usize }, "a = ${b}", error.Unresolved);
+}
+
+// java ✓ · pyhocon ✓ · spec ✓ — substitutions look at the finished document: a
+// later `x = 2` wins over the earlier one even for `a`, written between them.
+// Paths go into objects, refs chain, and parts around a ref join as text.
+test "convert.substitutions resolve against the whole document" {
+    const T = struct { a: usize, b: usize, c: usize, d: []const u8 };
+    try expectConverts(T,
+        \\x = 1
+        \\a = ${x}
+        \\x = 2
+        \\o { p = 3 }
+        \\b = ${o.p}
+        \\c = ${b}
+        \\d = ${x}" ducks in a row"
+    , .{ .a = 2, .b = 3, .c = 3, .d = "2 ducks in a row" });
+}
+
+// java ✓ · pyhocon ✓ · spec ✓ — an optional with nothing behind it removes the
+// member, so the field falls back to its default; a ref that needs itself fails.
+test "convert.substitution optional and cycle" {
+    try expectConverts(struct { a: usize = 7 }, "a = ${?nope}", .{ .a = 7 });
+    try expectConvertError(struct { a: usize }, "a = ${b}\nb = ${a}", error.SubstitutionCycle);
+    try expectConvertError(struct { a: struct { b: usize } }, "a { b = ${a} }", error.SubstitutionCycle);
 }
 
 // S11 · java ✓ · pyhocon ✓ · spec ✓ — `a.b = 1` is `a { b = 1 }`.

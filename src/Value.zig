@@ -211,6 +211,111 @@ pub const Value = union(enum) {
         };
     }
 
+    pub const ResolveError = error{ Unresolved, SubstitutionCycle } || Error;
+
+    /// Replaces all refs and pendings in the document. Self has to be the root.
+    pub fn resolve(self: *Value, gpa: std.mem.Allocator) ResolveError!void {
+        var state: Resolving = .{};
+        defer {
+            state.visiting.deinit(gpa);
+            var it = state.index.valueIterator();
+            while (it.next()) |members| members.deinit(gpa);
+            state.index.deinit(gpa);
+        }
+
+        // Root is object and object never disappears
+        self.* = (try self.resolveValue(gpa, self, &state)) orelse unreachable;
+    }
+
+    // What resolve carries along
+    const Resolving = struct {
+        // Places we are resolving right now, so a = ${b}, b = ${a} ends
+        visiting: std.ArrayList(*Value) = .empty,
+        // Members of an object by key, built on the first lookup into it. Keyed by
+        // the slice, which never changes once built: a resolved object is a new one.
+        index: std.AutoHashMapUnmanaged([*]Member, std.StringHashMapUnmanaged(*Value)) = .empty,
+    };
+
+    // Returns null when the value is gone - ${?x} pointing to nothing
+    fn resolveValue(self: Value, gpa: std.mem.Allocator, root: *Value, state: *Resolving) ResolveError!?Value {
+        switch (self) {
+            .scalar => return self,
+            .array => |items| {
+                var values: std.ArrayList(Value) = .empty;
+                for (items) |item| {
+                    if (try item.resolveValue(gpa, root, state)) |val| try values.append(gpa, val);
+                }
+                return .{ .array = try values.toOwnedSlice(gpa) };
+            },
+            .object => |members| {
+                var resolved: std.ArrayList(Member) = .empty;
+                for (members) |m| {
+                    if (try m.value.resolveValue(gpa, root, state)) |val| {
+                        try resolved.append(gpa, .{ .key = m.key, .value = val });
+                    }
+                }
+                return .{ .object = try resolved.toOwnedSlice(gpa) };
+            },
+            .ref => |r| {
+                const target = try lookup(gpa, root, r.path, state);
+                if (target) |t| {
+                    if (try resolveTarget(t, gpa, root, state)) |val| return val;
+                }
+                if (r.optional) return null;
+                return ResolveError.Unresolved;
+            },
+            .pending => |parts| {
+                // Same as concat in fromNode, just now refs have values
+                var buffer: ?Value = null;
+                for (parts) |part| {
+                    const val = try part.resolveValue(gpa, root, state) orelse continue;
+                    if (buffer) |*ebuffer| {
+                        try ebuffer.update(gpa, val);
+                    } else {
+                        buffer = val;
+                    }
+                }
+                var result = buffer orelse return null;
+                // Merged text is always string, ${?x}42 is "42"
+                if (result == .scalar) result.scalar.quoted = true;
+                return result;
+            },
+        }
+    }
+
+    // Resolves the place a ref points to and stores it back, next ref there is for free
+    fn resolveTarget(target: *Value, gpa: std.mem.Allocator, root: *Value, state: *Resolving) ResolveError!?Value {
+        for (state.visiting.items) |place| {
+            if (place == target) return ResolveError.SubstitutionCycle;
+        }
+        try state.visiting.append(gpa, target);
+        defer _ = state.visiting.pop();
+
+        const val = try target.resolveValue(gpa, root, state) orelse return null;
+        target.* = val;
+        return val;
+    }
+
+    // Walks the path from root, a ref on the way has to be resolved first
+    fn lookup(gpa: std.mem.Allocator, root: *Value, path: []const Key, state: *Resolving) ResolveError!?*Value {
+        var current = root;
+        for (path) |key| {
+            if (current.* == .ref or current.* == .pending) {
+                _ = try resolveTarget(current, gpa, root, state) orelse return null;
+            }
+            if (current.* != .object) return null;
+
+            const members = try state.index.getOrPut(gpa, current.object.ptr);
+            if (!members.found_existing) {
+                members.value_ptr.* = .empty;
+                // A later duplicate overwrites, the last one wins as in the slice
+                for (current.object) |*m| try members.value_ptr.put(gpa, m.key.value, &m.value);
+            }
+            current = members.value_ptr.get(key.value) orelse return null;
+        }
+        return current;
+    }
+
     /// JSON's number grammar, all of the text or nothing:
     /// `-? (0 | [1-9][0-9]*) (. [0-9]+)? ([eE] [+-]? [0-9]+)?`
     /// So `.5`, `1.`, `01` and `1 2` are not numbers.
@@ -1245,4 +1350,89 @@ test "value.tabs separate, and a key can be met more than twice" {
     try testing.expectEqualStrings("a", o.object[0].key.value);
     try testing.expectEqualStrings("3", o.object[0].value.scalar.value);
     try testing.expectEqualStrings("b", o.object[1].key.value);
+}
+
+// ---------------------------------------------------------------------------
+// Resolve — from text, since a ref only means something in a whole document.
+// One test per branch of `resolveValue`, small enough to step through.
+// ---------------------------------------------------------------------------
+
+/// Parses `src`, resolves it and compares the result printed as JSON.
+fn expectResolved(src: [:0]const u8, expected: []const u8) !void {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+    const gpa = arena.allocator();
+
+    var parser = Ast.Parser{ .gpa = gpa, .t = .{ .t = @import("Tokenizer.zig").Tokenizer.init(src) } };
+    var root = try Value.fromNode(gpa, try parser.parse());
+    try root.resolve(gpa);
+    try testing.expectEqualStrings(expected, try std.json.Stringify.valueAlloc(gpa, root, .{}));
+}
+
+fn expectResolveError(src: [:0]const u8, expected: anyerror) !void {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+    const gpa = arena.allocator();
+
+    var parser = Ast.Parser{ .gpa = gpa, .t = .{ .t = @import("Tokenizer.zig").Tokenizer.init(src) } };
+    var root = try Value.fromNode(gpa, try parser.parse());
+    try testing.expectError(expected, root.resolve(gpa));
+}
+
+// java ✓ · pyhocon ✓ · spec ✓ — `.ref`: the whole finished document is looked
+// at, so the later `x = 2` wins even for `a`, written before it.
+test "resolve.a ref takes the last value of its target" {
+    try expectResolved("x = 1\na = ${x}\nx = 2", "{\"x\":2,\"a\":2}");
+}
+
+// java ✓ · pyhocon ✓ · spec ✓ — `lookup`: a path steps into objects.
+test "resolve.a path steps into objects" {
+    try expectResolved("o { p = 3 }\nb = ${o.p}", "{\"o\":{\"p\":3},\"b\":3}");
+}
+
+// java ✓ · pyhocon ✓ · spec ✓ — `resolveTarget`: `c` needs `b`, which needs `a`;
+// each is resolved before it is copied, and stored back on the way.
+test "resolve.refs chain" {
+    try expectResolved("c = ${b}\nb = ${a}\na = 1", "{\"c\":1,\"b\":1,\"a\":1}");
+}
+
+// java ✓ · pyhocon ✓ · spec ✓ — `lookup` meets a ref on the way: `a` has to
+// become an object before `.p` can be found in it.
+test "resolve.a path through a ref" {
+    try expectResolved("c { p = 5 }\na = ${c}\nb = ${a.p}", "{\"c\":{\"p\":5},\"a\":{\"p\":5},\"b\":5}");
+}
+
+// java ✓ · pyhocon ✓ · spec ✓ — `.pending`: the parts around a ref join once
+// it has a value, text into text, lists into one list.
+test "resolve.pending parts join" {
+    try expectResolved("x = 2\nd = ${x}\" ducks in a row\"", "{\"x\":2,\"d\":\"2 ducks in a row\"}");
+    try expectResolved("x = [2]\nl = [1] ${x} [3]", "{\"x\":[2],\"l\":[1,2,3]}");
+}
+
+// java ✓ · pyhocon ✓ · spec ✓ — `${?x}` with nothing behind it is null from
+// `resolveValue`: the member or element is dropped, not set to null.
+test "resolve.an undefined optional removes what it stands in" {
+    try expectResolved("a = ${?nope}\nb = 1", "{\"b\":1}");
+    try expectResolved("l = [1, ${?nope}, 2]", "{\"l\":[1,2]}");
+}
+
+// S13.18 · java ⚠️ · pyhocon ⚠️ · spec ✓ — inside a concatenation the undefined
+// optional is empty and the rest is still a concatenation, so a string. Both
+// oracles give the number 42 (suite: substitutions/039).
+test "resolve.an undefined optional in a concatenation leaves a string" {
+    try expectResolved("a = ${?nope}42", "{\"a\":\"42\"}");
+}
+
+// java ✓ · pyhocon ✓ · spec ✓ — a required ref with nothing behind it.
+test "resolve.a missing target is an error" {
+    try expectResolveError("a = ${nope}", error.Unresolved);
+    try expectResolveError("o { p = 1 }\na = ${o.q}", error.Unresolved);
+}
+
+// java ✓ · pyhocon ⚠️ · spec ✓ — `visiting`: a ref back to a place still being
+// resolved never ends. pyhocon catches the first, overflows its stack on the second.
+test "resolve.a cycle is an error" {
+    try expectResolveError("a = ${b}\nb = ${a}", error.SubstitutionCycle);
+    try expectResolveError("a { b = ${a} }", error.SubstitutionCycle);
+    try expectResolveError("a = ${a}", error.SubstitutionCycle);
 }
