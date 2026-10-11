@@ -155,8 +155,8 @@ test "json.objects and arrays" {
     try expectJson("", "{}");
 }
 
-// Nothing resolves substitutions yet, so a tree holding one is refused when it is
-// parsed — Stringify allows no error of its own, printing is too late.
+// Resolution runs inside the parse, so a substitution with nothing behind it is
+// refused there — Stringify allows no error of its own, printing is too late.
 test "json.an unresolved substitution is an error" {
     try testing.expectError(error.Unresolved, hocon.parseFromSlice(hocon.Value, testing.allocator, "a = ${b}"));
     try testing.expectError(error.Unresolved, hocon.parseFromSlice(hocon.Value, testing.allocator, "a { b = [1, ${c}] }"));

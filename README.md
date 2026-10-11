@@ -17,10 +17,13 @@ only what sits on disk, and the parser fills the struct in — the same shape as
 
 Requires Zig **0.16.0** or newer.
 
-> **Status: early development.** Source text parses into a value graph, and the
-> graph converts into a Zig struct of your own through `hocon.parseFromSlice`,
-> shaped after `std.json`, or prints as JSON from the `hocon` command line tool.
-> Substitutions are not resolved yet — see [Features](#features) below for what
+> **Status: early development.** Source text parses into a value graph,
+> substitutions resolve against the finished document, and the result converts
+> into a Zig struct of your own through `hocon.parseFromSlice`, shaped after
+> `std.json`, or prints as JSON from the `hocon` command line tool. Not yet:
+> includes (`include` parses, but nothing splices the file in, so a file that
+> uses one is rejected), `+=`, and a substitution that refers to the previous
+> value of its own key (`a = ${a} 2`). See [Features](#features) below for what
 > currently works, and [Conformance](#conformance) for how far that gets.
 > No tagged release yet: install straight from the repository, as below.
 
@@ -109,8 +112,8 @@ $ zig-out/bin/hocon server.conf
 
 Unquoted `true`, `false`, `null` and numbers keep their JSON type, a number is
 printed as written (`1e5` stays `1e5`), and anything quoted is a string. A file
-that does not parse, or still holds a substitution, exits 1 with the reason on
-stderr. `zig build run -- server.conf` does the same without the install step.
+that does not parse, or holds a substitution that does not resolve, exits 1 with
+the reason on stderr. `zig build run -- server.conf` does the same without the install step.
 
 ## Features
 
@@ -190,18 +193,26 @@ Not spec sections of their own, but needed to get there, and already done:
       `[1] " " [2]` is an error where `[1]   [2]` is `[1,2]`. A substitution is
       the one part that cannot be joined into, so the parts around it are kept
       in order for resolution to finish
-- [ ] [Substitutions](https://github.com/lightbend/config/blob/main/HOCON.md#substitutions) (`${a.b.c}`, `${?a.b.c}`)
-      — parsed, not resolved: `${…}` and `${?…}` become nodes of their own
-      wherever a value may stand, and everything java rejects at parse time is
-      rejected here too (`${}`, an unclosed `${a`, a newline or a nested `${`
-      inside the path, `?` anywhere but directly after `${`, and a substitution
-      where a key or an include target belongs). In the value graph a
-      substitution becomes a reference of its own and everything holding one
-      stays pending, since its type is unknown until it resolves — which is why
-      `"1" ${x} [2]` loads and only fails once `x` turns out to be a number,
-      while `"1" [2] ${x}` fails immediately. The path is split on `.` there,
-      but naively: a quoted dot (`${a."b.c"}`) still splits and waits for path
-      expressions above
+- [x] [Substitutions](https://github.com/lightbend/config/blob/main/HOCON.md#substitutions) (`${a.b.c}`, `${?a.b.c}`)
+      — `${…}` and `${?…}` become nodes of their own wherever a value may
+      stand, and everything java rejects at parse time is rejected here too
+      (`${}`, an unclosed `${a`, a newline or a nested `${` inside the path, `?`
+      anywhere but directly after `${`, and a substitution where a key or an
+      include target belongs). In the value graph a substitution becomes a
+      reference of its own and everything holding one stays pending, since its
+      type is unknown until it resolves — which is why `"1" ${x} [2]` loads and
+      only fails once `x` turns out to be a number, while `"1" [2] ${x}` fails
+      immediately. Resolution then runs once, over the finished document, so
+      `x = 1`, `a = ${x}`, `x = 2` gives `a = 2`. A path steps through objects
+      and through other references, each target is resolved once and stored
+      back, and the parts of a pending value join exactly the way loading joins
+      them. `${?x}` with nothing behind it removes the member or the list
+      element; inside a concatenation it is empty, so `${?nope}42` is the
+      string `"42"`, as the spec says and where both oracles give the number
+      `42`. A reference that needs itself is `SubstitutionCycle`. Still to do: a
+      reference to the previous value of its own key (`a = ${a} 2`, and `+=`
+      with it) fails as a cycle today, and there is no fallback to environment
+      variables yet
 
 - [ ] [Conversion of numerically-indexed objects to arrays](https://github.com/lightbend/config/blob/main/HOCON.md#conversion-of-numerically-indexed-objects-to-arrays)
 - [ ] [The `+=` field separator](https://github.com/lightbend/config/blob/main/HOCON.md#the--field-separator)
@@ -323,10 +334,15 @@ rather than the format.
       fields, slice elements and optionals. Values stay text until a type asks
       for them, so `yes` is a boolean only where a `bool` is wanted. A key
       missing from the file takes the field's default, then `null` for an
-      optional, and only then is an error. A substitution still pending is an
-      error rather than a guess, until evaluation exists.
-- [ ] Evaluation — resolving substitutions against the finished graph and
-      splicing includes.
+      optional, and only then is an error. It runs on the resolved document, so
+      nothing pending ever reaches it.
+- [x] Evaluation, substitutions — one depth-first pass from the root over the
+      finished graph. It carries the list of places being resolved right now,
+      which is what turns `a = ${b}`, `b = ${a}` into an error instead of a
+      loop, and an index of each object's members, built on the first lookup
+      into it.
+- [ ] Evaluation, includes — splicing the referenced file in; `include` parses
+      and nothing more.
 - [x] Public API, first cut — `hocon.parseFromSlice` returning `Parsed(T)` and
       its `parseFromSliceLeaky` twin, named and shaped after `std.json`, with
       `hocon.Value` as a target for the tree itself.
@@ -334,8 +350,9 @@ rather than the format.
       on its own, so there is no serializer here to maintain. A scalar is text
       until this point; quotes decide string, and otherwise JSON's own number
       grammar decides number, all of the text or nothing (`.5`, `1.` and `1 2`
-      stay strings). A tree with a substitution left in it is refused when it
-      is parsed, since Stringify has no way to report an error of its own.
+      stay strings). Resolution runs inside the parse, so a substitution that
+      does not resolve fails there rather than in the printer, since Stringify
+      has no way to report an error of its own.
       This is the bridge the project is ultimately for.
 - [x] Command line — `hocon <file.conf>` prints JSON, exits 1 on rejection;
       the same contract as a conformance adapter, so it is what the suite
