@@ -62,4 +62,5 @@ value surviving the parse (`t = 10s` → `{"t":"10s"}`), which every parser does
 which says nothing about the unit rules their `why` describes. The cases are real
 and the inputs are right; the protocol cannot see the answer yet. Fixing this means
 extending the oracle protocol with a typed-accessor request — a decision, not a
-chore, so it is not made here.
+chore, so it is not made here. `COVERAGE.md` ("Not measured") says what the accessors
+must do, lists the cases to check by hand, and sketches the protocol change.

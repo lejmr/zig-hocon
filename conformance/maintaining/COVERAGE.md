@@ -24,6 +24,73 @@ spec itself with every rule marked: green has a case, red has none.
 - `include-semantics-locating-resources.8` L1181 Relative-to-including-file paths only work with the heuristic `include "foo.conf"`.
 - `conversion-of-numerically-indexed-objects-to-arrays.1` L1187 To provide some mechanism for this, implementations should support converting objects with numeric keys into arrays.
 
+## Not measured: the typed accessors
+
+27 cases in `duration-format`, `period-format`, `size-in-bytes-format`, `units-format` have a rule, a case and a green score in every column, and the score says nothing. `tools/oracle/Oracle.java` does `parseString(src).root().render()` and never calls `getDuration()`, `getPeriod()` or `getBytes()`, so `expect` on these rows is the text surviving the parse: `t = 10MS` expects `{"t": "10MS"}`, and a parser that has never heard of units passes. The rules and the inputs are right. The protocol cannot see the answer.
+
+This is the line the suite draws, on purpose: it measures the tree a parser produces from a file. HOCON has no type in the file (`10m` is minutes to a duration and months to a period; `10` is milliseconds, days or bytes depending on what is asked), so units and conversions are properties of the accessor the application calls, not of the parse. The spec files them under API Recommendations for the same reason.
+
+### What an implementation's interface should provide
+
+A way to ask for a value *as* a type (`getDuration(path)` in typesafe/config, a typed target such as `struct { t: Duration }` in a language with comptime types), with these rules behind it:
+
+- **Units format** (`units-format.*`): optional whitespace, a number, optional whitespace, an optional unit of letters only, optional whitespace. No unit means the accessor's default unit. An unknown unit is an error, never a silent default.
+- **Duration** (`duration-format.*`): bare number is milliseconds; units are exactly the strings in RULES.md and lowercase only, so `10MS` is an error. typesafe/config accepts a fractional number and truncates to whole nanoseconds.
+- **Period** (`period-format.*`): bare number is days; `d`, `w`, `m`/`mo`, `y`; the result is years, months and days, not a count of anything.
+- **Size in bytes** (`size-in-bytes-format.*`): bare number is bytes; `B`; powers of ten `kB`…`YB` and their long forms; powers of two `K`/`Ki`/`KiB`…`Y`/`Yi`/`YiB`; a single letter means a power of two and may be upper- or lowercase. `1YB` does not fit in 64 bits.
+- **Automatic type conversions** (spec, API Recommendations; not in RULES.md yet): number ↔ string as written in the file; `true`/`yes`/`on` and `false`/`no`/`off` to boolean, nothing else; string `"null"` to null only on request; a numerically-indexed object to an array. Never: null to anything, object or array to anything, anything to object, anything to array except the indexed object.
+
+### How to check an implementation today, by hand
+
+Parse the input, ask for each key with the accessor its section names, and compare with the sentence in the last column. A row that matches passes; a row that silently returns the text fails, whatever `run.sh` says.
+
+| case | input | the accessor must |
+|---|---|---|
+| `duration-format/001-bare-number-is-milliseconds.conf` | `t = 10\n` | bare numbers are taken to be in milliseconds already |
+| `duration-format/002-uppercase-unit-is-illegal.conf` | `t = 10MS\n` | the supported unit strings for duration are case-sensitive and must be lowercase, so an uppercase unit is not one of the supported strings |
+| `duration-format/003-nanoseconds-spellings.conf` | `ns = 5ns\nnano = 5nano\nnanos = 5nanos\nnanosecond = 5nanosecond\nnanoseconds = 5nanoseconds\n` | exactly ns, nano, nanos, nanosecond, nanoseconds are the supported unit strings for nanoseconds |
+| `duration-format/004-microseconds-spellings.conf` | `us = 5us\nmicro = 5micro\nmicros = 5micros\nmicrosecond = 5microsecond\nmicroseconds = 5microseconds\n` | exactly us, micro, micros, microsecond, microseconds are the supported unit strings for microseconds |
+| `duration-format/005-milliseconds-spellings.conf` | `ms = 5ms\nmilli = 5milli\nmillis = 5millis\nmillisecond = 5millisecond\nmilliseconds = 5milliseconds\n` | exactly ms, milli, millis, millisecond, milliseconds are the supported unit strings for milliseconds |
+| `duration-format/006-seconds-spellings.conf` | `s = 5s\nsecond = 5second\nseconds = 5seconds\n` | exactly s, second, seconds are the supported unit strings for seconds |
+| `duration-format/007-minutes-spellings.conf` | `m = 5m\nminute = 5minute\nminutes = 5minutes\n` | exactly m, minute, minutes are the supported unit strings for minutes |
+| `duration-format/008-hours-spellings.conf` | `h = 5h\nhour = 5hour\nhours = 5hours\n` | exactly h, hour, hours are the supported unit strings for hours |
+| `duration-format/009-days-spellings.conf` | `d = 5d\nday = 5day\ndays = 5days\n` | exactly d, day, days are the supported unit strings for days in the duration format |
+| `period-format/001-bare-number-is-days.conf` | `p = 10\n` | for getPeriod(), bare numbers are taken to be in days, unlike getDuration() where bare numbers are milliseconds |
+| `period-format/002-uppercase-unit-is-illegal.conf` | `p = 10D\n` | the supported unit strings for period are case-sensitive and must be lowercase, so an uppercase unit is not one of the supported strings |
+| `period-format/003-days-spellings.conf` | `d = 5d\nday = 5day\ndays = 5days\n` | exactly d, day, days are the supported unit strings for days in the period format |
+| `period-format/004-weeks-spellings.conf` | `w = 5w\nweek = 5week\nweeks = 5weeks\n` | exactly w, week, weeks are the supported unit strings for weeks |
+| `period-format/005-months-spellings.conf` | `m = 5m\nmo = 5mo\nmonth = 5month\nmonths = 5months\n` | exactly m, mo, month, months are the supported unit strings for months |
+| `period-format/006-years-spellings.conf` | `y = 5y\nyear = 5year\nyears = 5years\n` | exactly y, year, years are the supported unit strings for years |
+| `period-format/007-month-m-ambiguous-with-duration-minutes.conf` | `p = 1m\n` | the spec notes that getTemporal() callers should prefer mo over m for months, since m is also the duration unit for minutes and getTemporal() may return either a Duration or a Period |
+| `size-in-bytes-format/001-bare-number-is-bytes.conf` | `s = 10\n` | bare numbers are taken to be in bytes already |
+| `size-in-bytes-format/002-single-byte-spellings.conf` | `B = 5B\nb = 5b\nbyte = 5byte\nbytes = 5bytes\n` | for single bytes, exactly B, b, byte, bytes are supported |
+| `size-in-bytes-format/003-powers-of-ten-suffixes.conf` | `kB = 5kB\nkilobyte = 5kilobyte\nkilobytes = 5kilobytes\nMB = 5MB\nmegabyte = 5megabyte\nmegabytes = 5megabytes\nGB = 5GB\ngigabyte = 5gigabyte\ngigabytes = 5gigabytes\nTB = 5TB\nterabyte = 5terabyte\nterabytes = 5terabytes\nPB = 5PB\npetabyte = 5petabyte\npetabytes = 5petabytes\nEB = 5EB\nexabyte = 5exabyte\nexabytes = 5exabytes\nZB = 5ZB\nzettabyte = 5zettabyte\nzettabytes = 5zettabytes\nYB = 5YB\nyottabyte = 5yottabyte\nyottabytes = 5yottabytes\ns = 1Kb\n` | every power-of-10 suffix and its long forms name the same unit family; one table, one rule |
+| `size-in-bytes-format/004-powers-of-two-suffixes.conf` | `K = 5K\nk = 5k\nKi = 5Ki\nKiB = 5KiB\nkibibyte = 5kibibyte\nkibibytes = 5kibibytes\nM = 5M\nm = 5m\nMi = 5Mi\nMiB = 5MiB\nmebibyte = 5mebibyte\nmebibytes = 5mebibytes\nG = 5G\ng = 5g\nGi = 5Gi\nGiB = 5GiB\ngibibyte = 5gibibyte\ngibibytes = 5gibibytes\nT = 5T\nt = 5t\nTi = 5Ti\nTiB = 5TiB\ntebibyte = 5tebibyte\ntebibytes = 5tebibytes\nP = 5P\np = 5p\nPi = 5Pi\nPiB = 5PiB\npebibyte = 5pebibyte\npebibytes = 5pebibytes\nE = \"5E\"\ne = \"5e\"\nEi = 5Ei\nEiB = 5EiB\nexbibyte = 5exbibyte\nexbibytes = 5exbibytes\nZ = 5Z\nz = 5z\nZi = 5Zi\nZiB = 5ZiB\nzebibyte = 5zebibyte\nzebibytes = 5zebibytes\nY = 5Y\ny = 5y\nYi = 5Yi\nYiB = 5YiB\nyobibyte = 5yobibyte\nyobibytes = 5yobibytes\n` | every power-of-2 suffix and its long forms name the same unit family; one table, one rule. The E and e forms are quoted because an unquoted 5E is a number token that is not a number (see unquoted-strings/022) |
+| `size-in-bytes-format/019-single-letter-abbreviation-means-powers-of-two.conf` | `s = 128K\n` | the single-letter abbreviations (like K) are ambiguous between powers of two and ten, and this spec follows the java -Xmx / GNU-tools precedent of mapping them to powers of two |
+| `units-format/001-number-value-is-default-unit.conf` | `t = 10\n` | if the value is a number, it is taken to be a number in the default unit |
+| `units-format/002-quoted-string-with-no-unit-uses-default-unit.conf` | `t = \"10\"\n` | a string value with no unit name should be interpreted with the default unit, as if it were a number |
+| `units-format/003-string-with-unit-name-specifies-interpretation.conf` | `t = 10ms\n` | a string value with a unit name has that name specify the value's interpretation |
+| `units-format/004-whitespace-optional-around-number-and-unit.conf` | `t = \" 10 ms \"\n` | the units-format grammar is optional whitespace, a number, optional whitespace, an optional unit name, optional whitespace |
+| `units-format/005-unit-name-must-be-letters-only.conf` | `t = 10m2\n` | the unit name consists only of letters (Unicode L* categories, Java isLetter()), so a unit name with a trailing digit is not a legal units-format string |
+| `units-format/006-unit-before-number-is-illegal.conf` | `t = ms10\n` | the units-format grammar puts the number before the unit name, not after, so a unit-then-number string is not a legal units-format value |
+
+### What it takes for the suite to measure it
+
+One addition to the sidecar and the adapter contract, so a case can say what to ask for:
+
+```json
+"as": {"t": "duration"}
+```
+
+- `run.sh` hands the adapter `--as t=duration` the way it hands it `env` today.
+- The adapter answers with the converted value in place of the text: an integer of nanoseconds for a duration, an integer of bytes for a size, `{"years": y, "months": m, "days": d}` for a period; a rejection is a rejection, as now.
+- `Oracle.java` fills `expect` from `getDuration(path).toNanos()`, `getBytes(path)` and `getPeriod(path)`, so expected values still come from the reference implementation, never by hand.
+- An adapter that does not know `--as` exits non-zero and the row fails. That is the honest result.
+
+The same request with `int`, `boolean` and `string` is what brings Automatic type conversions into RULES.md. It is one mechanism, not four.
+
+This is a change to the protocol every adapter speaks, so it is a decision for the maintainer, recorded in `PROCESS.md` when made. If you think the line belongs elsewhere, the argument that moves it is a case the protocol can score, or a protocol change with the oracle filling `expect`; an argument about where units *ought* to live has been had, and the spec settled it.
+
 ## Cases pointing at a rule that is not in RULES.md
 
 none

@@ -3,9 +3,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>HOCON spec coverage</title>
 <style>
-:root { --bg: #fff; --fg: #1d2429; --muted: #68737d; --ok: #cdeccd; --gap: #f7c9c9; --code: #f3f5f7; }
+:root { --bg: #fff; --fg: #1d2429; --muted: #68737d; --ok: #cdeccd; --gap: #f7c9c9; --soft: #f5e6b3; --code: #f3f5f7; }
 @media (prefers-color-scheme: dark) {
-  :root { --bg: #14181c; --fg: #d9dee3; --muted: #8a949e; --ok: #22502a; --gap: #6b2626; --code: #1e242a; }
+  :root { --bg: #14181c; --fg: #d9dee3; --muted: #8a949e; --ok: #22502a; --gap: #6b2626; --soft: #5a4a14; --code: #1e242a; }
 }
 body { margin: 0 auto; max-width: 48rem; padding: 0 16px 4rem; background: var(--bg); color: var(--fg);
   font: 16px/1.55 system-ui, sans-serif; }
@@ -13,15 +13,16 @@ h1, h2, h3, h4 { line-height: 1.25; margin: 2em 0 .5em; }
 p { white-space: pre-wrap; margin: 0 0 1em; }
 pre { background: var(--code); padding: .6em .8em; overflow-x: auto; font-size: 14px; }
 mark { color: inherit; border-radius: 2px; padding: 0 1px; cursor: help; }
-mark.ok { background: var(--ok); } mark.gap { background: var(--gap); }
+mark.ok { background: var(--ok); } mark.gap { background: var(--gap); } mark.soft { background: var(--soft); }
 .legend { position: sticky; top: 0; background: var(--bg); padding: .6em 0; border-bottom: 1px solid var(--code);
   color: var(--muted); font-size: 14px; }
 .legend mark { padding: 0 .4em; }
 .note { color: var(--muted); font-size: 14px; }
 </style>
 <div class="legend">
-  <mark class="ok">272 rules with a case</mark> &nbsp;
+  <mark class="ok">232 rules with a case</mark> &nbsp;
   <mark class="gap">15 rules without one</mark> &nbsp;
+  <mark class="soft">40 with a case the protocol cannot measure</mark> &nbsp;
   unmarked text is not a rule — 287 rules in RULES.md. Hover a mark for the id and its cases.
 </div>
 
@@ -940,56 +941,56 @@ a default unit in the family. For example, the family of duration
 units might default to milliseconds (see below for details on
 durations). The implementation should then interpret values as
 follows:</p>
-<p data-line="1279"> - <mark class="ok" title="units-format.1 — units-format/001-number-value-is-default-unit.conf">if the value is a number, it is taken to be a number in
+<p data-line="1279"> - <mark class="soft" title="units-format.1 — units-format/001-number-value-is-default-unit.conf — case cannot be measured yet, see COVERAGE.md">if the value is a number, it is taken to be a number in
    the default unit.</mark>
- - <mark class="ok" title="units-format.2 — units-format/004-whitespace-optional-around-number-and-unit.conf, units-format/006-unit-before-number-is-illegal.conf">if the value is a string, it is taken to be this sequence:</mark></p>
+ - <mark class="soft" title="units-format.2 — units-format/004-whitespace-optional-around-number-and-unit.conf, units-format/006-unit-before-number-is-illegal.conf — case cannot be measured yet, see COVERAGE.md">if the value is a string, it is taken to be this sequence:</mark></p>
 <p data-line="1283">     - optional whitespace
      - a number
      - optional whitespace
-     - <mark class="ok" title="units-format.6 — units-format/005-unit-name-must-be-letters-only.conf">an optional unit name consisting only of letters (letters
+     - <mark class="soft" title="units-format.6 — units-format/005-unit-name-must-be-letters-only.conf — case cannot be measured yet, see COVERAGE.md">an optional unit name consisting only of letters (letters
        are the Unicode `L*` categories, Java `isLetter()`)</mark>
      - optional whitespace</p>
-<p data-line="1290">   <mark class="ok" title="units-format.8 — units-format/002-quoted-string-with-no-unit-uses-default-unit.conf">If a string value has no unit name, then it should be
-   interpreted with the default unit, as if it were a number.</mark> <mark class="ok" title="units-format.9 — units-format/003-string-with-unit-name-specifies-interpretation.conf">If a
+<p data-line="1290">   <mark class="soft" title="units-format.8 — units-format/002-quoted-string-with-no-unit-uses-default-unit.conf — case cannot be measured yet, see COVERAGE.md">If a string value has no unit name, then it should be
+   interpreted with the default unit, as if it were a number.</mark> <mark class="soft" title="units-format.9 — units-format/003-string-with-unit-name-specifies-interpretation.conf — case cannot be measured yet, see COVERAGE.md">If a
    string value has a unit name, that name of course specifies the
    value&#x27;s interpretation.</mark></p>
 <h3>Duration format</h3>
 <p data-line="1297">Implementations may wish to support a `getMilliseconds()` (and
 similar for other time units).</p>
-<p data-line="1300"><mark class="ok" title="duration-format.1 — duration-format/001-bare-number-is-milliseconds.conf">This can use the general &quot;units format&quot; described above; bare
+<p data-line="1300"><mark class="soft" title="duration-format.1 — duration-format/001-bare-number-is-milliseconds.conf — case cannot be measured yet, see COVERAGE.md">This can use the general &quot;units format&quot; described above; bare
 numbers are taken to be in milliseconds already, while strings are
 parsed as a number plus an optional unit string.</mark></p>
-<p data-line="1304"><mark class="ok" title="duration-format.2 — duration-format/002-uppercase-unit-is-illegal.conf">The supported unit strings for duration are case-sensitive and
+<p data-line="1304"><mark class="soft" title="duration-format.2 — duration-format/002-uppercase-unit-is-illegal.conf — case cannot be measured yet, see COVERAGE.md">The supported unit strings for duration are case-sensitive and
 must be lowercase.</mark> Exactly these strings are supported:</p>
-<p data-line="1307"> - <mark class="ok" title="duration-format.4 — duration-format/003-nanoseconds-spellings.conf">`ns`, `nano`, `nanos`, `nanosecond`, `nanoseconds`</mark>
- - <mark class="ok" title="duration-format.5 — duration-format/004-microseconds-spellings.conf">`us`, `micro`, `micros`, `microsecond`, `microseconds`</mark>
- - <mark class="ok" title="duration-format.6 — duration-format/005-milliseconds-spellings.conf">`ms`, `milli`, `millis`, `millisecond`, `milliseconds`</mark>
- - <mark class="ok" title="duration-format.7 — duration-format/006-seconds-spellings.conf">`s`, `second`, `seconds`</mark>
- - <mark class="ok" title="duration-format.8 — duration-format/007-minutes-spellings.conf">`m`, `minute`, `minutes`</mark>
- - <mark class="ok" title="duration-format.9 — duration-format/008-hours-spellings.conf">`h`, `hour`, `hours`</mark>
- - <mark class="ok" title="duration-format.10 — duration-format/009-days-spellings.conf">`d`, `day`, `days`</mark></p>
+<p data-line="1307"> - <mark class="soft" title="duration-format.4 — duration-format/003-nanoseconds-spellings.conf — case cannot be measured yet, see COVERAGE.md">`ns`, `nano`, `nanos`, `nanosecond`, `nanoseconds`</mark>
+ - <mark class="soft" title="duration-format.5 — duration-format/004-microseconds-spellings.conf — case cannot be measured yet, see COVERAGE.md">`us`, `micro`, `micros`, `microsecond`, `microseconds`</mark>
+ - <mark class="soft" title="duration-format.6 — duration-format/005-milliseconds-spellings.conf — case cannot be measured yet, see COVERAGE.md">`ms`, `milli`, `millis`, `millisecond`, `milliseconds`</mark>
+ - <mark class="soft" title="duration-format.7 — duration-format/006-seconds-spellings.conf — case cannot be measured yet, see COVERAGE.md">`s`, `second`, `seconds`</mark>
+ - <mark class="soft" title="duration-format.8 — duration-format/007-minutes-spellings.conf — case cannot be measured yet, see COVERAGE.md">`m`, `minute`, `minutes`</mark>
+ - <mark class="soft" title="duration-format.9 — duration-format/008-hours-spellings.conf — case cannot be measured yet, see COVERAGE.md">`h`, `hour`, `hours`</mark>
+ - <mark class="soft" title="duration-format.10 — duration-format/009-days-spellings.conf — case cannot be measured yet, see COVERAGE.md">`d`, `day`, `days`</mark></p>
 <h3>Period Format</h3>
 <p data-line="1317">Similar to the `getDuration()` method, there is a `getPeriod()` method 
 available for getting time units as a `java.time.Period`. </p>
-<p data-line="1320"><mark class="ok" title="period-format.1 — period-format/001-bare-number-is-days.conf">This can use the general &quot;units format&quot; described above; bare
+<p data-line="1320"><mark class="soft" title="period-format.1 — period-format/001-bare-number-is-days.conf — case cannot be measured yet, see COVERAGE.md">This can use the general &quot;units format&quot; described above; bare
 numbers are taken to be in days, while strings are
 parsed as a number plus an optional unit string.</mark></p>
-<p data-line="1324"><mark class="ok" title="period-format.2 — period-format/002-uppercase-unit-is-illegal.conf">The supported unit strings for period are case-sensitive and
+<p data-line="1324"><mark class="soft" title="period-format.2 — period-format/002-uppercase-unit-is-illegal.conf — case cannot be measured yet, see COVERAGE.md">The supported unit strings for period are case-sensitive and
 must be lowercase.</mark> Exactly these strings are supported:</p>
-<p data-line="1327"> - <mark class="ok" title="period-format.4 — period-format/003-days-spellings.conf">`d`, `day`, `days`</mark>
- - <mark class="ok" title="period-format.5 — period-format/004-weeks-spellings.conf">`w`, `week`, `weeks`</mark>
- - <mark class="ok" title="period-format.6 — period-format/005-months-spellings.conf, period-format/007-month-m-ambiguous-with-duration-minutes.conf">`m`, `mo`, `month`, `months` (note that if you are using `getTemporal()`
+<p data-line="1327"> - <mark class="soft" title="period-format.4 — period-format/003-days-spellings.conf — case cannot be measured yet, see COVERAGE.md">`d`, `day`, `days`</mark>
+ - <mark class="soft" title="period-format.5 — period-format/004-weeks-spellings.conf — case cannot be measured yet, see COVERAGE.md">`w`, `week`, `weeks`</mark>
+ - <mark class="soft" title="period-format.6 — period-format/005-months-spellings.conf, period-format/007-month-m-ambiguous-with-duration-minutes.conf — case cannot be measured yet, see COVERAGE.md">`m`, `mo`, `month`, `months` (note that if you are using `getTemporal()`
  which may return either a `java.time.Duration` or a `java.time.Period`
  you will want to use `mo` rather than `m` to prevent your unit being 
  parsed as minutes)</mark>
- - <mark class="ok" title="period-format.7 — period-format/006-years-spellings.conf">`y`, `year`, `years`</mark></p>
+ - <mark class="soft" title="period-format.7 — period-format/006-years-spellings.conf — case cannot be measured yet, see COVERAGE.md">`y`, `year`, `years`</mark></p>
 <h3>Size in bytes format</h3>
 <p data-line="1337">Implementations may wish to support a `getBytes()` returning a
 size in bytes.</p>
-<p data-line="1340"><mark class="ok" title="size-in-bytes-format.1 — size-in-bytes-format/001-bare-number-is-bytes.conf">This can use the general &quot;units format&quot; described above; bare
+<p data-line="1340"><mark class="soft" title="size-in-bytes-format.1 — size-in-bytes-format/001-bare-number-is-bytes.conf — case cannot be measured yet, see COVERAGE.md">This can use the general &quot;units format&quot; described above; bare
 numbers are taken to be in bytes already, while strings are
 parsed as a number plus an optional unit string.</mark></p>
-<p data-line="1344"><mark class="ok" title="size-in-bytes-format.2 — size-in-bytes-format/004-powers-of-two-suffixes.conf">The one-letter unit strings may be uppercase (note: duration units
+<p data-line="1344"><mark class="soft" title="size-in-bytes-format.2 — size-in-bytes-format/004-powers-of-two-suffixes.conf — case cannot be measured yet, see COVERAGE.md">The one-letter unit strings may be uppercase (note: duration units
 are always lowercase, so this convention is specific to size
 units).</mark></p>
 <p data-line="1348">There is an unfortunate nightmare with size-in-bytes units, that
@@ -1003,26 +1004,26 @@ https://en.wikipedia.org/wiki/Binary_prefix#Deviation_between_powers_of_1024_and
 for examples. It appears impossible to sort this out without
 causing confusion for someone sometime.</p>
 <p data-line="1359">For single bytes, exactly these strings are supported:</p>
-<p data-line="1361"> - <mark class="ok" title="size-in-bytes-format.4 — size-in-bytes-format/002-single-byte-spellings.conf">`B`, `b`, `byte`, `bytes`</mark></p>
+<p data-line="1361"> - <mark class="soft" title="size-in-bytes-format.4 — size-in-bytes-format/002-single-byte-spellings.conf — case cannot be measured yet, see COVERAGE.md">`B`, `b`, `byte`, `bytes`</mark></p>
 <p data-line="1363">For powers of ten, exactly these strings are supported:</p>
-<p data-line="1365"> - <mark class="ok" title="size-in-bytes-format.6 — size-in-bytes-format/003-powers-of-ten-suffixes.conf">`kB`, `kilobyte`, `kilobytes`</mark>
- - <mark class="ok" title="size-in-bytes-format.7 — size-in-bytes-format/003-powers-of-ten-suffixes.conf">`MB`, `megabyte`, `megabytes`</mark>
- - <mark class="ok" title="size-in-bytes-format.8 — size-in-bytes-format/003-powers-of-ten-suffixes.conf">`GB`, `gigabyte`, `gigabytes`</mark>
- - <mark class="ok" title="size-in-bytes-format.9 — size-in-bytes-format/003-powers-of-ten-suffixes.conf">`TB`, `terabyte`, `terabytes`</mark>
- - <mark class="ok" title="size-in-bytes-format.10 — size-in-bytes-format/003-powers-of-ten-suffixes.conf">`PB`, `petabyte`, `petabytes`</mark>
- - <mark class="ok" title="size-in-bytes-format.11 — size-in-bytes-format/003-powers-of-ten-suffixes.conf">`EB`, `exabyte`, `exabytes`</mark>
- - <mark class="ok" title="size-in-bytes-format.12 — size-in-bytes-format/003-powers-of-ten-suffixes.conf">`ZB`, `zettabyte`, `zettabytes`</mark>
- - <mark class="ok" title="size-in-bytes-format.13 — size-in-bytes-format/003-powers-of-ten-suffixes.conf">`YB`, `yottabyte`, `yottabytes`</mark></p>
+<p data-line="1365"> - <mark class="soft" title="size-in-bytes-format.6 — size-in-bytes-format/003-powers-of-ten-suffixes.conf — case cannot be measured yet, see COVERAGE.md">`kB`, `kilobyte`, `kilobytes`</mark>
+ - <mark class="soft" title="size-in-bytes-format.7 — size-in-bytes-format/003-powers-of-ten-suffixes.conf — case cannot be measured yet, see COVERAGE.md">`MB`, `megabyte`, `megabytes`</mark>
+ - <mark class="soft" title="size-in-bytes-format.8 — size-in-bytes-format/003-powers-of-ten-suffixes.conf — case cannot be measured yet, see COVERAGE.md">`GB`, `gigabyte`, `gigabytes`</mark>
+ - <mark class="soft" title="size-in-bytes-format.9 — size-in-bytes-format/003-powers-of-ten-suffixes.conf — case cannot be measured yet, see COVERAGE.md">`TB`, `terabyte`, `terabytes`</mark>
+ - <mark class="soft" title="size-in-bytes-format.10 — size-in-bytes-format/003-powers-of-ten-suffixes.conf — case cannot be measured yet, see COVERAGE.md">`PB`, `petabyte`, `petabytes`</mark>
+ - <mark class="soft" title="size-in-bytes-format.11 — size-in-bytes-format/003-powers-of-ten-suffixes.conf — case cannot be measured yet, see COVERAGE.md">`EB`, `exabyte`, `exabytes`</mark>
+ - <mark class="soft" title="size-in-bytes-format.12 — size-in-bytes-format/003-powers-of-ten-suffixes.conf — case cannot be measured yet, see COVERAGE.md">`ZB`, `zettabyte`, `zettabytes`</mark>
+ - <mark class="soft" title="size-in-bytes-format.13 — size-in-bytes-format/003-powers-of-ten-suffixes.conf — case cannot be measured yet, see COVERAGE.md">`YB`, `yottabyte`, `yottabytes`</mark></p>
 <p data-line="1374">For powers of two, exactly these strings are supported:</p>
-<p data-line="1376"> - <mark class="ok" title="size-in-bytes-format.15 — size-in-bytes-format/004-powers-of-two-suffixes.conf">`K`, `k`, `Ki`, `KiB`, `kibibyte`, `kibibytes`</mark>
- - <mark class="ok" title="size-in-bytes-format.16 — size-in-bytes-format/004-powers-of-two-suffixes.conf">`M`, `m`, `Mi`, `MiB`, `mebibyte`, `mebibytes`</mark>
- - <mark class="ok" title="size-in-bytes-format.17 — size-in-bytes-format/004-powers-of-two-suffixes.conf">`G`, `g`, `Gi`, `GiB`, `gibibyte`, `gibibytes`</mark>
- - <mark class="ok" title="size-in-bytes-format.18 — size-in-bytes-format/004-powers-of-two-suffixes.conf">`T`, `t`, `Ti`, `TiB`, `tebibyte`, `tebibytes`</mark>
- - <mark class="ok" title="size-in-bytes-format.19 — size-in-bytes-format/004-powers-of-two-suffixes.conf">`P`, `p`, `Pi`, `PiB`, `pebibyte`, `pebibytes`</mark>
- - <mark class="ok" title="size-in-bytes-format.20 — size-in-bytes-format/004-powers-of-two-suffixes.conf">`E`, `e`, `Ei`, `EiB`, `exbibyte`, `exbibytes`</mark>
- - <mark class="ok" title="size-in-bytes-format.21 — size-in-bytes-format/004-powers-of-two-suffixes.conf">`Z`, `z`, `Zi`, `ZiB`, `zebibyte`, `zebibytes`</mark>
- - <mark class="ok" title="size-in-bytes-format.22 — size-in-bytes-format/004-powers-of-two-suffixes.conf">`Y`, `y`, `Yi`, `YiB`, `yobibyte`, `yobibytes`</mark></p>
-<p data-line="1385"><mark class="ok" title="size-in-bytes-format.23 — size-in-bytes-format/019-single-letter-abbreviation-means-powers-of-two.conf">It&#x27;s very unclear which units the single-character abbreviations
+<p data-line="1376"> - <mark class="soft" title="size-in-bytes-format.15 — size-in-bytes-format/004-powers-of-two-suffixes.conf — case cannot be measured yet, see COVERAGE.md">`K`, `k`, `Ki`, `KiB`, `kibibyte`, `kibibytes`</mark>
+ - <mark class="soft" title="size-in-bytes-format.16 — size-in-bytes-format/004-powers-of-two-suffixes.conf — case cannot be measured yet, see COVERAGE.md">`M`, `m`, `Mi`, `MiB`, `mebibyte`, `mebibytes`</mark>
+ - <mark class="soft" title="size-in-bytes-format.17 — size-in-bytes-format/004-powers-of-two-suffixes.conf — case cannot be measured yet, see COVERAGE.md">`G`, `g`, `Gi`, `GiB`, `gibibyte`, `gibibytes`</mark>
+ - <mark class="soft" title="size-in-bytes-format.18 — size-in-bytes-format/004-powers-of-two-suffixes.conf — case cannot be measured yet, see COVERAGE.md">`T`, `t`, `Ti`, `TiB`, `tebibyte`, `tebibytes`</mark>
+ - <mark class="soft" title="size-in-bytes-format.19 — size-in-bytes-format/004-powers-of-two-suffixes.conf — case cannot be measured yet, see COVERAGE.md">`P`, `p`, `Pi`, `PiB`, `pebibyte`, `pebibytes`</mark>
+ - <mark class="soft" title="size-in-bytes-format.20 — size-in-bytes-format/004-powers-of-two-suffixes.conf — case cannot be measured yet, see COVERAGE.md">`E`, `e`, `Ei`, `EiB`, `exbibyte`, `exbibytes`</mark>
+ - <mark class="soft" title="size-in-bytes-format.21 — size-in-bytes-format/004-powers-of-two-suffixes.conf — case cannot be measured yet, see COVERAGE.md">`Z`, `z`, `Zi`, `ZiB`, `zebibyte`, `zebibytes`</mark>
+ - <mark class="soft" title="size-in-bytes-format.22 — size-in-bytes-format/004-powers-of-two-suffixes.conf — case cannot be measured yet, see COVERAGE.md">`Y`, `y`, `Yi`, `YiB`, `yobibyte`, `yobibytes`</mark></p>
+<p data-line="1385"><mark class="soft" title="size-in-bytes-format.23 — size-in-bytes-format/019-single-letter-abbreviation-means-powers-of-two.conf — case cannot be measured yet, see COVERAGE.md">It&#x27;s very unclear which units the single-character abbreviations
 (&quot;128K&quot;) should go with; some precedents such as `java -Xmx 2G`
 and the GNU tools such as `ls` map these to powers of two, so this
 spec copies that.</mark> You can certainly find examples of mapping these
