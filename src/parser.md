@@ -12,7 +12,7 @@ running the oracle rather than by reading the spec.
 | `Tokenizer.zig` | bytes → tokens | lexical: what is a word, a quote, a separator |
 | `Ast.zig` | tokens → tree | syntactic: what is a member, a value, a substitution |
 | `Value.zig` | tree → values | semantic, as far as it goes without the whole document: concatenation, merging, path splitting |
-| *(not built)* includes | tree → tree | splice included files in |
+| `Include.zig` | include node → object | find the file (path or http URL), read it in its format, hand back its object; `Value.fromNode` merges it in where the include stands |
 | *(not built)* evaluation | values → values | resolve substitutions, convert types |
 
 The line between parser and evaluation: **an error belongs to the parser only if
@@ -160,6 +160,9 @@ include # c\n"x.conf"     spliced     and so are comments (folded into .newline)
 include,"x.conf"          ERROR: include keyword is not followed by a quoted string
 include "a" "b"           ERROR: Expecting end of input or a comma
 include ${a}              ERROR       a substitution is not a quoted string
+include file("x.conf")    spliced     also url(…), classpath(…), required(…) around any of those
+include required(file("x"))  spliced  the wrappers are stored in the node, outermost first
+include.foo : 42          ERROR       an unquoted key may not begin with `include` at all
 include = 42              ERROR
 Include "x.conf"          ERROR       case-sensitive
 a = include "x"           {"a":"include x"}       value side: ordinary text
@@ -168,6 +171,15 @@ a { include "x.conf" }    spliced     allowed inside a block
 ```
 
 The terminator set after the path is newline / comma / eof / `}` / `]`.
+
+The tokenizer knows no parentheses: `required(file(` is one unquoted string and
+every run of `)` another, so `parseInclude` takes them apart itself. Everything
+after the node is `Include.zig`'s business: a plain name is found beside the
+including file, `file("…")` from the working directory, an http(s) URL is
+fetched, and a name inside a file that came from a URL is a URL on the same
+server. The included file goes file → tree → value and is merged in place; it
+is never resolved alone, because a substitution in it has to see keys the
+including file defines later.
 
 ### The key side is only strings
 

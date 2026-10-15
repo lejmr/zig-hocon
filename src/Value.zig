@@ -6,6 +6,7 @@ const Key = @import("Key.zig");
 const Ast = @import("Ast.zig");
 const Node = Ast.Node;
 const unqoute = @import("utils/unqoute.zig");
+const Include = @import("Include.zig");
 
 pub const Error = error{
     UnsupportedNodeKind,
@@ -13,7 +14,7 @@ pub const Error = error{
     MixedTypes,
     UnsupportedConcatenation,
     UnsupportedValueType,
-} || Key.Error || unqoute.Error;
+} || Key.Error || unqoute.Error || Ast.Parser.Error || Include.Error;
 
 pub const Value = union(enum) {
     scalar: Scalar,
@@ -24,33 +25,61 @@ pub const Value = union(enum) {
     // For right updates of already stored data, but not yet resolved
     pending: []Value,
 
+    /// One step of the way down from a file's root, kept on the stack while the
+    /// value below it is built: an include needs the whole way as a path.
+    pub const Frame = struct { parent: ?*const Frame, key: Key };
+
+    /// What building a value needs to know about the file it comes from, so an
+    /// `include` has somewhere to look. The default is a document read from a
+    /// slice: there is no file system behind it, and an include is an error.
+    pub const Context = struct {
+        /// Null when the document came from a slice.
+        io: ?std.Io = null,
+        /// The directory of the file being built; a plain include name is found there.
+        dir: []const u8 = "",
+        /// The files being built right now, outermost first, as normalised paths.
+        /// Including one of them again would never end.
+        stack: []const []const u8 = &.{},
+        /// The URL of the file being built, when it came from one: a plain include
+        /// name is then a URL on the same server, not a path.
+        base_url: ?[]const u8 = null,
+        /// How long a fetch may take (see `ParseOptions`).
+        http_timeout: std.Io.Duration = Include.default_http_timeout,
+        /// Where this file's keys sit in the whole document; every substitution in
+        /// it is tried with this in front first (see `Ref`).
+        scope: []const Key = &.{},
+        /// The keys from this file's root down to the object being built.
+        frame: ?*const Frame = null,
+    };
+
     /// Turns one node of the tree into a value. Dispatch only: `.value` is a
     /// scalar, `.block` an object, `.array` a list, `.subst`/`.subst_optional`
-    /// a ref. Anything else never stands where a value stands.
-    pub fn fromNode(gpa: std.mem.Allocator, node: Node) Error!Value {
+    /// a ref. Anything else never stands where a value stands. `ctx` says which
+    /// file the node comes from, so an `include` in a block can be followed; `.{}`
+    /// when there is none.
+    pub fn fromNode(gpa: std.mem.Allocator, node: Node, ctx: Context) Error!Value {
         return switch (node.kind) {
             .value => .{ .scalar = try Scalar.fromNode(gpa, node) },
             .block, .root => blk: {
                 // A braced root `{a = 1}` is `root(block(...))`: the block is the document.
                 if (node.kind == .root and node.children.len == 1 and node.children[0].kind == .block)
-                    return Value.fromNode(gpa, node.children[0]);
+                    return Value.fromNode(gpa, node.children[0], ctx);
 
                 var members_map: std.StringArrayHashMapUnmanaged(Value) = .empty;
                 defer members_map.deinit(gpa);
 
                 for (node.children) |assignment| {
+                    // An include stands where its members would: they come in at
+                    // this point, under the rules of any other duplicate key.
+                    if (assignment.kind == .include) {
+                        const included = try Include.load(gpa, assignment, ctx);
+                        for (included.object) |m| try putMember(gpa, &members_map, m.key.value, m.value);
+                        continue;
+                    }
                     if (assignment.kind != .assignment) return Error.UnsupportedNodeKind;
                     if (assignment.children.len < 2) return Error.InvalidAssignment;
-                    const member = try Member.fromNode(gpa, assignment);
-                    if (members_map.getPtr(member.key.value)) |current_v| {
-                        if (current_v.* == .object and member.value == .object) {
-                            try current_v.update(gpa, member.value);
-                        } else {
-                            current_v.* = member.value;
-                        }
-                    } else {
-                        try members_map.put(gpa, member.key.value, member.value);
-                    }
+                    const member = try Member.fromNode(gpa, assignment, ctx);
+                    try putMember(gpa, &members_map, member.key.value, member.value);
                 }
                 var members: std.ArrayList(Member) = .empty;
                 for (members_map.keys(), members_map.values()) |k, val| {
@@ -61,19 +90,19 @@ pub const Value = union(enum) {
             .array => blk: {
                 var members: std.ArrayList(Value) = .empty;
                 for (node.children) |object| {
-                    const val = try Value.fromNode(gpa, object);
+                    const val = try Value.fromNode(gpa, object, ctx);
                     try members.append(gpa, val);
                 }
                 break :blk .{ .array = try members.toOwnedSlice(gpa) };
             },
-            .subst, .subst_optional => .{ .ref = try Ref.fromNode(gpa, node) },
+            .subst, .subst_optional => .{ .ref = try Ref.fromNode(gpa, node, ctx.scope) },
             .concat => {
                 var values: std.ArrayList(Value) = .empty;
                 var buffer: ?Value = null;
 
                 for (node.children) |ch| {
                     // Update buffer value from right
-                    const val = try Value.fromNode(gpa, ch);
+                    const val = try Value.fromNode(gpa, ch, ctx);
                     const tag = std.meta.activeTag(val);
 
                     if (buffer) |*ebuffer| {
@@ -98,7 +127,21 @@ pub const Value = union(enum) {
         };
     }
 
-    fn update(self: *Value, gpa: std.mem.Allocator, other: Value) Error!void {
+    /// Adds a member the way a repeated key is added: two objects merge,
+    /// anything else replaces what was there.
+    fn putMember(gpa: std.mem.Allocator, map: *std.StringArrayHashMapUnmanaged(Value), key: []const u8, value: Value) Error!void {
+        if (map.getPtr(key)) |current_v| {
+            if (current_v.* == .object and value == .object) {
+                try current_v.update(gpa, value);
+            } else {
+                current_v.* = value;
+            }
+        } else {
+            try map.put(gpa, key, value);
+        }
+    }
+
+    pub fn update(self: *Value, gpa: std.mem.Allocator, other: Value) Error!void {
         const tag_self = std.meta.activeTag(self.*);
         const tag_other = std.meta.activeTag(other);
 
@@ -127,30 +170,10 @@ pub const Value = union(enum) {
                 // Convert self block to hasmap
                 var map: std.StringArrayHashMapUnmanaged(Value) = .empty;
                 defer map.deinit(gpa);
-                for (self.object) |m| {
-                    if (map.getPtr(m.key.value)) |current_v| {
-                        if (current_v.* == .object and m.value == .object) {
-                            try current_v.update(gpa, m.value);
-                        } else {
-                            current_v.* = m.value;
-                        }
-                    } else {
-                        try map.put(gpa, m.key.value, m.value);
-                    }
-                }
+                for (self.object) |m| try putMember(gpa, &map, m.key.value, m.value);
 
                 // Update self about other
-                for (other.object) |oo| {
-                    if (map.getPtr(oo.key.value)) |current_v| {
-                        if (current_v.* == .object and oo.value == .object) {
-                            try current_v.update(gpa, oo.value);
-                        } else {
-                            current_v.* = oo.value;
-                        }
-                    } else {
-                        try map.put(gpa, oo.key.value, oo.value);
-                    }
-                }
+                for (other.object) |oo| try putMember(gpa, &map, oo.key.value, oo.value);
 
                 // Convert to list of Members
                 var merged: std.ArrayList(Member) = .empty;
@@ -257,9 +280,11 @@ pub const Value = union(enum) {
                 return .{ .object = try resolved.toOwnedSlice(gpa) };
             },
             .ref => |r| {
-                const target = try lookup(gpa, root, r.path, state);
-                if (target) |t| {
-                    if (try resolveTarget(t, gpa, root, state)) |val| return val;
+                if (try follow(gpa, root, r.path, state)) |val| return val;
+                // From an included file: not found with the scope in front, or
+                // gone (an optional that found nothing), so try the path as written.
+                if (r.scope_len > 0) {
+                    if (try follow(gpa, root, r.path[r.scope_len..], state)) |val| return val;
                 }
                 if (r.optional) return null;
                 return ResolveError.Unresolved;
@@ -281,6 +306,12 @@ pub const Value = union(enum) {
                 return result;
             },
         }
+    }
+
+    // The value at a path, resolved; null when nothing is there or it vanishes
+    fn follow(gpa: std.mem.Allocator, root: *Value, path: []const Key, state: *Resolving) ResolveError!?Value {
+        const target = try lookup(gpa, root, path, state) orelse return null;
+        return try resolveTarget(target, gpa, root, state);
     }
 
     // Resolves the place a ref points to and stores it back, next ref there is for free
@@ -357,7 +388,7 @@ pub const Value = union(enum) {
 };
 
 // PLace holder for any string or number
-const Scalar = struct {
+pub const Scalar = struct {
     value: []const u8,
     quoted: bool,
 
@@ -366,12 +397,12 @@ const Scalar = struct {
         return .{ .value = ut.text, .quoted = ut.quoted };
     }
 };
-const Member = struct {
+pub const Member = struct {
     key: Key,
     value: Value,
 
     /// From an `.assignment`: `children[0]` is the key, `children[1]` the value.
-    pub fn fromNode(gpa: std.mem.Allocator, node: Node) Error!Member {
+    pub fn fromNode(gpa: std.mem.Allocator, node: Node, ctx: Value.Context) Error!Member {
         // Member can only by assignment type
         if (node.kind != .assignment and node.children.len >= 2) return Error.UnsupportedNodeKind;
 
@@ -379,11 +410,14 @@ const Member = struct {
         const key_node = node.children[0];
         if (key_node.kind != .value and key_node.kind != .concat) return Error.UnsupportedNodeKind;
 
-        // Loads load the Value
-        const val = try Value.fromNode(gpa, node.children[1]);
+        const key = try Key.fromNode(gpa, key_node);
+        // Below this key, an include knows where it is.
+        const frame: Value.Frame = .{ .parent = ctx.frame, .key = key };
+        var inner = ctx;
+        inner.frame = &frame;
         return .{
-            .key = try Key.fromNode(gpa, key_node),
-            .value = val,
+            .key = key,
+            .value = try Value.fromNode(gpa, node.children[1], inner),
         };
     }
 
@@ -395,11 +429,16 @@ const Member = struct {
         }
     }
 };
-const Ref = struct {
+/// A reference. From an included file, `path` is the path as written with the
+/// include's scope in front, and `scope_len` says how much of it that is: the
+/// path is looked up as it stands, and when that finds nothing, again without
+/// the scope, from the document root.
+pub const Ref = struct {
     path: []const Key,
     optional: bool,
+    scope_len: u16 = 0,
 
-    pub fn fromNode(gpa: std.mem.Allocator, node: Node) Error!Ref {
+    pub fn fromNode(gpa: std.mem.Allocator, node: Node, scope: []const Key) Error!Ref {
         var single = [_]Node{node.children[0]};
         const parts: []const Node = switch (node.children[0].kind) {
             .value => &single,
@@ -435,8 +474,11 @@ const Ref = struct {
         try key_list.append(gpa, .{ .value = try gpa.dupe(u8, current.items) });
 
         return .{
-            .path = try key_list.toOwnedSlice(gpa),
+            .path = try std.mem.concat(gpa, Key, &.{ scope, key_list.items }),
             .optional = if (node.kind == .subst_optional) true else false,
+            // ponytail: @intCast panics past 65535 scope keys; nobody nests that far.
+            // A u32 fits the same padding (Ref stays 24 bytes) if someone does.
+            .scope_len = @intCast(scope.len),
         };
     }
 };
@@ -457,11 +499,11 @@ test "value.a scalar keeps its text and remembers the quotes" {
     defer arena.deinit();
     const gpa = arena.allocator();
 
-    const plain = try Value.fromNode(gpa, v("1"));
+    const plain = try Value.fromNode(gpa, v("1"), .{});
     try testing.expectEqualStrings("1", plain.scalar.value);
     try testing.expect(!plain.scalar.quoted);
 
-    const quoted = try Value.fromNode(gpa, v("\"1\""));
+    const quoted = try Value.fromNode(gpa, v("\"1\""), .{});
     try testing.expectEqualStrings("1", quoted.scalar.value);
     try testing.expect(quoted.scalar.quoted);
 }
@@ -475,7 +517,7 @@ test "value.an object holds its members in written order" {
     var m2 = [_]Node{ v("y"), v("2") };
     var members = [_]Node{ n(.assignment, &m1), n(.assignment, &m2) };
 
-    const obj = try Value.fromNode(gpa, n(.block, &members));
+    const obj = try Value.fromNode(gpa, n(.block, &members), .{});
     try testing.expectEqual(@as(usize, 2), obj.object.len);
     try testing.expectEqualStrings("x", obj.object[0].key.value);
     try testing.expectEqualStrings("2", obj.object[1].value.scalar.value);
@@ -489,7 +531,7 @@ test "value.an array holds anything, nested included" {
     var inner = [_]Node{v("2")};
     var elems = [_]Node{ v("1"), n(.array, &inner) };
 
-    const arr = try Value.fromNode(gpa, n(.array, &elems));
+    const arr = try Value.fromNode(gpa, n(.array, &elems), .{});
     try testing.expectEqual(@as(usize, 2), arr.array.len);
     try testing.expectEqualStrings("1", arr.array[0].scalar.value);
     try testing.expectEqualStrings("2", arr.array[1].array[0].scalar.value);
@@ -501,13 +543,13 @@ test "value.a substitution becomes a ref, optional and all" {
     const gpa = arena.allocator();
 
     var path = [_]Node{v("a.b")};
-    const req = try Value.fromNode(gpa, n(.subst, &path));
+    const req = try Value.fromNode(gpa, n(.subst, &path), .{});
     try testing.expect(!req.ref.optional);
     try testing.expectEqual(@as(usize, 2), req.ref.path.len);
     try testing.expectEqualStrings("a", req.ref.path[0].value);
     try testing.expectEqualStrings("b", req.ref.path[1].value);
 
-    const opt = try Value.fromNode(gpa, n(.subst_optional, &path));
+    const opt = try Value.fromNode(gpa, n(.subst_optional, &path), .{});
     try testing.expect(opt.ref.optional);
 }
 
@@ -522,14 +564,21 @@ test "value.the root converts like a block" {
     var m1 = [_]Node{ v("x"), v("1") };
     var members = [_]Node{n(.assignment, &m1)};
 
-    const doc = try Value.fromNode(gpa, n(.root, &members));
+    const doc = try Value.fromNode(gpa, n(.root, &members), .{});
     try testing.expectEqual(@as(usize, 1), doc.object.len);
     try testing.expectEqualStrings("x", doc.object[0].key.value);
 }
 
-// An include is spliced into the tree before the graph is built, so one reaching
-// here is a phase that ran out of order. A bare assignment is a member, not a
-// value, and `Member.fromNode` is the one that takes it.
+// The size of a `Value` is a cost paid for every scalar of every document. A ref
+// carries the include scope as a `u16` that fits the padding after its flag.
+test "value.a ref's scope fits in the padding" {
+    try testing.expectEqual(32, @sizeOf(Value));
+    try testing.expectEqual(24, @sizeOf(Ref));
+}
+
+// An include is a member of a block, handled where the block is built, so one
+// standing where a value stands is a phase that ran out of order. A bare
+// assignment is a member, not a value, and `Member.fromNode` is the one that takes it.
 test "value.an include or a bare assignment is not a value" {
     var arena = std.heap.ArenaAllocator.init(testing.allocator);
     defer arena.deinit();
@@ -537,7 +586,7 @@ test "value.an include or a bare assignment is not a value" {
 
     var child = [_]Node{v("x")};
     for ([_]Node.NodeKind{ .include, .assignment }) |kind| {
-        try testing.expectError(Error.UnsupportedNodeKind, Value.fromNode(gpa, n(kind, &child)));
+        try testing.expectError(Error.UnsupportedNodeKind, Value.fromNode(gpa, n(kind, &child), .{}));
     }
 }
 
@@ -567,25 +616,25 @@ test "value.lists concatenate flatly at load" {
     var a3 = [_]Node{v("3")};
 
     var pair = [_]Node{ n(.array, &a1), v(" "), n(.array, &a2) };
-    const two = try Value.fromNode(gpa, n(.concat, &pair));
+    const two = try Value.fromNode(gpa, n(.concat, &pair), .{});
     try testing.expectEqual(@as(usize, 2), two.array.len);
     try testing.expectEqualStrings("1", two.array[0].scalar.value);
     try testing.expectEqualStrings("2", two.array[1].scalar.value);
 
     var triple = [_]Node{ n(.array, &a1), v(" "), n(.array, &a2), v(" "), n(.array, &a3) };
-    const three = try Value.fromNode(gpa, n(.concat, &triple));
+    const three = try Value.fromNode(gpa, n(.concat, &triple), .{});
     try testing.expectEqual(@as(usize, 3), three.array.len);
     try testing.expectEqualStrings("3", three.array[2].scalar.value);
 
     var empty = [_]Node{};
     var with_empty = [_]Node{ n(.array, &a1), v(" "), n(.array, &empty) };
-    const kept = try Value.fromNode(gpa, n(.concat, &with_empty));
+    const kept = try Value.fromNode(gpa, n(.concat, &with_empty), .{});
     try testing.expectEqual(@as(usize, 1), kept.array.len);
 
     var outer1 = [_]Node{n(.array, &a1)};
     var outer2 = [_]Node{n(.array, &a2)};
     var nested = [_]Node{ n(.array, &outer1), v(" "), n(.array, &outer2) };
-    const deep = try Value.fromNode(gpa, n(.concat, &nested));
+    const deep = try Value.fromNode(gpa, n(.concat, &nested), .{});
     try testing.expectEqual(@as(usize, 2), deep.array.len);
     try testing.expectEqualStrings("1", deep.array[0].array[0].scalar.value);
     try testing.expectEqualStrings("2", deep.array[1].array[0].scalar.value);
@@ -618,7 +667,7 @@ test "value.a ref parts the lists around it without stopping them" {
     const subst = n(.subst, &path);
 
     var single = [_]Node{ n(.array, &a1), v(" "), subst, v(" "), n(.array, &a2) };
-    const p = try Value.fromNode(gpa, n(.concat, &single));
+    const p = try Value.fromNode(gpa, n(.concat, &single), .{});
     try testing.expectEqual(@as(usize, 3), p.pending.len);
     try testing.expect(p.pending[0] == .array);
     try testing.expect(p.pending[1] == .ref);
@@ -631,7 +680,7 @@ test "value.a ref parts the lists around it without stopping them" {
         subst,          v(" "), n(.array, &a3), v(" "),
         n(.array, &a4),
     };
-    const q = try Value.fromNode(gpa, n(.concat, &runs));
+    const q = try Value.fromNode(gpa, n(.concat, &runs), .{});
     try testing.expectEqual(@as(usize, 3), q.pending.len);
     try testing.expectEqual(@as(usize, 2), q.pending[0].array.len);
     try testing.expectEqualStrings("1", q.pending[0].array[0].scalar.value);
@@ -656,12 +705,12 @@ test "value.text parts join, gaps and all" {
     const gpa = arena.allocator();
 
     var texts = [_]Node{ v("grumpy"), v(" "), v("\"wombat\"") };
-    const text = try Value.fromNode(gpa, n(.concat, &texts));
+    const text = try Value.fromNode(gpa, n(.concat, &texts), .{});
     try testing.expectEqualStrings("grumpy wombat", text.scalar.value);
     try testing.expect(text.scalar.quoted);
 
     var spaced = [_]Node{ v("1"), v(" "), v("\" x\"") };
-    const joined = try Value.fromNode(gpa, n(.concat, &spaced));
+    const joined = try Value.fromNode(gpa, n(.concat, &spaced), .{});
     try testing.expectEqualStrings("1  x", joined.scalar.value);
     try testing.expect(joined.scalar.quoted);
 }
@@ -688,7 +737,7 @@ test "value.objects merge by key, recursively" {
     var b1 = [_]Node{n(.assignment, &m1)};
     var b2 = [_]Node{n(.assignment, &m2)};
     var objs = [_]Node{ n(.block, &b1), v(" "), n(.block, &b2) };
-    const obj = try Value.fromNode(gpa, n(.concat, &objs));
+    const obj = try Value.fromNode(gpa, n(.concat, &objs), .{});
     try testing.expectEqual(@as(usize, 2), obj.object.len);
     try testing.expectEqualStrings("x", obj.object[0].key.value);
     try testing.expectEqualStrings("y", obj.object[1].key.value);
@@ -701,7 +750,7 @@ test "value.objects merge by key, recursively" {
     var left = [_]Node{ n(.assignment, &l1), n(.assignment, &l2) };
     var right = [_]Node{ n(.assignment, &r1), n(.assignment, &r2) };
     var overlap = [_]Node{ n(.block, &left), v(" "), n(.block, &right) };
-    const o = try Value.fromNode(gpa, n(.concat, &overlap));
+    const o = try Value.fromNode(gpa, n(.concat, &overlap), .{});
     try testing.expectEqual(@as(usize, 3), o.object.len);
     try testing.expectEqualStrings("b", o.object[0].key.value);
     try testing.expectEqualStrings("c", o.object[1].key.value);
@@ -718,7 +767,7 @@ test "value.objects merge by key, recursively" {
     var wrap_l = [_]Node{n(.assignment, &outer_l)};
     var wrap_r = [_]Node{n(.assignment, &outer_r)};
     var nested = [_]Node{ n(.block, &wrap_l), v(" "), n(.block, &wrap_r) };
-    const d = try Value.fromNode(gpa, n(.concat, &nested));
+    const d = try Value.fromNode(gpa, n(.concat, &nested), .{});
     try testing.expectEqual(@as(usize, 1), d.object.len);
     try testing.expectEqual(@as(usize, 2), d.object[0].value.object.len);
     try testing.expectEqualStrings("c", d.object[0].value.object[0].key.value);
@@ -732,7 +781,7 @@ test "value.objects merge by key, recursively" {
     var wl = [_]Node{n(.assignment, &kl)};
     var wr = [_]Node{n(.assignment, &kr)};
     var lists = [_]Node{ n(.block, &wl), v(" "), n(.block, &wr) };
-    const w = try Value.fromNode(gpa, n(.concat, &lists));
+    const w = try Value.fromNode(gpa, n(.concat, &lists), .{});
     try testing.expectEqual(@as(usize, 1), w.object.len);
     try testing.expectEqual(@as(usize, 1), w.object[0].value.array.len);
     try testing.expectEqualStrings("2", w.object[0].value.array[0].scalar.value);
@@ -764,25 +813,25 @@ test "value.a ref needs no gap to stand apart" {
     var assigns = [_]Node{n(.assignment, &m)};
 
     var after = [_]Node{ sx, v("\"c\"") };
-    const a = try Value.fromNode(gpa, n(.concat, &after));
+    const a = try Value.fromNode(gpa, n(.concat, &after), .{});
     try testing.expectEqual(@as(usize, 2), a.pending.len);
     try testing.expect(a.pending[0] == .ref);
     try testing.expectEqualStrings("c", a.pending[1].scalar.value);
 
     var before = [_]Node{ v("\"c\""), sx };
-    const b = try Value.fromNode(gpa, n(.concat, &before));
+    const b = try Value.fromNode(gpa, n(.concat, &before), .{});
     try testing.expectEqual(@as(usize, 2), b.pending.len);
     try testing.expectEqualStrings("c", b.pending[0].scalar.value);
     try testing.expect(b.pending[1] == .ref);
 
     var with_list = [_]Node{ sx, n(.array, &elems) };
-    const l = try Value.fromNode(gpa, n(.concat, &with_list));
+    const l = try Value.fromNode(gpa, n(.concat, &with_list), .{});
     try testing.expectEqual(@as(usize, 2), l.pending.len);
     try testing.expect(l.pending[0] == .ref);
     try testing.expect(l.pending[1] == .array);
 
     var with_block = [_]Node{ sx, n(.block, &assigns) };
-    const o = try Value.fromNode(gpa, n(.concat, &with_block));
+    const o = try Value.fromNode(gpa, n(.concat, &with_block), .{});
     try testing.expectEqual(@as(usize, 2), o.pending.len);
     try testing.expect(o.pending[0] == .ref);
     try testing.expect(o.pending[1] == .object);
@@ -800,7 +849,7 @@ test "value.an empty concatenation is an error, not an index out of range" {
     var none = [_]Node{};
     try testing.expectError(
         Error.UnsupportedConcatenation,
-        Value.fromNode(gpa, n(.concat, &none)),
+        Value.fromNode(gpa, n(.concat, &none), .{}),
     );
 }
 
@@ -832,7 +881,7 @@ test "value.mixing containers with anything else fails at load" {
     for ([_][]Node{ &scalar_array, &array_block, &block_scalar, &before_ref }) |parts| {
         try testing.expectError(
             Error.UnsupportedConcatenation,
-            Value.fromNode(gpa, n(.concat, parts)),
+            Value.fromNode(gpa, n(.concat, parts), .{}),
         );
     }
 }
@@ -865,7 +914,7 @@ test "value.a gap lives or dies by its neighbours" {
 
     // between two refs it has nowhere to go, so it stands alone
     var alone = [_]Node{ sx, v(" "), sy };
-    const a = try Value.fromNode(gpa, n(.concat, &alone));
+    const a = try Value.fromNode(gpa, n(.concat, &alone), .{});
     try testing.expectEqual(@as(usize, 3), a.pending.len);
     try testing.expect(a.pending[0] == .ref);
     try testing.expectEqualStrings(" ", a.pending[1].scalar.value);
@@ -873,13 +922,13 @@ test "value.a gap lives or dies by its neighbours" {
 
     // next to text it is a character of that text, from either side
     var right = [_]Node{ sx, v(" "), v("\"c\"") };
-    const r = try Value.fromNode(gpa, n(.concat, &right));
+    const r = try Value.fromNode(gpa, n(.concat, &right), .{});
     try testing.expectEqual(@as(usize, 2), r.pending.len);
     try testing.expect(r.pending[0] == .ref);
     try testing.expectEqualStrings(" c", r.pending[1].scalar.value);
 
     var left = [_]Node{ v("\"c\""), v(" "), sx };
-    const l = try Value.fromNode(gpa, n(.concat, &left));
+    const l = try Value.fromNode(gpa, n(.concat, &left), .{});
     try testing.expectEqual(@as(usize, 2), l.pending.len);
     try testing.expectEqualStrings("c ", l.pending[0].scalar.value);
     try testing.expect(l.pending[1] == .ref);
@@ -887,7 +936,7 @@ test "value.a gap lives or dies by its neighbours" {
     // next to a container it is a separator and disappears
     var elems = [_]Node{v("1")};
     var with_list = [_]Node{ n(.array, &elems), v(" "), sx };
-    const wl = try Value.fromNode(gpa, n(.concat, &with_list));
+    const wl = try Value.fromNode(gpa, n(.concat, &with_list), .{});
     try testing.expectEqual(@as(usize, 2), wl.pending.len);
     try testing.expect(wl.pending[0] == .array);
     try testing.expect(wl.pending[1] == .ref);
@@ -895,7 +944,7 @@ test "value.a gap lives or dies by its neighbours" {
     var m = [_]Node{ v("b"), v("1") };
     var assigns = [_]Node{n(.assignment, &m)};
     var with_block = [_]Node{ sx, v(" "), n(.block, &assigns) };
-    const wb = try Value.fromNode(gpa, n(.concat, &with_block));
+    const wb = try Value.fromNode(gpa, n(.concat, &with_block), .{});
     try testing.expectEqual(@as(usize, 2), wb.pending.len);
     try testing.expect(wb.pending[0] == .ref);
     try testing.expect(wb.pending[1] == .object);
@@ -921,7 +970,7 @@ test "value.a key written twice in one block is one member" {
     var d1 = [_]Node{ v("b"), v("1") };
     var d2 = [_]Node{ v("b"), v("2") };
     var dup = [_]Node{ n(.assignment, &d1), n(.assignment, &d2) };
-    const one = try Value.fromNode(gpa, n(.block, &dup));
+    const one = try Value.fromNode(gpa, n(.block, &dup), .{});
     try testing.expectEqual(@as(usize, 1), one.object.len);
     try testing.expectEqualStrings("b", one.object[0].key.value);
     try testing.expectEqualStrings("2", one.object[0].value.scalar.value);
@@ -931,7 +980,7 @@ test "value.a key written twice in one block is one member" {
     var o2 = [_]Node{ v("c"), v("2") };
     var o3 = [_]Node{ v("b"), v("3") };
     var ordered = [_]Node{ n(.assignment, &o1), n(.assignment, &o2), n(.assignment, &o3) };
-    const ord = try Value.fromNode(gpa, n(.block, &ordered));
+    const ord = try Value.fromNode(gpa, n(.block, &ordered), .{});
     try testing.expectEqual(@as(usize, 2), ord.object.len);
     try testing.expectEqualStrings("b", ord.object[0].key.value);
     try testing.expectEqualStrings("3", ord.object[0].value.scalar.value);
@@ -945,7 +994,7 @@ test "value.a key written twice in one block is one member" {
     var n1 = [_]Node{ v("b"), n(.block, &bx) };
     var n2 = [_]Node{ v("b"), n(.block, &by) };
     var nested = [_]Node{ n(.assignment, &n1), n(.assignment, &n2) };
-    const deep = try Value.fromNode(gpa, n(.block, &nested));
+    const deep = try Value.fromNode(gpa, n(.block, &nested), .{});
     try testing.expectEqual(@as(usize, 1), deep.object.len);
     try testing.expectEqual(@as(usize, 2), deep.object[0].value.object.len);
     try testing.expectEqualStrings("x", deep.object[0].value.object[0].key.value);
@@ -957,7 +1006,7 @@ test "value.a key written twice in one block is one member" {
     var l1 = [_]Node{ v("b"), n(.array, &e1) };
     var l2 = [_]Node{ v("b"), n(.array, &e2) };
     var lists = [_]Node{ n(.assignment, &l1), n(.assignment, &l2) };
-    const won = try Value.fromNode(gpa, n(.block, &lists));
+    const won = try Value.fromNode(gpa, n(.block, &lists), .{});
     try testing.expectEqual(@as(usize, 1), won.object.len);
     try testing.expectEqual(@as(usize, 1), won.object[0].value.array.len);
     try testing.expectEqualStrings("2", won.object[0].value.array[0].scalar.value);
@@ -982,25 +1031,25 @@ test "ref.a quoted dot is a character, not a separator" {
     const gpa = arena.allocator();
 
     var plain = [_]Node{v("x.y")};
-    const p = try Value.fromNode(gpa, n(.subst, &plain));
+    const p = try Value.fromNode(gpa, n(.subst, &plain), .{});
     try testing.expectEqual(@as(usize, 2), p.ref.path.len);
     try testing.expectEqualStrings("x", p.ref.path[0].value);
     try testing.expectEqualStrings("y", p.ref.path[1].value);
 
     var parts = [_]Node{ v("x."), v("\"y.z\"") };
     var quoted_tail = [_]Node{n(.concat, &parts)};
-    const q = try Value.fromNode(gpa, n(.subst, &quoted_tail));
+    const q = try Value.fromNode(gpa, n(.subst, &quoted_tail), .{});
     try testing.expectEqual(@as(usize, 2), q.ref.path.len);
     try testing.expectEqualStrings("x", q.ref.path[0].value);
     try testing.expectEqualStrings("y.z", q.ref.path[1].value);
 
     var whole = [_]Node{v("\"a.b\"")};
-    const w = try Value.fromNode(gpa, n(.subst, &whole));
+    const w = try Value.fromNode(gpa, n(.subst, &whole), .{});
     try testing.expectEqual(@as(usize, 1), w.ref.path.len);
     try testing.expectEqualStrings("a.b", w.ref.path[0].value);
 
     var single = [_]Node{v("x")};
-    const one = try Value.fromNode(gpa, n(.subst, &single));
+    const one = try Value.fromNode(gpa, n(.subst, &single), .{});
     try testing.expectEqual(@as(usize, 1), one.ref.path.len);
     try testing.expectEqualStrings("x", one.ref.path[0].value);
 
@@ -1030,7 +1079,7 @@ test "ref.a quoted dot is a character, not a separator" {
     for ([_][]Node{ &p1, &p2, &p3, &p4, &p5 }, want, 0..) |path_parts, expected, i| {
         errdefer std.debug.print("failed on path {d}\n", .{i});
         var child = [_]Node{n(.concat, path_parts)};
-        const r = try Value.fromNode(gpa, n(.subst, &child));
+        const r = try Value.fromNode(gpa, n(.subst, &child), .{});
         try testing.expectEqual(expected.len, r.ref.path.len);
         for (expected, r.ref.path) |e, got| try testing.expectEqualStrings(e, got.value);
     }
@@ -1054,7 +1103,7 @@ test "value.a key made of several parts is one member" {
     var spaced = [_]Node{ v("\"a\""), v(" "), v("b") };
     var m2 = [_]Node{ n(.concat, &spaced), v("c") };
     var members = [_]Node{ n(.assignment, &m1), n(.assignment, &m2) };
-    const o = try Value.fromNode(gpa, n(.block, &members));
+    const o = try Value.fromNode(gpa, n(.block, &members), .{});
     try testing.expectEqual(@as(usize, 2), o.object.len);
     try testing.expectEqualStrings("ab", o.object[0].key.value);
     try testing.expectEqualStrings("a b", o.object[1].key.value);
@@ -1090,7 +1139,7 @@ test "ref.an unquoted empty element is a BadPath" {
     for ([_][]Node{ &b1, &b2, &b3, &b4, &b5 }, 0..) |path_parts, i| {
         errdefer std.debug.print("failed on bad path {d}\n", .{i});
         var child = [_]Node{n(.concat, path_parts)};
-        try testing.expectError(Error.MalformedKey, Value.fromNode(gpa, n(.subst, &child)));
+        try testing.expectError(Error.MalformedKey, Value.fromNode(gpa, n(.subst, &child), .{}));
     }
 
     // Written as `""`, the empty element is an element like any other.
@@ -1100,7 +1149,7 @@ test "ref.an unquoted empty element is a BadPath" {
     for ([_][]Node{ &ok1, &ok2 }, want, 0..) |path_parts, expected, i| {
         errdefer std.debug.print("failed on legal path {d}\n", .{i});
         var child = [_]Node{n(.concat, path_parts)};
-        const r = try Value.fromNode(gpa, n(.subst, &child));
+        const r = try Value.fromNode(gpa, n(.subst, &child), .{});
         try testing.expectEqual(expected.len, r.ref.path.len);
         for (expected, r.ref.path) |e, got| try testing.expectEqualStrings(e, got.value);
     }
@@ -1128,13 +1177,13 @@ test "value.a ref or a pending stands inside a container too" {
     var e1 = [_]Node{v("1")};
 
     var elems = [_]Node{sx};
-    const arr = try Value.fromNode(gpa, n(.array, &elems));
+    const arr = try Value.fromNode(gpa, n(.array, &elems), .{});
     try testing.expectEqual(@as(usize, 1), arr.array.len);
     try testing.expect(arr.array[0] == .ref);
 
     var inner = [_]Node{ sx, v(" "), n(.array, &e1) };
     var wrapped = [_]Node{n(.concat, &inner)};
-    const nested = try Value.fromNode(gpa, n(.array, &wrapped));
+    const nested = try Value.fromNode(gpa, n(.array, &wrapped), .{});
     try testing.expectEqual(@as(usize, 1), nested.array.len);
     try testing.expectEqual(@as(usize, 2), nested.array[0].pending.len);
     try testing.expect(nested.array[0].pending[0] == .ref);
@@ -1142,7 +1191,7 @@ test "value.a ref or a pending stands inside a container too" {
 
     var member = [_]Node{ v("b"), n(.concat, &inner) };
     var members = [_]Node{n(.assignment, &member)};
-    const obj = try Value.fromNode(gpa, n(.block, &members));
+    const obj = try Value.fromNode(gpa, n(.block, &members), .{});
     try testing.expectEqual(@as(usize, 1), obj.object.len);
     try testing.expectEqualStrings("b", obj.object[0].key.value);
     try testing.expectEqual(@as(usize, 2), obj.object[0].value.pending.len);
@@ -1170,7 +1219,7 @@ test "value.an optional substitution parts a concatenation like any ref" {
     var px = [_]Node{v("x")};
     var e1 = [_]Node{v("1")};
     var parts = [_]Node{ n(.subst_optional, &px), v(" "), n(.array, &e1) };
-    const p = try Value.fromNode(gpa, n(.concat, &parts));
+    const p = try Value.fromNode(gpa, n(.concat, &parts), .{});
     try testing.expectEqual(@as(usize, 2), p.pending.len);
     try testing.expect(p.pending[0] == .ref);
     try testing.expect(p.pending[0].ref.optional);
@@ -1178,7 +1227,7 @@ test "value.an optional substitution parts a concatenation like any ref" {
 
     // and between two texts the gap is still a part of its own
     var texts = [_]Node{ v("1"), v(" "), n(.subst_optional, &px), v(" "), v("2") };
-    const t = try Value.fromNode(gpa, n(.concat, &texts));
+    const t = try Value.fromNode(gpa, n(.concat, &texts), .{});
     try testing.expectEqual(@as(usize, 3), t.pending.len);
     try testing.expectEqualStrings("1 ", t.pending[0].scalar.value);
     try testing.expect(t.pending[1].ref.optional);
@@ -1203,20 +1252,20 @@ test "value.null, booleans and numbers are text at this layer" {
 
     for ([_][]const u8{ "null", "true", "false", "1.5e10" }) |word| {
         errdefer std.debug.print("failed on {s}\n", .{word});
-        const val = try Value.fromNode(gpa, v(word));
+        const val = try Value.fromNode(gpa, v(word), .{});
         try testing.expectEqualStrings(word, val.scalar.value);
         try testing.expect(!val.scalar.quoted);
     }
 
     var joined = [_]Node{ v("null"), v(" "), v("\"x\"") };
-    const j = try Value.fromNode(gpa, n(.concat, &joined));
+    const j = try Value.fromNode(gpa, n(.concat, &joined), .{});
     try testing.expectEqualStrings("null x", j.scalar.value);
 
     var e1 = [_]Node{v("1")};
     var mixed = [_]Node{ n(.array, &e1), v(" "), v("null") };
     try testing.expectError(
         Error.UnsupportedConcatenation,
-        Value.fromNode(gpa, n(.concat, &mixed)),
+        Value.fromNode(gpa, n(.concat, &mixed), .{}),
     );
 }
 
@@ -1241,12 +1290,12 @@ test "value.an empty quoted string is a value, not a gap" {
     for ([_][]Node{ &after, &before, &spaced }) |parts| {
         try testing.expectError(
             Error.UnsupportedConcatenation,
-            Value.fromNode(gpa, n(.concat, parts)),
+            Value.fromNode(gpa, n(.concat, parts), .{}),
         );
     }
 
     var texts = [_]Node{ v("\"\""), v(" "), v("\"x\"") };
-    const t = try Value.fromNode(gpa, n(.concat, &texts));
+    const t = try Value.fromNode(gpa, n(.concat, &texts), .{});
     try testing.expectEqualStrings(" x", t.scalar.value);
 }
 
@@ -1269,26 +1318,26 @@ test "value.an empty container joins without adding anything" {
     var assigns = [_]Node{n(.assignment, &m)};
 
     var lists = [_]Node{ n(.array, &none), v(" "), n(.array, &e1) };
-    const l = try Value.fromNode(gpa, n(.concat, &lists));
+    const l = try Value.fromNode(gpa, n(.concat, &lists), .{});
     try testing.expectEqual(@as(usize, 1), l.array.len);
 
     var left_empty = [_]Node{ n(.block, &none), v(" "), n(.block, &assigns) };
-    const le = try Value.fromNode(gpa, n(.concat, &left_empty));
+    const le = try Value.fromNode(gpa, n(.concat, &left_empty), .{});
     try testing.expectEqual(@as(usize, 1), le.object.len);
     try testing.expectEqualStrings("b", le.object[0].key.value);
 
     var right_empty = [_]Node{ n(.block, &assigns), v(" "), n(.block, &none) };
-    const re = try Value.fromNode(gpa, n(.concat, &right_empty));
+    const re = try Value.fromNode(gpa, n(.concat, &right_empty), .{});
     try testing.expectEqual(@as(usize, 1), re.object.len);
 
     var both = [_]Node{ n(.block, &none), v(" "), n(.block, &none) };
-    const b = try Value.fromNode(gpa, n(.concat, &both));
+    const b = try Value.fromNode(gpa, n(.concat, &both), .{});
     try testing.expectEqual(@as(usize, 0), b.object.len);
 
     var crossed = [_]Node{ n(.block, &none), v(" "), n(.array, &e1) };
     try testing.expectError(
         Error.UnsupportedConcatenation,
-        Value.fromNode(gpa, n(.concat, &crossed)),
+        Value.fromNode(gpa, n(.concat, &crossed), .{}),
     );
 }
 
@@ -1307,18 +1356,18 @@ test "value.a multi-line part joins without reprocessing it" {
     const gpa = arena.allocator();
 
     var simple = [_]Node{ v("\"\"\"a\"\"\""), v(" "), v("\"b\"") };
-    const s1 = try Value.fromNode(gpa, n(.concat, &simple));
+    const s1 = try Value.fromNode(gpa, n(.concat, &simple), .{});
     try testing.expectEqualStrings("a b", s1.scalar.value);
     try testing.expect(s1.scalar.quoted);
 
     // inside """ a backslash-n is those two characters; the quoted part beside
     // it turns its own into a newline, and both survive the join as they are
     var mixed = [_]Node{ v("\"\"\"a\\nb\"\"\""), v(" "), v("\"c\\nd\"") };
-    const s2 = try Value.fromNode(gpa, n(.concat, &mixed));
+    const s2 = try Value.fromNode(gpa, n(.concat, &mixed), .{});
     try testing.expectEqualStrings("a\\nb c\nd", s2.scalar.value);
 
     var leading = [_]Node{ v("x"), v(" "), v("\"\"\"y\"\"\"") };
-    const s3 = try Value.fromNode(gpa, n(.concat, &leading));
+    const s3 = try Value.fromNode(gpa, n(.concat, &leading), .{});
     try testing.expectEqualStrings("x y", s3.scalar.value);
 }
 
@@ -1335,7 +1384,7 @@ test "value.tabs separate, and a key can be met more than twice" {
     var e1 = [_]Node{v("1")};
     var e2 = [_]Node{v("2")};
     var tabbed = [_]Node{ n(.array, &e1), v("\t"), n(.array, &e2) };
-    const t = try Value.fromNode(gpa, n(.concat, &tabbed));
+    const t = try Value.fromNode(gpa, n(.concat, &tabbed), .{});
     try testing.expectEqual(@as(usize, 2), t.array.len);
 
     var k1 = [_]Node{ v("a"), v("1") };
@@ -1345,7 +1394,7 @@ test "value.tabs separate, and a key can be met more than twice" {
     var b2 = [_]Node{n(.assignment, &k2)};
     var b3 = [_]Node{n(.assignment, &k3)};
     var three = [_]Node{ n(.block, &b1), v(" "), n(.block, &b2), v(" "), n(.block, &b3) };
-    const o = try Value.fromNode(gpa, n(.concat, &three));
+    const o = try Value.fromNode(gpa, n(.concat, &three), .{});
     try testing.expectEqual(@as(usize, 2), o.object.len);
     try testing.expectEqualStrings("a", o.object[0].key.value);
     try testing.expectEqualStrings("3", o.object[0].value.scalar.value);
@@ -1364,7 +1413,7 @@ fn expectResolved(src: [:0]const u8, expected: []const u8) !void {
     const gpa = arena.allocator();
 
     var parser = Ast.Parser{ .gpa = gpa, .t = .{ .t = @import("Tokenizer.zig").Tokenizer.init(src) } };
-    var root = try Value.fromNode(gpa, try parser.parse());
+    var root = try Value.fromNode(gpa, try parser.parse(), .{});
     try root.resolve(gpa);
     try testing.expectEqualStrings(expected, try std.json.Stringify.valueAlloc(gpa, root, .{}));
 }
@@ -1375,7 +1424,7 @@ fn expectResolveError(src: [:0]const u8, expected: anyerror) !void {
     const gpa = arena.allocator();
 
     var parser = Ast.Parser{ .gpa = gpa, .t = .{ .t = @import("Tokenizer.zig").Tokenizer.init(src) } };
-    var root = try Value.fromNode(gpa, try parser.parse());
+    var root = try Value.fromNode(gpa, try parser.parse(), .{});
     try testing.expectError(expected, root.resolve(gpa));
 }
 

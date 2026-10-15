@@ -1,15 +1,15 @@
 {
   "suite": "hocon-conformance",
   "implementation": "zig-hocon",
-  "version": "zig-hocon code@9476c61",
+  "version": "zig-hocon code@d1849e1",
   "mode": "java",
   "java_version": "1.4.9",
   "command": "conformance/adapters/zig-hocon.sh",
-  "ran_at": "2026-10-10T20:35:12Z",
+  "ran_at": "2026-10-15T05:03:13Z",
   "suite_digest": "2fe52df92f49aea2",
   "total": 445,
-  "passed": 310,
-  "percent": 69.7,
+  "passed": 348,
+  "percent": 78.2,
   "sections": {
     "array-and-object-concatenation": {
       "total": 19,
@@ -33,7 +33,7 @@
     },
     "config-and-file-merging": {
       "total": 4,
-      "passed": 0
+      "passed": 4
     },
     "duplicate-keys-and-object-merging": {
       "total": 28,
@@ -45,27 +45,27 @@
     },
     "include-file-formats": {
       "total": 23,
-      "passed": 11
+      "passed": 19
     },
     "include-locating": {
       "total": 5,
-      "passed": 0
+      "passed": 5
     },
     "include-merging": {
       "total": 15,
-      "passed": 3
+      "passed": 10
     },
     "include-missing-and-required": {
       "total": 6,
-      "passed": 2
+      "passed": 6
     },
     "include-substitution": {
       "total": 19,
-      "passed": 5
+      "passed": 13
     },
     "include-syntax": {
       "total": 15,
-      "passed": 11
+      "passed": 14
     },
     "key-value-separator": {
       "total": 6,
@@ -93,7 +93,7 @@
     },
     "paths-as-keys": {
       "total": 11,
-      "passed": 11
+      "passed": 10
     },
     "period-format": {
       "total": 7,
@@ -211,10 +211,10 @@
     "concatenation-whitespace-and-substitutions/007-zero-width-space-between-list-substitutions-is-error.conf": "fail",
     "concatenation-whitespace-and-substitutions/008-list-then-undefined-optional-is-the-list.conf": "pass",
     "concatenation-whitespace-and-substitutions/009-undefined-optional-then-list-is-the-list.conf": "fail",
-    "config-and-file-merging/002-file-merge-is-recursive-and-later-file-wins/main.conf": "fail",
-    "config-and-file-merging/003-non-object-between-files-hides-earlier-object/main.conf": "fail",
-    "config-and-file-merging/004-adjacent-objects-across-files-merge/main.conf": "fail",
-    "config-and-file-merging/005-null-clears-included-object/main.conf": "fail",
+    "config-and-file-merging/002-file-merge-is-recursive-and-later-file-wins/main.conf": "pass",
+    "config-and-file-merging/003-non-object-between-files-hides-earlier-object/main.conf": "pass",
+    "config-and-file-merging/004-adjacent-objects-across-files-merge/main.conf": "pass",
+    "config-and-file-merging/005-null-clears-included-object/main.conf": "pass",
     "duplicate-keys-and-object-merging/001-later-scalar-wins.conf": "pass",
     "duplicate-keys-and-object-merging/002-objects-merge.conf": "pass",
     "duplicate-keys-and-object-merging/003-scalar-breaks-the-merge.conf": "pass",
@@ -252,15 +252,15 @@
     "duration-format/007-minutes-spellings.conf": "pass",
     "duration-format/008-hours-spellings.conf": "pass",
     "duration-format/009-days-spellings.conf": "pass",
-    "include-file-formats/001-basename-loads-every-extension/main.conf": "fail",
-    "include-file-formats/002-basename-with-only-conf/main.conf": "fail",
-    "include-file-formats/003-basename-with-only-properties/main.conf": "fail",
-    "include-file-formats/004-basename-with-no-file-is-ignored.conf": "fail",
+    "include-file-formats/001-basename-loads-every-extension/main.conf": "pass",
+    "include-file-formats/002-basename-with-only-conf/main.conf": "pass",
+    "include-file-formats/003-basename-with-only-properties/main.conf": "pass",
+    "include-file-formats/004-basename-with-no-file-is-ignored.conf": "pass",
     "include-file-formats/005-required-basename-with-no-file-is-error.conf": "pass",
     "include-file-formats/006-json-extension-means-json-syntax/main.conf": "fail",
-    "include-file-formats/007-properties-extension-means-properties-syntax/main.conf": "pass",
-    "include-file-formats/008-properties-keys-are-paths/main.conf": "fail",
-    "include-file-formats/010-json-file-with-every-value-type/main.conf": "fail",
+    "include-file-formats/007-properties-extension-means-properties-syntax/main.conf": "fail",
+    "include-file-formats/008-properties-keys-are-paths/main.conf": "pass",
+    "include-file-formats/010-json-file-with-every-value-type/main.conf": "pass",
     "include-file-formats/011-json-rejects-unquoted-values/main.conf": "pass",
     "include-file-formats/012-json-rejects-substitutions/main.conf": "pass",
     "include-file-formats/013-json-rejects-trailing-comma/main.conf": "pass",
@@ -270,56 +270,56 @@
     "include-file-formats/017-json-rejects-scalar-root/main.conf": "pass",
     "include-file-formats/019-json-key-must-be-a-string/main.conf": "pass",
     "include-file-formats/020-json-newline-is-not-a-separator/main.conf": "pass",
-    "include-file-formats/022-json-dotted-key-is-one-key/main.conf": "fail",
+    "include-file-formats/022-json-dotted-key-is-one-key/main.conf": "pass",
     "include-file-formats/023-json-leading-zero-illegal/main.conf": "fail",
     "include-file-formats/024-unknown-extension-is-not-a-basename/main.conf": "fail",
-    "include-file-formats/025-json-is-parsed-after-properties/main.conf": "fail",
-    "include-file-formats/026-conf-is-parsed-after-json/main.conf": "fail",
-    "include-locating/001-include-string-that-is-a-url-is-a-url.conf": "fail",
-    "include-locating/002-nested-include-is-relative-to-the-including-file/main.conf": "fail",
-    "include-locating/003-plain-name-is-a-file-beside-the-including-one/main.conf": "fail",
-    "include-locating/004-absolute-path-stays-absolute/main.conf": "fail",
-    "include-locating/005-file-argument-is-not-relative-to-the-including-file/main.conf": "fail",
-    "include-merging/001-included-keys-merge-in-place/main.conf": "fail",
+    "include-file-formats/025-json-is-parsed-after-properties/main.conf": "pass",
+    "include-file-formats/026-conf-is-parsed-after-json/main.conf": "pass",
+    "include-locating/001-include-string-that-is-a-url-is-a-url.conf": "pass",
+    "include-locating/002-nested-include-is-relative-to-the-including-file/main.conf": "pass",
+    "include-locating/003-plain-name-is-a-file-beside-the-including-one/main.conf": "pass",
+    "include-locating/004-absolute-path-stays-absolute/main.conf": "pass",
+    "include-locating/005-file-argument-is-not-relative-to-the-including-file/main.conf": "pass",
+    "include-merging/001-included-keys-merge-in-place/main.conf": "pass",
     "include-merging/002-included-conf-array-root-is-error/main.conf": "pass",
     "include-merging/003-included-json-array-root-is-error/main.conf": "pass",
-    "include-merging/004-include-inside-nested-object/main.conf": "fail",
-    "include-merging/005-included-scalar-overrides-earlier-key/main.conf": "fail",
-    "include-merging/006-included-object-merges-with-earlier-object/main.conf": "fail",
-    "include-merging/007-included-scalar-replaces-earlier-object/main.conf": "fail",
-    "include-merging/008-later-key-overrides-included-key/main.conf": "fail",
-    "include-merging/009-later-object-merges-with-included-object/main.conf": "fail",
-    "include-merging/010-include-inside-an-object-inside-a-list/main.conf": "fail",
-    "include-merging/011-include-inside-a-list-with-a-substitution/main.conf": "pass",
+    "include-merging/004-include-inside-nested-object/main.conf": "pass",
+    "include-merging/005-included-scalar-overrides-earlier-key/main.conf": "pass",
+    "include-merging/006-included-object-merges-with-earlier-object/main.conf": "pass",
+    "include-merging/007-included-scalar-replaces-earlier-object/main.conf": "pass",
+    "include-merging/008-later-key-overrides-included-key/main.conf": "pass",
+    "include-merging/009-later-object-merges-with-included-object/main.conf": "pass",
+    "include-merging/010-include-inside-an-object-inside-a-list/main.conf": "pass",
+    "include-merging/011-include-inside-a-list-with-a-substitution/main.conf": "fail",
     "include-merging/012-included-merge-stack-over-earlier-object/main.conf": "fail",
     "include-merging/013-included-merge-stack-over-earlier-substitution/main.conf": "fail",
     "include-merging/014-included-merge-stack-over-earlier-scalar/main.conf": "fail",
     "include-merging/015-included-object-on-top-of-substitution-over-earlier-substitution/main.conf": "fail",
-    "include-missing-and-required/001-missing-include-ignored/main.conf": "fail",
-    "include-missing-and-required/002-missing-include-is-empty-object/main.conf": "fail",
-    "include-missing-and-required/003-missing-file-include-ignored/main.conf": "fail",
+    "include-missing-and-required/001-missing-include-ignored/main.conf": "pass",
+    "include-missing-and-required/002-missing-include-is-empty-object/main.conf": "pass",
+    "include-missing-and-required/003-missing-file-include-ignored/main.conf": "pass",
     "include-missing-and-required/004-required-missing-is-error/main.conf": "pass",
     "include-missing-and-required/005-required-file-missing-is-error/main.conf": "pass",
-    "include-missing-and-required/006-required-present-is-included/main.conf": "fail",
-    "include-substitution/001-substitution-relativized-to-include-scope/main.conf": "fail",
-    "include-substitution/002-relativized-path-sees-later-redefinition/main.conf": "fail",
-    "include-substitution/003-original-path-tried-as-fallback/main.conf": "fail",
-    "include-substitution/004-relativized-path-tried-before-original/main.conf": "fail",
+    "include-missing-and-required/006-required-present-is-included/main.conf": "pass",
+    "include-substitution/001-substitution-relativized-to-include-scope/main.conf": "pass",
+    "include-substitution/002-relativized-path-sees-later-redefinition/main.conf": "pass",
+    "include-substitution/003-original-path-tried-as-fallback/main.conf": "pass",
+    "include-substitution/004-relativized-path-tried-before-original/main.conf": "pass",
     "include-substitution/005-neither-path-defined-is-error/main.conf": "pass",
-    "include-substitution/006-optional-substitution-with-neither-path-is-omitted/main.conf": "fail",
-    "include-substitution/007-nested-include-relativized-through-both-levels/main.conf": "fail",
+    "include-substitution/006-optional-substitution-with-neither-path-is-omitted/main.conf": "pass",
+    "include-substitution/007-nested-include-relativized-through-both-levels/main.conf": "pass",
     "include-substitution/008-original-path-falls-back-to-environment/main.conf": "fail",
-    "include-substitution/009-undefined-optional-at-fixed-up-path-falls-back/main.conf": "pass",
+    "include-substitution/009-undefined-optional-at-fixed-up-path-falls-back/main.conf": "fail",
     "include-substitution/010-undefined-optional-at-fixed-up-path-with-no-original/main.conf": "pass",
     "include-substitution/011-optional-reference-falls-back-too/main.conf": "fail",
     "include-substitution/012-earlier-value-at-fixed-up-path-wins/main.conf": "fail",
-    "include-substitution/013-missing-leaf-under-existing-object-falls-back/main.conf": "fail",
-    "include-substitution/014-unrelated-key-does-not-change-the-result/main.conf": "pass",
+    "include-substitution/013-missing-leaf-under-existing-object-falls-back/main.conf": "pass",
+    "include-substitution/014-unrelated-key-does-not-change-the-result/main.conf": "fail",
     "include-substitution/015-undefined-at-both-paths-is-error/main.conf": "pass",
-    "include-substitution/016-substitution-inside-a-concatenation-is-fixed-up/main.conf": "fail",
-    "include-substitution/017-substitution-inside-a-list-is-fixed-up/main.conf": "fail",
+    "include-substitution/016-substitution-inside-a-concatenation-is-fixed-up/main.conf": "pass",
+    "include-substitution/017-substitution-inside-a-list-is-fixed-up/main.conf": "pass",
     "include-substitution/018-substitution-in-a-merge-stack-is-fixed-up/main.conf": "fail",
-    "include-substitution/019-null-at-fixed-up-path-is-found/main.conf": "fail",
+    "include-substitution/019-null-at-fixed-up-path-is-found/main.conf": "pass",
     "include-syntax/001-include-later-in-key-is-literal.conf": "pass",
     "include-syntax/002-include-as-object-value-is-string.conf": "pass",
     "include-syntax/003-include-as-array-element-is-string.conf": "pass",
@@ -331,10 +331,10 @@
     "include-syntax/009-file-missing-close-parenthesis/main.conf": "pass",
     "include-syntax/010-required-missing-close-parenthesis/main.conf": "pass",
     "include-syntax/011-url-argument-must-be-a-url/main.conf": "open",
-    "include-syntax/013-newlines-between-include-and-name/main.conf": "fail",
-    "include-syntax/014-whitespace-inside-parentheses/main.conf": "fail",
+    "include-syntax/013-newlines-between-include-and-name/main.conf": "pass",
+    "include-syntax/014-whitespace-inside-parentheses/main.conf": "pass",
     "include-syntax/015-include-followed-by-separator-is-not-a-key.conf": "pass",
-    "include-syntax/016-comma-separates-include-from-next-field/main.conf": "fail",
+    "include-syntax/016-comma-separates-include-from-next-field/main.conf": "pass",
     "key-value-separator/001-equals-as-separator.conf": "pass",
     "key-value-separator/002-omitted-separator-before-object.conf": "pass",
     "key-value-separator/003-omitted-separator-unquoted-key.conf": "pass",
@@ -404,7 +404,7 @@
     "paths-as-keys/005-unquoted-true-key-becomes-string.conf": "pass",
     "paths-as-keys/006-unquoted-number-key-becomes-string.conf": "pass",
     "paths-as-keys/007-decimal-key-splits-on-dot.conf": "pass",
-    "paths-as-keys/008-include-cannot-begin-key.conf": "pass",
+    "paths-as-keys/008-include-cannot-begin-key.conf": "fail",
     "paths-as-keys/009-include-not-at-start-is-ordinary.conf": "pass",
     "paths-as-keys/010-path-key-merges-with-brace-object.conf": "pass",
     "paths-as-keys/011-whitespace-around-a-dot-stays-in-the-elements.conf": "pass",
@@ -609,20 +609,20 @@
     "duplicate-keys-and-object-merging/017-lookup-into-nested-null-merges.conf": "{\"a\":{\"n\":{\"d\":{\"x\":1}}},\"p\":{\"x\":1},\"o24bbd\":{\"x\":1}}",
     "duplicate-keys-and-object-merging/025-lookup-into-object-that-replaced-a-list.conf": "{\"p\":1,\"a\":{\"m\":1},\"x\":1}",
     "include-file-formats/006-json-extension-means-json-syntax/main.conf": "rejected",
-    "include-file-formats/007-properties-extension-means-properties-syntax/main.conf": "rejected",
+    "include-file-formats/007-properties-extension-means-properties-syntax/main.conf": "{\"a\":\"b=c\",\"n\":\"1\"}",
     "include-file-formats/023-json-leading-zero-illegal/main.conf": "rejected",
-    "include-file-formats/024-unknown-extension-is-not-a-basename/main.conf": "rejected",
-    "include-merging/011-include-inside-a-list-with-a-substitution/main.conf": "rejected",
-    "include-substitution/009-undefined-optional-at-fixed-up-path-falls-back/main.conf": "rejected",
-    "include-substitution/011-optional-reference-falls-back-too/main.conf": "rejected",
-    "include-substitution/014-unrelated-key-does-not-change-the-result/main.conf": "rejected",
+    "include-file-formats/024-unknown-extension-is-not-a-basename/main.conf": "{\"a\":1}",
+    "include-merging/011-include-inside-a-list-with-a-substitution/main.conf": "{\"a\":[{\"x\":1}],\"y\":1}",
+    "include-substitution/009-undefined-optional-at-fixed-up-path-falls-back/main.conf": "{\"common\":{\"x\":{},\"a\":0},\"x\":{\"y\":0}}",
+    "include-substitution/011-optional-reference-falls-back-too/main.conf": "{\"common\":{\"x\":{},\"a\":0},\"x\":{\"y\":0}}",
+    "include-substitution/014-unrelated-key-does-not-change-the-result/main.conf": "{\"common\":{\"x\":{},\"a\":0},\"x\":{\"y\":0},\"zzz\":{}}",
     "include-syntax/011-url-argument-must-be-a-url/main.conf": "rejected",
     "key-value-separator/006-newline-between-key-and-brace.conf": "{\"foo\":{\"a\":1}}",
     "omit-root-braces/006-array-root-unaffected.conf": "rejected",
     "omit-root-braces/008-empty-array-root.conf": "rejected",
     "omit-root-braces/009-comment-before-array-root.conf": "rejected",
     "omit-root-braces/010-blank-line-before-array-root.conf": "rejected",
-    "paths-as-keys/008-include-cannot-begin-key.conf": "{\"include\":{\"foo\":42}}",
+    "paths-as-keys/008-include-cannot-begin-key.conf": "rejected",
     "plus-equals-field-separator/006-plus-equals-inside-a-list-element.conf": "rejected",
     "plus-equals-field-separator/008-plus-equals-with-an-object-containing-a-merge.conf": "rejected",
     "self-referential-examples/014-order-dependent-resolution-must-agree-on-one-value.conf": "rejected",
@@ -818,55 +818,6 @@
       "java": "unsupported"
     },
     {
-      "case": "config-and-file-merging/002-file-merge-is-recursive-and-later-file-wins/main.conf",
-      "spec": "HOCON.md#config-object-merging-and-file-merging",
-      "rule": "merging objects loaded from different files is exactly the same behavior as merging duplicate fields in the same file: object-valued fields present in both files merge recursively and a non-object field takes the value from the later file",
-      "expected": {
-        "a": {
-          "b": {
-            "x": 1,
-            "y": 2
-          },
-          "k": "override"
-        }
-      },
-      "got": "rejected (exit 1)"
-    },
-    {
-      "case": "config-and-file-merging/003-non-object-between-files-hides-earlier-object/main.conf",
-      "spec": "HOCON.md#config-object-merging-and-file-merging",
-      "rule": "the spec's own example: an intermediate non-object value hides earlier object values because merging is done in pairs, so when 42 is paired with { y : 2 } it simply wins and loses all information about what it overrode, and the two objects are never merged",
-      "expected": {
-        "a": {
-          "x": 1
-        }
-      },
-      "got": "rejected (exit 1)"
-    },
-    {
-      "case": "config-and-file-merging/004-adjacent-objects-across-files-merge/main.conf",
-      "spec": "HOCON.md#config-object-merging-and-file-merging",
-      "rule": "the spec's re-ordered example: with the non-object 42 moved to the lowest priority the two objects are adjacent, so they merge to { a : { x : 1, y : 2 } }",
-      "expected": {
-        "a": {
-          "x": 1,
-          "y": 2
-        }
-      },
-      "got": "rejected (exit 1)"
-    },
-    {
-      "case": "config-and-file-merging/005-null-clears-included-object/main.conf",
-      "spec": "HOCON.md#config-object-merging-and-file-merging",
-      "rule": "setting an object to null and then setting it back to a new object clears it and starts over, which is how to get rid of default fallback values from another file that you don't want",
-      "expected": {
-        "a": {
-          "z": 3
-        }
-      },
-      "got": "rejected (exit 1)"
-    },
-    {
       "case": "duplicate-keys-and-object-merging/016-null-deeper-in-a-merge-stack-stays-at-its-key.conf",
       "spec": "HOCON.md#duplicate-keys-and-object-merging",
       "rule": "v's value is a merge whose top is an object and whose null sits further down, under nested; that null is still v.nested's merge instruction, so a.nested keeps helper (lightbend/config#864 review, round 3)",
@@ -986,44 +937,6 @@
       "java": "unsupported"
     },
     {
-      "case": "include-file-formats/001-basename-loads-every-extension/main.conf",
-      "spec": "HOCON.md#include-semantics-file-formats-and-extensions",
-      "rule": "a name without an extension is a basename: all of base.properties, base.json and base.conf exist, so all three are loaded and merged, properties first and HOCON last, so the .conf value wins where they overlap",
-      "expected": {
-        "a": "conf",
-        "b": "json",
-        "c": "conf",
-        "d": "json",
-        "e": "props"
-      },
-      "got": "rejected (exit 1)"
-    },
-    {
-      "case": "include-file-formats/002-basename-with-only-conf/main.conf",
-      "spec": "HOCON.md#include-semantics-file-formats-and-extensions",
-      "rule": "a basename with only base.conf present loads just that file",
-      "expected": {
-        "a": 1
-      },
-      "got": "rejected (exit 1)"
-    },
-    {
-      "case": "include-file-formats/003-basename-with-only-properties/main.conf",
-      "spec": "HOCON.md#include-semantics-file-formats-and-extensions",
-      "rule": "a basename with only base.properties present loads it as Java properties, whose values are all strings",
-      "expected": {
-        "a": "1"
-      },
-      "got": "rejected (exit 1)"
-    },
-    {
-      "case": "include-file-formats/004-basename-with-no-file-is-ignored.conf",
-      "spec": "HOCON.md#include-semantics-file-formats-and-extensions",
-      "rule": "a basename that exists with no extension at all is a missing include, and a missing include is ignored",
-      "expected": {},
-      "got": "rejected (exit 1)"
-    },
-    {
       "case": "include-file-formats/006-json-extension-means-json-syntax/main.conf",
       "spec": "HOCON.md#include-semantics-file-formats-and-extensions",
       "rule": "a file named .json is in JSON format, and an unquoted value is not JSON. typesafe/config parses a .json named outright with the HOCON parser, so the file is accepted; the same file found through a basename is rejected",
@@ -1034,48 +947,12 @@
       "java": "lenient"
     },
     {
-      "case": "include-file-formats/008-properties-keys-are-paths/main.conf",
+      "case": "include-file-formats/007-properties-extension-means-properties-syntax/main.conf",
       "spec": "HOCON.md#include-semantics-file-formats-and-extensions",
-      "rule": "in a properties file a dotted key is a path, so a.b and a.c build an object at a; the spec's Java properties mapping says the object must always win when a key is both a value and a parent, whatever the order; values are strings",
-      "expected": {
-        "a": {
-          "b": "1",
-          "c": "2"
-        },
-        "d": "3",
-        "e": {
-          "f": {
-            "g": "5"
-          }
-        }
-      },
-      "got": "rejected (exit 1)"
-    },
-    {
-      "case": "include-file-formats/010-json-file-with-every-value-type/main.conf",
-      "spec": "HOCON.md#include-semantics-file-formats-and-extensions",
-      "rule": "a .json file found through a basename is parsed as JSON and contributes its object",
-      "expected": {
-        "a": 1,
-        "b": [
-          1,
-          2
-        ],
-        "c": {
-          "d": true,
-          "e": null
-        }
-      },
-      "got": "rejected (exit 1)"
-    },
-    {
-      "case": "include-file-formats/022-json-dotted-key-is-one-key/main.conf",
-      "spec": "HOCON.md#include-semantics-file-formats-and-extensions",
-      "rule": "the .json file is found through a basename, so it is parsed as JSON; a JSON key is a plain string, not a path expression, so a.b stays a single key",
-      "expected": {
-        "a.b": 1
-      },
-      "got": "rejected (exit 1)"
+      "rule": "a file named .properties is in Java properties format, where the first = separates key from value and values are strings. typesafe/config parses a .properties named outright with the HOCON parser and fails on the second =; the same file found through a basename is read as properties",
+      "expected": "rejected",
+      "got": "{\"a\":\"b=c\",\"n\":\"1\"}",
+      "java": "unsupported"
     },
     {
       "case": "include-file-formats/023-json-leading-zero-illegal/main.conf",
@@ -1092,159 +969,18 @@
       "spec": "HOCON.md#include-semantics-file-formats-and-extensions",
       "rule": "x.txt has an extension, so it is not a basename to probe; it is a file adjacent to the including one and of the same type. The spec does not define what counts as an extension, and this row reads any dotted suffix as one. typesafe/config probes every name that does not end in .conf, .json or .properties as a basename and finds nothing",
       "expected": {},
-      "got": "rejected (exit 1)",
+      "got": {
+        "a": 1
+      },
       "java": "diverges"
     },
     {
-      "case": "include-file-formats/025-json-is-parsed-after-properties/main.conf",
-      "spec": "HOCON.md#include-semantics-file-formats-and-extensions",
-      "rule": "base.properties and base.json both exist; JSON is parsed next-to-last, after properties, so its value for a wins",
-      "expected": {
-        "a": "json"
-      },
-      "got": "rejected (exit 1)"
-    },
-    {
-      "case": "include-file-formats/026-conf-is-parsed-after-json/main.conf",
-      "spec": "HOCON.md#include-semantics-file-formats-and-extensions",
-      "rule": "base.json and base.conf both exist; HOCON is parsed last, after JSON, so its value for a wins",
-      "expected": {
-        "a": "conf"
-      },
-      "got": "rejected (exit 1)"
-    },
-    {
-      "case": "include-locating/001-include-string-that-is-a-url-is-a-url.conf",
-      "spec": "HOCON.md#include-semantics-locating-resources",
-      "rule": "a quoted include name with a known URL scheme is a URL, not a file adjacent to this one. With nothing behind the URL the include is ignored, so a parser that read the string as a filename would also get {}; the row records the rule, it cannot distinguish the two readings",
-      "expected": {},
-      "got": "rejected (exit 1)"
-    },
-    {
-      "case": "include-locating/002-nested-include-is-relative-to-the-including-file/main.conf",
-      "spec": "HOCON.md#include-semantics-locating-resources",
-      "rule": "inner.conf includes x.conf, which is found beside inner.conf, not beside main.conf and not in the process's working directory",
-      "expected": {
-        "a": 1
-      },
-      "got": "rejected (exit 1)"
-    },
-    {
-      "case": "include-locating/003-plain-name-is-a-file-beside-the-including-one/main.conf",
-      "spec": "HOCON.md#include-semantics-locating-resources",
-      "rule": "x.conf is not a URL, so it names a file adjacent to main.conf",
-      "expected": {
-        "own": 1,
-        "x": "adjacent"
-      },
-      "got": "rejected (exit 1)"
-    },
-    {
-      "case": "include-locating/004-absolute-path-stays-absolute/main.conf",
-      "spec": "HOCON.md#include-semantics-locating-resources",
-      "rule": "an absolute path is loaded as such, so the file of the same name beside main.conf is not it; the absolute file does not exist and the include is ignored",
-      "expected": {
-        "own": 1
-      },
-      "got": "rejected (exit 1)"
-    },
-    {
-      "case": "include-locating/005-file-argument-is-not-relative-to-the-including-file/main.conf",
-      "spec": "HOCON.md#include-semantics-locating-resources",
-      "rule": "a file() argument is not interpreted relative to the including file, so the marker beside sub/inner.conf is not loaded; nothing of that name exists elsewhere and the include is ignored",
-      "expected": {
-        "inner": 1,
-        "own": 1
-      },
-      "got": "rejected (exit 1)"
-    },
-    {
-      "case": "include-merging/001-included-keys-merge-in-place/main.conf",
+      "case": "include-merging/011-include-inside-a-list-with-a-substitution/main.conf",
       "spec": "HOCON.md#include-semantics-merging",
-      "rule": "the keys from the included object are conceptually substituted for the include statement in the including file, so the included field lands between the fields around it and merges by the usual duplicate-key rules",
-      "expected": {
-        "a": 1,
-        "b": 2,
-        "c": 3
-      },
-      "got": "rejected (exit 1)"
-    },
-    {
-      "case": "include-merging/004-include-inside-nested-object/main.conf",
-      "spec": "HOCON.md#include-semantics-merging",
-      "rule": "the keys from the included root object are conceptually substituted for the include statement in the including file, so an include inside a nested object contributes its keys to that object",
-      "expected": {
-        "a": {
-          "x": 1,
-          "y": 2,
-          "z": 3
-        }
-      },
-      "got": "rejected (exit 1)"
-    },
-    {
-      "case": "include-merging/005-included-scalar-overrides-earlier-key/main.conf",
-      "spec": "HOCON.md#include-semantics-merging",
-      "rule": "if a key in the included object occurred prior to the include statement in the including object, the included key's value overrides the earlier value, exactly as with duplicate keys found in a single file",
-      "expected": {
-        "a": 2
-      },
-      "got": "rejected (exit 1)"
-    },
-    {
-      "case": "include-merging/006-included-object-merges-with-earlier-object/main.conf",
-      "spec": "HOCON.md#include-semantics-merging",
-      "rule": "if a key in the included object occurred prior to the include statement and both values are objects, the included value merges with the earlier value, exactly as with duplicate keys found in a single file",
-      "expected": {
-        "a": {
-          "x": 1,
-          "y": 2
-        }
-      },
-      "got": "rejected (exit 1)"
-    },
-    {
-      "case": "include-merging/007-included-scalar-replaces-earlier-object/main.conf",
-      "spec": "HOCON.md#include-semantics-merging",
-      "rule": "an included key's value overrides the earlier value exactly as with duplicate keys in a single file, so an included non-object replaces an earlier object rather than merging with it",
-      "expected": {
-        "a": 2
-      },
-      "got": "rejected (exit 1)"
-    },
-    {
-      "case": "include-merging/008-later-key-overrides-included-key/main.conf",
-      "spec": "HOCON.md#include-semantics-merging",
-      "rule": "if the including file repeats a key from an earlier-included object, the including file's value overrides the one from the included file",
-      "expected": {
-        "a": 2
-      },
-      "got": "rejected (exit 1)"
-    },
-    {
-      "case": "include-merging/009-later-object-merges-with-included-object/main.conf",
-      "spec": "HOCON.md#include-semantics-merging",
-      "rule": "if the including file repeats a key from an earlier-included object and both values are objects, the including file's value merges with the one from the included file",
-      "expected": {
-        "a": {
-          "x": 1,
-          "y": 2
-        }
-      },
-      "got": "rejected (exit 1)"
-    },
-    {
-      "case": "include-merging/010-include-inside-an-object-inside-a-list/main.conf",
-      "spec": "HOCON.md#include-semantics-merging",
-      "rule": "an include statement may stand wherever a field may, including in an object that is a list element",
-      "expected": {
-        "a": [
-          {
-            "x": 1
-          }
-        ]
-      },
-      "got": "rejected (exit 1)"
+      "rule": "the included file may contain substitutions like any other; typesafe/config refuses an include nested in a list when the included file is not fully resolved",
+      "expected": "rejected",
+      "got": "{\"a\":[{\"x\":1}],\"y\":1}",
+      "java": "unsupported"
     },
     {
       "case": "include-merging/012-included-merge-stack-over-earlier-object/main.conf",
@@ -1260,7 +996,14 @@
           "n": 2
         }
       },
-      "got": "rejected (exit 1)"
+      "got": {
+        "a": {
+          "n": 2
+        },
+        "q": {
+          "n": 2
+        }
+      }
     },
     {
       "case": "include-merging/013-included-merge-stack-over-earlier-substitution/main.conf",
@@ -1279,7 +1022,17 @@
           "y": 9
         }
       },
-      "got": "rejected (exit 1)"
+      "got": {
+        "a": {
+          "n": 2
+        },
+        "q": {
+          "n": 2
+        },
+        "r": {
+          "y": 9
+        }
+      }
     },
     {
       "case": "include-merging/014-included-merge-stack-over-earlier-scalar/main.conf",
@@ -1294,7 +1047,14 @@
           "n": 2
         }
       },
-      "got": "rejected (exit 1)"
+      "got": {
+        "a": {
+          "n": 2
+        },
+        "q": {
+          "n": 2
+        }
+      }
     },
     {
       "case": "include-merging/015-included-object-on-top-of-substitution-over-earlier-substitution/main.conf",
@@ -1313,121 +1073,17 @@
           "y": 9
         }
       },
-      "got": "rejected (exit 1)"
-    },
-    {
-      "case": "include-missing-and-required/001-missing-include-ignored/main.conf",
-      "spec": "HOCON.md#include-semantics-missing-files-and-required-files",
-      "rule": "by default, if an included file does not exist the include statement is silently ignored, so the keys around it parse as if the line were not there",
-      "expected": {
-        "a": 1,
-        "b": 2
-      },
-      "got": "rejected (exit 1)"
-    },
-    {
-      "case": "include-missing-and-required/002-missing-include-is-empty-object/main.conf",
-      "spec": "HOCON.md#include-semantics-missing-files-and-required-files",
-      "rule": "a missing include is treated as if the included file contained only an empty object, so an object whose only content is that include stays an empty object",
-      "expected": {
-        "a": {}
-      },
-      "got": "rejected (exit 1)"
-    },
-    {
-      "case": "include-missing-and-required/003-missing-file-include-ignored/main.conf",
-      "spec": "HOCON.md#include-semantics-missing-files-and-required-files",
-      "rule": "the silent-ignore default applies to an explicit file() include as well: a file that does not exist contributes nothing and parsing continues",
-      "expected": {
-        "a": 1,
-        "b": 2
-      },
-      "got": "rejected (exit 1)"
-    },
-    {
-      "case": "include-missing-and-required/006-required-present-is-included/main.conf",
-      "spec": "HOCON.md#include-semantics-missing-files-and-required-files",
-      "rule": "required() only makes the include mandatory; a resource that does resolve is included exactly as an unwrapped include would be",
-      "expected": {
-        "a": 1,
-        "b": 2,
-        "c": 3
-      },
-      "got": "rejected (exit 1)"
-    },
-    {
-      "case": "include-substitution/001-substitution-relativized-to-include-scope/main.conf",
-      "spec": "HOCON.md#include-semantics-substitution",
-      "rule": "a substitution in an included file must be fixed up to be relative to the app's configuration root, so ${x} in a file included at key a becomes ${a.x}",
-      "expected": {
+      "got": {
         "a": {
-          "x": 10,
-          "y": 10
-        }
-      },
-      "got": "rejected (exit 1)"
-    },
-    {
-      "case": "include-substitution/002-relativized-path-sees-later-redefinition/main.conf",
-      "spec": "HOCON.md#include-semantics-substitution",
-      "rule": "substitution happens after parsing the whole configuration, so the ${x} fixed up to ${a.x} evaluates to the root's later redefinition 42 rather than the included file's 10",
-      "expected": {
-        "a": {
-          "x": 42,
-          "y": 42
-        }
-      },
-      "got": "rejected (exit 1)"
-    },
-    {
-      "case": "include-substitution/003-original-path-tried-as-fallback/main.conf",
-      "spec": "HOCON.md#include-semantics-substitution",
-      "rule": "it is not enough to only look up the fixed-up path; when a.x is undefined the original path x is looked up relative to the root of the including configuration",
-      "expected": {
-        "a": {
-          "y": 7
+          "m": 1
         },
-        "x": 7
-      },
-      "got": "rejected (exit 1)"
-    },
-    {
-      "case": "include-substitution/004-relativized-path-tried-before-original/main.conf",
-      "spec": "HOCON.md#include-semantics-substitution",
-      "rule": "substitutions in included files are looked up first relative to the root of the included file and only second relative to the root of the including configuration, so a.x wins over x",
-      "expected": {
-        "a": {
-          "x": 10,
-          "y": 10
+        "q": {
+          "n": 2
         },
-        "x": 7
-      },
-      "got": "rejected (exit 1)"
-    },
-    {
-      "case": "include-substitution/006-optional-substitution-with-neither-path-is-omitted/main.conf",
-      "spec": "HOCON.md#include-semantics-substitution",
-      "rule": "an optional substitution in an included file is looked up at the fixed-up path a.x and at the original path x; with neither defined the field is omitted rather than an error",
-      "expected": {
-        "a": {
-          "z": 1
+        "r": {
+          "y": 9
         }
-      },
-      "got": "rejected (exit 1)"
-    },
-    {
-      "case": "include-substitution/007-nested-include-relativized-through-both-levels/main.conf",
-      "spec": "HOCON.md#include-semantics-substitution",
-      "rule": "the fix-up is relative to the app's configuration root, so ${x} in a file included at b inside a file included at a becomes ${a.b.x}",
-      "expected": {
-        "a": {
-          "b": {
-            "x": 1,
-            "y": 1
-          }
-        }
-      },
-      "got": "rejected (exit 1)"
+      }
     },
     {
       "case": "include-substitution/008-original-path-falls-back-to-environment/main.conf",
@@ -1441,6 +1097,14 @@
       "got": "rejected (exit 1)"
     },
     {
+      "case": "include-substitution/009-undefined-optional-at-fixed-up-path-falls-back/main.conf",
+      "spec": "HOCON.md#include-semantics-substitution",
+      "rule": "an undefined ${?nope} means common.x.y is never created, so ${x.y} is not found at the fixed-up path and is looked up at the original path x.y. typesafe/config treats the vanished value as a miss that ends the lookup -- except in some root key orders (see 014); lightbend/config#863 falls back",
+      "expected": "rejected",
+      "got": "{\"common\":{\"x\":{},\"a\":0},\"x\":{\"y\":0}}",
+      "java": "unsupported"
+    },
+    {
       "case": "include-substitution/011-optional-reference-falls-back-too/main.conf",
       "spec": "HOCON.md#include-semantics-substitution",
       "rule": "the optional form of 009 falls back the same way; typesafe/config leaves a out instead (lightbend/config#863)",
@@ -1452,7 +1116,15 @@
           "y": 0
         }
       },
-      "got": "rejected (exit 1)",
+      "got": {
+        "common": {
+          "x": {},
+          "a": 0
+        },
+        "x": {
+          "y": 0
+        }
+      },
       "java": "diverges"
     },
     {
@@ -1470,13 +1142,7 @@
           "y": 0
         }
       },
-      "got": "rejected (exit 1)"
-    },
-    {
-      "case": "include-substitution/013-missing-leaf-under-existing-object-falls-back/main.conf",
-      "spec": "HOCON.md#include-semantics-substitution",
-      "rule": "the metamorphic twin of 009 without the optional: common.x exists, common.x.y does not, so x.y is looked up at the original path",
-      "expected": {
+      "got": {
         "common": {
           "x": {},
           "a": 0
@@ -1484,34 +1150,15 @@
         "x": {
           "y": 0
         }
-      },
-      "got": "rejected (exit 1)"
+      }
     },
     {
-      "case": "include-substitution/016-substitution-inside-a-concatenation-is-fixed-up/main.conf",
+      "case": "include-substitution/014-unrelated-key-does-not-change-the-result/main.conf",
       "spec": "HOCON.md#include-semantics-substitution",
-      "rule": "a substitution that is one piece of a concatenation in the included file is fixed up like a bare one: p.x is not set, so the original path x is used",
-      "expected": {
-        "p": {
-          "a": "1 y"
-        },
-        "x": 1
-      },
-      "got": "rejected (exit 1)"
-    },
-    {
-      "case": "include-substitution/017-substitution-inside-a-list-is-fixed-up/main.conf",
-      "spec": "HOCON.md#include-semantics-substitution",
-      "rule": "a substitution that is a list element in the included file is fixed up as well",
-      "expected": {
-        "p": {
-          "l": [
-            1
-          ]
-        },
-        "x": 1
-      },
-      "got": "rejected (exit 1)"
+      "rule": "an unrelated key that reads common.x must not change what common.a resolves to; in typesafe/config this input fails while the same input with the key named o24bbd resolves to 0 (lightbend/config#863)",
+      "expected": "rejected",
+      "got": "{\"common\":{\"x\":{},\"a\":0},\"x\":{\"y\":0},\"zzz\":{}}",
+      "java": "unsupported"
     },
     {
       "case": "include-substitution/018-substitution-in-a-merge-stack-is-fixed-up/main.conf",
@@ -1532,20 +1179,19 @@
           }
         }
       },
-      "got": "rejected (exit 1)"
-    },
-    {
-      "case": "include-substitution/019-null-at-fixed-up-path-is-found/main.conf",
-      "spec": "HOCON.md#include-semantics-substitution",
-      "rule": "a.x is present, set to null, so the lookup at the fixed-up path succeeds and the original path x is not consulted",
-      "expected": {
-        "a": {
-          "x": null,
-          "y": null
-        },
-        "x": 7
-      },
-      "got": "rejected (exit 1)"
+      "got": {
+        "p": {
+          "o": {
+            "n": 2
+          },
+          "r": {
+            "m": 1
+          },
+          "q": {
+            "n": 2
+          }
+        }
+      }
     },
     {
       "case": "include-syntax/011-url-argument-must-be-a-url/main.conf",
@@ -1554,34 +1200,6 @@
       "expected": "rejected",
       "got": "rejected",
       "open_question": "the spec says only that the string inside url() is interpreted as a URL; it does not say whether a string that is not a URL is an error or an unresolvable, hence ignorable, resource. typesafe/config rejects it"
-    },
-    {
-      "case": "include-syntax/013-newlines-between-include-and-name/main.conf",
-      "spec": "HOCON.md#include-syntax",
-      "rule": "any amount of whitespace, newlines included, may stand between include and the resource name",
-      "expected": {
-        "a": 1
-      },
-      "got": "rejected (exit 1)"
-    },
-    {
-      "case": "include-syntax/014-whitespace-inside-parentheses/main.conf",
-      "spec": "HOCON.md#include-syntax",
-      "rule": "whitespace inside the parentheses, outside the quotes, is allowed",
-      "expected": {
-        "a": 1
-      },
-      "got": "rejected (exit 1)"
-    },
-    {
-      "case": "include-syntax/016-comma-separates-include-from-next-field/main.conf",
-      "spec": "HOCON.md#include-syntax",
-      "rule": "an include stands where a field would, so the usual comma separates it from the field that follows",
-      "expected": {
-        "a": 1,
-        "b": 2
-      },
-      "got": "rejected (exit 1)"
     },
     {
       "case": "key-value-separator/006-newline-between-key-and-brace.conf",
@@ -1697,6 +1315,18 @@
         ]
       },
       "got": "rejected (exit 1)"
+    },
+    {
+      "case": "paths-as-keys/008-include-cannot-begin-key.conf",
+      "spec": "HOCON.md#paths-as-keys",
+      "rule": "the unquoted string include may not begin a path expression in a key: where an object key is expected, include is not read as a key at all and must be followed by a quoted resource name, so include.foo is an error. typesafe/config recognises the keyword only as a bare include token -- include.foo tokenizes as one unquoted string, so it is accepted as the path include.foo, while include = 42 is rejected under the very rule the spec states.",
+      "expected": {
+        "include": {
+          "foo": 42
+        }
+      },
+      "got": "rejected (exit 1)",
+      "java": "lenient"
     },
     {
       "case": "plus-equals-field-separator/001-plus-equals-desugars-to-optional-self-ref-array.conf",

@@ -21,10 +21,7 @@ pub fn main(init: std.process.Init) !void {
     if (args.len != 2) std.process.fatal("{s}", .{usage});
     const path = args[1];
 
-    const source = std.Io.Dir.cwd().readFileAllocOptions(io, path, arena, .limited(64 * 1024 * 1024), .of(u8), 0) catch |err|
-        std.process.fatal("{s}: {t}", .{ path, err });
-
-    const value = hocon.parseFromSliceLeaky(hocon.Value, arena, source) catch |err|
+    const value = hocon.parseFromFileLeaky(hocon.Value, arena, io, path, .{}) catch |err|
         std.process.fatal("{s}: {t}", .{ path, err });
 
     var stdout_writer = std.Io.File.stdout().writerStreaming(io, &stdout_buffer);

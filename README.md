@@ -152,7 +152,15 @@ Not spec sections of their own, but needed to get there, and already done:
       — a text part like any other, on the key side and as an include path too;
       the `"""` stay in the tree because escapes are literal inside them, which
       is what tells `"""a\nb"""` from `"a\nb"`
-- [ ] [Includes](https://github.com/lightbend/config/blob/main/HOCON.md#includes) (file, url, classpath, required)
+- [x] [Includes](https://github.com/lightbend/config/blob/main/HOCON.md#includes) (file, url, classpath, required)
+      — files, `file()`, `required()` and http(s) URLs, as `.conf`, strict `.json`
+      or `.properties`; a basename loads all three. Not supported: `classpath()`
+      and URL schemes other than http, https and file (an error). Merge stacks
+      across an include (`a = {…}` then `a = ${q}` in the included file) wait
+      for #7, the environment fallback for #11. Read through
+      `parseFromFile`; `parseFromSlice` has no files and refuses an include. An
+      http(s) fetch that takes longer than `ParseOptions.http_timeout` (30 s, each
+      fetch on its own) is `error.IncludeTimeout`, also when it is not `required`.
 
 - [x] [Path expressions](https://github.com/lightbend/config/blob/main/HOCON.md#path-expressions)
       — a substitution path is split into elements when its reference is built,
@@ -341,11 +349,13 @@ rather than the format.
       which is what turns `a = ${b}`, `b = ${a}` into an error instead of a
       loop, and an index of each object's members, built on the first lookup
       into it.
-- [ ] Evaluation, includes — splicing the referenced file in; `include` parses
-      and nothing more.
+- [x] Evaluation, includes — the referenced file is parsed and spliced in
+      where the `include` stands, before substitutions resolve.
 - [x] Public API, first cut — `hocon.parseFromSlice` returning `Parsed(T)` and
       its `parseFromSliceLeaky` twin, named and shaped after `std.json`, with
-      `hocon.Value` as a target for the tree itself.
+      `hocon.Value` as a target for the tree itself, and `parseFromFile` /
+      `parseFromFileLeaky`, which read includes through an `std.Io` and take a
+      `ParseOptions` (`http_timeout`, 30 s by default).
 - [x] JSON rendering — `Value.jsonStringify`, which `std.json.Stringify` finds
       on its own, so there is no serializer here to maintain. A scalar is text
       until this point; quotes decide string, and otherwise JSON's own number
@@ -357,9 +367,8 @@ rather than the format.
 - [x] Command line — `hocon <file.conf>` prints JSON, exits 1 on rejection;
       the same contract as a conformance adapter, so it is what the suite
       measures (`conformance/adapters/zig-hocon.sh`).
-- [ ] Public API, the rest — `ParseOptions` (`ignore_unknown_fields`; unknown
-      keys are ignored for now), `parseFromValue`, and `parseFromFile` taking an
-      `std.Io` and a directory, which `include` will need anyway.
+- [ ] Public API, the rest — the other `ParseOptions` fields (`ignore_unknown_fields`;
+      unknown keys are ignored for now), and `parseFromValue`.
 
 ## Reference oracles
 
@@ -391,7 +400,7 @@ wins and the row says so. Where it stands today:
 | Java <sub>typesafe/config 1.4.9</sub> | 90% (399/445) | 99% (442/445) | 96% (428/445) |
 | Java main <sub>typesafe/config main@275f872, unreleased</sub> | 93% (412/445) | 96% (428/445) | 99% (442/445) |
 | pyhocon <sub>pyhocon 0.3.63</sub> | 70% (312/445) | 66% (295/445) | 68% (304/445) |
-| zig-hocon <sub>zig-hocon code@9476c61</sub> | 69% (307/445) | 70% (310/445) | 70% (313/445) |
+| zig-hocon <sub>zig-hocon code@d1849e1</sub> | 80% (357/445) | 78% (348/445) | 79% (351/445) |
 
 <!-- conformance:end -->
 

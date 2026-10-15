@@ -59,7 +59,7 @@ pub const Tokenizer = struct {
                 // This is my initial state
                 .start => switch (c) {
                     // Basic hocon syntax
-                    'a'...'z', 'A'...'Z', '0'...'9', '-', '.' => {
+                    'a'...'z', 'A'...'Z', '0'...'9', '-', '.', '(', ')' => {
                         state = .word;
                         state_start = self.pos;
                     },
@@ -289,6 +289,14 @@ test "table runner renders a token stream" {
     try expectAll(&.{
         .ok("a=b", "string(a) assignment(=) string(b) eof"),
         .ok("a = \"b\"\nc", "string(a) assignment(=) quoted_string(\"b\") newline(\\n) string(c) eof"),
+    });
+}
+
+test "parentheses are unquoted text" {
+    try expectAll(&.{
+        .ok("file(\"a\")", "string(file() quoted_string(\"a\") string()) eof"),
+        .ok("required( \"a\" ) b", "string(required() quoted_string(\"a\") string()) string(b) eof"),
+        .ok("a = (b)", "string(a) assignment(=) string((b)) eof"),
     });
 }
 

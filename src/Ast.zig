@@ -307,33 +307,73 @@ pub const Parser = struct {
         };
     }
 
+    /// `include`, then one quoted string, bare or inside `file(…)`, `url(…)`,
+    /// `classpath(…)`; `required(…)` may go around any of those. The wrapper
+    /// names become the children of the node, outermost first.
+    ///
+    /// The tokenizer knows no parentheses: `required(file(` arrives as ONE
+    /// unquoted string and each run of `)` as another, so they are taken apart
+    /// here, where the position says they mean something.
     fn parseInclude(self: *Parser) Error!Node {
         // Lets consume "include"
         _ = self.t.next();
-        while (true) {
-            const next = self.t.peek();
-            switch (next.tag) {
-                .newline => {
-                    _ = self.t.next();
-                },
-                .quoted_string, .multiline_string => {
-                    // Check what is after next = URI
-                    _ = self.t.next();
-                    const peeked = self.t.peek();
-                    switch (peeked.tag) {
-                        .newline, .comma, .eof, .r_brace, .r_bracket => {},
-                        else => return Error.UnexpectedToken,
-                    }
-                    // Return proper node
-                    return Node{
-                        .kind = .include,
-                        .value = self.t.t.input[next.loc.start..next.loc.end],
-                        .children = &[0]Node{},
-                    };
-                },
-                else => return Error.UnexpectedToken,
+        while (self.t.peek().tag == .newline) _ = self.t.next();
+
+        var wrappers: std.ArrayList(Node) = .empty;
+        while (self.t.peek().tag == .string) {
+            const token = self.t.next();
+            var rest = self.t.t.input[token.loc.start..token.loc.end];
+            // One token can hold several names: `required(file(`.
+            while (std.mem.indexOfScalar(u8, rest, '(')) |open| {
+                try wrappers.append(self.gpa, .{ .kind = .value, .value = rest[0..open], .children = &.{} });
+                rest = rest[open + 1 ..];
+            }
+            // Text left over means the name was never opened: `file(a.conf)`.
+            if (rest.len != 0) return Error.UnexpectedToken;
+            while (self.t.peek().tag == .newline) _ = self.t.next();
+        }
+
+        // Allowed: nothing, `required`, one of file/url/classpath, or required
+        // around one of those. `required(required(…))` is java's error too.
+        const names = wrappers.items;
+        var seen: usize = 0;
+        if (seen < names.len and std.mem.eql(u8, names[seen].value, "required")) seen += 1;
+        if (seen < names.len) {
+            const is_kind = for ([_][]const u8{ "file", "url", "classpath" }) |kind| {
+                if (std.mem.eql(u8, names[seen].value, kind)) break true;
+            } else false;
+            if (is_kind) seen += 1;
+        }
+        if (seen != names.len) return Error.UnexpectedToken;
+
+        const argument = self.t.next();
+        switch (argument.tag) {
+            .quoted_string, .multiline_string => {},
+            else => return Error.UnexpectedToken,
+        }
+
+        // One `)` for every name, and no more. They come as strings made of
+        // nothing else, possibly several in a row: `))`.
+        var open = names.len;
+        while (open > 0) {
+            while (self.t.peek().tag == .newline) _ = self.t.next();
+            const close = self.t.next();
+            if (close.tag != .string) return Error.UnexpectedToken;
+            for (self.t.t.input[close.loc.start..close.loc.end]) |c| {
+                if (c != ')' or open == 0) return Error.UnexpectedToken;
+                open -= 1;
             }
         }
+
+        switch (self.t.peek().tag) {
+            .newline, .comma, .eof, .r_brace, .r_bracket => {},
+            else => return Error.UnexpectedToken,
+        }
+        return Node{
+            .kind = .include,
+            .value = self.t.t.input[argument.loc.start..argument.loc.end],
+            .children = try wrappers.toOwnedSlice(self.gpa),
+        };
     }
 
     fn parseContainer(self: *Parser, ending: Tokenizer.Token.Tag, containerType: Node.NodeKind) Error!Node {
@@ -362,6 +402,11 @@ pub const Parser = struct {
                     const value = self.t.t.input[token.loc.start..token.loc.end];
                     if (token.tag == .string and std.mem.eql(u8, value, "include")) {
                         break :blk try self.parseInclude();
+                    }
+                    // `include.foo : 42`: the keyword may not begin a key's path
+                    // either, so this is no key and not an include.
+                    if (token.tag == .string and std.mem.startsWith(u8, value, "include.")) {
+                        return Error.UnexpectedToken;
                     }
 
                     break :blk try self.parseMember();
@@ -492,7 +537,14 @@ fn dumpNode(node: Node, w: *std.Io.Writer) std.Io.Writer.Error!void {
             try w.writeByte(')');
         },
         .value => try w.print("value({s})", .{node.value}),
-        .include => try w.print("include({s})", .{node.value}),
+        // The wrappers read back as written: include(required(file("a.conf"))).
+        .include => {
+            try w.writeAll("include(");
+            for (node.children) |wrapper| try w.print("{s}(", .{wrapper.value});
+            try w.writeAll(node.value);
+            for (node.children) |_| try w.writeByte(')');
+            try w.writeByte(')');
+        },
     }
 }
 
@@ -703,9 +755,8 @@ test "arrays.a root array is a valid tree" {
 // The quotes are kept in the node, same as everywhere else in the tree — a part
 // is exactly the text of its token, and include targets are no exception.
 //
-// Only the plain quoted form here. `file()`, `url()`, `classpath()` and
-// `required()` are variants of the same shape and are deliberately left out for
-// now; the tokenizer has no rule for `(` yet.
+// Only the plain quoted form here; `file()`, `url()`, `classpath()` and
+// `required()` have their own test below.
 test "include.happy path" {
     try expectAll(&.{
         .ok("include \"a.conf\"", "root(include(\"a.conf\"))"),
@@ -763,6 +814,84 @@ test "include.bad argument" {
         // Case-sensitive.
         .bad("Include \"a.conf\""),
         .bad("INCLUDE \"a.conf\""),
+    });
+}
+
+// include-syntax/008-010, 013, 014, 016 · java ✓ · pyhocon ⚠️ · spec ✓ — the
+// argument is one quoted string, bare or wrapped in `file(…)`, `url(…)`,
+// `classpath(…)`, and `required(…)` goes around any of those. Whitespace may
+// stand inside the parentheses, newlines too (java takes them, the spec says
+// whitespace). The wrappers are kept in the node in the order written, so the
+// dump reads back like the source.
+//
+//   'include file(a.conf)'                 java ERROR   pyhocon ERROR
+//   'include file("a.conf"'                java ERROR   pyhocon ERROR
+//   'include file("a.conf"))'              java ERROR   pyhocon ERROR
+//   'include required(required("a.conf"))' java ERROR   pyhocon ERROR
+//   'include file(file("a.conf"))'         java ERROR   pyhocon ERROR
+//   'include file ("a.conf")'              java ERROR   pyhocon {"x":1}
+//   'include file(\n"a.conf")'             java ok      pyhocon ERROR
+//
+// Divergences from java: none. pyhocon accepts a space before the `(` and
+// refuses a newline inside it; java is followed on both.
+test "include.wrappers" {
+    try expectAll(&.{
+        .ok("include file(\"a.conf\")", "root(include(file(\"a.conf\")))"),
+        .ok("include url(\"a.conf\")", "root(include(url(\"a.conf\")))"),
+        .ok("include classpath(\"a.conf\")", "root(include(classpath(\"a.conf\")))"),
+        .ok("include required(\"a.conf\")", "root(include(required(\"a.conf\")))"),
+        .ok("include required(file(\"a.conf\"))", "root(include(required(file(\"a.conf\"))))"),
+        .ok("include required(url(\"a.conf\"))", "root(include(required(url(\"a.conf\"))))"),
+
+        // Whitespace outside the quotes, and a newline after the keyword.
+        .ok("include required( \"a.conf\" )", "root(include(required(\"a.conf\")))"),
+        .ok("include required( file( \"a.conf\" ) )", "root(include(required(file(\"a.conf\"))))"),
+        .ok("include\n\nfile(\"a.conf\")", "root(include(file(\"a.conf\")))"),
+        .ok("include file(\n\"a.conf\"\n)", "root(include(file(\"a.conf\")))"),
+
+        // Where an include may stand, and what may follow it.
+        .ok("include file(\"a.conf\"), b = c", "root(include(file(\"a.conf\")), assign(value(b), value(c)))"),
+        .ok("include file(\"a.conf\")\nb = c", "root(include(file(\"a.conf\")), assign(value(b), value(c)))"),
+        .ok("a { include required(\"a.conf\") }", "root(assign(value(a), block(include(required(\"a.conf\")))))"),
+        .ok("a = [{ include file(\"a.conf\") }]", "root(assign(value(a), array(block(include(file(\"a.conf\"))))))"),
+        .ok("include file(\"a.conf\") # c", "root(include(file(\"a.conf\")))"),
+
+        // Not an include argument: an unquoted name, a missing or extra paren,
+        // two arguments, a wrapper twice, a name that is no wrapper, a space
+        // between the name and its paren.
+        .bad("include file(a.conf)"),
+        .bad("include file(\"a.conf\""),
+        .bad("include required(file(\"a.conf\")"),
+        .bad("include file(\"a.conf\"))"),
+        .bad("include file(\"a\" \"b\")"),
+        .bad("include file(\"a.conf\") \"b\""),
+        .bad("include required(required(\"a.conf\"))"),
+        .bad("include file(file(\"a.conf\"))"),
+        .bad("include file(required(\"a.conf\"))"),
+        .bad("include foo(\"a.conf\")"),
+        .bad("include file (\"a.conf\")"),
+        .bad("include file(${x})"),
+    });
+}
+
+// paths-as-keys/008 · java ⚠️ · pyhocon ⚠️ · spec ✓ — an unquoted key may not
+// begin with `include` as its first path element. Both oracles accept
+// `include.foo : 42` as {"include":{"foo":42}} (the conformance sidecar marks
+// java "lenient"); the spec rule is why it is rejected here. Only the first
+// element counts:
+//
+//   'include.foo : 42'  ERROR       'a.include.foo : 42'  ok
+//   'includes.foo : 42' ok          '"include".foo : 42'  ok, quoted (pyhocon cannot parse the mixed spelling)
+test "include.may not begin a key path" {
+    try expectAll(&.{
+        .bad("include.foo : 42"),
+        .bad("include.foo.bar = 1"),
+        .bad("a { include.foo = 1 }"),
+        .ok("includes.foo = 42", "root(assign(value(includes), block(assign(value(foo), value(42)))))"),
+        .ok("a.include.foo = 42", "root(assign(value(a), block(assign(value(include), block(assign(value(foo), value(42)))))))"),
+        .ok("\"include\".foo = 42", "root(assign(value(\"include\"), block(assign(value(foo), value(42)))))"),
+        // As a value it is only text.
+        .ok("a = include.foo", "root(assign(value(a), value(include.foo)))"),
     });
 }
 

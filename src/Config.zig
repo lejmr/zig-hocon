@@ -4,6 +4,7 @@ const Allocator = std.mem.Allocator;
 const Value = @import("Value.zig").Value;
 const Ast = @import("Ast.zig");
 const Tokenizer = @import("Tokenizer.zig").Tokenizer;
+const Include = @import("Include.zig");
 
 pub const Config = struct {
     object: Value,
@@ -42,10 +43,49 @@ pub const Config = struct {
     }
 
     pub fn parseFromSliceLeaky(comptime T: type, allocator: Allocator, file_content: [:0]const u8) !T {
+        // No file behind the text, so an `include` in it is an error.
+        return parseSource(T, allocator, file_content, .{});
+    }
+
+    /// What a parse can be told.
+    pub const ParseOptions = struct {
+        /// One fetch of an `http(s)` include, from connect to the last byte; longer is
+        /// `error.IncludeTimeout`.
+        http_timeout: std.Io.Duration = Include.default_http_timeout,
+    };
+
+    /// Reads the file at `path` and every file it includes through `io`, and
+    /// parses them as one document. Includes resolve relative to the file that
+    /// has the `include`; `file("…")` ones relative to the working directory.
+    /// Everything lands in an arena owned by the result, as in `parseFromSlice`.
+    pub fn parseFromFile(comptime T: type, gpa: Allocator, io: std.Io, path: []const u8, options: ParseOptions) !Parsed(T) {
+        const arena = try gpa.create(std.heap.ArenaAllocator);
+        errdefer gpa.destroy(arena);
+        arena.* = std.heap.ArenaAllocator.init(gpa);
+        errdefer arena.deinit();
+
+        return .{
+            .arena = arena,
+            .value = try parseFromFileLeaky(T, arena.allocator(), io, path, options),
+        };
+    }
+
+    pub fn parseFromFileLeaky(comptime T: type, allocator: Allocator, io: std.Io, path: []const u8, options: ParseOptions) !T {
+        // The text stays in the arena: the values point into it.
+        const source = try std.Io.Dir.cwd().readFileAllocOptions(io, path, allocator, .limited(Include.max_file_size), .of(u8), 0);
+        return parseSource(T, allocator, source, .{
+            .io = io,
+            .http_timeout = options.http_timeout,
+            .dir = std.fs.path.dirname(path) orelse "",
+            .stack = &.{try std.fs.path.resolve(allocator, &.{path})},
+        });
+    }
+
+    fn parseSource(comptime T: type, allocator: Allocator, source: [:0]const u8, ctx: Value.Context) !T {
         // `parse` is a method, so the parser has to exist first.
-        var parser = Ast.Parser{ .gpa = allocator, .t = .{ .t = Tokenizer.init(file_content) } };
+        var parser = Ast.Parser{ .gpa = allocator, .t = .{ .t = Tokenizer.init(source) } };
         const ast = try parser.parse();
-        var obj = try Value.fromNode(allocator, ast);
+        var obj = try Value.fromNode(allocator, ast, ctx);
         try obj.resolve(allocator);
         return parseFromValue(T, allocator, obj);
     }

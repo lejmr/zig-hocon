@@ -48,4 +48,12 @@ pub fn build(b: *std.Build) void {
 
     const test_step = b.step("test", "Run tests");
     test_step.dependOn(&run_mod_tests.step);
+
+    // The real binary on a directory with nested includes: main.conf includes
+    // sub/defaults.conf, which includes inner.conf from its own directory, and
+    // main.conf's own port comes after the include and wins.
+    const cli_includes = b.addRunArtifact(exe);
+    cli_includes.addFileArg(b.path("tests/cli-includes/main.conf"));
+    cli_includes.expectStdOutEqual("{\"name\":\"from inner\",\"port\":443,\"log\":{\"level\":\"info\",\"file\":\"quiet-wombat.log\"}}\n");
+    test_step.dependOn(&cli_includes.step);
 }

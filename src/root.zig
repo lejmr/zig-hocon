@@ -8,6 +8,7 @@ test {
     _ = @import("Key.zig");
     _ = @import("Value.zig");
     _ = @import("Config.zig");
+    _ = @import("Include.zig");
 }
 
 // Export functionality to users
@@ -16,6 +17,9 @@ pub const Value = @import("Value.zig").Value;
 pub const Parsed = config.Parsed;
 pub const parseFromSlice = config.parseFromSlice;
 pub const parseFromSliceLeaky = config.parseFromSliceLeaky;
+pub const parseFromFile = config.parseFromFile;
+pub const parseFromFileLeaky = config.parseFromFileLeaky;
+pub const ParseOptions = config.ParseOptions;
 pub const ParseFromValueError = config.ConvertError;
 
 // ---------------------------------------------------------------------------
@@ -32,7 +36,7 @@ const hocon = @This();
 // it reports every byte not given back, so a passing test is the proof that
 // `deinit` frees everything the parse allocated.
 //
-// Add `.{}` to the calls once ParseOptions exists.
+// Add `.{}` to the calls once parseFromSlice takes ParseOptions.
 
 test "parsed.deinit gives back everything the parse took" {
     const T = struct { name: []const u8, ports: []const u16, tls: ?struct { cert: []const u8 } };
@@ -85,6 +89,60 @@ test "parsed.out of memory at any point leaks nothing" {
             parsed.deinit();
         }
     }.run, .{});
+}
+
+// ---------------------------------------------------------------------------
+// Files: the point of includes. `prod.conf` pulls in `defaults.conf` and
+// overrides some of it. The files are written to a temp directory and parsed
+// through their path, the way a program would.
+// ---------------------------------------------------------------------------
+
+const Prod = struct { name: []const u8, port: u16, tls: struct { cert: []const u8, key: []const u8 } };
+
+/// Writes the two files and returns the path of `prod.conf`, relative to where the test runs.
+fn writeProd(tmp: *testing.TmpDir) ![]u8 {
+    try tmp.dir.writeFile(testing.io, .{
+        .sub_path = "defaults.conf",
+        .data = "name = the dog ate my homework\nport = 80\ntls { cert = grumpy-wombat.pem }",
+    });
+    try tmp.dir.writeFile(testing.io, .{
+        .sub_path = "prod.conf",
+        .data = "include \"defaults.conf\"\nport = 443\ntls { key = sleepy-owl.key }",
+    });
+    return std.fmt.allocPrint(testing.allocator, ".zig-cache/tmp/{s}/prod.conf", .{tmp.sub_path});
+}
+
+// java ✓ · pyhocon ✓ · spec ✓ — the included defaults are there, what prod.conf
+// writes after the include wins, and objects merge (tls has both keys). Nothing
+// is left behind by `deinit`: this is `testing.allocator`, not an arena.
+test "file.prod.conf includes defaults.conf and overrides it" {
+    var tmp = testing.tmpDir(.{});
+    defer tmp.cleanup();
+    const path = try writeProd(&tmp);
+    defer testing.allocator.free(path);
+
+    const parsed = try hocon.parseFromFile(Prod, testing.allocator, testing.io, path, .{});
+    defer parsed.deinit();
+
+    try testing.expectEqualStrings("the dog ate my homework", parsed.value.name);
+    try testing.expectEqual(443, parsed.value.port);
+    try testing.expectEqualStrings("grumpy-wombat.pem", parsed.value.tls.cert);
+    try testing.expectEqualStrings("sleepy-owl.key", parsed.value.tls.key);
+}
+
+// Every allocation of the file parse, includes included, fails once in turn.
+test "file.out of memory at any point leaks nothing" {
+    var tmp = testing.tmpDir(.{});
+    defer tmp.cleanup();
+    const path = try writeProd(&tmp);
+    defer testing.allocator.free(path);
+
+    try testing.checkAllAllocationFailures(testing.allocator, struct {
+        fn run(gpa: std.mem.Allocator, file: []const u8) !void {
+            const parsed = try hocon.parseFromFile(Prod, gpa, testing.io, file, .{});
+            parsed.deinit();
+        }
+    }.run, .{path});
 }
 
 // ---------------------------------------------------------------------------
