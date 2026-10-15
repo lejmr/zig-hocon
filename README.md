@@ -22,7 +22,7 @@ Requires Zig **0.16.0** or newer.
 > into a Zig struct of your own through `hocon.parseFromSlice`, shaped after
 > `std.json`, or prints as JSON from the `hocon` command line tool. Not yet:
 > includes (`include` parses, but nothing splices the file in, so a file that
-> uses one is rejected) and `+=`. See [Features](#features) below for what
+> uses one is rejected). See [Features](#features) below for what
 > currently works, and [Conformance](#conformance) for how far that gets.
 > No tagged release yet: install straight from the repository, as below.
 
@@ -262,9 +262,11 @@ Not spec sections of their own, but needed to get there, and already done:
       variables yet
 
 - [ ] [Conversion of numerically-indexed objects to arrays](https://github.com/lightbend/config/blob/main/HOCON.md#conversion-of-numerically-indexed-objects-to-arrays)
-- [ ] [The `+=` field separator](https://github.com/lightbend/config/blob/main/HOCON.md#the--field-separator)
-      — self-referential array append, which the spec defines as sugar for
-      `a = ${?a} [b]`; `+` is rejected by the tokenizer today
+- [x] [The `+=` field separator](https://github.com/lightbend/config/blob/main/HOCON.md#the--field-separator)
+      — `a += b` is `a = ${?a} [b]` with the field's whole path in the ref, so
+      it starts a list or appends to the one below it, also under a dotted key,
+      inside an object, and from a file that was included. `+` apart from `=`
+      is an error
 
 <details>
 <summary><b>Order of work</b> — why the stages above fall this way</summary>
@@ -439,7 +441,7 @@ wins and the row says so. Where it stands today:
 | Java <sub>typesafe/config 1.4.9</sub> | 90% (399/445) | 99% (442/445) | 96% (428/445) |
 | Java main <sub>typesafe/config main@275f872, unreleased</sub> | 93% (412/445) | 96% (428/445) | 99% (442/445) |
 | pyhocon <sub>pyhocon 0.3.63</sub> | 70% (312/445) | 66% (295/445) | 68% (304/445) |
-| zig-hocon <sub>zig-hocon code@d5bc7ee</sub> | 87% (388/445) | 81% (362/445) | 82% (364/445) |
+| zig-hocon <sub>zig-hocon code@c15590f</sub> | 96% (425/445) | 86% (382/445) | 89% (395/445) |
 
 <!-- conformance:end -->
 

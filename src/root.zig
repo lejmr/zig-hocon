@@ -427,6 +427,22 @@ test "diagnostics.IncludeNeedsFile" {
     });
 }
 
+// `a += b` is `a = ${?a} [b]`, so a value below it that is not a list fails
+// the way the long form does: at the list, the part that does not fit.
+// java ✓ (WrongType) · pyhocon ⚠️ gives "1 b" and {"b":2} · spec ✓
+test "diagnostics.UnsupportedConcatenation from +=" {
+    try expectCarets(&.{
+        \\a = 1
+        \\a += b
+        \\     ^ UnsupportedConcatenation
+        ,
+        \\a { b = { c = 1 } }
+        \\a.b += 2
+        \\       ^ UnsupportedConcatenation
+        ,
+    });
+}
+
 // The number errors from #6 point at the start of the word that is not a JSON
 // number, also when it is not the first word of the value.
 // java ⚠️ lenient (a string) · pyhocon ⚠️ lenient · spec ✓

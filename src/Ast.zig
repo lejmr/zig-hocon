@@ -50,6 +50,11 @@ pub const Node = struct {
         /// `a` at all. Its own kind rather than a flag on `subst`, so a tree
         /// dump cannot silently lose it.
         subst_optional,
+        /// `a += b`: an assignment that appends. The spec makes it `a = ${?a} [b]`,
+        /// where `a` is the field's full path — which only value building knows,
+        /// with the enclosing keys and the include it came from, so the desugaring
+        /// happens there and the tree keeps what was written.
+        append,
     };
 };
 
@@ -114,18 +119,19 @@ pub const Parser = struct {
         const key = try self.parseText();
 
         while (self.t.peek().tag == .newline) _ = self.t.next();
-        switch (self.t.peek().tag) {
-            .assignment => {
+        const kind: Node.NodeKind = switch (self.t.peek().tag) {
+            .assignment, .plus_assignment => |tag| blk: {
                 _ = self.t.next();
                 while (self.t.peek().tag == .newline) _ = self.t.next();
+                break :blk if (tag == .plus_assignment) .append else .assignment;
             },
             // `a {b = c}` .. the separator may be omitted before a block, but
             // only before a block — java rejects `a [1, 2]`.
-            .l_brace => {},
+            .l_brace => .assignment,
             else => return self.fail(self.t.peek().loc.start),
-        }
+        };
 
-        return prepareMemberNode(self.gpa, key, try self.parseValue(), &self.err_offset);
+        return prepareMemberNode(self.gpa, key, kind, try self.parseValue(), &self.err_offset);
     }
 
     /// One value: the parts written next to each other with no separator in
@@ -485,13 +491,14 @@ pub const Parser = struct {
 
 /// Builds the member node for `key = value`, expanding a dotted key into the
 /// nesting it stands for: `a.b = 1`, `"a"."b" = 1` and `a { b = 1 }` build the
-/// same tree on purpose.
+/// same tree on purpose. `kind` is the innermost member's, `.append` for `+=`:
+/// `a.b += 1` appends to `b`, not to `a`.
 /// Stupid part is a) is based on one node holding value="a.b" while
 ///                b) concat(n("\"a\""),n("."),n("\"b\""))
 ///
 /// On failure `err_offset` is where: the part with a bad escape, or the dot
 /// next to an empty element.
-fn prepareMemberNode(gpa: std.mem.Allocator, key: Node, value: Node, err_offset: *?usize) Parser.Error!Node {
+fn prepareMemberNode(gpa: std.mem.Allocator, key: Node, kind: Node.NodeKind, value: Node, err_offset: *?usize) Parser.Error!Node {
     const first = [_]Node{key};
     const parts = if (key.kind == .value) &first else key.children;
 
@@ -545,7 +552,9 @@ fn prepareMemberNode(gpa: std.mem.Allocator, key: Node, value: Node, err_offset:
             .{ .kind = .block, .children = try gpa.dupe(Node, &.{nn}), .pos = nn.pos }
         else
             value;
-        return_node = .{ .kind = .assignment, .children = try gpa.dupe(Node, &.{ element, inner }), .pos = element.pos };
+        // Read before `return_node` is written: only the innermost member appends.
+        const member_kind: Node.NodeKind = if (return_node == null) kind else .assignment;
+        return_node = .{ .kind = member_kind, .children = try gpa.dupe(Node, &.{ element, inner }), .pos = element.pos };
     }
     // `elements` always holds at least the last element, so the loop ran.
     return return_node.?;
@@ -590,7 +599,7 @@ fn dumpNode(node: Node, w: *std.Io.Writer) std.Io.Writer.Error!void {
     switch (node.kind) {
         // Containers all render the same way: kind(child, child, …). An
         // assignment is one too — children[0] is the key, children[1] the value.
-        .root, .block, .array, .assignment, .concat, .subst, .subst_optional => {
+        .root, .block, .array, .assignment, .append, .concat, .subst, .subst_optional => {
             try w.writeAll(switch (node.kind) {
                 .root => "root(",
                 .block => "block(",
@@ -598,6 +607,7 @@ fn dumpNode(node: Node, w: *std.Io.Writer) std.Io.Writer.Error!void {
                 .concat => "concat(",
                 .subst => "subst(",
                 .subst_optional => "subst?(",
+                .append => "append(",
                 else => "assign(",
             });
             for (node.children, 0..) |child, i| {
@@ -752,6 +762,25 @@ test "multi-word keys and values" {
 test "the = before a block may be omitted" {
     try expectAll(&.{
         .ok("a {b = c}", "root(assign(value(a), block(assign(value(b), value(c)))))"),
+    });
+}
+
+// java ✓ · pyhocon ⚠️ · spec ✓ — `+=` is a separator like `=`: newlines may
+// follow it, and under a dotted key it is the last element that appends. The
+// value is whatever a value is, a list or an object included. Two in a row, or
+// `+` apart from `=`, are errors on java; pyhocon parses the rows but then gets
+// `a += b` with nothing before it wrong ({"a":" b"}).
+test "member.+= appends" {
+    try expectAll(&.{
+        .ok("a += b", "root(append(value(a), value(b)))"),
+        .ok("a +=\nb", "root(append(value(a), value(b)))"),
+        .ok("a.b += 1", "root(assign(value(a), block(append(value(b), value(1)))))"),
+        .ok("a { b += 1 }", "root(assign(value(a), block(append(value(b), value(1)))))"),
+        .ok("a += [1]", "root(append(value(a), array(value(1))))"),
+        .ok("a += {x = 1}", "root(append(value(a), block(assign(value(x), value(1)))))"),
+        .bad("a += b += c"),
+        .bad("a + = b"),
+        .bad("a = b + c"),
     });
 }
 

@@ -140,7 +140,7 @@ pub const Value = union(enum) {
                         for (included.object) |m| try putMember(gpa, &members_map, m.key.value, m.value);
                         continue;
                     }
-                    if (assignment.kind != .assignment) {
+                    if (assignment.kind != .assignment and assignment.kind != .append) {
                         ctx.fail(assignment.pos);
                         return Error.UnsupportedNodeKind;
                     }
@@ -649,10 +649,11 @@ pub const Member = struct {
     key: Key,
     value: Value,
 
-    /// From an `.assignment`: `children[0]` is the key, `children[1]` the value.
+    /// From an `.assignment` or an `.append`: `children[0]` is the key,
+    /// `children[1]` the value.
     pub fn fromNode(gpa: std.mem.Allocator, node: Node, ctx: Value.Context) Error!Member {
         // Member can only by assignment type, with a key and a value
-        if (node.kind != .assignment or node.children.len < 2) {
+        if ((node.kind != .assignment and node.kind != .append) or node.children.len < 2) {
             ctx.fail(node.pos);
             return Error.UnsupportedNodeKind;
         }
@@ -669,10 +670,27 @@ pub const Member = struct {
         const frame: Value.Frame = .{ .parent = ctx.frame, .key = key };
         var inner = ctx;
         inner.frame = &frame;
-        return .{
-            .key = key,
-            .value = try Value.fromNode(gpa, node.children[1], inner),
+        const value = try Value.fromNode(gpa, node.children[1], inner);
+        if (node.kind != .append) return .{ .key = key, .value = value };
+
+        // `a += b` is `a = ${?a} [b]`, where `a` is the field's whole path: the
+        // include's scope, then the keys from the file's root down to this one.
+        var keys: std.ArrayList(Key) = .empty;
+        var step: ?*const Value.Frame = &frame;
+        while (step) |s| : (step = s.parent) try keys.append(gpa, s.key);
+        std.mem.reverse(Key, keys.items);
+        const self_ref: Ref = .{
+            .path = try std.mem.concat(gpa, Key, &.{ ctx.scope, keys.items }),
+            .optional = true,
+            .scope_len = @intCast(ctx.scope.len),
+            .file = ctx.file,
+            .pos = @intCast(node.pos),
         };
+        const parts = try gpa.dupe(Value.Part, &.{
+            .{ .value = .{ .ref = self_ref }, .pos = self_ref.at() },
+            .{ .value = .{ .array = try gpa.dupe(Value, &.{value}) }, .pos = .{ .file = ctx.file, .offset = node.children[1].pos } },
+        });
+        return .{ .key = key, .value = .{ .pending = parts } };
     }
 
     pub fn update(self: *Member, gpa: std.mem.Allocator, other: Member) Error!void {
@@ -1316,6 +1334,31 @@ test "value.a key written twice in one block is one member" {
     try testing.expectEqualStrings("2", won.object[0].value.array[0].scalar.value);
 }
 
+// `a.b += 1` loads as `b = ${?a.b} [1]` under `a`: the ref carries the whole
+// path down to the member, the include's scope in front, so it can be told
+// apart from a plain `${?b}` and looked up from the root.
+test "value.+= is an optional self-reference and a one-element list" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+    const gpa = arena.allocator();
+
+    var inner = [_]Node{ v("b"), v("1") };
+    var appends = [_]Node{n(.append, &inner)};
+    var outer = [_]Node{ v("a"), n(.block, &appends) };
+    var members = [_]Node{n(.assignment, &outer)};
+    const scope = [_]Key{.{ .value = "inc" }};
+    const o = try Value.fromNode(gpa, n(.block, &members), .{ .scope = &scope });
+
+    const parts = o.object[0].value.object[0].value.pending;
+    try testing.expectEqual(@as(usize, 2), parts.len);
+    const r = parts[0].value.ref;
+    try testing.expect(r.optional);
+    try testing.expectEqual(@as(u16, 1), r.scope_len);
+    try testing.expectEqual(@as(usize, 3), r.path.len);
+    for ([_][]const u8{ "inc", "a", "b" }, r.path) |want, got| try testing.expectEqualStrings(want, got.value);
+    try testing.expectEqualStrings("1", parts[1].value.array[0].scalar.value);
+}
+
 // java ✓ · pyhocon ✓ · spec ✓ — a dot inside quotes is a character of one key,
 // a dot outside them separates two. The oracle answers by resolving, since only
 // a matching key proves how the path was cut:
@@ -1931,6 +1974,29 @@ test "resolve.an object layer looks forward" {
     try expectAllResolved(&.{
         .ok("a = ${b}\na = { x = 2, y = ${a.x} }\nb = { x = 1 }", "{\"a\":{\"x\":2,\"y\":2},\"b\":{\"x\":1}}"),
         .ok("a = ${b}\na = { y = ${a.x} }\nb = { x = 1 }", "{\"a\":{\"x\":1,\"y\":1},\"b\":{\"x\":1}}"),
+    });
+}
+
+// java ✓ (⚠️ refuses the last two) · pyhocon ⚠️ · spec ✓ — `a += b` is
+// `a = ${?a} [b]` with the field's whole path in the ref: it starts a list,
+// appends to one, twice in a row, inside an object, under a dotted key, with a
+// substitution or an object holding a merge as the element. Inside a list the
+// path names nothing, so it starts a list there too; java refuses that
+// (`+=` "does not work nested inside a list") and fails on the merge
+// (BugOrBroken). pyhocon gets nearly every row wrong: `a += b` alone is " b".
+test "resolve.+= appends to the list below it" {
+    try expectAllResolved(&.{
+        .ok("snacks += crisps", "{\"snacks\":[\"crisps\"]}"),
+        .ok("snacks = [cake]\nsnacks += crisps\nsnacks += pie", "{\"snacks\":[\"cake\",\"crisps\",\"pie\"]}"),
+        .ok("o { snacks = [cake]\n  snacks += ${x} }\nx = pie", "{\"o\":{\"snacks\":[\"cake\",\"pie\"]},\"x\":\"pie\"}"),
+        .ok("o.p { a = [1]\n  a += 2 }", "{\"o\":{\"p\":{\"a\":[1,2]}}}"),
+        .ok("o.p.a += 1\no.p.a += 2", "{\"o\":{\"p\":{\"a\":[1,2]}}}"),
+        // the element is appended whole, a list included
+        .ok("a = [1]\na += [2]", "{\"a\":[1,[2]]}"),
+        .ok("a = [ { b += 1 } ]", "{\"a\":[{\"b\":[1]}]}"),
+        .ok("x = { p = 1 }\nl += { a = {}\n  a = ${x} }", "{\"x\":{\"p\":1},\"l\":[{\"a\":{\"p\":1}}]}"),
+        // what was there is not a list, exactly as in the long form
+        .bad("a = 1\na += b"),
     });
 }
 

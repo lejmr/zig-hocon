@@ -1,18 +1,18 @@
 {
   "suite": "hocon-conformance",
   "implementation": "zig-hocon",
-  "version": "zig-hocon code@d5bc7ee",
+  "version": "zig-hocon code@c15590f",
   "mode": "spec",
   "command": "conformance/adapters/zig-hocon.sh",
-  "ran_at": "2026-10-15T19:34:59Z",
+  "ran_at": "2026-10-15T19:39:25Z",
   "suite_digest": "2fe52df92f49aea2",
   "total": 445,
-  "passed": 388,
-  "percent": 87.2,
+  "passed": 425,
+  "percent": 95.5,
   "sections": {
     "array-and-object-concatenation": {
       "total": 19,
-      "passed": 16
+      "passed": 19
     },
     "arrays-without-commas-or-newlines": {
       "total": 7,
@@ -36,7 +36,7 @@
     },
     "duplicate-keys-and-object-merging": {
       "total": 28,
-      "passed": 20
+      "passed": 28
     },
     "duration-format": {
       "total": 9,
@@ -52,7 +52,7 @@
     },
     "include-merging": {
       "total": 15,
-      "passed": 11
+      "passed": 15
     },
     "include-missing-and-required": {
       "total": 6,
@@ -60,7 +60,7 @@
     },
     "include-substitution": {
       "total": 19,
-      "passed": 16
+      "passed": 18
     },
     "include-syntax": {
       "total": 15,
@@ -100,15 +100,15 @@
     },
     "plus-equals-field-separator": {
       "total": 8,
-      "passed": 1
+      "passed": 8
     },
     "self-referential-examples": {
       "total": 26,
-      "passed": 16
+      "passed": 25
     },
     "self-referential-substitutions": {
       "total": 5,
-      "passed": 2
+      "passed": 5
     },
     "size-in-bytes-format": {
       "total": 5,
@@ -124,7 +124,7 @@
     },
     "substitutions": {
       "total": 37,
-      "passed": 36
+      "passed": 37
     },
     "unchanged-from-json": {
       "total": 27,
@@ -158,15 +158,15 @@
     "array-and-object-concatenation/008-array-cannot-be-field-key.conf": "pass",
     "array-and-object-concatenation/009-object-cannot-be-field-key.conf": "pass",
     "array-and-object-concatenation/010-worked-example-object-inheritance.conf": "pass",
-    "array-and-object-concatenation/011-worked-example-array-path-append.conf": "fail",
-    "array-and-object-concatenation/012-worked-example-self-referential-array-concat.conf": "fail",
+    "array-and-object-concatenation/011-worked-example-array-path-append.conf": "pass",
+    "array-and-object-concatenation/012-worked-example-self-referential-array-concat.conf": "pass",
     "array-and-object-concatenation/013-newlines-within-value-still-allow-concatenation.conf": "pass",
     "array-and-object-concatenation/014-substitution-object-with-literal-array-is-error.conf": "pass",
     "array-and-object-concatenation/015-substitution-array-with-literal-object-is-error.conf": "pass",
     "array-and-object-concatenation/016-mixing-object-then-array-is-error.conf": "pass",
     "array-and-object-concatenation/017-newline-between-arrays-in-field-value-prevents-concatenation.conf": "pass",
     "array-and-object-concatenation/018-object-with-inner-merge-concatenated-with-substitution.conf": "pass",
-    "array-and-object-concatenation/019-self-referential-object-concatenation-with-inner-merge.conf": "fail",
+    "array-and-object-concatenation/019-self-referential-object-concatenation-with-inner-merge.conf": "pass",
     "arrays-without-commas-or-newlines/001-newlines-instead-of-commas.conf": "pass",
     "arrays-without-commas-or-newlines/002-whitespace-instead-of-comma-concatenates-into-one-element.conf": "pass",
     "arrays-without-commas-or-newlines/003-newline-separates-two-arrays-into-elements.conf": "pass",
@@ -223,21 +223,21 @@
     "duplicate-keys-and-object-merging/007-merge-keeps-fields-from-either-side.conf": "pass",
     "duplicate-keys-and-object-merging/008-arrays-are-not-objects.conf": "pass",
     "duplicate-keys-and-object-merging/009-later-null-overrides.conf": "pass",
-    "duplicate-keys-and-object-merging/010-null-in-referenced-key-history-does-not-block-merge.conf": "fail",
-    "duplicate-keys-and-object-merging/011-nested-null-in-referenced-object-does-not-block-merge.conf": "fail",
-    "duplicate-keys-and-object-merging/012-reference-to-merged-field-sees-the-same-value.conf": "fail",
-    "duplicate-keys-and-object-merging/013-top-level-null-before-object-with-substitution.conf": "fail",
+    "duplicate-keys-and-object-merging/010-null-in-referenced-key-history-does-not-block-merge.conf": "pass",
+    "duplicate-keys-and-object-merging/011-nested-null-in-referenced-object-does-not-block-merge.conf": "pass",
+    "duplicate-keys-and-object-merging/012-reference-to-merged-field-sees-the-same-value.conf": "pass",
+    "duplicate-keys-and-object-merging/013-top-level-null-before-object-with-substitution.conf": "pass",
     "duplicate-keys-and-object-merging/014-own-null-still-blocks-merge-with-referenced-object.conf": "pass",
-    "duplicate-keys-and-object-merging/015-earlier-receiver-value-is-evaluated-once-merged.conf": "fail",
-    "duplicate-keys-and-object-merging/016-null-deeper-in-a-merge-stack-stays-at-its-key.conf": "fail",
+    "duplicate-keys-and-object-merging/015-earlier-receiver-value-is-evaluated-once-merged.conf": "pass",
+    "duplicate-keys-and-object-merging/016-null-deeper-in-a-merge-stack-stays-at-its-key.conf": "pass",
     "duplicate-keys-and-object-merging/017-lookup-into-nested-null-merges.conf": "pass",
     "duplicate-keys-and-object-merging/018-object-then-empty-object.conf": "pass",
     "duplicate-keys-and-object-merging/019-duplicate-keys-merge-inside-a-list-element.conf": "pass",
-    "duplicate-keys-and-object-merging/020-objects-and-substitutions-alternate.conf": "fail",
+    "duplicate-keys-and-object-merging/020-objects-and-substitutions-alternate.conf": "pass",
     "duplicate-keys-and-object-merging/021-later-object-replaces-earlier-concatenation.conf": "pass",
     "duplicate-keys-and-object-merging/022-scalar-then-empty-object-then-object.conf": "pass",
     "duplicate-keys-and-object-merging/023-empty-object-then-substitution.conf": "pass",
-    "duplicate-keys-and-object-merging/024-merge-stack-nested-inside-a-merge-stack.conf": "fail",
+    "duplicate-keys-and-object-merging/024-merge-stack-nested-inside-a-merge-stack.conf": "pass",
     "duplicate-keys-and-object-merging/025-lookup-into-object-that-replaced-a-list.conf": "pass",
     "duplicate-keys-and-object-merging/026-missing-key-in-object-that-replaced-a-list.conf": "pass",
     "duplicate-keys-and-object-merging/027-nested-object-then-scalar-inside-merge.conf": "pass",
@@ -290,10 +290,10 @@
     "include-merging/009-later-object-merges-with-included-object/main.conf": "pass",
     "include-merging/010-include-inside-an-object-inside-a-list/main.conf": "pass",
     "include-merging/011-include-inside-a-list-with-a-substitution/main.conf": "pass",
-    "include-merging/012-included-merge-stack-over-earlier-object/main.conf": "fail",
-    "include-merging/013-included-merge-stack-over-earlier-substitution/main.conf": "fail",
-    "include-merging/014-included-merge-stack-over-earlier-scalar/main.conf": "fail",
-    "include-merging/015-included-object-on-top-of-substitution-over-earlier-substitution/main.conf": "fail",
+    "include-merging/012-included-merge-stack-over-earlier-object/main.conf": "pass",
+    "include-merging/013-included-merge-stack-over-earlier-substitution/main.conf": "pass",
+    "include-merging/014-included-merge-stack-over-earlier-scalar/main.conf": "pass",
+    "include-merging/015-included-object-on-top-of-substitution-over-earlier-substitution/main.conf": "pass",
     "include-missing-and-required/001-missing-include-ignored/main.conf": "pass",
     "include-missing-and-required/002-missing-include-is-empty-object/main.conf": "pass",
     "include-missing-and-required/003-missing-file-include-ignored/main.conf": "pass",
@@ -311,13 +311,13 @@
     "include-substitution/009-undefined-optional-at-fixed-up-path-falls-back/main.conf": "pass",
     "include-substitution/010-undefined-optional-at-fixed-up-path-with-no-original/main.conf": "pass",
     "include-substitution/011-optional-reference-falls-back-too/main.conf": "pass",
-    "include-substitution/012-earlier-value-at-fixed-up-path-wins/main.conf": "fail",
+    "include-substitution/012-earlier-value-at-fixed-up-path-wins/main.conf": "pass",
     "include-substitution/013-missing-leaf-under-existing-object-falls-back/main.conf": "pass",
     "include-substitution/014-unrelated-key-does-not-change-the-result/main.conf": "pass",
     "include-substitution/015-undefined-at-both-paths-is-error/main.conf": "pass",
     "include-substitution/016-substitution-inside-a-concatenation-is-fixed-up/main.conf": "pass",
     "include-substitution/017-substitution-inside-a-list-is-fixed-up/main.conf": "pass",
-    "include-substitution/018-substitution-in-a-merge-stack-is-fixed-up/main.conf": "fail",
+    "include-substitution/018-substitution-in-a-merge-stack-is-fixed-up/main.conf": "pass",
     "include-substitution/019-null-at-fixed-up-path-is-found/main.conf": "pass",
     "include-syntax/001-include-later-in-key-is-literal.conf": "pass",
     "include-syntax/002-include-as-object-value-is-string.conf": "pass",
@@ -414,45 +414,45 @@
     "period-format/005-months-spellings.conf": "pass",
     "period-format/006-years-spellings.conf": "pass",
     "period-format/007-month-m-ambiguous-with-duration-minutes.conf": "pass",
-    "plus-equals-field-separator/001-plus-equals-desugars-to-optional-self-ref-array.conf": "fail",
-    "plus-equals-field-separator/002-plus-equals-appends-to-existing-array.conf": "fail",
+    "plus-equals-field-separator/001-plus-equals-desugars-to-optional-self-ref-array.conf": "pass",
+    "plus-equals-field-separator/002-plus-equals-appends-to-existing-array.conf": "pass",
     "plus-equals-field-separator/003-plus-equals-errors-on-non-array-previous-value.conf": "pass",
-    "plus-equals-field-separator/004-plus-equals-twice.conf": "fail",
-    "plus-equals-field-separator/005-plus-equals-in-nested-object-with-substitution.conf": "fail",
-    "plus-equals-field-separator/006-plus-equals-inside-a-list-element.conf": "fail",
-    "plus-equals-field-separator/007-plus-equals-under-a-dotted-key.conf": "fail",
-    "plus-equals-field-separator/008-plus-equals-with-an-object-containing-a-merge.conf": "fail",
+    "plus-equals-field-separator/004-plus-equals-twice.conf": "pass",
+    "plus-equals-field-separator/005-plus-equals-in-nested-object-with-substitution.conf": "pass",
+    "plus-equals-field-separator/006-plus-equals-inside-a-list-element.conf": "pass",
+    "plus-equals-field-separator/007-plus-equals-under-a-dotted-key.conf": "pass",
+    "plus-equals-field-separator/008-plus-equals-with-an-object-containing-a-merge.conf": "pass",
     "self-referential-examples/001-isolated-self-reference-is-an-error.conf": "pass",
-    "self-referential-examples/002-self-reference-resolves-to-earlier-merged-value.conf": "fail",
-    "self-referential-examples/003-self-reference-before-any-value-is-undefined.conf": "fail",
-    "self-referential-examples/004-optional-self-reference-disappears-silently.conf": "fail",
+    "self-referential-examples/002-self-reference-resolves-to-earlier-merged-value.conf": "pass",
+    "self-referential-examples/003-self-reference-before-any-value-is-undefined.conf": "pass",
+    "self-referential-examples/004-optional-self-reference-disappears-silently.conf": "pass",
     "self-referential-examples/005-substitution-hidden-by-later-non-mergeable-value-is-never-evaluated.conf": "pass",
     "self-referential-examples/006-self-reference-cycle-ignored-when-overridden-by-literal.conf": "pass",
-    "self-referential-examples/007-self-reference-in-path-expression-resolves-to-value-below.conf": "fail",
+    "self-referential-examples/007-self-reference-in-path-expression-resolves-to-value-below.conf": "pass",
     "self-referential-examples/008-object-may-refer-to-sibling-path-within-itself.conf": "pass",
     "self-referential-examples/009-non-cycling-reference-looks-forward-across-merge.conf": "pass",
     "self-referential-examples/010-mutually-referring-objects-are-not-self-referential.conf": "pass",
-    "self-referential-examples/011-optional-self-reference-in-concatenation-looks-back.conf": "fail",
+    "self-referential-examples/011-optional-self-reference-in-concatenation-looks-back.conf": "pass",
     "self-referential-examples/012-mutual-non-self-cycle-is-unresolvable.conf": "pass",
     "self-referential-examples/013-multi-step-cycle-is-invalid.conf": "pass",
     "self-referential-examples/014-order-dependent-resolution-must-agree-on-one-value.conf": "open",
     "self-referential-examples/015-list-hidden-by-substituted-object-is-never-evaluated.conf": "pass",
     "self-referential-examples/016-object-hidden-by-substituted-scalar-is-never-evaluated.conf": "pass",
     "self-referential-examples/017-object-hidden-by-substituted-concatenation-is-never-evaluated.conf": "pass",
-    "self-referential-examples/018-object-merged-with-substituted-object-is-evaluated.conf": "fail",
+    "self-referential-examples/018-object-merged-with-substituted-object-is-evaluated.conf": "pass",
     "self-referential-examples/019-list-hidden-by-literal-scalar-is-never-evaluated.conf": "pass",
     "self-referential-examples/020-object-hidden-by-literal-list-is-never-evaluated.conf": "pass",
     "self-referential-examples/021-hidden-list-does-not-depend-on-key-order.conf": "pass",
-    "self-referential-examples/022-undefined-optional-does-not-hide.conf": "fail",
+    "self-referential-examples/022-undefined-optional-does-not-hide.conf": "pass",
     "self-referential-examples/023-append-does-not-hide.conf": "pass",
     "self-referential-examples/024-substitution-target-is-fetched-lazily.conf": "pass",
-    "self-referential-examples/025-optional-two-field-cycle-is-undefined.conf": "fail",
-    "self-referential-examples/026-memoized-by-instance-not-by-path.conf": "fail",
-    "self-referential-substitutions/001-path-builds-on-older-value.conf": "fail",
-    "self-referential-substitutions/002-self-referential-concatenation.conf": "fail",
+    "self-referential-examples/025-optional-two-field-cycle-is-undefined.conf": "pass",
+    "self-referential-examples/026-memoized-by-instance-not-by-path.conf": "pass",
+    "self-referential-substitutions/001-path-builds-on-older-value.conf": "pass",
+    "self-referential-substitutions/002-self-referential-concatenation.conf": "pass",
     "self-referential-substitutions/003-object-containing-self-reference-is-not-self-referential.conf": "pass",
     "self-referential-substitutions/004-array-containing-self-reference-is-not-self-referential.conf": "pass",
-    "self-referential-substitutions/006-self-referential-array-concatenation.conf": "fail",
+    "self-referential-substitutions/006-self-referential-array-concatenation.conf": "pass",
     "size-in-bytes-format/001-bare-number-is-bytes.conf": "pass",
     "size-in-bytes-format/002-single-byte-spellings.conf": "pass",
     "size-in-bytes-format/003-powers-of-ten-suffixes.conf": "pass",
@@ -496,7 +496,7 @@
     "substitutions/010-substitution-latest-duplicate-key-object-merge.conf": "pass",
     "substitutions/011-undefined-required-substitution-is-error.conf": "pass",
     "substitutions/012-undefined-optional-substitution-field-not-created.conf": "pass",
-    "substitutions/013-undefined-optional-substitution-keeps-previous-value.conf": "fail",
+    "substitutions/013-undefined-optional-substitution-keeps-previous-value.conf": "pass",
     "substitutions/014-undefined-optional-substitution-array-element-not-added.conf": "pass",
     "substitutions/015-undefined-optional-substitution-concatenation-string-empty.conf": "pass",
     "substitutions/016-undefined-optional-substitution-concatenation-object-empty.conf": "pass",
@@ -596,15 +596,15 @@
   },
   "outputs": {
     "array-and-object-concatenation/018-object-with-inner-merge-concatenated-with-substitution.conf": "{\"x\":{\"p\":1},\"n\":{\"a\":{\"p\":1},\"q\":2},\"y\":{\"q\":2}}",
-    "array-and-object-concatenation/019-self-referential-object-concatenation-with-inner-merge.conf": "rejected",
+    "array-and-object-concatenation/019-self-referential-object-concatenation-with-inner-merge.conf": "{\"a\":{\"q\":1,\"p\":{\"r\":2}},\"x\":{\"r\":2}}",
     "concatenation-whitespace-and-substitutions/007-zero-width-space-between-list-substitutions-is-error.conf": "rejected",
     "concatenation-whitespace-and-substitutions/009-undefined-optional-then-list-is-the-list.conf": "{\"x\":[1],\"a\":[1]}",
-    "duplicate-keys-and-object-merging/010-null-in-referenced-key-history-does-not-block-merge.conf": "{\"v\":{\"x\":1},\"r\":{\"x\":1},\"a\":{\"x\":1}}",
-    "duplicate-keys-and-object-merging/011-nested-null-in-referenced-object-does-not-block-merge.conf": "{\"v\":{\"nested\":{\"x\":1}},\"a\":{\"nested\":{\"x\":1}}}",
-    "duplicate-keys-and-object-merging/012-reference-to-merged-field-sees-the-same-value.conf": "{\"v\":{\"nested\":{\"x\":1},\"sibling\":{\"x\":1}},\"payload\":{\"x\":1},\"a\":{\"nested\":{\"x\":1},\"sibling\":{\"x\":1}},\"o24bbd\":{\"x\":1}}",
-    "duplicate-keys-and-object-merging/013-top-level-null-before-object-with-substitution.conf": "{\"v\":{\"x\":1},\"pending\":1,\"a\":{\"x\":1}}",
-    "duplicate-keys-and-object-merging/015-earlier-receiver-value-is-evaluated-once-merged.conf": "{\"r\":{\"y\":1},\"a\":{\"y\":1}}",
-    "duplicate-keys-and-object-merging/016-null-deeper-in-a-merge-stack-stays-at-its-key.conf": "{\"v\":{\"y\":2},\"a\":{\"y\":2},\"pending\":{\"x\":1},\"pendingTop\":{\"y\":2}}",
+    "duplicate-keys-and-object-merging/010-null-in-referenced-key-history-does-not-block-merge.conf": "{\"v\":{\"x\":1},\"r\":{\"x\":1},\"a\":{\"helper\":0,\"x\":1}}",
+    "duplicate-keys-and-object-merging/011-nested-null-in-referenced-object-does-not-block-merge.conf": "{\"v\":{\"nested\":{\"x\":1}},\"a\":{\"nested\":{\"helper\":0,\"x\":1}}}",
+    "duplicate-keys-and-object-merging/012-reference-to-merged-field-sees-the-same-value.conf": "{\"v\":{\"nested\":{\"x\":1},\"sibling\":{\"x\":1}},\"payload\":{\"x\":1},\"a\":{\"nested\":{\"helper\":0,\"x\":1},\"sibling\":{\"x\":1}},\"o24bbd\"",
+    "duplicate-keys-and-object-merging/013-top-level-null-before-object-with-substitution.conf": "{\"v\":{\"x\":1},\"pending\":1,\"a\":{\"helper\":0,\"x\":1}}",
+    "duplicate-keys-and-object-merging/015-earlier-receiver-value-is-evaluated-once-merged.conf": "rejected",
+    "duplicate-keys-and-object-merging/016-null-deeper-in-a-merge-stack-stays-at-its-key.conf": "{\"v\":{\"nested\":{\"x\":1},\"y\":2},\"a\":{\"nested\":{\"helper\":0,\"x\":1},\"y\":2},\"pending\":{\"x\":1},\"pendingTop\":{\"y\":2}}",
     "duplicate-keys-and-object-merging/017-lookup-into-nested-null-merges.conf": "{\"a\":{\"n\":{\"d\":{\"x\":1}}},\"p\":{\"x\":1},\"o24bbd\":{\"x\":1}}",
     "duplicate-keys-and-object-merging/025-lookup-into-object-that-replaced-a-list.conf": "{\"p\":1,\"a\":{\"m\":1},\"x\":1}",
     "include-file-formats/006-json-extension-means-json-syntax/main.conf": "rejected",
@@ -622,9 +622,9 @@
     "omit-root-braces/009-comment-before-array-root.conf": "[1,2]",
     "omit-root-braces/010-blank-line-before-array-root.conf": "[1,2]",
     "paths-as-keys/008-include-cannot-begin-key.conf": "rejected",
-    "plus-equals-field-separator/006-plus-equals-inside-a-list-element.conf": "rejected",
-    "plus-equals-field-separator/008-plus-equals-with-an-object-containing-a-merge.conf": "rejected",
-    "self-referential-examples/014-order-dependent-resolution-must-agree-on-one-value.conf": "rejected",
+    "plus-equals-field-separator/006-plus-equals-inside-a-list-element.conf": "{\"a\":[{\"b\":[1]}]}",
+    "plus-equals-field-separator/008-plus-equals-with-an-object-containing-a-merge.conf": "{\"x\":{\"p\":1},\"l\":[{\"a\":{\"p\":1}}]}",
+    "self-referential-examples/014-order-dependent-resolution-must-agree-on-one-value.conf": "{\"a\":1,\"b\":1}",
     "self-referential-examples/015-list-hidden-by-substituted-object-is-never-evaluated.conf": "{\"wrapper\":{},\"replacement\":{}}",
     "self-referential-examples/021-hidden-list-does-not-depend-on-key-order.conf": "{\"w\":{\"x\":1},\"r\":{\"x\":1},\"zzz\":1}",
     "string-value-concatenation/010-object-then-scalar-drops-the-scalar.conf": "rejected",
@@ -644,406 +644,6 @@
   },
   "failures": [
     {
-      "case": "array-and-object-concatenation/011-worked-example-array-path-append.conf",
-      "spec": "HOCON.md#array-and-object-concatenation",
-      "rule": "the spec's worked example: array concatenation with a substitution is a common way to add to paths",
-      "expected": {
-        "path": [
-          "/bin",
-          "/usr/bin"
-        ]
-      },
-      "got": "rejected (exit 1)"
-    },
-    {
-      "case": "array-and-object-concatenation/012-worked-example-self-referential-array-concat.conf",
-      "spec": "HOCON.md#array-and-object-concatenation",
-      "rule": "the spec's worked example: a later array definition can concatenate a substitution referring to its own earlier value with a new array",
-      "expected": {
-        "a": [
-          1,
-          2,
-          3,
-          4
-        ]
-      },
-      "got": "rejected (exit 1)"
-    },
-    {
-      "case": "array-and-object-concatenation/019-self-referential-object-concatenation-with-inner-merge.conf",
-      "spec": "HOCON.md#array-and-object-concatenation",
-      "rule": "${a} in a's own value refers to the earlier a, an object, so the concatenation merges {p: ...} with {q: 1}; the inner p is itself a merge of an object and a substitution. typesafe/config fails with an internal error (BugOrBroken) when the merge inside a concatenation piece resolves, as in 018",
-      "expected": {
-        "a": {
-          "p": {
-            "r": 2
-          },
-          "q": 1
-        },
-        "x": {
-          "r": 2
-        }
-      },
-      "got": "rejected (exit 1)",
-      "java": "unsupported"
-    },
-    {
-      "case": "duplicate-keys-and-object-merging/010-null-in-referenced-key-history-does-not-block-merge.conf",
-      "spec": "HOCON.md#duplicate-keys-and-object-merging",
-      "rule": "the null at r only stops merging at r; ${r} is the object {x:1}, and a later object merges with the earlier a, so helper stays. typesafe/config carries r's null through the substitution and drops helper (lightbend/config#864)",
-      "expected": {
-        "v": {
-          "x": 1
-        },
-        "r": {
-          "x": 1
-        },
-        "a": {
-          "helper": 0,
-          "x": 1
-        }
-      },
-      "got": {
-        "v": {
-          "x": 1
-        },
-        "r": {
-          "x": 1
-        },
-        "a": {
-          "x": 1
-        }
-      },
-      "java": "diverges"
-    },
-    {
-      "case": "duplicate-keys-and-object-merging/011-nested-null-in-referenced-object-does-not-block-merge.conf",
-      "spec": "HOCON.md#duplicate-keys-and-object-merging",
-      "rule": "the same rule one level down: the null in v.nested's history belongs to v.nested, so a.nested still merges with the substituted {x:1} (lightbend/config#864)",
-      "expected": {
-        "v": {
-          "nested": {
-            "x": 1
-          }
-        },
-        "a": {
-          "nested": {
-            "helper": 0,
-            "x": 1
-          }
-        }
-      },
-      "got": {
-        "v": {
-          "nested": {
-            "x": 1
-          }
-        },
-        "a": {
-          "nested": {
-            "x": 1
-          }
-        }
-      },
-      "java": "diverges"
-    },
-    {
-      "case": "duplicate-keys-and-object-merging/012-reference-to-merged-field-sees-the-same-value.conf",
-      "spec": "HOCON.md#duplicate-keys-and-object-merging",
-      "rule": "a substitution sees the resolved value of the field it names, so o24bbd equals a.nested, which keeps helper. The key name is chosen to sort before a in typesafe/config's root HashMap, the order in which the first version of lightbend/config#864 answered differently for the two",
-      "expected": {
-        "v": {
-          "nested": {
-            "x": 1
-          },
-          "sibling": {
-            "x": 1
-          }
-        },
-        "payload": {
-          "x": 1
-        },
-        "a": {
-          "nested": {
-            "helper": 0,
-            "x": 1
-          },
-          "sibling": {
-            "x": 1
-          }
-        },
-        "o24bbd": {
-          "helper": 0,
-          "x": 1
-        }
-      },
-      "got": {
-        "v": {
-          "nested": {
-            "x": 1
-          },
-          "sibling": {
-            "x": 1
-          }
-        },
-        "payload": {
-          "x": 1
-        },
-        "a": {
-          "nested": {
-            "x": 1
-          },
-          "sibling": {
-            "x": 1
-          }
-        },
-        "o24bbd": {
-          "x": 1
-        }
-      },
-      "java": "diverges"
-    },
-    {
-      "case": "duplicate-keys-and-object-merging/013-top-level-null-before-object-with-substitution.conf",
-      "spec": "HOCON.md#duplicate-keys-and-object-merging",
-      "rule": "the null belongs to v's history even when v's object is still unresolved, so a merges and keeps helper (lightbend/config#864)",
-      "expected": {
-        "v": {
-          "x": 1
-        },
-        "pending": 1,
-        "a": {
-          "helper": 0,
-          "x": 1
-        }
-      },
-      "got": {
-        "v": {
-          "x": 1
-        },
-        "pending": 1,
-        "a": {
-          "x": 1
-        }
-      },
-      "java": "diverges"
-    },
-    {
-      "case": "duplicate-keys-and-object-merging/015-earlier-receiver-value-is-evaluated-once-merged.conf",
-      "spec": "HOCON.md#duplicate-keys-and-object-merging",
-      "rule": "${r} is an object, so it merges with the earlier a and the ${missing} inside it is evaluated: an error. typesafe/config 1.4.5 agreed; 1.4.9 drops the earlier a and yields {y:1}, and lightbend/config#864 restores the error",
-      "expected": "rejected",
-      "got": "{\"r\":{\"y\":1},\"a\":{\"y\":1}}",
-      "java": "lenient"
-    },
-    {
-      "case": "duplicate-keys-and-object-merging/016-null-deeper-in-a-merge-stack-stays-at-its-key.conf",
-      "spec": "HOCON.md#duplicate-keys-and-object-merging",
-      "rule": "v's value is a merge whose top is an object and whose null sits further down, under nested; that null is still v.nested's merge instruction, so a.nested keeps helper (lightbend/config#864 review, round 3)",
-      "expected": {
-        "v": {
-          "nested": {
-            "x": 1
-          },
-          "y": 2
-        },
-        "a": {
-          "nested": {
-            "helper": 0,
-            "x": 1
-          },
-          "y": 2
-        },
-        "pending": {
-          "x": 1
-        },
-        "pendingTop": {
-          "y": 2
-        }
-      },
-      "got": {
-        "v": {
-          "y": 2
-        },
-        "a": {
-          "y": 2
-        },
-        "pending": {
-          "x": 1
-        },
-        "pendingTop": {
-          "y": 2
-        }
-      },
-      "java": "diverges"
-    },
-    {
-      "case": "duplicate-keys-and-object-merging/020-objects-and-substitutions-alternate.conf",
-      "spec": "HOCON.md#duplicate-keys-and-object-merging",
-      "rule": "four values for a, two of them substitutions that resolve to objects: all four merge in order",
-      "expected": {
-        "a": {
-          "p": 1,
-          "q": 2,
-          "r": 3,
-          "s": 4
-        },
-        "x": {
-          "q": 2
-        },
-        "y": {
-          "s": 4
-        }
-      },
-      "got": {
-        "a": {
-          "s": 4
-        },
-        "x": {
-          "q": 2
-        },
-        "y": {
-          "s": 4
-        }
-      }
-    },
-    {
-      "case": "duplicate-keys-and-object-merging/024-merge-stack-nested-inside-a-merge-stack.conf",
-      "spec": "HOCON.md#duplicate-keys-and-object-merging",
-      "rule": "the object layer of a's merge contains a field b that is itself a merge of a substitution and an object; both levels merge",
-      "expected": {
-        "a": {
-          "b": {
-            "c": 1,
-            "e": 3
-          },
-          "d": 2
-        },
-        "x": {
-          "d": 2
-        },
-        "y": {
-          "e": 3
-        }
-      },
-      "got": {
-        "a": {
-          "b": {
-            "c": 1
-          }
-        },
-        "x": {
-          "d": 2
-        },
-        "y": {
-          "e": 3
-        }
-      }
-    },
-    {
-      "case": "include-merging/012-included-merge-stack-over-earlier-object/main.conf",
-      "spec": "HOCON.md#include-semantics-merging",
-      "rule": "the included file leaves a as an object merged with a substitution; that whole stack merges with the object the including file set earlier",
-      "expected": {
-        "a": {
-          "m": 1,
-          "n": 2,
-          "z": 0
-        },
-        "q": {
-          "n": 2
-        }
-      },
-      "got": {
-        "a": {
-          "n": 2
-        },
-        "q": {
-          "n": 2
-        }
-      }
-    },
-    {
-      "case": "include-merging/013-included-merge-stack-over-earlier-substitution/main.conf",
-      "spec": "HOCON.md#include-semantics-merging",
-      "rule": "the earlier value is itself a substitution; once everything resolves to objects, all three layers merge",
-      "expected": {
-        "a": {
-          "m": 1,
-          "n": 2,
-          "y": 9
-        },
-        "q": {
-          "n": 2
-        },
-        "r": {
-          "y": 9
-        }
-      },
-      "got": {
-        "a": {
-          "n": 2
-        },
-        "q": {
-          "n": 2
-        },
-        "r": {
-          "y": 9
-        }
-      }
-    },
-    {
-      "case": "include-merging/014-included-merge-stack-over-earlier-scalar/main.conf",
-      "spec": "HOCON.md#include-semantics-merging",
-      "rule": "the earlier value is a number, so the included object stack replaces it and merges only within itself",
-      "expected": {
-        "a": {
-          "m": 1,
-          "n": 2
-        },
-        "q": {
-          "n": 2
-        }
-      },
-      "got": {
-        "a": {
-          "n": 2
-        },
-        "q": {
-          "n": 2
-        }
-      }
-    },
-    {
-      "case": "include-merging/015-included-object-on-top-of-substitution-over-earlier-substitution/main.conf",
-      "spec": "HOCON.md#include-semantics-merging",
-      "rule": "the same as 013 with the included stack the other way up, an object over a substitution; the result does not depend on which layer is on top",
-      "expected": {
-        "a": {
-          "m": 1,
-          "n": 2,
-          "y": 9
-        },
-        "q": {
-          "n": 2
-        },
-        "r": {
-          "y": 9
-        }
-      },
-      "got": {
-        "a": {
-          "m": 1
-        },
-        "q": {
-          "n": 2
-        },
-        "r": {
-          "y": 9
-        }
-      }
-    },
-    {
       "case": "include-substitution/008-original-path-falls-back-to-environment/main.conf",
       "spec": "HOCON.md#include-semantics-substitution",
       "rule": "an included file may intend to refer to the application's root config, for example to get a value from the environment; the original path CONFORMANCE_HOME is looked up and falls back to the environment variable",
@@ -1053,64 +653,6 @@
         }
       },
       "got": "rejected (exit 1)"
-    },
-    {
-      "case": "include-substitution/012-earlier-value-at-fixed-up-path-wins/main.conf",
-      "spec": "HOCON.md#include-semantics-substitution",
-      "rule": "an undefined optional that would override keeps the previous value, so common.x.y is 9 and found at the fixed-up path; the original path is not consulted",
-      "expected": {
-        "common": {
-          "x": {
-            "y": 9
-          },
-          "a": 9
-        },
-        "x": {
-          "y": 0
-        }
-      },
-      "got": {
-        "common": {
-          "x": {},
-          "a": 0
-        },
-        "x": {
-          "y": 0
-        }
-      }
-    },
-    {
-      "case": "include-substitution/018-substitution-in-a-merge-stack-is-fixed-up/main.conf",
-      "spec": "HOCON.md#include-semantics-substitution",
-      "rule": "an object merged with a substitution in the included file keeps working after the fix-up, whichever of the two is on top: q is found at p.q",
-      "expected": {
-        "p": {
-          "o": {
-            "m": 1,
-            "n": 2
-          },
-          "r": {
-            "m": 1,
-            "n": 2
-          },
-          "q": {
-            "n": 2
-          }
-        }
-      },
-      "got": {
-        "p": {
-          "o": {
-            "n": 2
-          },
-          "r": {
-            "m": 1
-          },
-          "q": {
-            "n": 2
-          }
-        }
-      }
     },
     {
       "case": "include-syntax/011-url-argument-must-be-a-url/main.conf",
@@ -1236,158 +778,6 @@
       "got": "rejected (exit 1)"
     },
     {
-      "case": "plus-equals-field-separator/001-plus-equals-desugars-to-optional-self-ref-array.conf",
-      "spec": "HOCON.md#the--field-separator",
-      "rule": "a += b transforms into a = ${?a} [b], and because the fallback is optional (${?a} not ${a}) this is legal even as the first mention of a in the file",
-      "expected": {
-        "a": [
-          "b"
-        ]
-      },
-      "got": "rejected (exit 1)"
-    },
-    {
-      "case": "plus-equals-field-separator/002-plus-equals-appends-to-existing-array.conf",
-      "spec": "HOCON.md#the--field-separator",
-      "rule": "+= appends an element to a previous array",
-      "expected": {
-        "a": [
-          "x",
-          "y"
-        ]
-      },
-      "got": "rejected (exit 1)"
-    },
-    {
-      "case": "plus-equals-field-separator/004-plus-equals-twice.conf",
-      "spec": "HOCON.md#the--field-separator",
-      "rule": "each += appends to the value the previous line left, so two of them append two elements",
-      "expected": {
-        "a": [
-          1,
-          2,
-          3
-        ]
-      },
-      "got": "rejected (exit 1)"
-    },
-    {
-      "case": "plus-equals-field-separator/005-plus-equals-in-nested-object-with-substitution.conf",
-      "spec": "HOCON.md#the--field-separator",
-      "rule": "inside an object, += desugars to a self-reference by the field's full path o.a; the appended element may itself be a substitution",
-      "expected": {
-        "o": {
-          "a": [
-            1,
-            2
-          ]
-        },
-        "x": 2
-      },
-      "got": "rejected (exit 1)"
-    },
-    {
-      "case": "plus-equals-field-separator/006-plus-equals-inside-a-list-element.conf",
-      "spec": "HOCON.md#the--field-separator",
-      "rule": "b has no previous value, so b += 1 is b = ${?b} [1] with the optional part undefined: [1]. typesafe/config refuses += inside a list because its desugared path cannot name a list element",
-      "expected": {
-        "a": [
-          {
-            "b": [
-              1
-            ]
-          }
-        ]
-      },
-      "got": "rejected (exit 1)",
-      "java": "unsupported"
-    },
-    {
-      "case": "plus-equals-field-separator/007-plus-equals-under-a-dotted-key.conf",
-      "spec": "HOCON.md#the--field-separator",
-      "rule": "the self-reference += desugars to uses the full path of the field, o.p.a, even when the enclosing key was written as the path o.p",
-      "expected": {
-        "o": {
-          "p": {
-            "a": [
-              1,
-              2
-            ]
-          }
-        }
-      },
-      "got": "rejected (exit 1)"
-    },
-    {
-      "case": "plus-equals-field-separator/008-plus-equals-with-an-object-containing-a-merge.conf",
-      "spec": "HOCON.md#the--field-separator",
-      "rule": "l += v is l = ${?l} [v]; the appended object holds a merge of an object and a substitution, which resolves inside the new list. typesafe/config fails with an internal error (BugOrBroken) for the same reason as array-and-object-concatenation/018",
-      "expected": {
-        "x": {
-          "p": 1
-        },
-        "l": [
-          {
-            "a": {
-              "p": 1
-            }
-          }
-        ]
-      },
-      "got": "rejected (exit 1)",
-      "java": "unsupported"
-    },
-    {
-      "case": "self-referential-examples/002-self-reference-resolves-to-earlier-merged-value.conf",
-      "spec": "HOCON.md#examples-of-self-referential-substitutions",
-      "rule": "when foo:${foo} is merged with an earlier value for foo, the self-reference resolves to that overridden value, so foo ends up { a : 1 }",
-      "expected": {
-        "foo": {
-          "a": 1
-        }
-      },
-      "got": "rejected (exit 1)"
-    },
-    {
-      "case": "self-referential-examples/003-self-reference-before-any-value-is-undefined.conf",
-      "spec": "HOCON.md#examples-of-self-referential-substitutions",
-      "rule": "if the self-referential foo:${foo} comes before foo has any value, the reference is undefined, exactly as if it named a path not found in the document, so it is an error even though foo is given a value afterward",
-      "expected": "rejected",
-      "got": "{\"foo\":{\"a\":1}}"
-    },
-    {
-      "case": "self-referential-examples/004-optional-self-reference-disappears-silently.conf",
-      "spec": "HOCON.md#examples-of-self-referential-substitutions",
-      "rule": "because the self-reference error is treated as undefined rather than an intractable cycle, the optional syntax foo:${?foo} makes the field disappear silently instead of erroring",
-      "expected": {},
-      "got": "rejected (exit 1)"
-    },
-    {
-      "case": "self-referential-examples/007-self-reference-in-path-expression-resolves-to-value-below.conf",
-      "spec": "HOCON.md#examples-of-self-referential-substitutions",
-      "rule": "a self-reference resolves to the value below it even as part of a path expression, so ${foo.a} refers to { c : 1 } rather than 2, and the final merge is { a : 2, c : 1 }",
-      "expected": {
-        "foo": {
-          "a": 2,
-          "c": 1
-        }
-      },
-      "got": {
-        "foo": {
-          "a": 2
-        }
-      }
-    },
-    {
-      "case": "self-referential-examples/011-optional-self-reference-in-concatenation-looks-back.conf",
-      "spec": "HOCON.md#examples-of-self-referential-substitutions",
-      "rule": "an optional self-reference in a value concatenation has to look back to an undefined a, so a ends up \"foo\" rather than \"foofoo\"",
-      "expected": {
-        "a": "foo"
-      },
-      "got": "rejected (exit 1)"
-    },
-    {
       "case": "self-referential-examples/014-order-dependent-resolution-must-agree-on-one-value.conf",
       "spec": "HOCON.md#examples-of-self-referential-substitutions",
       "rule": "this case has undefined behavior depending on resolution order: implementations are allowed to set both a and b to 1, both to 2, or to error, but must set both to the same value because substitutions are memoized by instance, so a and b must never diverge (e.g. a=1,b=2 is not permitted)",
@@ -1395,69 +785,11 @@
         "a": 1,
         "b": 1
       },
-      "got": "rejected (exit 1)",
+      "got": {
+        "a": 1,
+        "b": 1
+      },
       "open_question": "the spec allows both fields to be 1, both 2, or an error (L875-877); only 'the same value' is required, which one expected tree cannot express. typesafe/config itself gives 1 or 2 depending on key order"
-    },
-    {
-      "case": "self-referential-examples/018-object-merged-with-substituted-object-is-evaluated.conf",
-      "spec": "HOCON.md#examples-of-self-referential-substitutions",
-      "rule": "a substituted object merges with the earlier object, so its fields are part of the result and ${does-not-exist} is an error",
-      "expected": "rejected",
-      "got": "{\"wrapper\":{},\"replacement\":{}}"
-    },
-    {
-      "case": "self-referential-examples/022-undefined-optional-does-not-hide.conf",
-      "spec": "HOCON.md#examples-of-self-referential-substitutions",
-      "rule": "an undefined optional that would override leaves the previous value in place, so the list is the result and ${does-not-exist} is evaluated: an error",
-      "expected": "rejected",
-      "got": "{}"
-    },
-    {
-      "case": "self-referential-examples/025-optional-two-field-cycle-is-undefined.conf",
-      "spec": "HOCON.md#examples-of-self-referential-substitutions",
-      "rule": "a genuine cycle is an error for required substitutions; with the optional syntax it is a missing value, so neither field is created",
-      "expected": {},
-      "got": "rejected (exit 1)"
-    },
-    {
-      "case": "self-referential-examples/026-memoized-by-instance-not-by-path.conf",
-      "spec": "HOCON.md#examples-of-self-referential-substitutions",
-      "rule": "the text ${a} appears twice and resolves differently: to x in a's own self-reference and to the final xy in b; memoizing by path instead of by instance would give b the wrong value",
-      "expected": {
-        "a": "xy",
-        "b": "xy"
-      },
-      "got": "rejected (exit 1)"
-    },
-    {
-      "case": "self-referential-substitutions/001-path-builds-on-older-value.conf",
-      "spec": "HOCON.md#self-referential-substitutions",
-      "rule": "a field may look up its own older value before being overridden with a new value based on it, letting path:${path}\":d\" extend the earlier path:\"a:b:c\"",
-      "expected": {
-        "path": "a:b:c:d"
-      },
-      "got": "rejected (exit 1)"
-    },
-    {
-      "case": "self-referential-substitutions/002-self-referential-concatenation.conf",
-      "spec": "HOCON.md#self-referential-substitutions",
-      "rule": "a value concatenation containing a substitution to its own field is self-referential, so ${a} looks back to the earlier x and the result is xbc",
-      "expected": {
-        "a": "xbc"
-      },
-      "got": "rejected (exit 1)"
-    },
-    {
-      "case": "self-referential-substitutions/006-self-referential-array-concatenation.conf",
-      "spec": "HOCON.md#self-referential-substitutions",
-      "rule": "the spec lists path:${path} [ /usr/bin ] among the examples of self-referential fields: a value concatenation of a substitution with an array literal is still self-referential",
-      "expected": {
-        "path": [
-          "/usr",
-          "/usr/bin"
-        ]
-      },
-      "got": "rejected (exit 1)"
     },
     {
       "case": "substitution-fallback-to-environment/001-env-fallback-for-undefined-path.conf",
@@ -1515,15 +847,6 @@
         "z": "null"
       },
       "got": "rejected (exit 1)"
-    },
-    {
-      "case": "substitutions/013-undefined-optional-substitution-keeps-previous-value.conf",
-      "spec": "HOCON.md#substitutions",
-      "rule": "if an undefined ${?foo} would override a previously-set value for the same field, the previous value remains",
-      "expected": {
-        "a": 1
-      },
-      "got": {}
     },
     {
       "case": "unchanged-from-json/027-unpaired-surrogate-escape-is-kept.conf",

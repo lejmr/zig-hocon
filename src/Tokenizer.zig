@@ -24,6 +24,7 @@ pub const Token = struct {
         newline,
         comma,
         assignment, // = or :
+        plus_assignment, // +=
 
         invalid,
         eof,
@@ -106,6 +107,12 @@ pub const Tokenizer = struct {
                     ':', '=' => {
                         self.pos += 1;
                         return .{ .tag = .assignment, .loc = .{ .start = self.pos - 1, .end = self.pos } };
+                    },
+                    // `+=` is one token; a `+` on its own is not allowed anywhere.
+                    '+' => {
+                        if (self.input[self.pos + 1] != '=') return .{ .tag = .invalid, .loc = .{ .start = self.pos, .end = self.pos } };
+                        self.pos += 2;
+                        return .{ .tag = .plus_assignment, .loc = .{ .start = self.pos - 2, .end = self.pos } };
                     },
                     '\n' => {
                         self.pos += 1;
@@ -628,6 +635,19 @@ test "// right after a word starts a comment" {
         .ok("foo//bar", "string(foo) eof"),
         .ok("foo//bar\nb", "string(foo) newline(\\n) string(b) eof"),
         .ok("foo/bar", "string(foo/bar) eof"),
+    });
+}
+
+// java ✓ · pyhocon ✓ · spec ✓ — `+=` is one token, with nothing between the
+// two characters. `+` alone is reserved, so `a + = b` and `a +b` are errors;
+// java says "'+' not followed by =", pyhocon expects one of `=`, `:`, `+=`.
+test "+= is one token, + alone is not" {
+    try expectAll(&.{
+        .ok("a += b", "string(a) plus_assignment(+=) string(b) eof"),
+        .ok("a+=b", "string(a) plus_assignment(+=) string(b) eof"),
+        .ok("a += [1]", "string(a) plus_assignment(+=) l_bracket([) string(1) r_bracket(]) eof"),
+        .ok("a + = b", "string(a) invalid"),
+        .ok("a +b", "string(a) invalid"),
     });
 }
 

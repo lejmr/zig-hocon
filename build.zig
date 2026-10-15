@@ -57,6 +57,15 @@ pub fn build(b: *std.Build) void {
     cli_includes.expectStdOutEqual("{\"name\":\"from inner\",\"port\":443,\"log\":{\"level\":\"info\",\"file\":\"quiet-wombat.log\"}}\n");
     test_step.dependOn(&cli_includes.step);
 
+    // The layered workflow end to end: prod.conf includes defaults.conf, then
+    // builds on what it left with self-references (`path = ${path}…`,
+    // `server = ${server} {…}`) and appends with `+=`, one element a substitution
+    // defined further down. java agrees (pyhocon fails on `+=`).
+    const cli_layers = b.addRunArtifact(exe);
+    cli_layers.addFileArg(b.path("tests/cli-layers/prod.conf"));
+    cli_layers.expectStdOutEqual("{\"path\":\"/usr/bin:/opt/llama/bin\",\"plugins\":[\"auth\",\"metrics\",\"coffee-detector\"],\"server\":{\"port\":443,\"motto\":\"the wombat sleeps at noon\"},\"extra\":\"coffee-detector\"}\n");
+    test_step.dependOn(&cli_layers.step);
+
     // The CLI on a broken file, checked as a user meets it: exit 1 and exactly
     // this on stderr. Run from the file's own directory, so the path it prints
     // is the one it was given and not wherever the cache put it.

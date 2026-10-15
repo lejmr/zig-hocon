@@ -198,8 +198,9 @@ a${b} = 1      ERROR            not even next to one
 ```
 
 The separator after a key is `=`, `:` (both arrive as `.assignment`), or nothing
-at all before a `{`. HOCON also has `+=` (`a += 1` → `{"a":${?a}[1]}`); the
-tokenizer does not know it yet.
+at all before a `{`. HOCON also has `+=` (`a += 1` → `{"a":${?a}[1]}`): one token,
+`.plus_assignment`, and an `append` node in the tree. The `${?a}` it stands for
+needs the field's whole path, so value building writes it, not the parser.
 
 ### Paths as keys
 
