@@ -228,12 +228,13 @@ test "convert.int" {
     try expectConvertError(struct { a: usize }, "a = abc", error.InvalidCharacter);
 }
 
-// automatic-type-conversions L1238 · java ✓ · pyhocon ✓ · spec ✓ — text that only starts like a number is not
-// one. FINDINGS.md (unquoted-strings) has java *parsing* `-foo` and `1.2.3` as
-// strings against the spec; asked for a number, all three agree it is an error.
+// unquoted-strings.12-13 · java ⚠️ · pyhocon ⚠️ · spec ✓ — text that only starts
+// like a number never gets as far as converting: the spec makes it a parse
+// error. Both oracles parse `-foo` and `1.2.3` as strings and fail only when
+// asked for a number (FINDINGS.md, unquoted-strings).
 test "convert.int refuses a string that merely starts like a number" {
-    try expectConvertError(struct { a: usize }, "a = 1.2.3", error.InvalidCharacter);
-    try expectConvertError(struct { a: i64 }, "a = -foo", error.InvalidCharacter);
+    try expectConvertError(struct { a: usize }, "a = 1.2.3", error.BadNumber);
+    try expectConvertError(struct { a: i64 }, "a = -foo", error.HyphenIsNotAJsonNumber);
 }
 
 // automatic-type-conversions L1238 · java ⚠️ · pyhocon ⚠️ · spec – — both truncate 1.5 to 1 without a word.

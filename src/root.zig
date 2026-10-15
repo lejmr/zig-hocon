@@ -188,17 +188,16 @@ test "json.a number prints as written" {
     try expectJson("a = 1.50", "{\"a\":1.50}");
 }
 
-// A number is JSON's number grammar, all of the text or nothing.
-// `-foo` · java ✓ · pyhocon ✓ — a string (FINDINGS.md: the spec would not even
-//          parse it, see unquoted-strings/012).
-// `.5`   · java ✓ · pyhocon ⚠️ 0.5 — JSON numbers need a digit before the dot.
-// `1.`   · java ⚠️ 1 · pyhocon ✓ — nor may they end in one.
+// A number is JSON's number grammar, all of the text or nothing. What starts
+// like one and is not — `-foo`, `1.` — is a parse error, see "numbers" in Ast.zig.
+// `.5`   · java ✓ · pyhocon ⚠️ 0.5 — JSON numbers need a digit before the dot,
+//          and a dot does not start one.
 // `1 2`  · java ✓ · pyhocon ✓ — one unquoted text with a space, not a number.
+// `10.0bar` · java ✓ · pyhocon ✓ — a number with text after it is text.
 test "json.almost a number is a string" {
-    try expectJson("a = -foo", "{\"a\":\"-foo\"}");
     try expectJson("a = .5", "{\"a\":\".5\"}");
-    try expectJson("a = 1.", "{\"a\":\"1.\"}");
     try expectJson("a = 1 2", "{\"a\":\"1 2\"}");
+    try expectJson("a = 10.0bar", "{\"a\":\"10.0bar\"}");
     try expectJson("a = true foo", "{\"a\":\"true foo\"}");
     try expectJson("a = the dog ate my homework", "{\"a\":\"the dog ate my homework\"}");
 }
@@ -211,6 +210,23 @@ test "json.objects and arrays" {
     try expectJson("a { b = 1 }\na { c = 2 }", "{\"a\":{\"b\":1,\"c\":2}}");
     try expectJson("a = []\nb {}", "{\"a\":[],\"b\":{}}");
     try expectJson("", "{}");
+}
+
+// omit-root-braces/006-010 · java ⚠️ · pyhocon ✓ · spec ✓ — a document that
+// starts with `[` is an array, after comments and blank lines too. Java has no
+// array-rooted config and rejects all four with WrongType.
+test "json.an array root is the document" {
+    try expectJson("[1, 2, 3]", "[1,2,3]");
+    try expectJson("[]", "[]");
+    try expectJson("# a leading comment\n[1, 2]", "[1,2]");
+    try expectJson("\n[1, 2]", "[1,2]");
+}
+
+// As in std.json, the root is whatever T says, so a list parses into a slice.
+test "parsed.an array root parses into a slice" {
+    const parsed = try hocon.parseFromSlice([]u32, testing.allocator, "[4, 8, 15, 16, 23, 42]");
+    defer parsed.deinit();
+    try testing.expectEqualSlices(u32, &.{ 4, 8, 15, 16, 23, 42 }, parsed.value);
 }
 
 // Resolution runs inside the parse, so a substitution with nothing behind it is

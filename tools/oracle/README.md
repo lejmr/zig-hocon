@@ -39,8 +39,8 @@ for deciding what is correct. Confirmed divergences:
 | `a = b\tc` | `{"a":"b\tc"}` — tab kept | `{"a":"b   c"}` — tab expanded | ✅ `value(b\tc)` — matches java | **java.** Whitespace between simple values is preserved verbatim in value concatenation; nothing licenses rewriting a tab. |
 | `a = b:c` | error — `:` is reserved | `{"a":"b:c"}` | ✅ `UnexpectedToken` | **java.** `:` is in the list of characters forbidden in unquoted strings (``$ " { } [ ] : = , + # ` ^ ? ! @ * & \``). |
 | `a = b\\c` | error — `\` is reserved | `{"a":"b\\c"}` | ✅ `UnexpectedToken` | **java.** `\` is on the same forbidden list. |
-| `,a = b` | error | `{"a":"b"}` | accepted — deliberately lenient | **java.** A comma *separates* elements, and only a trailing one is explicitly permitted — a leading comma has nothing to separate. |
-| `a = b,,c = d` | error | `{"a":"b","c":"d"}` | accepted — deliberately lenient | **java.** Same rule: `,` and newline are separators, not filler, so a doubled comma is not covered. |
+| `,a = b` | error | `{"a":"b"}` | ✅ `UnexpectedToken` — matches java | **java.** A comma *separates* elements, and only a trailing one is explicitly permitted — a leading comma has nothing to separate. |
+| `a = b,,c = d` | error | `{"a":"b","c":"d"}` | ✅ `UnexpectedToken` — matches java | **java.** Same rule: `,` and newline are separators, not filler, so a doubled comma is not covered. |
 | `a = include "x"` | `{"a":"include x"}` | error — tries to load `x` | ✅ `concat(value(include), …)` — matches java | **java.** `include` is a keyword only where a field starts. On the value side it is an ordinary unquoted string. |
 | `a = [include "x"]` | `{"a":["include x"]}` | `{"a":[]}` — **silently dropped** | ✅ matches java | **java.** Same rule. Note pyhocon loses the element with no error at all. |
 | `include = 42` | error | `{"include":42}` | ✅ `UnexpectedToken` — matches java, the keyword commits | **java.** The keyword commits: the spec has it followed by a quoted string or one of `file()`/`url()`/`classpath()`, with no fallback to a field named `include`. |

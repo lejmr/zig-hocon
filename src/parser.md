@@ -32,15 +32,14 @@ rather than the text it was written as.
 parse()
 └── parseContainer(ending, containerType)   KNOWS where it is: root / block / array
     │                                       loops over MEMBERS (or, in an array, values)
-    ├── newline | comma        → skip           (separators are handled here, only here)
-    ├── string | quoted_string → in an array:  parseValue()
-    │                            `include`:    parseInclude()
+    ├── newline                → skip           (separators are handled here, only here)
+    ├── comma                  → skip, once per element: no leading or doubled comma
+    ├── in an array, anything  → parseValue()   an element is a value, so `[1] [2]`
+    │                                           concatenates and `${…}` is legal
+    ├── string | quoted_string → `include`:    parseInclude()
     │                            otherwise:    parseMember()
-    ├── l_brace                → parseContainer(.block)    root or array only
-    ├── l_bracket              → parseContainer(.array)    root or array only
-    └── ${ | ${?              → parseValue()              ARRAY ONLY — a substitution
-                                                           is a value, and where a member
-                                                           begins there is no key for it
+    ├── l_brace                → parseContainer(.block)    root only, as the whole document
+    └── l_bracket              → parseContainer(.array)    root only, as the whole document
 
 parseMember()    key, separator, value. Requires the separator, so nothing but an
 │                `.assignment` can come back — and nothing needs checking after.
@@ -50,7 +49,7 @@ parseMember()    key, separator, value. Requires the separator, so nothing but a
 parseValue()     does NOT know where it is. Loops over the PARTS of one value.
 ├── parseText()       text parts
 ├── parseContainer()  a block or an array part
-└── parseValue()      the path inside `${…}`, then `}` is required
+└── parseText()       the path inside `${…}`, then `}` is required
 ```
 
 That dispatch is the whole design. Anything that depends on *position* must be
@@ -61,9 +60,13 @@ into `parseValue`/`parseText` means the decision is at the wrong level.
 The general form: **decide before delegating when position and one token are
 enough; check afterwards only when they are not.** `{ {a=1} }` is caught by the
 first (a `{` where a member begins), `a = b\nc` by the second (`c` looks like a
-key until the input runs out). The inside of `${…}` is the one place that
-delegates wide and narrows after: `parseValue` parses it and `isPathText`
-rejects whatever a path may not contain.
+key until the input runs out). The inside of `${…}` is text only: `parseText`
+stops at anything a path may not contain, and the `}` required next catches it.
+
+Only a value's text goes through `checkNumbers` — a word starting with a digit or
+`-` has to start with a JSON number (`01`, `1.`, `1e`, `-foo` are errors). A key
+and a `${…}` path are exempt, because there a dot separates elements: `1.2.3 = x`
+is a path of three.
 
 Newlines are skipped in exactly three places, all of them places where the
 parser has already committed and is waiting for something: before the separator

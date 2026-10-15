@@ -30,6 +30,26 @@ pub const Token = struct {
     };
 };
 
+/// The byte length of the whitespace character `s` starts with, or 0 if it
+/// does not start with one. HOCON whitespace is the ASCII set (tab, VT, FF, CR,
+/// the separators 0x1C-0x1F, space), every Unicode space, line and paragraph
+/// separator (Zs, Zl, Zp), and the BOM. `\n` is left out: it is a token.
+pub fn whitespaceLen(s: []const u8) usize {
+    if (s.len == 0) return 0;
+    switch (s[0]) {
+        '\t', 0x0B, 0x0C, '\r', 0x1C...0x1F, ' ' => return 1,
+        0x80...0xFF => {},
+        else => return 0,
+    }
+    const len = std.unicode.utf8ByteSequenceLength(s[0]) catch return 0;
+    if (s.len < len) return 0;
+    const cp = std.unicode.utf8Decode(s[0..len]) catch return 0;
+    return switch (cp) {
+        0x00A0, 0x1680, 0x2000...0x200A, 0x2028, 0x2029, 0x202F, 0x205F, 0x3000, 0xFEFF => len,
+        else => 0,
+    };
+}
+
 pub const Tokenizer = struct {
     input: [:0]const u8,
     pos: usize = 0,
@@ -87,7 +107,7 @@ pub const Tokenizer = struct {
                         self.pos += 1;
                         return .{ .tag = .assignment, .loc = .{ .start = self.pos - 1, .end = self.pos } };
                     },
-                    '\n', '\r' => {
+                    '\n' => {
                         self.pos += 1;
                         return .{ .tag = .newline, .loc = .{ .start = self.pos - 1, .end = self.pos } };
                     },
@@ -95,9 +115,6 @@ pub const Tokenizer = struct {
                         self.pos += 1;
                         return .{ .tag = .comma, .loc = .{ .start = self.pos - 1, .end = self.pos } };
                     },
-
-                    // Noops in starting phase
-                    ' ', '\t' => {},
 
                     // Blocks and arrays can be returned directyl
                     '{' => {
@@ -142,49 +159,49 @@ pub const Tokenizer = struct {
                     // End of the file
                     0 => continue :sw_state .eof,
 
-                    // Invalid state that should happen only as part of development
-                    else => return .{ .tag = .invalid, .loc = .{
-                        .start = self.pos,
-                        .end = self.pos,
-                    } },
+                    // Leading whitespace before a token, even a multi-byte one
+                    // (U+00A0 is C2 A0), is skipped whole. Any other byte
+                    // cannot start a token.
+                    else => {
+                        const len = whitespaceLen(self.input[self.pos..]);
+                        if (len == 0) return .{ .tag = .invalid, .loc = .{
+                            .start = self.pos,
+                            .end = self.pos,
+                        } };
+                        self.pos += len - 1;
+                    },
                 },
                 .word => switch (c) {
-                    '`', '^', '?', '!', '@', '*', '&', '\\', '$', '"', '{', '}', '[', ']', ',', '+', '#', '\t', '\n', '\r' => return .{
+                    '`', '^', '?', '!', '@', '*', '&', '\\', '$', '"', '{', '}', '[', ']', ',', '+', '#', '\n' => return .{
                         .tag = .string,
                         .loc = .{ .start = state_start, .end = self.pos },
                     },
 
-                    // Special comment handling
-                    '/' => {
-                        if (self.pos + 1 < self.input.len and self.input[self.pos + 1] == '/') {
-                            self.pos += 1; // Skip the second slash
-                            return .{ .tag = .string, .loc = .{
-                                .start = state_start,
-                                .end = self.pos - 1,
-                            } };
-                        } else {
-                            // Single slash is a legal unquoted string character
-                        }
-                    },
+                    // `//` ends the word and is left for the next call, which
+                    // starts the comment; a single slash is ordinary text.
+                    '/' => if (self.input[self.pos + 1] == '/') return .{ .tag = .string, .loc = .{
+                        .start = state_start,
+                        .end = self.pos,
+                    } },
 
                     // Proper ending
-                    '=', ':', ' ' => {
-                        state = .start;
-                        return .{ .tag = .string, .loc = .{
-                            .start = state_start,
-                            .end = self.pos,
-                        } };
-                    },
+                    '=', ':' => return .{ .tag = .string, .loc = .{
+                        .start = state_start,
+                        .end = self.pos,
+                    } },
 
                     0 => return .{ .tag = .string, .loc = .{
                         .start = state_start,
                         .end = self.pos,
                     } },
-                    else => {},
+                    else => if (whitespaceLen(self.input[self.pos..]) > 0) return .{ .tag = .string, .loc = .{
+                        .start = state_start,
+                        .end = self.pos,
+                    } },
                 },
-                // Comment handling
+                // Comment handling. Only `\n` ends one: a lone `\r` is whitespace.
                 .comment => switch (c) {
-                    '\n', '\r' => {
+                    '\n' => {
                         self.pos += 1;
                         return .{ .tag = .newline, .loc = .{
                             .start = self.pos - 1,
@@ -568,6 +585,49 @@ test "substitution" {
 
         // Inside quotes it is literal text: 'a = "${b}"' -> {"a":"${b}"}.
         .ok("\"${b}\"", "quoted_string(\"${b}\") eof"),
+    });
+}
+
+// java ✓ · pyhocon ⚠️ · spec ✓ — every row below is {"a":1} on java, and so is
+// the same thing with NBSP, BOM, VT/FF, 0x1C-0x1F, U+2007, U+202F, U+2028 and
+// U+3000 around `=`. pyhocon knows ASCII space and tab only and rejects them all.
+//
+// A lone `\r` is whitespace, not a newline — java and spec agree, pyhocon reads
+// it as a line break:
+//   'a = 1\rb'          java {"a":"1\rb"}       pyhocon ERROR
+//   'a = 1\rb = 2'      java ERROR             pyhocon {"a":1,"b":2}
+//   '# c\rb = 2\nc = 3' java {"c":3}           pyhocon {"b":2,"c":3}
+test "whitespace is every HOCON whitespace character" {
+    try expectAll(&.{
+        .ok("a\u{a0}=\u{a0}1", "string(a) assignment(=) string(1) eof"),
+        .ok("\u{feff}a = 1", "string(a) assignment(=) string(1) eof"),
+        .ok("a\u{feff}=\u{feff}1", "string(a) assignment(=) string(1) eof"),
+        .ok("a\x0b=\x0c1", "string(a) assignment(=) string(1) eof"),
+        .ok("a\x1c=\x1f1", "string(a) assignment(=) string(1) eof"),
+        .ok("a\u{2007}=\u{202f}1", "string(a) assignment(=) string(1) eof"),
+        .ok("a\u{2028}=\u{3000}1", "string(a) assignment(=) string(1) eof"),
+        .ok("a\u{1680}=\u{205f}1", "string(a) assignment(=) string(1) eof"),
+
+        // Whitespace ends a word, so the parser can tell two words from one.
+        .ok("x\u{a0}y", "string(x) string(y) eof"),
+        // Other non-ASCII text is ordinary word content.
+        .ok("x\u{e9}y", "string(x\u{e9}y) eof"),
+
+        // `\r` alone separates words but ends no line, not even a comment's.
+        .ok("a = 1\rb", "string(a) assignment(=) string(1) string(b) eof"),
+        .ok("a\r\nb", "string(a) newline(\\n) string(b) eof"),
+        .ok("# c\rb\nc", "newline(\\n) string(c) eof"),
+    });
+}
+
+// unquoted-strings/004 · java ✓ · pyhocon ⚠️ · spec ✓ — `//` starts a comment
+// even straight after unquoted text: 'a = foo//bar' -> {"a":"foo"}. pyhocon keeps
+// it as {"a":"foo//bar"}.
+test "// right after a word starts a comment" {
+    try expectAll(&.{
+        .ok("foo//bar", "string(foo) eof"),
+        .ok("foo//bar\nb", "string(foo) newline(\\n) string(b) eof"),
+        .ok("foo/bar", "string(foo/bar) eof"),
     });
 }
 

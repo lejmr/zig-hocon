@@ -1,0 +1,57 @@
+//! What a number is, for the parser (`checkNumber`) and for JSON output
+//! (`isJsonNumber`).
+
+const std = @import("std");
+
+/// JSON's number grammar, all of the text or nothing:
+/// `-? (0 | [1-9][0-9]*) (. [0-9]+)? ([eE] [+-]? [0-9]+)?`
+/// So `.5`, `1.`, `01` and `1 2` are not numbers.
+pub fn isJsonNumber(text: []const u8) bool {
+    var i: usize = 0;
+    if (i < text.len and text[i] == '-') i += 1;
+
+    // Integer part: a lone 0, or a non-zero digit and any digits after it.
+    if (i >= text.len or !std.ascii.isDigit(text[i])) return false;
+    if (text[i] == '0') i += 1 else i = skipDigits(text, i);
+
+    if (i < text.len and text[i] == '.') {
+        const start = i + 1;
+        i = skipDigits(text, start);
+        if (i == start) return false;
+    }
+
+    if (i < text.len and (text[i] == 'e' or text[i] == 'E')) {
+        i += 1;
+        if (i < text.len and (text[i] == '+' or text[i] == '-')) i += 1;
+        const start = i;
+        i = skipDigits(text, start);
+        if (i == start) return false;
+    }
+
+    return i == text.len;
+}
+
+fn skipDigits(text: []const u8, from: usize) usize {
+    var i = from;
+    while (i < text.len and std.ascii.isDigit(text[i])) i += 1;
+    return i;
+}
+
+pub const NumberError = error{ LeadingZeroIsNotAJsonNumber, HyphenIsNotAJsonNumber, BadNumber };
+
+/// A word that starts with a digit or `-` starts with a number: the run of
+/// characters JSON allows in one (`0-9 + - . e E`) is parsed as a number, with
+/// no fallback to text. So `1e`, `01`, `1.`, `-.5` and `-foo` are errors.
+///
+/// Text after the run concatenates with the number it starts with, as in `5EB`
+/// or `10.0bar` — which needs a number to be there: `-foo` has none.
+pub fn checkNumber(word: []const u8) NumberError!void {
+    if (word.len == 0 or !(std.ascii.isDigit(word[0]) or word[0] == '-')) return;
+    const end = std.mem.indexOfNone(u8, word, "0123456789+-.eE") orelse word.len;
+    const run = word[0..end];
+    if (isJsonNumber(run)) return;
+    if (end < word.len and std.ascii.isDigit(word[@intFromBool(word[0] == '-')])) return;
+    if (run.len == 1) return error.HyphenIsNotAJsonNumber;
+    if (run[0] == '0' and std.ascii.isDigit(run[1])) return error.LeadingZeroIsNotAJsonNumber;
+    return error.BadNumber;
+}

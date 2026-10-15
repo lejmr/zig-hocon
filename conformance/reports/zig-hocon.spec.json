@@ -1,14 +1,14 @@
 {
   "suite": "hocon-conformance",
   "implementation": "zig-hocon",
-  "version": "zig-hocon code@d1849e1",
+  "version": "zig-hocon code@c372b28",
   "mode": "spec",
   "command": "conformance/adapters/zig-hocon.sh",
-  "ran_at": "2026-10-15T05:03:04Z",
+  "ran_at": "2026-10-15T19:22:34Z",
   "suite_digest": "2fe52df92f49aea2",
   "total": 445,
-  "passed": 357,
-  "percent": 80.2,
+  "passed": 388,
+  "percent": 87.2,
   "sections": {
     "array-and-object-concatenation": {
       "total": 19,
@@ -16,11 +16,11 @@
     },
     "arrays-without-commas-or-newlines": {
       "total": 7,
-      "passed": 6
+      "passed": 7
     },
     "commas": {
       "total": 13,
-      "passed": 6
+      "passed": 13
     },
     "comments": {
       "total": 14,
@@ -28,7 +28,7 @@
     },
     "concatenation-whitespace-and-substitutions": {
       "total": 9,
-      "passed": 7
+      "passed": 9
     },
     "config-and-file-merging": {
       "total": 4,
@@ -84,7 +84,7 @@
     },
     "omit-root-braces": {
       "total": 14,
-      "passed": 10
+      "passed": 14
     },
     "path-expressions": {
       "total": 20,
@@ -128,7 +128,7 @@
     },
     "unchanged-from-json": {
       "total": 27,
-      "passed": 21
+      "passed": 26
     },
     "units-format": {
       "total": 6,
@@ -136,7 +136,7 @@
     },
     "unquoted-strings": {
       "total": 24,
-      "passed": 21
+      "passed": 24
     },
     "value-concatenation": {
       "total": 2,
@@ -144,7 +144,7 @@
     },
     "whitespace": {
       "total": 13,
-      "passed": 4
+      "passed": 13
     }
   },
   "cases": {
@@ -170,23 +170,23 @@
     "arrays-without-commas-or-newlines/001-newlines-instead-of-commas.conf": "pass",
     "arrays-without-commas-or-newlines/002-whitespace-instead-of-comma-concatenates-into-one-element.conf": "pass",
     "arrays-without-commas-or-newlines/003-newline-separates-two-arrays-into-elements.conf": "pass",
-    "arrays-without-commas-or-newlines/004-same-line-whitespace-concatenates-two-arrays-into-one-element.conf": "fail",
+    "arrays-without-commas-or-newlines/004-same-line-whitespace-concatenates-two-arrays-into-one-element.conf": "pass",
     "arrays-without-commas-or-newlines/005-unquoted-string-concatenation-with-substitutions-in-array.conf": "pass",
     "arrays-without-commas-or-newlines/006-two-elements-each-a-substitution-concatenation.conf": "pass",
     "arrays-without-commas-or-newlines/007-whitespace-never-separates-fields.conf": "pass",
     "commas/001-array-trailing-comma.conf": "pass",
     "commas/002-array-newline-no-comma.conf": "pass",
-    "commas/003-array-double-trailing-comma-invalid.conf": "fail",
-    "commas/004-array-initial-comma-invalid.conf": "fail",
-    "commas/005-array-double-comma-invalid.conf": "fail",
+    "commas/003-array-double-trailing-comma-invalid.conf": "pass",
+    "commas/004-array-initial-comma-invalid.conf": "pass",
+    "commas/005-array-double-comma-invalid.conf": "pass",
     "commas/006-object-trailing-comma.conf": "pass",
     "commas/007-object-newline-no-comma.conf": "pass",
-    "commas/008-object-double-comma-invalid.conf": "fail",
+    "commas/008-object-double-comma-invalid.conf": "pass",
     "commas/009-fields-on-one-line-need-a-comma.conf": "pass",
     "commas/011-trailing-comma-at-implicit-root.conf": "pass",
-    "commas/012-leading-comma-at-implicit-root-illegal.conf": "fail",
-    "commas/013-double-trailing-comma-in-object-illegal.conf": "fail",
-    "commas/014-leading-comma-in-object-illegal.conf": "fail",
+    "commas/012-leading-comma-at-implicit-root-illegal.conf": "pass",
+    "commas/013-double-trailing-comma-in-object-illegal.conf": "pass",
+    "commas/014-leading-comma-in-object-illegal.conf": "pass",
     "comments/001-hash-comment.conf": "pass",
     "comments/002-double-slash-comment.conf": "pass",
     "comments/003-whole-line-comment.conf": "pass",
@@ -205,8 +205,8 @@
     "concatenation-whitespace-and-substitutions/002-quoted-whitespace-between-substitutions-is-error.conf": "pass",
     "concatenation-whitespace-and-substitutions/003-unquoted-whitespace-between-object-and-list-substitutions-is-ignored.conf": "pass",
     "concatenation-whitespace-and-substitutions/004-tab-between-list-substitutions-is-ignored.conf": "pass",
-    "concatenation-whitespace-and-substitutions/005-nonbreaking-space-between-list-substitutions-is-ignored.conf": "fail",
-    "concatenation-whitespace-and-substitutions/006-bom-between-list-substitutions-is-ignored.conf": "fail",
+    "concatenation-whitespace-and-substitutions/005-nonbreaking-space-between-list-substitutions-is-ignored.conf": "pass",
+    "concatenation-whitespace-and-substitutions/006-bom-between-list-substitutions-is-ignored.conf": "pass",
     "concatenation-whitespace-and-substitutions/007-zero-width-space-between-list-substitutions-is-error.conf": "pass",
     "concatenation-whitespace-and-substitutions/008-list-then-undefined-optional-is-the-list.conf": "pass",
     "concatenation-whitespace-and-substitutions/009-undefined-optional-then-list-is-the-list.conf": "pass",
@@ -367,10 +367,10 @@
     "omit-root-braces/003-missing-open-brace-with-close-brace-illegal.conf": "pass",
     "omit-root-braces/004-empty-file.conf": "pass",
     "omit-root-braces/005-bare-string-root-illegal.conf": "pass",
-    "omit-root-braces/006-array-root-unaffected.conf": "fail",
-    "omit-root-braces/008-empty-array-root.conf": "fail",
-    "omit-root-braces/009-comment-before-array-root.conf": "fail",
-    "omit-root-braces/010-blank-line-before-array-root.conf": "fail",
+    "omit-root-braces/006-array-root-unaffected.conf": "pass",
+    "omit-root-braces/008-empty-array-root.conf": "pass",
+    "omit-root-braces/009-comment-before-array-root.conf": "pass",
+    "omit-root-braces/010-blank-line-before-array-root.conf": "pass",
     "omit-root-braces/011-trailing-array-after-root-array.conf": "pass",
     "omit-root-braces/012-close-brace-after-value-on-one-line-illegal.conf": "pass",
     "omit-root-braces/013-open-brace-never-closed-illegal.conf": "pass",
@@ -529,12 +529,12 @@
     "unchanged-from-json/006-boolean-value-type.conf": "pass",
     "unchanged-from-json/007-null-value-type.conf": "pass",
     "unchanged-from-json/008-number-format-decimal-and-exponent.conf": "pass",
-    "unchanged-from-json/009-number-leading-zero-illegal.conf": "fail",
-    "unchanged-from-json/010-negative-number-without-integer-part-illegal.conf": "fail",
+    "unchanged-from-json/009-number-leading-zero-illegal.conf": "pass",
+    "unchanged-from-json/010-negative-number-without-integer-part-illegal.conf": "pass",
     "unchanged-from-json/011-negative-exponent-number-without-integer-part-illegal.conf": "pass",
-    "unchanged-from-json/012-number-with-trailing-dot-illegal.conf": "fail",
-    "unchanged-from-json/013-trailing-dot-before-exponent-illegal.conf": "fail",
-    "unchanged-from-json/014-negative-leading-zeros-illegal.conf": "fail",
+    "unchanged-from-json/012-number-with-trailing-dot-illegal.conf": "pass",
+    "unchanged-from-json/013-trailing-dot-before-exponent-illegal.conf": "pass",
+    "unchanged-from-json/014-negative-leading-zeros-illegal.conf": "pass",
     "unchanged-from-json/015-remaining-json-escapes.conf": "pass",
     "unchanged-from-json/016-unknown-escape-illegal.conf": "pass",
     "unchanged-from-json/017-non-hex-unicode-escape-illegal.conf": "pass",
@@ -557,7 +557,7 @@
     "unquoted-strings/001-simple-unquoted-string.conf": "pass",
     "unquoted-strings/002-quoted-alternative-for-forbidden-char.conf": "pass",
     "unquoted-strings/003-unquoted-cannot-contain-at-sign.conf": "pass",
-    "unquoted-strings/004-double-slash-starts-comment.conf": "fail",
+    "unquoted-strings/004-double-slash-starts-comment.conf": "pass",
     "unquoted-strings/005-single-slash-allowed.conf": "pass",
     "unquoted-strings/006-truefoo-parses-as-true-then-foo.conf": "pass",
     "unquoted-strings/007-footrue-is-one-unquoted-string.conf": "pass",
@@ -565,7 +565,7 @@
     "unquoted-strings/009-digits-not-at-start-stay-string.conf": "pass",
     "unquoted-strings/010-embedded-null-not-recognized.conf": "pass",
     "unquoted-strings/011-unquoted-cannot-contain-backslash.conf": "pass",
-    "unquoted-strings/012-unquoted-cannot-start-with-hyphen.conf": "fail",
+    "unquoted-strings/012-unquoted-cannot-start-with-hyphen.conf": "pass",
     "unquoted-strings/013-negative-number-then-string.conf": "pass",
     "unquoted-strings/014-hash-starts-comment-not-forbidden-char-in-string.conf": "pass",
     "unquoted-strings/015-reserved-forbidden-char-no-current-meaning.conf": "pass",
@@ -575,24 +575,24 @@
     "unquoted-strings/019-dollar-must-start-a-substitution.conf": "pass",
     "unquoted-strings/020-plus-must-be-followed-by-equals.conf": "pass",
     "unquoted-strings/021-plus-inside-a-number-illegal.conf": "pass",
-    "unquoted-strings/022-digit-then-exponent-letter-illegal.conf": "fail",
+    "unquoted-strings/022-digit-then-exponent-letter-illegal.conf": "pass",
     "unquoted-strings/023-unquoted-string-ends-at-end-of-file.conf": "pass",
     "unquoted-strings/024-escape-sequence-in-unquoted-string-illegal.conf": "pass",
     "value-concatenation/001-simple-values-concatenate-to-string.conf": "pass",
     "value-concatenation/004-string-concatenation-allowed-in-field-keys.conf": "pass",
-    "whitespace/001-nonbreaking-space-as-whitespace.conf": "fail",
-    "whitespace/002-bom-at-start-is-whitespace.conf": "fail",
+    "whitespace/001-nonbreaking-space-as-whitespace.conf": "pass",
+    "whitespace/002-bom-at-start-is-whitespace.conf": "pass",
     "whitespace/003-unicode-line-paragraph-separator.conf": "pass",
-    "whitespace/004-vertical-tab-form-feed-whitespace.conf": "fail",
+    "whitespace/004-vertical-tab-form-feed-whitespace.conf": "pass",
     "whitespace/005-ascii-separator-control-chars.conf": "pass",
-    "whitespace/006-special-nonbreaking-spaces.conf": "fail",
+    "whitespace/006-special-nonbreaking-spaces.conf": "pass",
     "whitespace/007-tab-is-whitespace.conf": "pass",
     "whitespace/008-crlf-line-endings.conf": "pass",
-    "whitespace/009-lone-carriage-return-is-not-a-newline.conf": "fail",
-    "whitespace/010-line-separator-is-whitespace.conf": "fail",
-    "whitespace/011-ascii-separator-controls-are-whitespace.conf": "fail",
-    "whitespace/012-ideographic-space-is-whitespace.conf": "fail",
-    "whitespace/013-bom-inside-the-document-is-whitespace.conf": "fail"
+    "whitespace/009-lone-carriage-return-is-not-a-newline.conf": "pass",
+    "whitespace/010-line-separator-is-whitespace.conf": "pass",
+    "whitespace/011-ascii-separator-controls-are-whitespace.conf": "pass",
+    "whitespace/012-ideographic-space-is-whitespace.conf": "pass",
+    "whitespace/013-bom-inside-the-document-is-whitespace.conf": "pass"
   },
   "outputs": {
     "array-and-object-concatenation/018-object-with-inner-merge-concatenated-with-substitution.conf": "{\"x\":{\"p\":1},\"n\":{\"a\":{\"p\":1},\"q\":2},\"y\":{\"q\":2}}",
@@ -617,10 +617,10 @@
     "include-substitution/014-unrelated-key-does-not-change-the-result/main.conf": "{\"common\":{\"x\":{},\"a\":0},\"x\":{\"y\":0},\"zzz\":{}}",
     "include-syntax/011-url-argument-must-be-a-url/main.conf": "rejected",
     "key-value-separator/006-newline-between-key-and-brace.conf": "{\"foo\":{\"a\":1}}",
-    "omit-root-braces/006-array-root-unaffected.conf": "rejected",
-    "omit-root-braces/008-empty-array-root.conf": "rejected",
-    "omit-root-braces/009-comment-before-array-root.conf": "rejected",
-    "omit-root-braces/010-blank-line-before-array-root.conf": "rejected",
+    "omit-root-braces/006-array-root-unaffected.conf": "[1,2,3]",
+    "omit-root-braces/008-empty-array-root.conf": "[]",
+    "omit-root-braces/009-comment-before-array-root.conf": "[1,2]",
+    "omit-root-braces/010-blank-line-before-array-root.conf": "[1,2]",
     "paths-as-keys/008-include-cannot-begin-key.conf": "rejected",
     "plus-equals-field-separator/006-plus-equals-inside-a-list-element.conf": "rejected",
     "plus-equals-field-separator/008-plus-equals-with-an-object-containing-a-merge.conf": "rejected",
@@ -633,14 +633,14 @@
     "string-value-concatenation/015-object-then-unquoted-text-without-space.conf": "rejected",
     "string-value-concatenation/016-text-between-arrays-is-not-dropped.conf": "rejected",
     "substitutions/039-undefined-optional-with-number-is-a-string.conf": "{\"a\":\"42\"}",
-    "unchanged-from-json/009-number-leading-zero-illegal.conf": "{\"a\":\"01\"}",
-    "unchanged-from-json/010-negative-number-without-integer-part-illegal.conf": "{\"a\":\"-.33\"}",
+    "unchanged-from-json/009-number-leading-zero-illegal.conf": "rejected",
+    "unchanged-from-json/010-negative-number-without-integer-part-illegal.conf": "rejected",
     "unchanged-from-json/011-negative-exponent-number-without-integer-part-illegal.conf": "rejected",
-    "unchanged-from-json/012-number-with-trailing-dot-illegal.conf": "{\"a\":\"1.\"}",
-    "unchanged-from-json/013-trailing-dot-before-exponent-illegal.conf": "{\"a\":\"-1.e3\"}",
-    "unchanged-from-json/014-negative-leading-zeros-illegal.conf": "{\"a\":\"-0033\"}",
-    "unquoted-strings/012-unquoted-cannot-start-with-hyphen.conf": "{\"a\":\"-foo\"}",
-    "unquoted-strings/022-digit-then-exponent-letter-illegal.conf": "{\"a\":\"1e\"}"
+    "unchanged-from-json/012-number-with-trailing-dot-illegal.conf": "rejected",
+    "unchanged-from-json/013-trailing-dot-before-exponent-illegal.conf": "rejected",
+    "unchanged-from-json/014-negative-leading-zeros-illegal.conf": "rejected",
+    "unquoted-strings/012-unquoted-cannot-start-with-hyphen.conf": "rejected",
+    "unquoted-strings/022-digit-then-exponent-letter-illegal.conf": "rejected"
   },
   "failures": [
     {
@@ -686,118 +686,6 @@
       },
       "got": "rejected (exit 1)",
       "java": "unsupported"
-    },
-    {
-      "case": "arrays-without-commas-or-newlines/004-same-line-whitespace-concatenates-two-arrays-into-one-element.conf",
-      "spec": "HOCON.md#note-arrays-without-commas-or-newlines",
-      "rule": "the spec's worked example: whitespace on the same line between two bracketed arrays concatenates them into a single element, the array [1, 2, 3, 4]",
-      "expected": {
-        "a": [
-          [
-            1,
-            2,
-            3,
-            4
-          ]
-        ]
-      },
-      "got": {
-        "a": [
-          [
-            1,
-            2
-          ],
-          [
-            3,
-            4
-          ]
-        ]
-      }
-    },
-    {
-      "case": "commas/003-array-double-trailing-comma-invalid.conf",
-      "spec": "HOCON.md#commas",
-      "rule": "[1,2,3,,] is explicitly called invalid because it has two trailing commas",
-      "expected": "rejected",
-      "got": "{\"a\":[1,2,3]}"
-    },
-    {
-      "case": "commas/004-array-initial-comma-invalid.conf",
-      "spec": "HOCON.md#commas",
-      "rule": "[,1,2,3] is explicitly called invalid because it has an initial comma",
-      "expected": "rejected",
-      "got": "{\"a\":[1,2,3]}"
-    },
-    {
-      "case": "commas/005-array-double-comma-invalid.conf",
-      "spec": "HOCON.md#commas",
-      "rule": "[1,,2,3] is explicitly called invalid because it has two commas in a row",
-      "expected": "rejected",
-      "got": "{\"a\":[1,2,3]}"
-    },
-    {
-      "case": "commas/008-object-double-comma-invalid.conf",
-      "spec": "HOCON.md#commas",
-      "rule": "these same comma rules apply to fields in objects, so two commas in a row between fields is invalid just as in an array",
-      "expected": "rejected",
-      "got": "{\"a\":{\"b\":1,\"c\":2}}"
-    },
-    {
-      "case": "commas/012-leading-comma-at-implicit-root-illegal.conf",
-      "spec": "HOCON.md#commas",
-      "rule": "an initial comma is invalid in an object, the implicit root included",
-      "expected": "rejected",
-      "got": "{\"a\":1}"
-    },
-    {
-      "case": "commas/013-double-trailing-comma-in-object-illegal.conf",
-      "spec": "HOCON.md#commas",
-      "rule": "the array comma rules apply to object fields: two trailing commas are invalid",
-      "expected": "rejected",
-      "got": "{\"a\":{\"b\":1}}"
-    },
-    {
-      "case": "commas/014-leading-comma-in-object-illegal.conf",
-      "spec": "HOCON.md#commas",
-      "rule": "the array comma rules apply to object fields: an initial comma is invalid",
-      "expected": "rejected",
-      "got": "{\"a\":{\"b\":1}}"
-    },
-    {
-      "case": "concatenation-whitespace-and-substitutions/005-nonbreaking-space-between-list-substitutions-is-ignored.conf",
-      "spec": "HOCON.md#note-concatenation-with-whitespace-and-substitutions",
-      "rule": "U+00A0 is a Zs space and so whitespace in HOCON; between two list substitutions it is ignored (lightbend/config#862 review)",
-      "expected": {
-        "x": [
-          1
-        ],
-        "y": [
-          2
-        ],
-        "a": [
-          1,
-          2
-        ]
-      },
-      "got": "rejected (exit 1)"
-    },
-    {
-      "case": "concatenation-whitespace-and-substitutions/006-bom-between-list-substitutions-is-ignored.conf",
-      "spec": "HOCON.md#note-concatenation-with-whitespace-and-substitutions",
-      "rule": "the BOM must be treated as whitespace, so between two list substitutions it is ignored",
-      "expected": {
-        "x": [
-          1
-        ],
-        "y": [
-          2
-        ],
-        "a": [
-          1,
-          2
-        ]
-      },
-      "got": "rejected (exit 1)"
     },
     {
       "case": "duplicate-keys-and-object-merging/010-null-in-referenced-key-history-does-not-block-merge.conf",
@@ -1348,48 +1236,6 @@
       "got": "rejected (exit 1)"
     },
     {
-      "case": "omit-root-braces/006-array-root-unaffected.conf",
-      "spec": "HOCON.md#omit-root-braces",
-      "rule": "the implicit {} wrap fires only when the file does not begin with a square bracket or curly brace, so a file starting with [ keeps its array root; the include section says so outright -- 'both JSON and HOCON allow arrays as root values in a document' (the reason an included file may not be one). typesafe/config has no array-rooted config at all and rejects the document as LIST rather than object.",
-      "expected": [
-        1,
-        2,
-        3
-      ],
-      "got": "rejected (exit 1)",
-      "java": "unsupported"
-    },
-    {
-      "case": "omit-root-braces/008-empty-array-root.conf",
-      "spec": "HOCON.md#omit-root-braces",
-      "rule": "an empty array is still an array root, and the wrap rule looks at the opening bracket, not at whether the document has content",
-      "expected": [],
-      "got": "rejected (exit 1)",
-      "java": "unsupported"
-    },
-    {
-      "case": "omit-root-braces/009-comment-before-array-root.conf",
-      "spec": "HOCON.md#omit-root-braces",
-      "rule": "the {} wrap fires only for a file that does not begin with a bracket or brace, and a leading comment does not make it one -- both typesafe/config and pyhocon read the first token, not the first byte. the spec's wording is loose here; this row records the consensus reading",
-      "expected": [
-        1,
-        2
-      ],
-      "got": "rejected (exit 1)",
-      "java": "unsupported"
-    },
-    {
-      "case": "omit-root-braces/010-blank-line-before-array-root.conf",
-      "spec": "HOCON.md#omit-root-braces",
-      "rule": "leading whitespace does not trigger the {} wrap either, for the same reason as a leading comment",
-      "expected": [
-        1,
-        2
-      ],
-      "got": "rejected (exit 1)",
-      "java": "unsupported"
-    },
-    {
       "case": "plus-equals-field-separator/001-plus-equals-desugars-to-optional-self-ref-array.conf",
       "spec": "HOCON.md#the--field-separator",
       "rule": "a += b transforms into a = ${?a} [b], and because the fallback is optional (${?a} not ${a}) this is legal even as the first mention of a in the file",
@@ -1680,160 +1526,11 @@
       "got": {}
     },
     {
-      "case": "unchanged-from-json/009-number-leading-zero-illegal.conf",
-      "spec": "HOCON.md#unchanged-from-json",
-      "rule": "allowed number formats match JSON, and JSON forbids a zero followed by further digits; the initial number character plus the valid-in-JSON number characters after it must be parsed as a number value, so the whole token 01 has to be a number and is not one, with no fallback offered. typesafe/config parses it leniently as the number 1.",
-      "expected": "rejected",
-      "got": "{\"a\":\"01\"}",
-      "java": "lenient"
-    },
-    {
-      "case": "unchanged-from-json/010-negative-number-without-integer-part-illegal.conf",
-      "spec": "HOCON.md#unchanged-from-json",
-      "rule": "allowed number formats match JSON, and JSON requires a digit before the decimal point, so -.33 is a number token that is not a valid number. typesafe/config releases up to 1.4.9 parse it as -0.33; upstream main since lightbend/config#861 (unreleased) reads it as the unquoted string \"-.33\", like .33 -- still accepted, still not the error the hyphen rule asks for",
-      "expected": "rejected",
-      "got": "{\"a\":\"-.33\"}",
-      "java": "lenient"
-    },
-    {
-      "case": "unchanged-from-json/012-number-with-trailing-dot-illegal.conf",
-      "spec": "HOCON.md#unchanged-from-json",
-      "rule": "JSON requires a digit after the decimal point; 1. is a number token that is not a valid number. typesafe/config reads it as 1, and lightbend/config#861 leaves it so on purpose",
-      "expected": "rejected",
-      "got": "{\"a\":\"1.\"}",
-      "java": "lenient"
-    },
-    {
-      "case": "unchanged-from-json/013-trailing-dot-before-exponent-illegal.conf",
-      "spec": "HOCON.md#unchanged-from-json",
-      "rule": "the same rule with an exponent after the dot; typesafe/config reads it as -1000 (named out of scope in lightbend/config#861)",
-      "expected": "rejected",
-      "got": "{\"a\":\"-1.e3\"}",
-      "java": "lenient"
-    },
-    {
-      "case": "unchanged-from-json/014-negative-leading-zeros-illegal.conf",
-      "spec": "HOCON.md#unchanged-from-json",
-      "rule": "JSON forbids leading zeros after the minus sign as well; typesafe/config reads it as -33 (named out of scope in lightbend/config#861)",
-      "expected": "rejected",
-      "got": "{\"a\":\"-0033\"}",
-      "java": "lenient"
-    },
-    {
       "case": "unchanged-from-json/027-unpaired-surrogate-escape-is-kept.conf",
       "spec": "HOCON.md#unchanged-from-json",
       "rule": "quoted strings are JSON strings, and JSON's grammar accepts any \\uXXXX escape, an unpaired surrogate included, so the string holds that one code unit",
       "expected": {
         "a": "\ud83d"
-      },
-      "got": "rejected (exit 1)"
-    },
-    {
-      "case": "unquoted-strings/004-double-slash-starts-comment.conf",
-      "spec": "HOCON.md#unquoted-strings",
-      "rule": "the two-character string '//' starts a comment, ending the unquoted string before it even mid-token",
-      "expected": {
-        "a": "foo"
-      },
-      "got": {
-        "a": "foo//bar"
-      }
-    },
-    {
-      "case": "unquoted-strings/012-unquoted-cannot-start-with-hyphen.conf",
-      "spec": "HOCON.md#unquoted-strings",
-      "rule": "an unquoted string may not begin with a hyphen, and the initial number character plus any valid-in-JSON number characters that follow must be parsed as a number value -- here that is the lone '-', which is not a number. typesafe/config falls back to unquoted text and yields the string '-foo', the same leniency it shows for '1e'.",
-      "expected": "rejected",
-      "got": "{\"a\":\"-foo\"}",
-      "java": "lenient"
-    },
-    {
-      "case": "unquoted-strings/022-digit-then-exponent-letter-illegal.conf",
-      "spec": "HOCON.md#unquoted-strings",
-      "rule": "1e begins with a digit, so the run of number characters 1e must be parsed as a number, and it is not one; typesafe/config falls back to the unquoted string \"1e\", the same leniency it shows for -foo",
-      "expected": "rejected",
-      "got": "{\"a\":\"1e\"}",
-      "java": "lenient"
-    },
-    {
-      "case": "whitespace/001-nonbreaking-space-as-whitespace.conf",
-      "spec": "HOCON.md#whitespace",
-      "rule": "a nonbreaking space (0x00A0) is a Unicode Zs separator and must be treated as whitespace",
-      "expected": {
-        "a": 1
-      },
-      "got": "rejected (exit 1)"
-    },
-    {
-      "case": "whitespace/002-bom-at-start-is-whitespace.conf",
-      "spec": "HOCON.md#whitespace",
-      "rule": "the BOM (0xFEFF) must be treated as whitespace, not as part of the key",
-      "expected": {
-        "a": 1
-      },
-      "got": "rejected (exit 1)"
-    },
-    {
-      "case": "whitespace/004-vertical-tab-form-feed-whitespace.conf",
-      "spec": "HOCON.md#whitespace",
-      "rule": "vertical tab (0x000B) and form feed (0x000C) are whitespace characters",
-      "expected": {
-        "a": 1,
-        "b": 2
-      },
-      "got": "rejected (exit 1)"
-    },
-    {
-      "case": "whitespace/006-special-nonbreaking-spaces.conf",
-      "spec": "HOCON.md#whitespace",
-      "rule": "the spec names figure space (0x2007) and narrow no-break space (0x202F) explicitly among the nonbreaking spaces treated as whitespace",
-      "expected": {
-        "a": 1,
-        "b": 2
-      },
-      "got": "rejected (exit 1)"
-    },
-    {
-      "case": "whitespace/009-lone-carriage-return-is-not-a-newline.conf",
-      "spec": "HOCON.md#whitespace",
-      "rule": "a lone carriage return is whitespace but not a newline, so 1 b concatenates and the second = is a stray token",
-      "expected": "rejected",
-      "got": "{\"a\":1,\"b\":2}"
-    },
-    {
-      "case": "whitespace/010-line-separator-is-whitespace.conf",
-      "spec": "HOCON.md#whitespace",
-      "rule": "U+2028 around the separator is whitespace, not part of the key or the value",
-      "expected": {
-        "a": 1
-      },
-      "got": "rejected (exit 1)"
-    },
-    {
-      "case": "whitespace/011-ascii-separator-controls-are-whitespace.conf",
-      "spec": "HOCON.md#whitespace",
-      "rule": "the file, group, record and unit separators 0x1C-0x1F are whitespace around keys and separators",
-      "expected": {
-        "a": 1,
-        "b": 2
-      },
-      "got": "rejected (exit 1)"
-    },
-    {
-      "case": "whitespace/012-ideographic-space-is-whitespace.conf",
-      "spec": "HOCON.md#whitespace",
-      "rule": "the ideographic space U+3000 is a Zs space separator and so whitespace, like every member of the category",
-      "expected": {
-        "a": 1
-      },
-      "got": "rejected (exit 1)"
-    },
-    {
-      "case": "whitespace/013-bom-inside-the-document-is-whitespace.conf",
-      "spec": "HOCON.md#whitespace",
-      "rule": "the BOM is whitespace wherever it appears, not only as a file-start marker",
-      "expected": {
-        "a": 1
       },
       "got": "rejected (exit 1)"
     }

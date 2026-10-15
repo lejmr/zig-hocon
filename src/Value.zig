@@ -4,8 +4,10 @@ const std = @import("std");
 const testing = std.testing;
 const Key = @import("Key.zig");
 const Ast = @import("Ast.zig");
+const Tokenizer = @import("Tokenizer.zig");
 const Node = Ast.Node;
 const unqoute = @import("utils/unqoute.zig");
+const number = @import("utils/number.zig");
 const Include = @import("Include.zig");
 
 pub const Error = error{
@@ -61,8 +63,10 @@ pub const Value = union(enum) {
         return switch (node.kind) {
             .value => .{ .scalar = try Scalar.fromNode(gpa, node) },
             .block, .root => blk: {
-                // A braced root `{a = 1}` is `root(block(...))`: the block is the document.
-                if (node.kind == .root and node.children.len == 1 and node.children[0].kind == .block)
+                // A braced root `{a = 1}` is `root(block(...))`: the block is the
+                // document. So is the array of `[1, 2]`, which has no braces around it.
+                if (node.kind == .root and node.children.len == 1 and
+                    (node.children[0].kind == .block or node.children[0].kind == .array))
                     return Value.fromNode(gpa, node.children[0], ctx);
 
                 var members_map: std.StringArrayHashMapUnmanaged(Value) = .empty;
@@ -201,7 +205,7 @@ pub const Value = union(enum) {
                 if (std.mem.eql(u8, s.value, "false")) return jw.write(false);
                 if (std.mem.eql(u8, s.value, "null")) return jw.write(null);
                 // Printed as written, not parsed and re-rendered: 1e5 stays 1e5.
-                if (isJsonNumber(s.value)) return jw.print("{s}", .{s.value});
+                if (number.isJsonNumber(s.value)) return jw.print("{s}", .{s.value});
                 return jw.write(s.value);
             },
             // `jw.write` on a Value comes back here: the recursion is std's.
@@ -347,43 +351,16 @@ pub const Value = union(enum) {
         return current;
     }
 
-    /// JSON's number grammar, all of the text or nothing:
-    /// `-? (0 | [1-9][0-9]*) (. [0-9]+)? ([eE] [+-]? [0-9]+)?`
-    /// So `.5`, `1.`, `01` and `1 2` are not numbers.
-    fn isJsonNumber(text: []const u8) bool {
-        var i: usize = 0;
-        if (i < text.len and text[i] == '-') i += 1;
-
-        // Integer part: a lone 0, or a non-zero digit and any digits after it.
-        if (i >= text.len or !std.ascii.isDigit(text[i])) return false;
-        if (text[i] == '0') i += 1 else i = skipDigits(text, i);
-
-        if (i < text.len and text[i] == '.') {
-            const start = i + 1;
-            i = skipDigits(text, start);
-            if (i == start) return false;
-        }
-
-        if (i < text.len and (text[i] == 'e' or text[i] == 'E')) {
-            i += 1;
-            if (i < text.len and (text[i] == '+' or text[i] == '-')) i += 1;
-            const start = i;
-            i = skipDigits(text, start);
-            if (i == start) return false;
-        }
-
-        return i == text.len;
-    }
-
-    fn skipDigits(text: []const u8, from: usize) usize {
-        var i = from;
-        while (i < text.len and std.ascii.isDigit(text[i])) i += 1;
-        return i;
-    }
-
+    /// Unquoted and nothing but whitespace — any of it, NBSP and BOM included.
     fn isGap(self: Value) bool {
-        return self == .scalar and !self.scalar.quoted and
-            std.mem.trim(u8, self.scalar.value, " \t").len == 0;
+        if (self != .scalar or self.scalar.quoted) return false;
+        var rest = self.scalar.value;
+        while (rest.len > 0) {
+            const len = Tokenizer.whitespaceLen(rest);
+            if (len == 0) return false;
+            rest = rest[len..];
+        }
+        return true;
     }
 };
 
@@ -1456,6 +1433,15 @@ test "resolve.a path through a ref" {
 test "resolve.pending parts join" {
     try expectResolved("x = 2\nd = ${x}\" ducks in a row\"", "{\"x\":2,\"d\":\"2 ducks in a row\"}");
     try expectResolved("x = [2]\nl = [1] ${x} [3]", "{\"x\":[2],\"l\":[1,2,3]}");
+}
+
+// concatenation-whitespace-and-substitutions/005-006 · java ✓ · pyhocon ⚠️ · spec ✓
+// — any whitespace between two lists is a gap, NBSP and BOM included:
+//   'x = [1]\ny = [2]\na = ${x}<NBSP>${y}' -> {"a":[1,2],…} on java; pyhocon
+// rejects the NBSP as a token and the BOM as a WrongType.
+test "resolve.any whitespace between lists is a gap" {
+    try expectResolved("x = [1]\ny = [2]\na = ${x}\u{a0}${y}", "{\"x\":[1],\"y\":[2],\"a\":[1,2]}");
+    try expectResolved("x = [1]\ny = [2]\na = ${x}\u{feff}${y}", "{\"x\":[1],\"y\":[2],\"a\":[1,2]}");
 }
 
 // java ✓ · pyhocon ✓ · spec ✓ — `${?x}` with nothing behind it is null from

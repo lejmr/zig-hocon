@@ -6,6 +6,7 @@ const Key = @import("Key.zig");
 const table = @import("table.zig");
 const Case = table.Case;
 const unquote = @import("utils/unqoute.zig");
+const number = @import("utils/number.zig");
 
 pub const Node = struct {
     kind: NodeKind,
@@ -76,7 +77,7 @@ pub const Parser = struct {
 
     /// Written out rather than inferred (`!Node`): `parseContainer` recurses, and
     /// an inferred error set cannot be resolved when it depends on itself.
-    pub const Error = error{UnexpectedToken} || std.mem.Allocator.Error || unquote.Error;
+    pub const Error = error{UnexpectedToken} || number.NumberError || std.mem.Allocator.Error || unquote.Error;
 
     pub fn parse(self: *Parser) Error!Node {
         return self.parseContainer(.eof, .root);
@@ -146,7 +147,11 @@ pub const Parser = struct {
                 null;
 
             const part: Node = switch (self.t.peek().tag) {
-                .string, .quoted_string, .multiline_string => try self.parseText(),
+                .string, .quoted_string, .multiline_string => blk: {
+                    const text = try self.parseText();
+                    try checkNumbers(text);
+                    break :blk text;
+                },
                 .l_brace => blk: {
                     _ = self.t.next();
                     if (concat_type != null and concat_type != .block) {
@@ -169,9 +174,8 @@ pub const Parser = struct {
                     _ = self.t.next();
 
                     // The inside is a path expression, which is text — anything
-                    // else is rejected, and then the `}` is required.
-                    const path = try self.parseValue();
-                    if (!isPathText(path)) return Error.UnexpectedToken;
+                    // else ends it short of the `}` that is required next.
+                    const path = try self.parseText();
                     if (self.t.next().tag != .r_brace) return Error.UnexpectedToken;
 
                     break :blk Node{
@@ -196,13 +200,6 @@ pub const Parser = struct {
                 .concat => {
                     try parts.appendSlice(self.gpa, part.children);
                 },
-            }
-
-            // Early stop for arrays
-            const next = self.t.peek();
-            if (next.tag == .comma) {
-                _ = self.t.next();
-                break;
             }
         }
 
@@ -382,18 +379,29 @@ pub const Parser = struct {
         // come before it and nothing after it. Only root needs this — inside a
         // value `{x=1} {y=2}` concatenates happily.
         var braced_root = false;
+        // A comma separates two elements, so it needs one before it that no
+        // other comma has claimed yet: a leading or a doubled comma is an error,
+        // and of trailing ones only the first is allowed. Newlines do not count.
+        var comma_allowed = false;
         while (true) {
             const token = self.t.peek();
             if (token.tag == ending) break;
 
-            const node: ?Node = switch (token.tag) {
-                .newline, .comma => blk: {
+            const node: ?Node = if (containerType == .array and token.tag != .newline and token.tag != .comma)
+                // Every element is a value, `[1] [2]` concatenating like anywhere else.
+                try self.parseValue()
+            else switch (token.tag) {
+                .newline => blk: {
+                    _ = self.t.next();
+                    break :blk null;
+                },
+                .comma => blk: {
+                    if (!comma_allowed) return Error.UnexpectedToken;
+                    comma_allowed = false;
                     _ = self.t.next();
                     break :blk null;
                 },
                 .string, .quoted_string, .multiline_string => blk: {
-                    // Inside an array this is an element, so it is a plain value.
-                    if (containerType == .array) break :blk try self.parseValue();
                     if (braced_root) return Error.UnexpectedToken;
 
                     // `include` is a keyword only here, and only unquoted. Seeing
@@ -415,33 +423,26 @@ pub const Parser = struct {
                     // A brace where a member begins has no key to attach itself
                     // to .. `{ {a=1} }`. Merging two objects is a *value*, so it
                     // happens in parseValue, not here.
+                    // Arrays took their elements above, so this is a block or root.
                     if (containerType == .block) return Error.UnexpectedToken;
-                    if (containerType == .root) {
-                        if (objects.items.len > 0) return Error.UnexpectedToken;
-                        braced_root = true;
-                    }
+                    if (objects.items.len > 0) return Error.UnexpectedToken;
+                    braced_root = true;
                     _ = self.t.next();
-                    const val = try self.parseContainer(.r_brace, .block);
-                    break :blk val;
+                    break :blk try self.parseContainer(.r_brace, .block);
                 },
                 .l_bracket => blk: {
                     if (containerType == .block) return Error.UnexpectedToken;
-                    if (containerType == .root) {
-                        if (objects.items.len > 0) return Error.UnexpectedToken;
-                        braced_root = true;
-                    }
+                    if (objects.items.len > 0) return Error.UnexpectedToken;
+                    braced_root = true;
                     _ = self.t.next();
                     break :blk try self.parseContainer(.r_bracket, .array);
-                },
-                .dollar_brace, .dollar_brace_optional => blk: {
-                    if (containerType != .array) return Error.UnexpectedToken;
-                    break :blk try self.parseValue();
                 },
                 else => return Error.UnexpectedToken,
             };
 
-            if (node != null) {
-                try objects.append(self.gpa, node.?);
+            if (node) |n| {
+                try objects.append(self.gpa, n);
+                comma_allowed = true;
             }
         }
 
@@ -500,17 +501,31 @@ fn prepareMemberNode(gpa: std.mem.Allocator, key: Node, value: Node) Parser.Erro
     return return_node orelse Parser.Error.UnexpectedToken;
 }
 
-/// Whether `node` is the text a path expression is made of. The inside of
-/// `${…}` is a path, so a block, an array or a nested substitution in there is
-/// an error — java rejects all three with `BadPath`.
-fn isPathText(node: Node) bool {
-    return switch (node.kind) {
-        .value => true,
-        .concat => for (node.children) |child| {
-            if (!isPathText(child)) break false;
-        } else true,
-        else => false,
-    };
+/// Applies `number.checkNumber` to every unquoted word of a text value. Only
+/// values: in a key or a `${…}` path a dot separates elements, so `1.2.3 = x`
+/// and `${-.33}` are paths where `a = 1.2.3` is not a number.
+///
+/// A run of unquoted words is one part, but its words are exactly the tokens it
+/// was made of, separated by whitespace — so this sees what the tokenizer saw.
+fn checkNumbers(text: Node) number.NumberError!void {
+    const one = [_]Node{text};
+    const parts = if (text.kind == .concat) text.children else &one;
+    for (parts) |part| {
+        if (std.mem.startsWith(u8, part.value, "\"")) continue;
+        var i: usize = 0;
+        var word_start = true;
+        while (i < part.value.len) {
+            const ws = Tokenizer.whitespaceLen(part.value[i..]);
+            if (ws > 0) {
+                i += ws;
+                word_start = true;
+                continue;
+            }
+            if (word_start) try number.checkNumber(part.value[i..]);
+            word_start = false;
+            i += 1;
+        }
+    }
 }
 
 /// Renders `node` as a one-line s-expression, e.g. `root(assign(value(a), value(b)))`.
@@ -689,8 +704,9 @@ test "the = before a block may be omitted" {
 //
 // An array node holds its elements directly, with no `assign` in between — that
 // is the whole difference from a block: `parseContainer` collects members, an
-// array collects values. Separators are the same (`,` and newline, runs collapse,
-// a trailing one is allowed), and an element may itself be an array or a block.
+// array collects values. Separators are the same (`,` and newline, newlines
+// collapse, one trailing comma is allowed — see "commas"), and an element may
+// itself be an array or a block.
 test "arrays" {
     try expectAll(&.{
         .ok("a = []", "root(assign(value(a), array()))"),
@@ -717,7 +733,125 @@ test "arrays" {
 test "arrays.a root array is a valid tree" {
     try expectAll(&.{
         .ok("[1, 2]", "root(array(value(1), value(2)))"),
+        // omit-root-braces/008-010: also empty, and after comments or blank lines.
+        .ok("[]", "root(array())"),
+        .ok("# c\n[1, 2]", "root(array(value(1), value(2)))"),
+        .ok("\n[1, 2]", "root(array(value(1), value(2)))"),
     });
+}
+
+// arrays-without-commas-or-newlines/004 · java ✓ · pyhocon ✓ · spec ✓ — an array
+// element is a value like any other, so on one line it concatenates:
+//   'a = [[1, 2] [3, 4]]' -> {"a":[[1,2,3,4]]}
+//   'a = [{x:1} {y:2}]'   -> {"a":[{"x":1,"y":2}]}
+//   'a = [[1]\n[2]]'      -> {"a":[[1],[2]]}     a newline still separates
+test "arrays.elements concatenate on one line" {
+    try expectAll(&.{
+        .ok("a = [[1, 2] [3, 4]]", "root(assign(value(a), array(concat(array(value(1), value(2)), value( ), array(value(3), value(4))))))"),
+        .ok("a = [{x:1} {y:2}]", "root(assign(value(a), array(concat(block(assign(value(x), value(1))), value( ), block(assign(value(y), value(2)))))))"),
+        .ok("a = [[1]\n[2]]", "root(assign(value(a), array(array(value(1)), array(value(2)))))"),
+        .ok("a = [${b} ${c}]", "root(assign(value(a), array(concat(subst(value(b)), value( ), subst(value(c))))))"),
+    });
+}
+
+// commas/003-014 · java ✓ · pyhocon ⚠️ · spec ✓ — a comma separates two
+// elements, and one trailing comma is allowed; nothing else. The same rule in
+// arrays, objects and the implicit root. pyhocon accepts every `.bad` row below,
+// dropping the extra commas.
+//   'a = [1\n,2]' -> {"a":[1,2]}    newlines around a comma do not count
+//   'a = [1,\n,2]' -> ERROR         so they do not separate two commas either
+//   'include "x", a = b'  -> {"a":"b"}  an include is a member, commas and all
+//   'include "x",, a = b' -> ERROR      (java; pyhocon {"a":"b"})
+test "commas.separate, and only once" {
+    try expectAll(&.{
+        .bad("a = [1,2,3,,]"),
+        .bad("a = [,1,2,3]"),
+        .bad("a = [1,,2,3]"),
+        .bad("a = [,]"),
+        .bad("a = [1,\n,2]"),
+        .bad("a { b = 1,, c = 2 }"),
+        .bad("a { b = 1,, }"),
+        .bad("a { , b = 1 }"),
+        .bad(",a = 1"),
+        .bad("a = 1,\n,b = 2"),
+        // An include is a member like any other, commas and all.
+        .bad("include \"a.conf\",, a = b"),
+
+        .ok("a = [1, 2,]", "root(assign(value(a), array(value(1), value(2))))"),
+        .ok("a = [1\n,2]", "root(assign(value(a), array(value(1), value(2))))"),
+        .ok("a = [1,\n2]", "root(assign(value(a), array(value(1), value(2))))"),
+        .ok("a { b = 1, }", "root(assign(value(a), block(assign(value(b), value(1)))))"),
+        .ok("a = 1,\nb = 2", "root(assign(value(a), value(1)), assign(value(b), value(2)))"),
+        .ok("include \"a.conf\", a = b", "root(include(\"a.conf\"), assign(value(a), value(b)))"),
+        .ok("a { include \"a.conf\", }", "root(assign(value(a), block(include(\"a.conf\"))))"),
+    });
+}
+
+// unchanged-from-json/009-014, unquoted-strings/012, 022 · java ⚠️ · pyhocon ⚠️ ·
+// spec ✓ — a value word that starts with a digit or `-` starts with a number:
+// the run of `0-9 + - . e E` after it must be a JSON number, with no fallback to
+// text. Both oracles fall back, so every `.bad` row is a value for them:
+//   'a = 01'  -> java/pyhocon {"a":1}        'a = -foo' -> both {"a":"-foo"}
+//   'a = 1.'  -> java {"a":1}, pyhocon "1."  'a = 1e'   -> both {"a":"1e"}
+//   'a = -.33' -> both {"a":-0.33}           'a = -0033' -> both {"a":-33}
+// The spec is followed (decided 2026-10-11).
+//
+// Text after a valid number concatenates with it — '10.0bar', '5EB' and
+// '5exabyte' are strings on all three, and size-in-bytes-format/003-004 need
+// them to stay so. A key or a `${…}` path is exempt: there a dot separates path
+// elements, '1.2.3 = 1' -> {"1":{"2":{"3":1}}} and '-.33 = 1' -> {"-":{"33":1}}
+// on both oracles.
+test "numbers.are JSON numbers or an error" {
+    try expectAll(&.{
+        .bad("a = 01"),
+        .bad("a = -01"),
+        .bad("a = -0033"),
+        .bad("a = -.33"),
+        .bad("a = 1."),
+        .bad("a = 1.e5"),
+        .bad("a = -1.e3"),
+        .bad("a = 1e"),
+        .bad("a = 5E"),
+        .bad("a = -foo"),
+        .bad("a = -"),
+        // Every word of a value, not only the first.
+        .bad("a = foo 1e"),
+        .bad("a = [1, 01]"),
+
+        .ok("a = 0", "root(assign(value(a), value(0)))"),
+        .ok("a = -0.5e-3", "root(assign(value(a), value(-0.5e-3)))"),
+        .ok("a = 10.0bar", "root(assign(value(a), value(10.0bar)))"),
+        .ok("a = 5EB", "root(assign(value(a), value(5EB)))"),
+        .ok("a = 5exabyte", "root(assign(value(a), value(5exabyte)))"),
+        .ok("a = .5", "root(assign(value(a), value(.5)))"),
+        .ok("a = \"01\"", "root(assign(value(a), value(\"01\")))"),
+        .ok("a = foo-1", "root(assign(value(a), value(foo-1)))"),
+
+        .ok("1.2.3 = 1", "root(assign(value(1), block(assign(value(2), block(assign(value(3), value(1)))))))"),
+        .ok("-.33 = 1", "root(assign(value(-), block(assign(value(33), value(1)))))"),
+        .ok("01 = 1", "root(assign(value(01), value(1)))"),
+        .ok("a = ${-.33}", "root(assign(value(a), subst(value(-.33))))"),
+    });
+}
+
+// The suite names three of the errors; each is the one its row asks for.
+test "numbers.name what is wrong" {
+    const cases = [_]struct { [:0]const u8, anyerror }{
+        .{ "a = 01", error.LeadingZeroIsNotAJsonNumber },
+        .{ "a = -foo", error.HyphenIsNotAJsonNumber },
+        .{ "a = -", error.HyphenIsNotAJsonNumber },
+        .{ "a = -.33", error.BadNumber },
+        .{ "a = 1.", error.BadNumber },
+        .{ "a = -1.e3", error.BadNumber },
+        .{ "a = -0033", error.BadNumber },
+    };
+    for (cases) |c| {
+        var arena = std.heap.ArenaAllocator.init(testing.allocator);
+        defer arena.deinit();
+        var p = Parser{ .gpa = arena.allocator(), .t = .{ .t = Tokenizer.Tokenizer.init(c[0]) } };
+        errdefer std.debug.print("failed on input: \"{s}\"\n", .{c[0]});
+        try testing.expectError(c[1], p.parse());
+    }
 }
 
 // java ✓ · pyhocon ⚠️ · spec ✓ — every input below was run through both oracles.
