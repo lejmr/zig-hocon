@@ -56,4 +56,50 @@ pub fn build(b: *std.Build) void {
     cli_includes.addFileArg(b.path("tests/cli-includes/main.conf"));
     cli_includes.expectStdOutEqual("{\"name\":\"from inner\",\"port\":443,\"log\":{\"level\":\"info\",\"file\":\"quiet-wombat.log\"}}\n");
     test_step.dependOn(&cli_includes.step);
+
+    // The CLI on a broken file, checked as a user meets it: exit 1 and exactly
+    // this on stderr. Run from the file's own directory, so the path it prints
+    // is the one it was given and not wherever the cache put it.
+    const broken = b.addWriteFiles();
+    _ = broken.add("app.conf",
+        \\name = grumpy wombat
+        \\port = 80 [1]
+        \\
+    );
+    const run_broken = b.addRunArtifact(exe);
+    run_broken.setCwd(broken.getDirectory());
+    run_broken.addArg("app.conf");
+    run_broken.expectExitCode(1);
+    run_broken.expectStdErrEqual(
+        \\app.conf:2:11: error: UnsupportedConcatenation
+        \\port = 80 [1]
+        \\          ^
+        \\
+    );
+    test_step.dependOn(&run_broken.step);
+
+    // The same with the mistake in an included file, two directories down: the
+    // error names that file, by the path the include made of its name, and the
+    // caret is on its line — not on the line with the same number in app.conf.
+    _ = broken.add("prod.conf",
+        \\name = grumpy wombat
+        \\include "conf.d/limits.conf"
+        \\
+    );
+    _ = broken.add("conf.d/limits.conf",
+        \\max = 10
+        \\burst = ${max} ${unknown}
+        \\
+    );
+    const run_included = b.addRunArtifact(exe);
+    run_included.setCwd(broken.getDirectory());
+    run_included.addArg("prod.conf");
+    run_included.expectExitCode(1);
+    run_included.expectStdErrEqual(
+        \\conf.d/limits.conf:2:16: error: Unresolved
+        \\burst = ${max} ${unknown}
+        \\               ^
+        \\
+    );
+    test_step.dependOn(&run_included.step);
 }

@@ -5,6 +5,7 @@ const Value = @import("Value.zig").Value;
 const Ast = @import("Ast.zig");
 const Tokenizer = @import("Tokenizer.zig").Tokenizer;
 const Include = @import("Include.zig");
+const Diagnostics = @import("Diagnostics.zig");
 
 pub const Config = struct {
     object: Value,
@@ -27,67 +28,133 @@ pub const Config = struct {
         };
     }
 
+    /// What a parse can be told.
+    pub const ParseOptions = struct {
+        /// Filled in with the error, and where it is, when the parse fails. Its
+        /// copies are made with the allocator the parse is given; `deinit` it
+        /// with that one.
+        diagnostics: ?*Diagnostics = null,
+        /// One fetch of an `http(s)` include, from connect to the last byte; longer is
+        /// `error.IncludeTimeout`.
+        http_timeout: std.Io.Duration = Include.default_http_timeout,
+    };
+
     /// Like `parseFromSliceLeaky`, but any allocator will do: everything lands in
     /// an arena owned by the result, and `deinit` on the result frees it.
-    pub fn parseFromSlice(comptime T: type, gpa: Allocator, source: [:0]const u8) !Parsed(T) {
-        const arena = try gpa.create(std.heap.ArenaAllocator);
+    pub fn parseFromSlice(comptime T: type, gpa: Allocator, source: [:0]const u8, options: ParseOptions) !Parsed(T) {
+        const arena = gpa.create(std.heap.ArenaAllocator) catch |err| {
+            noPlace(options, err);
+            return err;
+        };
         errdefer gpa.destroy(arena);
         arena.* = std.heap.ArenaAllocator.init(gpa);
         // Runs before the destroy above: `errdefer`s unwind in reverse order.
         errdefer arena.deinit();
 
-        return .{
-            .arena = arena,
-            .value = try parseFromSliceLeaky(T, arena.allocator(), source),
-        };
+        // The arena goes when the parse fails, the diagnostics stay: theirs is `gpa`.
+        return .{ .arena = arena, .value = try parseSource(T, arena.allocator(), gpa, "", source, .{}, options) };
     }
 
-    pub fn parseFromSliceLeaky(comptime T: type, allocator: Allocator, file_content: [:0]const u8) !T {
+    pub fn parseFromSliceLeaky(comptime T: type, allocator: Allocator, file_content: [:0]const u8, options: ParseOptions) !T {
         // No file behind the text, so an `include` in it is an error.
-        return parseSource(T, allocator, file_content, .{});
+        return parseSource(T, allocator, allocator, "", file_content, .{}, options);
     }
-
-    /// What a parse can be told.
-    pub const ParseOptions = struct {
-        /// One fetch of an `http(s)` include, from connect to the last byte; longer is
-        /// `error.IncludeTimeout`.
-        http_timeout: std.Io.Duration = Include.default_http_timeout,
-    };
 
     /// Reads the file at `path` and every file it includes through `io`, and
     /// parses them as one document. Includes resolve relative to the file that
     /// has the `include`; `file("…")` ones relative to the working directory.
     /// Everything lands in an arena owned by the result, as in `parseFromSlice`.
     pub fn parseFromFile(comptime T: type, gpa: Allocator, io: std.Io, path: []const u8, options: ParseOptions) !Parsed(T) {
-        const arena = try gpa.create(std.heap.ArenaAllocator);
+        const arena = gpa.create(std.heap.ArenaAllocator) catch |err| {
+            noPlace(options, err);
+            return err;
+        };
         errdefer gpa.destroy(arena);
         arena.* = std.heap.ArenaAllocator.init(gpa);
         errdefer arena.deinit();
 
-        return .{
-            .arena = arena,
-            .value = try parseFromFileLeaky(T, arena.allocator(), io, path, options),
-        };
+        return .{ .arena = arena, .value = try readSource(T, arena.allocator(), gpa, io, path, options) };
     }
 
     pub fn parseFromFileLeaky(comptime T: type, allocator: Allocator, io: std.Io, path: []const u8, options: ParseOptions) !T {
+        return readSource(T, allocator, allocator, io, path, options);
+    }
+
+    /// The file at `path`, parsed. `keep` is what the diagnostics copy with.
+    fn readSource(comptime T: type, allocator: Allocator, keep: Allocator, io: std.Io, path: []const u8, options: ParseOptions) !T {
         // The text stays in the arena: the values point into it.
-        const source = try std.Io.Dir.cwd().readFileAllocOptions(io, path, allocator, .limited(Include.max_file_size), .of(u8), 0);
-        return parseSource(T, allocator, source, .{
+        const source = std.Io.Dir.cwd().readFileAllocOptions(io, path, allocator, .limited(Include.max_file_size), .of(u8), 0) catch |err| {
+            noPlace(options, err);
+            return err;
+        };
+        const full_path = std.fs.path.resolve(allocator, &.{path}) catch |err| {
+            noPlace(options, err);
+            return err;
+        };
+        return parseSource(T, allocator, keep, path, source, .{
             .io = io,
             .http_timeout = options.http_timeout,
             .dir = std.fs.path.dirname(path) orelse "",
-            .stack = &.{try std.fs.path.resolve(allocator, &.{path})},
-        });
+            .stack = &.{full_path},
+        }, options);
     }
 
-    fn parseSource(comptime T: type, allocator: Allocator, source: [:0]const u8, ctx: Value.Context) !T {
+    /// An error with nothing to point into: the file was never read, or the tree
+    /// it failed on has no positions.
+    fn noPlace(options: ParseOptions, err: anyerror) void {
+        if (options.diagnostics) |diag| diag.* = .{ .err = err };
+    }
+
+    /// `keep` is what the diagnostics copy the path and the line with: the files
+    /// go with a failed parse.
+    fn parseSource(comptime T: type, allocator: Allocator, keep: Allocator, path: []const u8, source: [:0]const u8, ctx: Value.Context, options: ParseOptions) !T {
+        // A Diagnostics reused from an earlier parse must not keep its error.
+        if (options.diagnostics) |diag| diag.* = .{};
+        // A file is never bigger than this, so a slice is not either: every
+        // offset then fits the u32 in `Ref`.
+        if (source.len >= Include.max_file_size) {
+            noPlace(options, error.StreamTooLong);
+            return error.StreamTooLong;
+        }
+
+        var files: Value.Files = .{};
+        const obj = load(allocator, path, source, ctx, &files) catch |err| {
+            if (options.diagnostics) |diag| {
+                diag.* = .{ .err = err, .location = if (err == error.OutOfMemory) null else locate(keep, files) };
+            }
+            return err;
+        };
+        return parseFromValue(T, allocator, obj) catch |err| {
+            // The tree has no positions, so a conversion error has none either.
+            noPlace(options, err);
+            return err;
+        };
+    }
+
+    /// Where the failed parse points, with its own copy of the path and the line:
+    /// the files themselves go with the parse.
+    fn locate(gpa: Allocator, files: Value.Files) ?Diagnostics.Location {
+        const at = files.failed orelse return null;
+        const file = files.list.items[at.file];
+        return Diagnostics.locate(file.path, file.source, at.offset).dupe(gpa) catch null;
+    }
+
+    /// Source to a resolved tree. `files` gets this file and every file it
+    /// includes, and on failure the place the error is at, if it has one.
+    fn load(gpa: Allocator, path: []const u8, source: [:0]const u8, ctx: Value.Context, files: *Value.Files) Value.ResolveError!Value {
+        try files.list.append(gpa, .{ .path = path, .source = source });
+        var main = ctx;
+        main.files = files;
+
         // `parse` is a method, so the parser has to exist first.
-        var parser = Ast.Parser{ .gpa = allocator, .t = .{ .t = Tokenizer.init(source) } };
-        const ast = try parser.parse();
-        var obj = try Value.fromNode(allocator, ast, ctx);
-        try obj.resolve(allocator);
-        return parseFromValue(T, allocator, obj);
+        var parser = Ast.Parser{ .gpa = gpa, .t = .{ .t = Tokenizer.init(source) } };
+        const ast = parser.parse() catch |err| {
+            files.fail(0, parser.err_offset);
+            return err;
+        };
+        var obj = try Value.fromNode(gpa, ast, main);
+        try obj.resolve(gpa, &files.failed);
+        return obj;
     }
 
     pub const ConvertError = error{ TypeMismatch, MissingField, Unresolved, UnsupportedType, OutOfMemory } ||
@@ -191,7 +258,7 @@ test "basic deserialization" {
     defer arena.deinit();
     const gpa = arena.allocator();
 
-    const config = try Config.parseFromSliceLeaky(target_s1, gpa, "{a=5, b: 6}");
+    const config = try Config.parseFromSliceLeaky(target_s1, gpa, "{a=5, b: 6}", .{});
     try testing.expectEqual(5, config.a);
 }
 
@@ -209,14 +276,14 @@ test "basic deserialization" {
 fn expectConverts(comptime T: type, src: [:0]const u8, expected: T) !void {
     var arena = std.heap.ArenaAllocator.init(testing.allocator);
     defer arena.deinit();
-    const got = try Config.parseFromSliceLeaky(T, arena.allocator(), src);
+    const got = try Config.parseFromSliceLeaky(T, arena.allocator(), src, .{});
     try testing.expectEqualDeep(expected, got);
 }
 
 fn expectConvertError(comptime T: type, src: [:0]const u8, expected: anyerror) !void {
     var arena = std.heap.ArenaAllocator.init(testing.allocator);
     defer arena.deinit();
-    try testing.expectError(expected, Config.parseFromSliceLeaky(T, arena.allocator(), src));
+    try testing.expectError(expected, Config.parseFromSliceLeaky(T, arena.allocator(), src, .{}));
 }
 
 // automatic-type-conversions L1238 · java ✓ · pyhocon ✓ · spec ✓ — a number is text until something asks for
@@ -374,7 +441,7 @@ test "convert.string outlives the source buffer" {
         \\b = "and then the teacher"
         \\c = """and now it looks innocent"""
     );
-    const got = try Config.parseFromSliceLeaky(T, arena.allocator(), source);
+    const got = try Config.parseFromSliceLeaky(T, arena.allocator(), source, .{});
     @memset(source, 'x');
     testing.allocator.free(source);
 

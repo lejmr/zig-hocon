@@ -64,7 +64,7 @@ const Server = struct {
 const parsed = try hocon.parseFromSlice(Server, gpa,
     \\host = example.org
     \\level = debug
-);
+, .{});
 defer parsed.deinit();
 
 const server = parsed.value; // server.port == 8080, server.tls == null
@@ -73,7 +73,7 @@ const server = parsed.value; // server.port == 8080, server.tls == null
 `parsed` owns an arena with everything the result points to, and `deinit` gives
 it back in one go — any allocator will do. Strings in the result are copies, so
 the source can be freed as soon as the call returns. When you already have an
-arena of your own, `parseFromSliceLeaky(Server, arena, source)` returns the
+arena of your own, `parseFromSliceLeaky(Server, arena, source, .{})` returns the
 plain struct and allocates straight into it.
 
 Reading the file is yours for now. Zig 0.16 hands back the 0-terminated buffer
@@ -85,17 +85,52 @@ const source = try std.Io.Dir.cwd().readFileAllocOptions(
 );
 defer gpa.free(source);
 
-const parsed = try hocon.parseFromSlice(Server, gpa, source);
+const parsed = try hocon.parseFromSlice(Server, gpa, source, .{});
 defer parsed.deinit();
 
 const server = parsed.value;
 ```
 
+When a parse fails, the error is a plain Zig error. To learn where, pass
+`Diagnostics` in the options. It keeps the error and the place: the file it is
+in — the one you gave or one it includes — with the line and column there:
+
+```zig
+var diag: hocon.Diagnostics = .{};
+defer diag.deinit(gpa);
+const parsed = hocon.parseFromFile(Server, gpa, io, "server.conf", .{ .diagnostics = &diag }) catch |err| {
+    try diag.render(stderr);
+    return err;
+};
+```
+
+which prints what the zig compiler would:
+
+```
+conf.d/limits.conf:2:16: error: Unresolved
+burst = ${max} ${unknown}
+               ^
+```
+
+`diag.location` holds the same `path`, `line` and `column` (1-based, the column
+counted in code points) and the line itself, for a message of your own. The
+path and the line are copies, since a failed parse frees the files it read;
+`deinit` with the allocator the parse was given frees them. A slice has no file
+name, so after `parseFromSlice` the path is empty and the render starts at
+`3:11:`. Errors with no place in a file — out of memory, a file that cannot be
+read, a missing field or a type mismatch in the conversion — render as
+`error: MissingField`.
+
+It is the first error the parser runs into, and the parser reads the whole
+file before it builds any value: a stray `}` on line 9 is reported before a
+bad escape in a value on line 2. Keys are checked as they are read, so a bad
+escape in a key on line 2 comes first.
+
 For the tree itself rather than a struct, ask for `hocon.Value`, the way
 `std.json.Value` works; `std.json.Stringify` prints it:
 
 ```zig
-const parsed = try hocon.parseFromSlice(hocon.Value, gpa, source);
+const parsed = try hocon.parseFromSlice(hocon.Value, gpa, source, .{});
 defer parsed.deinit();
 try std.json.Stringify.value(parsed.value, .{}, writer);
 ```
@@ -112,8 +147,8 @@ $ zig-out/bin/hocon server.conf
 
 Unquoted `true`, `false`, `null` and numbers keep their JSON type, a number is
 printed as written (`1e5` stays `1e5`), and anything quoted is a string. A file
-that does not parse, or holds a substitution that does not resolve, exits 1 with
-the reason on stderr. `zig build run -- server.conf` does the same without the install step.
+that does not parse, or holds a substitution that does not resolve, exits 1 and
+points at the spot on stderr, as above. `zig build run -- server.conf` does the same without the install step.
 
 ## Features
 
@@ -400,7 +435,7 @@ wins and the row says so. Where it stands today:
 | Java <sub>typesafe/config 1.4.9</sub> | 90% (399/445) | 99% (442/445) | 96% (428/445) |
 | Java main <sub>typesafe/config main@275f872, unreleased</sub> | 93% (412/445) | 96% (428/445) | 99% (442/445) |
 | pyhocon <sub>pyhocon 0.3.63</sub> | 70% (312/445) | 66% (295/445) | 68% (304/445) |
-| zig-hocon <sub>zig-hocon code@c372b28</sub> | 87% (388/445) | 81% (362/445) | 82% (364/445) |
+| zig-hocon <sub>zig-hocon code@d5bc7ee</sub> | 87% (388/445) | 81% (362/445) | 82% (364/445) |
 
 <!-- conformance:end -->
 

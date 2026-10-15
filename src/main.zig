@@ -10,6 +10,7 @@ const hocon = @import("hocon");
 const usage = "usage: hocon <file.conf>";
 
 var stdout_buffer: [4096]u8 = undefined;
+var stderr_buffer: [1024]u8 = undefined;
 
 pub fn main(init: std.process.Init) !void {
     // A one-shot process: everything goes to the process arena and is dropped
@@ -21,8 +22,17 @@ pub fn main(init: std.process.Init) !void {
     if (args.len != 2) std.process.fatal("{s}", .{usage});
     const path = args[1];
 
-    const value = hocon.parseFromFileLeaky(hocon.Value, arena, io, path, .{}) catch |err|
-        std.process.fatal("{s}: {t}", .{ path, err });
+    var diag: hocon.Diagnostics = .{};
+    const value = hocon.parseFromFileLeaky(hocon.Value, arena, io, path, .{ .diagnostics = &diag }) catch {
+        // The compiler's own format, caret and all, so editors can jump to it.
+        var stderr_writer = std.Io.File.stderr().writerStreaming(io, &stderr_buffer);
+        const stderr = &stderr_writer.interface;
+        // No place in a file, so no file named by it: say which one was given.
+        if (diag.location == null) try stderr.print("{s}: ", .{path});
+        try diag.render(stderr);
+        try stderr.flush();
+        std.process.exit(1);
+    };
 
     var stdout_writer = std.Io.File.stdout().writerStreaming(io, &stdout_buffer);
     const stdout = &stdout_writer.interface;

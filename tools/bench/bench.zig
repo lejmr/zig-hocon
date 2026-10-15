@@ -48,7 +48,7 @@ pub fn main(init: std.process.Init) !void {
 fn parseOnce(gpa: std.mem.Allocator, source: [:0]const u8) !usize {
     var arena = std.heap.ArenaAllocator.init(gpa);
     defer arena.deinit();
-    const value = try hocon.parseFromSliceLeaky(hocon.Value, arena.allocator(), source);
+    const value = try hocon.parseFromSliceLeaky(hocon.Value, arena.allocator(), source, .{});
     std.mem.doNotOptimizeAway(&value);
     return value.object.len;
 }

@@ -20,6 +20,7 @@ pub const parseFromSliceLeaky = config.parseFromSliceLeaky;
 pub const parseFromFile = config.parseFromFile;
 pub const parseFromFileLeaky = config.parseFromFileLeaky;
 pub const ParseOptions = config.ParseOptions;
+pub const Diagnostics = @import("Diagnostics.zig");
 pub const ParseFromValueError = config.ConvertError;
 
 // ---------------------------------------------------------------------------
@@ -35,8 +36,6 @@ const hocon = @This();
 // split as std.json. These tests use `testing.allocator` directly, not an arena:
 // it reports every byte not given back, so a passing test is the proof that
 // `deinit` frees everything the parse allocated.
-//
-// Add `.{}` to the calls once parseFromSlice takes ParseOptions.
 
 test "parsed.deinit gives back everything the parse took" {
     const T = struct { name: []const u8, ports: []const u16, tls: ?struct { cert: []const u8 } };
@@ -44,7 +43,7 @@ test "parsed.deinit gives back everything the parse took" {
         \\name = the dog ate my homework
         \\ports = [80, 443]
         \\tls { cert = grumpy-wombat.pem }
-    );
+    , .{});
     defer parsed.deinit();
 
     try testing.expectEqualStrings("the dog ate my homework", parsed.value.name);
@@ -55,7 +54,7 @@ test "parsed.deinit gives back everything the parse took" {
 // The value is plain T — no wrapper type to unwrap field by field.
 test "parsed.value is the target type itself" {
     const T = struct { a: usize };
-    const parsed = try hocon.parseFromSlice(T, testing.allocator, "a = 1");
+    const parsed = try hocon.parseFromSlice(T, testing.allocator, "a = 1", .{});
     defer parsed.deinit();
     comptime std.debug.assert(@TypeOf(parsed.value) == T);
 }
@@ -64,16 +63,16 @@ test "parsed.value is the target type itself" {
 // holding the arena, are both given back on the way out (the two `errdefer`s).
 test "parsed.a failed parse leaves nothing behind" {
     const T = struct { a: usize, b: []const u8 };
-    try testing.expectError(error.MissingField, hocon.parseFromSlice(T, testing.allocator, "b = the cat sat on the keyboard"));
-    try testing.expectError(error.TypeMismatch, hocon.parseFromSlice(T, testing.allocator, "a { x = 1 }\nb = x"));
-    try testing.expectError(error.UnexpectedToken, hocon.parseFromSlice(T, testing.allocator, "a = 1\nb = {"));
+    try testing.expectError(error.MissingField, hocon.parseFromSlice(T, testing.allocator, "b = the cat sat on the keyboard", .{}));
+    try testing.expectError(error.TypeMismatch, hocon.parseFromSlice(T, testing.allocator, "a { x = 1 }\nb = x", .{}));
+    try testing.expectError(error.UnexpectedToken, hocon.parseFromSlice(T, testing.allocator, "a = 1\nb = {", .{}));
 }
 
 // Parsed is passed around by value, so a copy has to free the same memory as the
 // original — which works only because the arena sits behind a pointer.
 test "parsed.a copy frees what the original allocated" {
     const T = struct { a: []const u8 };
-    const original = try hocon.parseFromSlice(T, testing.allocator, "a = the coffee runs out on monday morning");
+    const original = try hocon.parseFromSlice(T, testing.allocator, "a = the coffee runs out on monday morning", .{});
     const copy = original;
     defer copy.deinit();
     try testing.expectEqualStrings("the coffee runs out on monday morning", copy.value.a);
@@ -85,7 +84,7 @@ test "parsed.a copy frees what the original allocated" {
 test "parsed.out of memory at any point leaks nothing" {
     try testing.checkAllAllocationFailures(testing.allocator, struct {
         fn run(gpa: std.mem.Allocator) !void {
-            const parsed = try hocon.parseFromSlice(struct { a: []const u8, b: ?usize }, gpa, "a = and now it looks innocent\nb = 2");
+            const parsed = try hocon.parseFromSlice(struct { a: []const u8, b: ?usize }, gpa, "a = and now it looks innocent\nb = 2", .{});
             parsed.deinit();
         }
     }.run, .{});
@@ -156,7 +155,7 @@ test "file.out of memory at any point leaks nothing" {
 // ---------------------------------------------------------------------------
 
 fn expectJson(src: [:0]const u8, expected: []const u8) !void {
-    const parsed = try hocon.parseFromSlice(hocon.Value, testing.allocator, src);
+    const parsed = try hocon.parseFromSlice(hocon.Value, testing.allocator, src, .{});
     defer parsed.deinit();
     const json = try std.json.Stringify.valueAlloc(testing.allocator, parsed.value, .{});
     defer testing.allocator.free(json);
@@ -224,7 +223,7 @@ test "json.an array root is the document" {
 
 // As in std.json, the root is whatever T says, so a list parses into a slice.
 test "parsed.an array root parses into a slice" {
-    const parsed = try hocon.parseFromSlice([]u32, testing.allocator, "[4, 8, 15, 16, 23, 42]");
+    const parsed = try hocon.parseFromSlice([]u32, testing.allocator, "[4, 8, 15, 16, 23, 42]", .{});
     defer parsed.deinit();
     try testing.expectEqualSlices(u32, &.{ 4, 8, 15, 16, 23, 42 }, parsed.value);
 }
@@ -232,6 +231,656 @@ test "parsed.an array root parses into a slice" {
 // Resolution runs inside the parse, so a substitution with nothing behind it is
 // refused there — Stringify allows no error of its own, printing is too late.
 test "json.an unresolved substitution is an error" {
-    try testing.expectError(error.Unresolved, hocon.parseFromSlice(hocon.Value, testing.allocator, "a = ${b}"));
-    try testing.expectError(error.Unresolved, hocon.parseFromSlice(hocon.Value, testing.allocator, "a { b = [1, ${c}] }"));
+    try testing.expectError(error.Unresolved, hocon.parseFromSlice(hocon.Value, testing.allocator, "a = ${b}", .{}));
+    try testing.expectError(error.Unresolved, hocon.parseFromSlice(hocon.Value, testing.allocator, "a { b = [1, ${c}] }", .{}));
+}
+
+// ---------------------------------------------------------------------------
+// Diagnostics — where a parse failed. The error itself stays a plain Zig error;
+// `Diagnostics` keeps the first one and where it is: the file, the byte offset,
+// line and column (1-based, the column in code points, the way
+// std.zig.Ast.tokenLocation counts) and the line itself. Errors in included
+// files are in Include.zig, next to the files they need.
+//
+// The caret tables write a row the way a reader would point at the mistake: the
+// source, with one extra line under the line the error is on — `^` under its
+// column, then the error's name. A source line never starts with `^` (it is
+// forbidden in unquoted text), so the caret line cannot be mistaken for one.
+//
+// Oracles: the rows below are errors for java too (`String: <line>:` matches
+// ours on every row) except where a group says otherwise. Neither oracle gives a
+// column we could copy: java reports the line only, pyhocon counts bytes and
+// points one past the end of the token (`port = 80 [1]` → col 14). The column
+// is ours: the first byte of the token or part that cannot stand there, or the
+// `${` of the substitution that failed.
+// ---------------------------------------------------------------------------
+
+const table = @import("table.zig");
+
+fn expectCarets(rows: []const [:0]const u8) !void {
+    const cases = try testing.allocator.alloc(table.Case, rows.len);
+    defer testing.allocator.free(cases);
+    for (cases, rows) |*c, row| c.* = .ok(row, row);
+    try table.expectAll(cases, .{ .dump = dumpCaret });
+}
+
+/// Takes the caret line out of `row`, parses what is left, and puts a caret line
+/// back where the diagnostic says — so a correct parse renders the row unchanged.
+fn dumpCaret(gpa: std.mem.Allocator, row: [:0]const u8) anyerror![]u8 {
+    var source: std.ArrayList(u8) = .empty;
+    var rows = std.mem.splitScalar(u8, row, '\n');
+    var first = true;
+    while (rows.next()) |line| {
+        if (std.mem.startsWith(u8, std.mem.trimStart(u8, line, " "), "^")) continue;
+        if (!first) try source.append(gpa, '\n');
+        first = false;
+        try source.appendSlice(gpa, line);
+    }
+    const src = try source.toOwnedSliceSentinel(gpa, 0);
+
+    var diag: hocon.Diagnostics = .{};
+    const err = if (hocon.parseFromSliceLeaky(hocon.Value, gpa, src, .{ .diagnostics = &diag })) |_|
+        return error.ParsedWithoutError
+    else |e|
+        e;
+
+    // Said in the table's own report rather than as a bare `TestUnexpectedError`.
+    const kept = diag.err orelse return std.fmt.allocPrint(gpa, "{t}, but Diagnostics is empty", .{err});
+    if (kept != err) return std.fmt.allocPrint(gpa, "{t}, but Diagnostics holds {t}", .{ err, kept });
+
+    const loc = diag.location orelse return std.fmt.allocPrint(gpa, "{t}, but without a position", .{err});
+    if (loc.line == 0 or loc.column == 0) return std.fmt.allocPrint(gpa, "{t} at {d}:{d}, but both count from 1", .{ err, loc.line, loc.column });
+
+    var out: std.Io.Writer.Allocating = .init(gpa);
+    var lines = std.mem.splitScalar(u8, src, '\n');
+    var n: usize = 1;
+    while (lines.next()) |line| : (n += 1) {
+        if (n > 1) try out.writer.writeByte('\n');
+        try out.writer.writeAll(line);
+        if (n == loc.line) {
+            try out.writer.writeByte('\n');
+            try out.writer.splatByteAll(' ', loc.column - 1);
+            try out.writer.print("^ {t}", .{err});
+        }
+    }
+    if (loc.line >= n) try out.writer.print("\n(past the last line: {d}:{d} {t})", .{ loc.line, loc.column, err });
+    return out.toOwnedSlice();
+}
+
+// Parser: the token it did not expect. At the end of the input that is right
+// after the last character that is not whitespace, also when the file ends with
+// a newline: the line after it is empty, and an empty line shows nothing. Zig
+// does the same with a missing `;`, at the end of the token before it.
+// java ✓ · pyhocon ⚠️ — pyhocon takes `a = ` as an empty string.
+// `a = [1, 2⏎` · java ⚠️ line 2 · pyhocon ⚠️ 2:1 — both put the end of the input
+// on the empty line after the newline.
+// `a\nb = 1` is a newline inside an unfinished member, so the token is `b`.
+test "diagnostics.UnexpectedToken" {
+    try expectCarets(&.{
+        \\a = 
+        \\   ^ UnexpectedToken
+        ,
+        \\a = [1, 2
+        \\         ^ UnexpectedToken
+        \\
+        ,
+        \\a = }
+        \\    ^ UnexpectedToken
+        ,
+        \\a = 1 }
+        \\      ^ UnexpectedToken
+        ,
+        \\a = $x
+        \\    ^ UnexpectedToken
+        ,
+        \\a = "the dog ate my homework
+        \\    ^ UnexpectedToken
+        ,
+        \\a
+        \\b = 1
+        \\^ UnexpectedToken
+        ,
+        \\a = 1
+        \\b = {
+        \\     ^ UnexpectedToken
+        ,
+    });
+}
+
+// The opening quote of the string with the bad escape, in a value, a key and a
+// substitution path alike.
+// java ✓ · pyhocon ⚠️ — pyhocon keeps `\q` in a value as the two characters.
+test "diagnostics.InvalidEscape" {
+    try expectCarets(&.{
+        \\a = "\q"
+        \\    ^ InvalidEscape
+        ,
+        \\"\q" = 1
+        \\^ InvalidEscape
+        ,
+        \\a = 1
+        \\b = ${a."\q"}
+        \\        ^ InvalidEscape
+        ,
+    });
+}
+
+// Value building: the first part that cannot join what came before it.
+// java ✓ · pyhocon ✓ · spec ✓ — a list does not concatenate with text.
+// `c = [1] tea` · java ⚠️ `{"c":[1]}` — drops `tea` without a word (and does the
+// same to `a = {b = 1} x`), while `a = [1] 2` is its WrongType. The spec makes
+// both an error, and the spec decides.
+test "diagnostics.UnsupportedConcatenation" {
+    try expectCarets(&.{
+        \\port = 80 [1]
+        \\          ^ UnsupportedConcatenation
+        ,
+        \\a = [1] 2
+        \\        ^ UnsupportedConcatenation
+        ,
+        \\a = "x" [1]
+        \\        ^ UnsupportedConcatenation
+        ,
+        \\a { b = 1 }
+        \\c = [1] tea
+        \\        ^ UnsupportedConcatenation
+        ,
+        // Only the resolver finds this one: until `${a}` is a list, it is text.
+        // The same part is blamed as at load, the one that does not fit.
+        // java ⚠️ reports line 1, where the list was written; pyhocon ✓ 2:10.
+        \\a = [1]
+        \\b = ${a} tea
+        \\         ^ UnsupportedConcatenation
+        ,
+    });
+}
+
+// A line that ends with `\r\n` has its error at the same column as with `\n`:
+// the `\r` is part of the line ending, not a character to count. No table, as a
+// `\r` cannot be written in a multiline string.
+// java ✓ line 1 · pyhocon ✓ 1:5 at the `${`, an error either way
+test "diagnostics.column at a CRLF line end" {
+    var arena: std.heap.ArenaAllocator = .init(testing.allocator);
+    defer arena.deinit();
+    for ([_][:0]const u8{ "a = ${b\nc = 1", "a = ${b\r\nc = 1" }) |src| {
+        var diag: hocon.Diagnostics = .{};
+        try testing.expectError(error.UnexpectedToken, hocon.parseFromSliceLeaky(hocon.Value, arena.allocator(), src, .{ .diagnostics = &diag }));
+        try testing.expectEqual(1, diag.location.?.line);
+        try testing.expectEqual(8, diag.location.?.column);
+        try testing.expectEqualStrings("a = ${b", diag.location.?.source_line);
+    }
+}
+
+// No row for UnsupportedNodeKind: `[1, 2]` was the last input reaching it, and #6
+// made an array root valid. The parser builds no node `Value` rejects, so the
+// error is an internal invariant, covered by the unit test in Value.zig.
+
+// A slice has no file to include from, so an include in it fails at the
+// keyword. Errors in included files are in Include.zig.
+// java ⚠️ ignores it (no such file is an empty object) · pyhocon ⚠️ the same · spec –
+test "diagnostics.IncludeNeedsFile" {
+    try expectCarets(&.{
+        \\a = 1
+        \\  include "x.conf"
+        \\  ^ IncludeNeedsFile
+        ,
+    });
+}
+
+// The number errors from #6 point at the start of the word that is not a JSON
+// number, also when it is not the first word of the value.
+// java ⚠️ lenient (a string) · pyhocon ⚠️ lenient · spec ✓
+test "diagnostics.LeadingZeroIsNotAJsonNumber" {
+    try expectCarets(&.{
+        \\a = 01
+        \\    ^ LeadingZeroIsNotAJsonNumber
+        ,
+        \\a = my cat is 01
+        \\              ^ LeadingZeroIsNotAJsonNumber
+        ,
+    });
+}
+
+// java ⚠️ lenient · pyhocon ⚠️ lenient · spec ✓
+test "diagnostics.HyphenIsNotAJsonNumber" {
+    try expectCarets(&.{
+        \\a = -foo
+        \\    ^ HyphenIsNotAJsonNumber
+        ,
+    });
+}
+
+// java ⚠️ lenient · pyhocon ⚠️ lenient · spec ✓
+test "diagnostics.BadNumber" {
+    try expectCarets(&.{
+        \\a = 1.
+        \\    ^ BadNumber
+        ,
+        \\a { b = -.33 }
+        \\        ^ BadNumber
+        ,
+    });
+}
+
+// A comma no element claims (#6) points at that comma.
+// java ✓ · pyhocon ⚠️ accepts a doubled comma · spec ✓
+test "diagnostics.UnexpectedToken extra comma" {
+    try expectCarets(&.{
+        \\a = [1,,2]
+        \\       ^ UnexpectedToken
+        ,
+        \\a = [,1]
+        \\     ^ UnexpectedToken
+        ,
+        \\, a = 1
+        \\^ UnexpectedToken
+        ,
+        \\a { b = 1,, }
+        \\          ^ UnexpectedToken
+        ,
+    });
+}
+
+// java ✓ (BadPath) · pyhocon ✓ (col 5) — a path with an empty element.
+test "diagnostics.MalformedKey" {
+    try expectCarets(&.{
+        \\a = ${a.}
+        \\    ^ MalformedKey
+        ,
+    });
+}
+
+// Resolver: the `${` that has nothing behind it, and the first one when there
+// are several. java ✓ · pyhocon ✓ (same line and column) · spec ✓
+test "diagnostics.Unresolved" {
+    try expectCarets(&.{
+        \\a = ${b}
+        \\    ^ Unresolved
+        ,
+        \\a = 1
+        \\b = ${nope}
+        \\    ^ Unresolved
+        ,
+        \\a = ${x}
+        \\    ^ Unresolved
+        \\b = ${y}
+        ,
+        \\a = ${b} ${c}
+        \\    ^ Unresolved
+        ,
+    });
+}
+
+// The `${` that closes the cycle: the one that leads back to a member still
+// being resolved. In the second row `a` leads through `${b}` to `b`, and `${a}`
+// on line 2 leads back to `a`.
+// java ✓ (same line) · pyhocon ✓ (lists every `${` of the cycle) · spec ✓
+test "diagnostics.SubstitutionCycle" {
+    try expectCarets(&.{
+        \\a = ${a}
+        \\    ^ SubstitutionCycle
+        ,
+        \\a = ${b}
+        \\b = ${a}
+        \\    ^ SubstitutionCycle
+        ,
+        \\a { b = ${a} }
+        \\        ^ SubstitutionCycle
+        ,
+        \\a = ${b}
+        \\b = ${c}
+        \\c = ${a}
+        \\    ^ SubstitutionCycle
+        ,
+        // Entered from outside, it is still the ref that closes the cycle.
+        \\x = ${a}
+        \\a = ${b}
+        \\b = ${a}
+        \\    ^ SubstitutionCycle
+        ,
+    });
+}
+
+// The column counts code points, not bytes: é is 2 bytes, ☕ 3, 🦆 4, the NBSP
+// 2, and each is one column. A line resets the count, wide characters before it
+// or not. pyhocon ⚠️ counts bytes (col 25 for the first row).
+test "diagnostics.column counts code points" {
+    try expectCarets(&.{
+        \\a = "café ☕ 🦆" [1]
+        \\               ^ UnsupportedConcatenation
+        ,
+        "a = x\u{a0}y [1]\n        ^ UnsupportedConcatenation",
+        \\"🦆" = 1
+        \\b = 1 [2]
+        \\      ^ UnsupportedConcatenation
+        ,
+    });
+}
+
+// The offset is in bytes, the column in code points — the same spot both ways.
+test "diagnostics.offset is bytes, location is code points" {
+    const src = "a = \"🦆\" [1]";
+    var diag: hocon.Diagnostics = .{};
+    defer diag.deinit(testing.allocator);
+    try testing.expectError(error.UnsupportedConcatenation, hocon.parseFromSlice(hocon.Value, testing.allocator, src, .{ .diagnostics = &diag }));
+    const loc = diag.location.?;
+    try testing.expectEqual(11, loc.offset);
+    try testing.expectEqual(1, loc.line);
+    try testing.expectEqual(9, loc.column);
+}
+
+// A parse that succeeds says nothing, even when the Diagnostics it is handed
+// still holds an error from an earlier one; a second failure replaces the first.
+// The copies of the first are freed in between, by whoever handed it over.
+test "diagnostics.each parse starts it afresh" {
+    var diag: hocon.Diagnostics = .{};
+    defer diag.deinit(testing.allocator);
+    try testing.expectError(error.Unresolved, hocon.parseFromSlice(hocon.Value, testing.allocator, "a = ${b}", .{ .diagnostics = &diag }));
+    diag.deinit(testing.allocator);
+    try testing.expectError(error.UnexpectedToken, hocon.parseFromSlice(hocon.Value, testing.allocator, "a = 1 }", .{ .diagnostics = &diag }));
+    try testing.expectEqual(error.UnexpectedToken, diag.err.?);
+    try testing.expectEqual(6, diag.location.?.offset);
+    diag.deinit(testing.allocator);
+
+    const parsed = try hocon.parseFromSlice(hocon.Value, testing.allocator, "a = the cat sat on the keyboard", .{ .diagnostics = &diag });
+    defer parsed.deinit();
+    try testing.expectEqual(null, diag.err);
+}
+
+// Rendered the way the zig compiler prints its own errors: `path:line:col:`,
+// the line, and a caret under the column. A slice has no file name, so the
+// path is left out; `parseFromFile` names it (Include.zig).
+test "diagnostics.render" {
+    const src =
+        \\name = grumpy wombat
+        \\host = example.org
+        \\port = 80 [1]
+        \\tls = off
+    ;
+    var diag: hocon.Diagnostics = .{};
+    defer diag.deinit(testing.allocator);
+    try testing.expectError(error.UnsupportedConcatenation, hocon.parseFromSlice(hocon.Value, testing.allocator, src, .{ .diagnostics = &diag }));
+
+    var out: std.Io.Writer.Allocating = .init(testing.allocator);
+    defer out.deinit();
+    try diag.render(&out.writer);
+    try testing.expectEqualStrings(
+        \\3:11: error: UnsupportedConcatenation
+        \\port = 80 [1]
+        \\          ^
+        \\
+    , out.written());
+}
+
+// Where a member begins, the token that cannot begin one: after a braced root,
+// a second root container, a container with no key in a block, a `${` as a key.
+// java ✓ (same line on every row) · pyhocon ✓ (same line and column) · spec ✓
+test "diagnostics.UnexpectedToken where a member begins" {
+    try expectCarets(&.{
+        \\{a = 1} b = 2
+        \\        ^ UnexpectedToken
+        ,
+        \\a { {b = 1} }
+        \\    ^ UnexpectedToken
+        ,
+        \\a { [1] }
+        \\    ^ UnexpectedToken
+        ,
+        \\a = 1
+        \\{b = 2}
+        \\^ UnexpectedToken
+        ,
+        \\a = 1
+        \\[1]
+        \\^ UnexpectedToken
+        ,
+        \\a = 1
+        \\${b} = 2
+        \\^ UnexpectedToken
+        ,
+    });
+}
+
+// Inside a value: a substitution path that is not text — at the part that is
+// not —, a `${` that is never closed, junk around `include`.
+// java ✓ (line 1 on every row, and it names the `[` too) · pyhocon ⚠️ errors,
+// but its positions are no help here · spec ✓
+test "diagnostics.UnexpectedToken inside a value" {
+    try expectCarets(&.{
+        \\a = ${[1]}
+        \\      ^ UnexpectedToken
+        ,
+        \\a = ${b [1]}
+        \\        ^ UnexpectedToken
+        ,
+        // The newline ends the path, so the newline is the token that is not `}`.
+        \\a = ${b
+        \\       ^ UnexpectedToken
+        \\c = 1
+        ,
+        \\include "x" y
+        \\            ^ UnexpectedToken
+        ,
+        \\include x
+        \\        ^ UnexpectedToken
+        ,
+    });
+}
+
+// A key with an empty element, at the dot that has nothing before or after it.
+// java ✓ (BadPath, same line) · pyhocon ⚠️ drops the empty element · spec ✓
+test "diagnostics.UnexpectedToken empty key element" {
+    try expectCarets(&.{
+        \\x = 1
+        \\a..b = 2
+        \\  ^ UnexpectedToken
+        ,
+        \\x = 1
+        \\.a = 2
+        \\^ UnexpectedToken
+        ,
+        \\a.b. = 1
+        \\   ^ UnexpectedToken
+        ,
+        \\x = 1
+        \\"a". = 2
+        \\   ^ UnexpectedToken
+        ,
+    });
+}
+
+// The quoted part with the bad escape, when something comes before it in the
+// same key or value. java ✓ (line 1) · pyhocon ⚠️ keeps `\q` as two characters
+test "diagnostics.InvalidEscape after another part" {
+    try expectCarets(&.{
+        \\a."\q" = 1
+        \\  ^ InvalidEscape
+        ,
+        \\a = x "\q"
+        \\      ^ InvalidEscape
+        ,
+    });
+}
+
+// java ✓ (WrongType, line 1) · pyhocon ✓ line, ⚠️ column (end of the token) · spec ✓
+test "diagnostics.UnsupportedConcatenation text then an object" {
+    try expectCarets(&.{
+        \\a = 1 {b = 1}
+        \\      ^ UnsupportedConcatenation
+        ,
+    });
+}
+
+// A misfit only the resolver sees is the same part that load would blame: the
+// first one that does not fit onto what came before it. A `${?x}` with nothing
+// behind it is gone by then, so it is never the one.
+// java ✓ (same line, or the line the list was written on) · pyhocon ✓ (same
+// part, its column one past the end) · spec ✓
+test "diagnostics.UnsupportedConcatenation found by the resolver" {
+    try expectCarets(&.{
+        \\a = [1]
+        \\b = x
+        \\c = ${b} ${a}
+        \\         ^ UnsupportedConcatenation
+        ,
+        \\a = [1]
+        \\b = [2]
+        \\c = ${a} ${b} tea
+        \\              ^ UnsupportedConcatenation
+        ,
+        \\a = [1] ${?x} tea
+        \\              ^ UnsupportedConcatenation
+        ,
+        \\a = x ${?nope} [2]
+        \\               ^ UnsupportedConcatenation
+        ,
+    });
+}
+
+// Not UTF-8: a byte that does not continue a character is a column of its own,
+// so one bad byte costs one column and not the whole line.
+test "diagnostics.column survives a line that is not UTF-8" {
+    try expectCarets(&.{
+        "a = x\xff [1]\n       ^ UnsupportedConcatenation",
+        "a = xé\xff [1]\n        ^ UnsupportedConcatenation",
+    });
+}
+
+// The rendered line is the source line as written — indentation kept, a CRLF
+// ending gone, the caret indented by code points — except that a tab or a stray
+// `\r` prints as one space, or the caret would not line up under it.
+test "diagnostics.render keeps the line as written" {
+    const cases = [_]struct { src: [:0]const u8, err: anyerror = error.UnsupportedConcatenation, want: []const u8 }{
+        .{ .src = "name = grumpy wombat\r\n  port = 80 [1]\r\n", .want = "2:13: error: UnsupportedConcatenation\n  port = 80 [1]\n            ^\n" },
+        .{ .src = "a = \"🦆\" [1]", .want = "1:9: error: UnsupportedConcatenation\na = \"🦆\" [1]\n        ^\n" },
+        .{ .src = "a = 1\n\tb = 2 [3]", .want = "2:8: error: UnsupportedConcatenation\n b = 2 [3]\n       ^\n" },
+        // Only `\n` starts a line, so a lone `\r` keeps the line together — and
+        // since it is whitespace (#6), `1\rb` is one value and the `=` is what fails.
+        .{ .src = "a = 1\rb = }", .err = error.UnexpectedToken, .want = "1:9: error: UnexpectedToken\na = 1 b = }\n        ^\n" },
+    };
+    for (cases) |c| {
+        var diag: hocon.Diagnostics = .{};
+        defer diag.deinit(testing.allocator);
+        try testing.expectError(c.err, hocon.parseFromSlice(hocon.Value, testing.allocator, c.src, .{ .diagnostics = &diag }));
+        var out: std.Io.Writer.Allocating = .init(testing.allocator);
+        defer out.deinit();
+        try diag.render(&out.writer);
+        try testing.expectEqualStrings(c.want, out.written());
+    }
+}
+
+// A conversion error is kept too, but without a place: the document was fine,
+// the type did not fit it. It renders as the first line alone.
+test "diagnostics.a conversion error has no position" {
+    var diag: hocon.Diagnostics = .{};
+    const T = struct { a: u8 };
+    try testing.expectError(error.MissingField, hocon.parseFromSlice(T, testing.allocator, "b = the cat sat on the keyboard", .{ .diagnostics = &diag }));
+    try testing.expectEqual(error.MissingField, diag.err.?);
+    try testing.expectEqual(null, diag.location);
+
+    var out: std.Io.Writer.Allocating = .init(testing.allocator);
+    defer out.deinit();
+    try diag.render(&out.writer);
+    try testing.expectEqualStrings("error: MissingField\n", out.written());
+}
+
+// Out of memory has no position either. Every allocation the parse makes is
+// made to fail once, in turn: each of those runs keeps OutOfMemory with no
+// place, until the parse gets far enough to fail on its own. Copying the place
+// into the Diagnostics can run out too; then the error stays and the place goes.
+// The very first allocation is the arena, before there is any text: the error
+// is still the one in the Diagnostics, not one an earlier parse left there.
+test "diagnostics.out of memory has no position" {
+    var i: usize = 0;
+    while (true) : (i += 1) {
+        var failing = std.testing.FailingAllocator.init(testing.allocator, .{ .fail_index = i });
+        var diag: hocon.Diagnostics = .{ .err = error.InvalidEscape };
+        defer diag.deinit(testing.allocator);
+        if (hocon.parseFromSlice(hocon.Value, failing.allocator(), "a = 1\nb = ${nope}", .{ .diagnostics = &diag })) |parsed| {
+            parsed.deinit();
+            return error.ParsedWithoutError;
+        } else |err| switch (err) {
+            error.OutOfMemory => {
+                try testing.expectEqual(error.OutOfMemory, diag.err.?);
+                try testing.expectEqual(null, diag.location);
+            },
+            else => {
+                try testing.expectEqual(error.Unresolved, err);
+                try testing.expectEqual(error.Unresolved, diag.err.?);
+                const loc = diag.location orelse continue;
+                try testing.expectEqual(10, loc.offset);
+                return;
+            },
+        }
+    }
+}
+
+// The same for a file, where the arena and the text come before there is a
+// place to point at.
+test "diagnostics.out of memory reading a file has no position" {
+    var tmp = testing.tmpDir(.{});
+    defer tmp.cleanup();
+    try tmp.dir.writeFile(testing.io, .{ .sub_path = "app.conf", .data = "a = 1\nb = ${nope}" });
+    const path = try std.fmt.allocPrint(testing.allocator, ".zig-cache/tmp/{s}/app.conf", .{tmp.sub_path});
+    defer testing.allocator.free(path);
+
+    var i: usize = 0;
+    while (true) : (i += 1) {
+        var failing = std.testing.FailingAllocator.init(testing.allocator, .{ .fail_index = i });
+        var diag: hocon.Diagnostics = .{ .err = error.InvalidEscape };
+        defer diag.deinit(testing.allocator);
+        if (hocon.parseFromFile(hocon.Value, failing.allocator(), testing.io, path, .{ .diagnostics = &diag })) |parsed| {
+            parsed.deinit();
+            return error.ParsedWithoutError;
+        } else |err| switch (err) {
+            error.OutOfMemory => {
+                try testing.expectEqual(error.OutOfMemory, diag.err.?);
+                try testing.expectEqual(null, diag.location);
+            },
+            else => {
+                try testing.expectEqual(error.Unresolved, diag.err.?);
+                if (diag.location == null) continue;
+                return;
+            },
+        }
+    }
+}
+
+// A slice is held to the size a file may have, the size every offset in a
+// document fits: one byte short of it parses, the size itself is refused before
+// any parsing.
+test "diagnostics.a slice as big as the file limit is refused" {
+    // 64 MiB, `max_file_size` in Include.zig.
+    const big = try testing.allocator.allocSentinel(u8, 64 * 1024 * 1024, 0);
+    defer testing.allocator.free(big);
+    @memset(big, ' ');
+
+    var arena: std.heap.ArenaAllocator = .init(testing.allocator);
+    defer arena.deinit();
+    var diag: hocon.Diagnostics = .{};
+    try testing.expectError(error.StreamTooLong, hocon.parseFromSliceLeaky(hocon.Value, arena.allocator(), big, .{ .diagnostics = &diag }));
+    try testing.expectEqual(error.StreamTooLong, diag.err.?);
+    try testing.expectEqual(null, diag.location);
+
+    big[big.len - 1] = 0;
+    _ = try hocon.parseFromSliceLeaky(hocon.Value, arena.allocator(), big[0 .. big.len - 1 :0], .{});
+}
+
+// Nothing failed, nothing to print — a render after a good parse writes nothing
+// rather than tripping over the missing error.
+test "diagnostics.render with no error writes nothing" {
+    const diag: hocon.Diagnostics = .{};
+    var out: std.Io.Writer.Allocating = .init(testing.allocator);
+    defer out.deinit();
+    try diag.render(&out.writer);
+    try testing.expectEqualStrings("", out.written());
+}
+
+// An offset past the end — never one a parse makes — points just past the last
+// character instead of out of bounds.
+test "diagnostics.locate clamps an offset past the end" {
+    const loc = hocon.Diagnostics.locate("app.conf", "a = 1\nb", 99);
+    try testing.expectEqual(2, loc.line);
+    try testing.expectEqual(2, loc.column);
+    try testing.expectEqualStrings("b", loc.source_line);
 }

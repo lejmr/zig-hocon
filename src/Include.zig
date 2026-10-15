@@ -23,8 +23,11 @@ pub const Error = error{
     /// A file includes itself, directly or through others, or files nest more than 64 deep.
     IncludeCycle,
     /// `classpath(…)`, `url(…)` with something that is not an http, https or file URL,
-    /// and a `.properties` line with a backslash (escapes are not decoded).
+    /// a `.properties` line with a backslash (escapes are not decoded), and an
+    /// include with more than 255 keys above it (`Ref.scope_len` is a u8).
     UnsupportedInclude,
+    /// More than 65536 files in one document: a ref keeps its file as a u16.
+    TooManyFiles,
     /// The server answered with something other than success, not found or gone.
     IncludeFetchFailed,
     /// A fetch took longer than `ParseOptions.http_timeout`. Not a missing include,
@@ -202,6 +205,8 @@ fn loadFile(gpa: Allocator, io: std.Io, path: []const u8, ctx: Value.Context) va
         .dir = std.fs.path.dirname(path) orelse "",
         .stack = try std.mem.concat(gpa, []const u8, &.{ ctx.stack, &.{id} }),
         .scope = try scopeOf(gpa, ctx),
+        .files = ctx.files,
+        .file = try addFile(gpa, ctx, path, source),
     };
     return try parseSource(gpa, source, formatOfPath(path), child);
 }
@@ -286,6 +291,8 @@ fn loadUrl(gpa: Allocator, io: std.Io, url: []const u8, ctx: Value.Context) valu
         .http_timeout = ctx.http_timeout,
         .stack = try std.mem.concat(gpa, []const u8, &.{ ctx.stack, &.{url} }),
         .scope = try scopeOf(gpa, ctx),
+        .files = ctx.files,
+        .file = try addFile(gpa, ctx, url, fetched.source),
     };
     return try parseSource(gpa, fetched.source, format, child);
 }
@@ -310,7 +317,7 @@ fn formatOfPath(path: []const u8) Format {
 
 /// Where the keys of a file included from `ctx` sit in the whole document.
 /// Substitutions in it get this in front of their path (see `Value.Ref`).
-fn scopeOf(gpa: Allocator, ctx: Value.Context) Allocator.Error![]const Key {
+fn scopeOf(gpa: Allocator, ctx: Value.Context) values.Error![]const Key {
     var keys: std.ArrayList(Key) = .empty;
     var frame = ctx.frame;
     while (frame) |f| {
@@ -319,17 +326,35 @@ fn scopeOf(gpa: Allocator, ctx: Value.Context) Allocator.Error![]const Key {
     }
     // The frames came innermost first.
     std.mem.reverse(Key, keys.items);
-    return std.mem.concat(gpa, Key, &.{ ctx.scope, keys.items });
+    const scope = try std.mem.concat(gpa, Key, &.{ ctx.scope, keys.items });
+    if (scope.len > std.math.maxInt(u8)) return error.UnsupportedInclude;
+    return scope;
+}
+
+/// Puts a file on the document's list, for an error to point into, and returns
+/// its index there: what its refs and the errors in it name it by.
+fn addFile(gpa: Allocator, ctx: Value.Context, path: []const u8, source: []const u8) values.Error!u16 {
+    // Set by the parse whenever there is an `io` to read a file with.
+    const files = ctx.files.?;
+    if (files.list.items.len > std.math.maxInt(u16)) return error.TooManyFiles;
+    try files.list.append(gpa, .{ .path = path, .source = source });
+    return @intCast(files.list.items.len - 1);
 }
 
 fn parseSource(gpa: Allocator, source: [:0]const u8, format: Format, child: Value.Context) values.Error!Value {
-    // ponytail: errors name no file; #5 will say which file an error is in.
     const object = switch (format) {
+        // No positions from these two: an error in them is the include's.
         .json => try fromJson(gpa, source),
         .properties => try fromProperties(gpa, source),
         .hocon => blk: {
+            // An offset in here is in this file, so this file is the one to say
+            // where, as `Config.load` does for the main one.
+            const files = child.files.?;
             var parser = Ast.Parser{ .gpa = gpa, .t = .{ .t = Tokenizer.init(source) } };
-            const tree = try parser.parse();
+            const tree = parser.parse() catch |err| {
+                files.fail(child.file, parser.err_offset);
+                return err;
+            };
             // `[1, 2]` as a whole document is a list: java's WrongType.
             if (tree.children.len == 1 and tree.children[0].kind == .array) return error.IncludedRootNotObject;
             break :blk try Value.fromNode(gpa, tree, child);
@@ -547,7 +572,7 @@ test "include.url() and classpath() refuse what they cannot follow" {
         "include url(\"foo:x.conf\")",
         "include required(classpath(\"x.conf\"))",
     }) |source| {
-        try testing.expectError(error.UnsupportedInclude, Config.parseFromSlice(Value, testing.allocator, source));
+        try testing.expectError(error.UnsupportedInclude, Config.parseFromSlice(Value, testing.allocator, source, .{}));
     }
 }
 
@@ -565,8 +590,8 @@ test "include.a name that only looks like a URL is a file name" {
 // java – · pyhocon – · spec – — ours alone: a slice has no files, so an include
 // in it is an error instead of a silently empty object.
 test "include.a document from a slice cannot include" {
-    try testing.expectError(error.IncludeNeedsFile, Config.parseFromSlice(Value, testing.allocator, "include \"x.conf\""));
-    try testing.expectError(error.IncludeNeedsFile, Config.parseFromSlice(Value, testing.allocator, "a { include file(\"x.conf\") }"));
+    try testing.expectError(error.IncludeNeedsFile, Config.parseFromSlice(Value, testing.allocator, "include \"x.conf\"", .{}));
+    try testing.expectError(error.IncludeNeedsFile, Config.parseFromSlice(Value, testing.allocator, "a { include file(\"x.conf\") }", .{}));
 }
 
 // include-merging/001, 004, 005–010 · java ✓ · pyhocon – · spec ✓ — the included
@@ -973,6 +998,219 @@ test "include.an include in a list keeps its substitutions as written" {
 }
 
 // ---------------------------------------------------------------------------
+// Diagnostics in included files. An error points into the file it is in, under
+// the name the include made of it, wherever that file sits in the stack: a parse
+// error while the file is read, a substitution only once the whole document is
+// resolved. An error about the include itself — no file there, a cycle, JSON
+// that is not JSON — points at that `include`, in the file that has it.
+//
+// Oracles, run on these same files: java names a file and a line, pyhocon a
+// line and a column with no file; neither gives a column we could copy (see
+// root.zig). Where they name a place, it is ours except where a test says so.
+// ---------------------------------------------------------------------------
+
+const Diagnostics = @import("Diagnostics.zig");
+
+/// Parses the fixtures, which must fail, and returns the error as `render`
+/// prints it. The temp directory differs every run, so it comes off the path:
+/// what is left is the path inside it, `main.conf` or `sub/inner.conf`.
+fn rendered(arena: Allocator, files: []const Fixture, options: Config.ParseOptions) ![]const u8 {
+    var diag: Diagnostics = .{};
+    var with_diag = options;
+    with_diag.diagnostics = &diag;
+    if (parseFixturesWith(arena, files, with_diag)) |_| return error.ParsedWithoutError else |_| {}
+
+    if (diag.location) |*loc| {
+        const tmp = ".zig-cache/tmp/";
+        if (std.mem.startsWith(u8, loc.path, tmp)) {
+            const rest = loc.path[tmp.len..];
+            loc.path = rest[std.mem.indexOfScalar(u8, rest, '/').? + 1 ..];
+        }
+    }
+    var out: std.Io.Writer.Allocating = .init(arena);
+    try diag.render(&out.writer);
+    return out.written();
+}
+
+fn expectRendered(files: []const Fixture, want: []const u8) !void {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+    try testing.expectEqualStrings(want, try rendered(arena.allocator(), files, .{}));
+}
+
+// java ✓ · pyhocon ✓ · spec ✓ — except the bad escape: java ✓, pyhocon ⚠️
+// lenient (keeps `\q`).
+test "include.diagnostics: an error while a file is read is in that file" {
+    try expectRendered(&.{
+        .{ .path = "main.conf", .text = "name = sleepy otter\ninclude \"broken.conf\"\nport = 80" },
+        .{ .path = "broken.conf", .text = "a = 1\nb = }" },
+    },
+        \\broken.conf:2:5: error: UnexpectedToken
+        \\b = }
+        \\    ^
+        \\
+    );
+    // Two files down, the inner one beside the middle one, in a directory.
+    try expectRendered(&.{
+        .{ .path = "main.conf", .text = "include \"sub/mid.conf\"" },
+        .{ .path = "sub/mid.conf", .text = "mid = 1\ninclude \"broken.conf\"" },
+        .{ .path = "sub/broken.conf", .text = "the cat sat on = [1 }" },
+    },
+        \\sub/broken.conf:1:21: error: UnexpectedToken
+        \\the cat sat on = [1 }
+        \\                    ^
+        \\
+    );
+    // A bad escape turns up while the values are built — still in the same file.
+    try expectRendered(&.{
+        .{ .path = "main.conf", .text = "include \"escape.conf\"" },
+        .{ .path = "escape.conf", .text = "ok = 1\nbad = \"tea\\q\"" },
+    },
+        \\escape.conf:2:7: error: InvalidEscape
+        \\bad = "tea\q"
+        \\      ^
+        \\
+    );
+}
+
+// java ✓ · pyhocon ✓ · spec ✓ — except the concatenation: java ⚠️ names the
+// first part, `${a}`'s object in main.conf; ours is the part that does not fit,
+// as everywhere else.
+test "include.diagnostics: a substitution points where it was written" {
+    // Not there, found only once the whole document is resolved — and nothing in
+    // main.conf moves the caret, however long its lines are.
+    try expectRendered(&.{
+        .{ .path = "main.conf", .text = "first line of the main file = 1\nsecond = 2\ninclude \"refs.conf\"" },
+        .{ .path = "refs.conf", .text = "z = 1\nlater = ${nope}" },
+    },
+        \\refs.conf:2:9: error: Unresolved
+        \\later = ${nope}
+        \\        ^
+        \\
+    );
+    // The same under a scope, where `${nope}` is tried as `r.nope` first.
+    try expectRendered(&.{
+        .{ .path = "main.conf", .text = "r { include \"refs.conf\" }" },
+        .{ .path = "refs.conf", .text = "z = 1\nlater = ${nope}" },
+    },
+        \\refs.conf:2:9: error: Unresolved
+        \\later = ${nope}
+        \\        ^
+        \\
+    );
+    // A cycle through two files is reported at the ref that closes it.
+    try expectRendered(&.{
+        .{ .path = "main.conf", .text = "a = ${x}\ninclude \"loop.conf\"" },
+        .{ .path = "loop.conf", .text = "x = ${a}" },
+    },
+        \\loop.conf:1:5: error: SubstitutionCycle
+        \\x = ${a}
+        \\    ^
+        \\
+    );
+    // A concatenation that only fails once `${a}` has its value: the part that
+    // does not fit, in the file it was written in.
+    try expectRendered(&.{
+        .{ .path = "main.conf", .text = "a { k = 1 }\ninclude \"concat.conf\"" },
+        .{ .path = "concat.conf", .text = "b = ${a} [1]" },
+    },
+        \\concat.conf:1:10: error: UnsupportedConcatenation
+        \\b = ${a} [1]
+        \\         ^
+        \\
+    );
+}
+
+// java ⚠️ · pyhocon ⚠️ · spec ✓ — the errors are java's and pyhocon's too,
+// except bad JSON (both lenient: they read it as HOCON), classpath (java finds
+// nothing and goes on) and a required file two levels down (pyhocon goes on).
+// Where they place them: a missing file nowhere (java, pyhocon), a cycle in
+// a.conf with no line (java), a list root in list.conf (java) — ours is the
+// include, in the file that has it.
+test "include.diagnostics: an error about the include points at the include" {
+    try expectRendered(&.{
+        .{ .path = "main.conf", .text = "x = 1\ninclude required(\"missing.conf\")" },
+    },
+        \\main.conf:2:1: error: IncludeNotFound
+        \\include required("missing.conf")
+        \\^
+        \\
+    );
+    // In the file that has the include, not in the one that brought that file in.
+    try expectRendered(&.{
+        .{ .path = "main.conf", .text = "include \"mid.conf\"" },
+        .{ .path = "mid.conf", .text = "mid = 1\n  include required(\"missing.conf\")" },
+    },
+        \\mid.conf:2:3: error: IncludeNotFound
+        \\  include required("missing.conf")
+        \\  ^
+        \\
+    );
+    // A cycle is closed by the include that names a file already open.
+    try expectRendered(&.{
+        .{ .path = "main.conf", .text = "include \"a.conf\"" },
+        .{ .path = "a.conf", .text = "a = 1\ninclude \"main.conf\"" },
+    },
+        \\a.conf:2:1: error: IncludeCycle
+        \\include "main.conf"
+        \\^
+        \\
+    );
+    // JSON and properties have no positions of their own.
+    try expectRendered(&.{
+        .{ .path = "main.conf", .text = "a = 1\ninclude \"bad.json\"" },
+        .{ .path = "bad.json", .text = "{\"a\": 1,}" },
+    },
+        \\main.conf:2:1: error: InvalidJson
+        \\include "bad.json"
+        \\^
+        \\
+    );
+    try expectRendered(&.{
+        .{ .path = "main.conf", .text = "include \"list.conf\"" },
+        .{ .path = "list.conf", .text = "[1, 2]" },
+    },
+        \\main.conf:1:1: error: IncludedRootNotObject
+        \\include "list.conf"
+        \\^
+        \\
+    );
+    try expectRendered(&.{
+        .{ .path = "main.conf", .text = "a { include classpath(\"x.conf\") }" },
+    },
+        \\main.conf:1:5: error: UnsupportedInclude
+        \\a { include classpath("x.conf") }
+        \\    ^
+        \\
+    );
+}
+
+// java – · pyhocon – · spec – — ours alone: a ref keeps the keys above its
+// include in a u8, so 255 of them are the most an include can have. One more is
+// refused at the include, not cut short.
+test "include.diagnostics: more than 255 keys above an include" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+    for ([_]usize{ 255, 256 }) |depth| {
+        var key: std.ArrayList(u8) = .empty;
+        for (0..depth) |i| try key.appendSlice(a, if (i == 0) "k" else ".k");
+        const main = try std.fmt.allocPrint(a, "{s} {{ include \"x.conf\" }}", .{key.items});
+        const files = [_]Fixture{
+            .{ .path = "main.conf", .text = main },
+            .{ .path = "x.conf", .text = "x = ${y}\ny = 1" },
+        };
+        if (depth == 255) {
+            _ = try parseFixtures(a, &files);
+        } else {
+            const want = try std.fmt.allocPrint(a, "main.conf:1:{d}: error: UnsupportedInclude\n", .{key.items.len + 4});
+            const got = try rendered(a, &files, .{});
+            try testing.expectEqualStrings(want, got[0..want.len]);
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // HTTP: includes from a server. The server is ours, on 127.0.0.1, in a thread of
 // the test, so no network is needed.
 // ---------------------------------------------------------------------------
@@ -991,6 +1229,7 @@ const routes = [_]Route{
     .{ .path = "/loop.conf", .body = "include \"loop.conf\"" },
     .{ .path = "/gone.conf", .status = .gone },
     .{ .path = "/broken.conf", .status = .internal_server_error, .body = "oops" },
+    .{ .path = "/unclosed.conf", .body = "fine = 1\nnot fine = [1" },
     // The type says one thing and the name another; the type wins.
     .{ .path = "/typed.txt", .content_type = "application/json; charset=utf-8", .body = "{\"j\": 1}" },
     .{ .path = "/typed.json", .content_type = "application/hocon", .body = "h = unquoted" },
@@ -1090,6 +1329,16 @@ test "include.http" {
     // Anything else
     try testing.expectError(error.IncludeFetchFailed, includeUrl(a, port, "/broken.conf"));
 
+    // An error in a fetched file is in the file at that URL; a failed fetch is the
+    // include's. Ours alone, like the rest of this test.
+    const unclosed = try std.fmt.allocPrint(a, "include url(\"http://127.0.0.1:{d}/unclosed.conf\")", .{port});
+    try testing.expectEqualStrings(
+        try std.fmt.allocPrint(a, "http://127.0.0.1:{d}/unclosed.conf:2:14: error: UnexpectedToken\nnot fine = [1\n             ^\n", .{port}),
+        try rendered(a, &.{.{ .path = "main.conf", .text = unclosed }}, .{}),
+    );
+    const failed = try std.fmt.allocPrint(a, "x = 1\ninclude url(\"http://127.0.0.1:{d}/broken.conf\")", .{port});
+    try testing.expectStringStartsWith(try rendered(a, &.{.{ .path = "main.conf", .text = failed }}, .{}), "main.conf:2:1: error: IncludeFetchFailed\n");
+
     // the type wins over the name; no usable type falls back to the name
     try testing.expectEqualStrings("{\"j\":1}", try includeUrl(a, port, "/typed.txt"));
     try testing.expectEqualStrings("{\"h\":\"unquoted\"}", try includeUrl(a, port, "/typed.json"));
@@ -1129,8 +1378,9 @@ test "include.a server that never answers times out" {
     const trickle = try std.fmt.allocPrint(a, "include url(\"http://127.0.0.1:{d}/trickle\")", .{port});
     try testing.expectError(error.IncludeTimeout, parseFixturesWith(a, &.{.{ .path = "main.conf", .text = trickle }}, options));
 
+    // A timeout is the include's, like any failed fetch.
     const plain = try std.fmt.allocPrint(a, "include url(\"http://127.0.0.1:{d}/hang\")", .{port});
-    try testing.expectError(error.IncludeTimeout, parseFixturesWith(a, &.{.{ .path = "main.conf", .text = plain }}, options));
+    try testing.expectStringStartsWith(try rendered(a, &.{.{ .path = "main.conf", .text = plain }}, options), "main.conf:1:1: error: IncludeTimeout\n");
     const required = try std.fmt.allocPrint(a, "include required(url(\"http://127.0.0.1:{d}/hang\"))", .{port});
     try testing.expectError(error.IncludeTimeout, parseFixturesWith(a, &.{.{ .path = "main.conf", .text = required }}, options));
 }

@@ -11,6 +11,7 @@ const mem = std.mem;
 const unquote = @import("utils/unqoute.zig").unquote;
 const Ast = @import("Ast.zig");
 const Node = Ast.Node;
+const Value = @import("Value.zig").Value;
 
 pub const Key = @This();
 value: []const u8,
@@ -26,18 +27,29 @@ pub const Error = error{
 /// they would in a value — so `a "b" c` is the single key `a b c`. Quotes come
 /// off and escapes are applied, which is what makes `a` and `"a"` equal here.
 /// The text is allocated from `gpa`; pass the arena that owns the document.
-pub fn fromNode(gpa: std.mem.Allocator, node: Node) Error!Key {
+/// On failure `ctx.fail` gets the position of the part that failed.
+pub fn fromNode(gpa: std.mem.Allocator, node: Node, ctx: Value.Context) Error!Key {
     return switch (node.kind) {
-        .value => .{ .value = (try unquote(gpa, node.value)).text },
+        .value => .{ .value = (unquote(gpa, node.value) catch |err| {
+            ctx.fail(node.pos);
+            return err;
+        }).text },
         .concat => blk: {
             var nodesToJoin: std.ArrayList([]const u8) = .empty;
             defer nodesToJoin.deinit(gpa);
 
             for (node.children) |n| {
                 // Only values are supported
-                if (n.kind != .value) return Error.MalformedKey;
+                if (n.kind != .value) {
+                    ctx.fail(n.pos);
+                    return Error.MalformedKey;
+                }
                 // Handle delimiters rightly - if multiline - leave as is otherwise trim
-                try nodesToJoin.append(gpa, (try unquote(gpa, n.value)).text);
+                const ut = unquote(gpa, n.value) catch |err| {
+                    ctx.fail(n.pos);
+                    return err;
+                };
+                try nodesToJoin.append(gpa, ut.text);
             }
             break :blk .{
                 .value = try mem.concat(
@@ -47,7 +59,10 @@ pub fn fromNode(gpa: std.mem.Allocator, node: Node) Error!Key {
                 ),
             };
         },
-        else => Error.UnsupportedNodeKind,
+        else => {
+            ctx.fail(node.pos);
+            return Error.UnsupportedNodeKind;
+        },
     };
 }
 
@@ -66,11 +81,16 @@ fn v(text: []const u8) Node {
     return .{ .kind = .value, .value = text, .children = &.{} };
 }
 
+/// `fromNode` for a hand-built node, whose positions mean nothing.
+fn build(gpa: std.mem.Allocator, node: Node) Error!Key {
+    return fromNode(gpa, node, .{});
+}
+
 fn expectKey(want: []const u8, node: Node) !void {
     var arena = std.heap.ArenaAllocator.init(testing.allocator);
     defer arena.deinit();
 
-    const key = try fromNode(arena.allocator(), node);
+    const key = try build(arena.allocator(), node);
     try testing.expectEqualStrings(want, key.value);
 }
 
@@ -100,7 +120,7 @@ test "key.concat takes text parts and nothing else" {
     var path = [_]Node{v("b")};
     var parts = [_]Node{ v("a"), .{ .kind = .subst, .value = "", .children = &path } };
     const node: Node = .{ .kind = .concat, .value = "", .children = &parts };
-    try testing.expectError(Error.MalformedKey, fromNode(arena.allocator(), node));
+    try testing.expectError(Error.MalformedKey, build(arena.allocator(), node));
 }
 
 // The parser rejects these already, so this is a second lock on the same door.
@@ -114,7 +134,7 @@ test "key.a block, an array or a substitution is not a key" {
     for ([_]Node.NodeKind{ .block, .array, .subst, .subst_optional }) |kind| {
         errdefer std.debug.print("failed on {s}\n", .{@tagName(kind)});
         const node: Node = .{ .kind = kind, .value = "", .children = &child };
-        try testing.expectError(Error.UnsupportedNodeKind, fromNode(arena.allocator(), node));
+        try testing.expectError(Error.UnsupportedNodeKind, build(arena.allocator(), node));
     }
 }
 
@@ -130,8 +150,8 @@ test "key.eql ignores how it was written" {
     defer arena.deinit();
     const gpa = arena.allocator();
 
-    const plain = try fromNode(gpa, v("a"));
-    try testing.expect(plain.eql(try fromNode(gpa, v("\"a\""))));
-    try testing.expect(plain.eql(try fromNode(gpa, v("\"\"\"a\"\"\""))));
-    try testing.expect(!plain.eql(try fromNode(gpa, v("b"))));
+    const plain = try build(gpa, v("a"));
+    try testing.expect(plain.eql(try build(gpa, v("\"a\""))));
+    try testing.expect(plain.eql(try build(gpa, v("\"\"\"a\"\"\""))));
+    try testing.expect(!plain.eql(try build(gpa, v("b"))));
 }

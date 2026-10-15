@@ -12,6 +12,10 @@ pub const Node = struct {
     kind: NodeKind,
     children: []Node,
     value: []const u8 = "",
+    /// Byte offset where the node starts in the source: its first token, the
+    /// `{`, `[` or `${` of a container, the first part of a `concat`. Value
+    /// building and the resolver point their errors here.
+    pos: usize = 0,
 
     pub const NodeKind = enum {
         root,
@@ -74,13 +78,23 @@ const PeakingTokenizer = struct {
 pub const Parser = struct {
     gpa: std.mem.Allocator,
     t: PeakingTokenizer,
+    /// Where the error `parse` returned points, as a byte offset. Null for an
+    /// error that has no place in the text: OutOfMemory.
+    err_offset: ?usize = null,
 
     /// Written out rather than inferred (`!Node`): `parseContainer` recurses, and
     /// an inferred error set cannot be resolved when it depends on itself.
     pub const Error = error{UnexpectedToken} || number.NumberError || std.mem.Allocator.Error || unquote.Error;
 
     pub fn parse(self: *Parser) Error!Node {
-        return self.parseContainer(.eof, .root);
+        return self.parseContainer(.eof, .root, 0);
+    }
+
+    /// Every `UnexpectedToken` goes through here, so none can leave without
+    /// saying where.
+    fn fail(self: *Parser, offset: usize) Error {
+        self.err_offset = offset;
+        return Error.UnexpectedToken;
     }
 
     /// One member of an object: a key, a separator, and a value. Only
@@ -108,10 +122,10 @@ pub const Parser = struct {
             // `a {b = c}` .. the separator may be omitted before a block, but
             // only before a block — java rejects `a [1, 2]`.
             .l_brace => {},
-            else => return Error.UnexpectedToken,
+            else => return self.fail(self.t.peek().loc.start),
         }
 
-        return prepareMemberNode(self.gpa, key, try self.parseValue());
+        return prepareMemberNode(self.gpa, key, try self.parseValue(), &self.err_offset);
     }
 
     /// One value: the parts written next to each other with no separator in
@@ -149,26 +163,26 @@ pub const Parser = struct {
             const part: Node = switch (self.t.peek().tag) {
                 .string, .quoted_string, .multiline_string => blk: {
                     const text = try self.parseText();
-                    try checkNumbers(text);
+                    try checkNumbers(text, &self.err_offset);
                     break :blk text;
                 },
                 .l_brace => blk: {
                     _ = self.t.next();
                     if (concat_type != null and concat_type != .block) {
-                        return Error.UnexpectedToken;
+                        return self.fail(part_start);
                     }
                     concat_type = .block;
 
-                    break :blk try self.parseContainer(.r_brace, .block);
+                    break :blk try self.parseContainer(.r_brace, .block, part_start);
                 },
                 .l_bracket => blk: {
                     _ = self.t.next();
                     if (concat_type != null and concat_type != .array) {
-                        return Error.UnexpectedToken;
+                        return self.fail(part_start);
                     }
                     concat_type = .array;
 
-                    break :blk try self.parseContainer(.r_bracket, .array);
+                    break :blk try self.parseContainer(.r_bracket, .array, part_start);
                 },
                 .dollar_brace_optional, .dollar_brace => |tag| blk: {
                     _ = self.t.next();
@@ -176,11 +190,13 @@ pub const Parser = struct {
                     // The inside is a path expression, which is text — anything
                     // else ends it short of the `}` that is required next.
                     const path = try self.parseText();
-                    if (self.t.next().tag != .r_brace) return Error.UnexpectedToken;
+                    const close = self.t.next();
+                    if (close.tag != .r_brace) return self.fail(close.loc.start);
 
                     break :blk Node{
                         .kind = if (tag == .dollar_brace_optional) .subst_optional else .subst,
                         .children = try self.gpa.dupe(Node, &.{path}),
+                        .pos = part_start,
                     };
                 },
                 else => break,
@@ -190,6 +206,7 @@ pub const Parser = struct {
                 .kind = .value,
                 .value = text,
                 .children = &.{},
+                .pos = prev_end.?,
             });
             prev_end = self.t.last_end;
 
@@ -203,12 +220,20 @@ pub const Parser = struct {
             }
         }
 
+        return self.joinParts(&parts);
+    }
+
+    /// The parts of one value as one node: a single part as it is, more of them
+    /// as a `.concat` that starts where the first one does. No parts at all is
+    /// a value missing where one has to be.
+    fn joinParts(self: *Parser, parts: *std.ArrayList(Node)) Error!Node {
         return switch (parts.items.len) {
-            0 => Error.UnexpectedToken,
+            0 => self.fail(self.t.peek().loc.start),
             1 => parts.items[0],
-            else => Node{
-                .kind = .concat,
-                .children = try parts.toOwnedSlice(self.gpa),
+            else => blk: {
+                // Read before `toOwnedSlice` empties the list.
+                const pos = parts.items[0].pos;
+                break :blk Node{ .kind = .concat, .children = try parts.toOwnedSlice(self.gpa), .pos = pos };
             },
         };
     }
@@ -230,12 +255,14 @@ pub const Parser = struct {
                 .kind = .value,
                 .children = &.{},
                 .value = input[gap_start..start],
+                .pos = gap_start,
             });
         }
         try parts.append(self.gpa, .{
             .kind = .value,
             .children = &.{},
             .value = input[start..end],
+            .pos = start,
         });
         prev_end.* = end;
     }
@@ -297,11 +324,7 @@ pub const Parser = struct {
         }
         if (run) |r| try self.appendPart(&parts, &prev_end, r[0], r[1]);
 
-        return switch (parts.items.len) {
-            0 => Error.UnexpectedToken,
-            1 => parts.items[0],
-            else => Node{ .kind = .concat, .children = try parts.toOwnedSlice(self.gpa) },
-        };
+        return self.joinParts(&parts);
     }
 
     /// `include`, then one quoted string, bare or inside `file(…)`, `url(…)`,
@@ -313,7 +336,7 @@ pub const Parser = struct {
     /// here, where the position says they mean something.
     fn parseInclude(self: *Parser) Error!Node {
         // Lets consume "include"
-        _ = self.t.next();
+        const keyword = self.t.next();
         while (self.t.peek().tag == .newline) _ = self.t.next();
 
         var wrappers: std.ArrayList(Node) = .empty;
@@ -322,11 +345,13 @@ pub const Parser = struct {
             var rest = self.t.t.input[token.loc.start..token.loc.end];
             // One token can hold several names: `required(file(`.
             while (std.mem.indexOfScalar(u8, rest, '(')) |open| {
-                try wrappers.append(self.gpa, .{ .kind = .value, .value = rest[0..open], .children = &.{} });
+                // `rest` is the end of the token, so its start is that far back.
+                const name_pos = token.loc.end - rest.len;
+                try wrappers.append(self.gpa, .{ .kind = .value, .value = rest[0..open], .children = &.{}, .pos = name_pos });
                 rest = rest[open + 1 ..];
             }
             // Text left over means the name was never opened: `file(a.conf)`.
-            if (rest.len != 0) return Error.UnexpectedToken;
+            if (rest.len != 0) return self.fail(token.loc.end - rest.len);
             while (self.t.peek().tag == .newline) _ = self.t.next();
         }
 
@@ -341,12 +366,12 @@ pub const Parser = struct {
             } else false;
             if (is_kind) seen += 1;
         }
-        if (seen != names.len) return Error.UnexpectedToken;
+        if (seen != names.len) return self.fail(names[seen].pos);
 
         const argument = self.t.next();
         switch (argument.tag) {
             .quoted_string, .multiline_string => {},
-            else => return Error.UnexpectedToken,
+            else => return self.fail(argument.loc.start),
         }
 
         // One `)` for every name, and no more. They come as strings made of
@@ -355,25 +380,28 @@ pub const Parser = struct {
         while (open > 0) {
             while (self.t.peek().tag == .newline) _ = self.t.next();
             const close = self.t.next();
-            if (close.tag != .string) return Error.UnexpectedToken;
-            for (self.t.t.input[close.loc.start..close.loc.end]) |c| {
-                if (c != ')' or open == 0) return Error.UnexpectedToken;
+            if (close.tag != .string) return self.fail(close.loc.start);
+            for (self.t.t.input[close.loc.start..close.loc.end], close.loc.start..) |c, i| {
+                if (c != ')' or open == 0) return self.fail(i);
                 open -= 1;
             }
         }
 
-        switch (self.t.peek().tag) {
+        const after = self.t.peek();
+        switch (after.tag) {
             .newline, .comma, .eof, .r_brace, .r_bracket => {},
-            else => return Error.UnexpectedToken,
+            else => return self.fail(after.loc.start),
         }
         return Node{
             .kind = .include,
             .value = self.t.t.input[argument.loc.start..argument.loc.end],
             .children = try wrappers.toOwnedSlice(self.gpa),
+            .pos = keyword.loc.start,
         };
     }
 
-    fn parseContainer(self: *Parser, ending: Tokenizer.Token.Tag, containerType: Node.NodeKind) Error!Node {
+    /// `pos` is where the container opened: its `{` or `[`, or 0 for the root.
+    fn parseContainer(self: *Parser, ending: Tokenizer.Token.Tag, containerType: Node.NodeKind, pos: usize) Error!Node {
         var objects: std.ArrayList(Node) = .empty;
         // A root that opens with `{` or `[` is the whole document: nothing may
         // come before it and nothing after it. Only root needs this — inside a
@@ -396,13 +424,13 @@ pub const Parser = struct {
                     break :blk null;
                 },
                 .comma => blk: {
-                    if (!comma_allowed) return Error.UnexpectedToken;
+                    if (!comma_allowed) return self.fail(token.loc.start);
                     comma_allowed = false;
                     _ = self.t.next();
                     break :blk null;
                 },
                 .string, .quoted_string, .multiline_string => blk: {
-                    if (braced_root) return Error.UnexpectedToken;
+                    if (braced_root) return self.fail(token.loc.start);
 
                     // `include` is a keyword only here, and only unquoted. Seeing
                     // it commits: there is no falling back to a key of that name,
@@ -414,7 +442,7 @@ pub const Parser = struct {
                     // `include.foo : 42`: the keyword may not begin a key's path
                     // either, so this is no key and not an include.
                     if (token.tag == .string and std.mem.startsWith(u8, value, "include.")) {
-                        return Error.UnexpectedToken;
+                        return self.fail(token.loc.start);
                     }
 
                     break :blk try self.parseMember();
@@ -424,20 +452,20 @@ pub const Parser = struct {
                     // to .. `{ {a=1} }`. Merging two objects is a *value*, so it
                     // happens in parseValue, not here.
                     // Arrays took their elements above, so this is a block or root.
-                    if (containerType == .block) return Error.UnexpectedToken;
-                    if (objects.items.len > 0) return Error.UnexpectedToken;
+                    if (containerType == .block) return self.fail(token.loc.start);
+                    if (objects.items.len > 0) return self.fail(token.loc.start);
                     braced_root = true;
                     _ = self.t.next();
-                    break :blk try self.parseContainer(.r_brace, .block);
+                    break :blk try self.parseContainer(.r_brace, .block, token.loc.start);
                 },
                 .l_bracket => blk: {
-                    if (containerType == .block) return Error.UnexpectedToken;
-                    if (objects.items.len > 0) return Error.UnexpectedToken;
+                    if (containerType == .block) return self.fail(token.loc.start);
+                    if (objects.items.len > 0) return self.fail(token.loc.start);
                     braced_root = true;
                     _ = self.t.next();
-                    break :blk try self.parseContainer(.r_bracket, .array);
+                    break :blk try self.parseContainer(.r_bracket, .array, token.loc.start);
                 },
-                else => return Error.UnexpectedToken,
+                else => return self.fail(token.loc.start),
             };
 
             if (node) |n| {
@@ -450,6 +478,7 @@ pub const Parser = struct {
         return Node{
             .kind = containerType,
             .children = try objects.toOwnedSlice(self.gpa),
+            .pos = pos,
         };
     }
 };
@@ -459,7 +488,10 @@ pub const Parser = struct {
 /// same tree on purpose.
 /// Stupid part is a) is based on one node holding value="a.b" while
 ///                b) concat(n("\"a\""),n("."),n("\"b\""))
-fn prepareMemberNode(gpa: std.mem.Allocator, key: Node, value: Node) Parser.Error!Node {
+///
+/// On failure `err_offset` is where: the part with a bad escape, or the dot
+/// next to an empty element.
+fn prepareMemberNode(gpa: std.mem.Allocator, key: Node, value: Node, err_offset: *?usize) Parser.Error!Node {
     const first = [_]Node{key};
     const parts = if (key.kind == .value) &first else key.children;
 
@@ -468,9 +500,14 @@ fn prepareMemberNode(gpa: std.mem.Allocator, key: Node, value: Node) Parser.Erro
     defer elements.deinit(gpa);
     var current: std.ArrayList(Node) = .empty;
     defer current.deinit(gpa);
+    // Where the last dot was, for a key that ends in one.
+    var last_dot: usize = key.pos;
 
     for (parts) |part| {
-        const unquoted = try unquote.unquote(gpa, part.value);
+        const unquoted = unquote.unquote(gpa, part.value) catch |err| {
+            err_offset.* = part.pos;
+            return err;
+        };
         if (unquoted.quoted) {
             try current.append(gpa, part);
             continue;
@@ -478,27 +515,40 @@ fn prepareMemberNode(gpa: std.mem.Allocator, key: Node, value: Node) Parser.Erro
 
         var it = std.mem.splitScalar(u8, part.value, '.');
         const head = it.first();
-        if (head.len > 0) try current.append(gpa, .{ .kind = .value, .value = head, .children = &.{} });
+        if (head.len > 0) try current.append(gpa, .{ .kind = .value, .value = head, .children = &.{}, .pos = part.pos });
         while (it.next()) |seq| {
+            // `seq` is a slice of `part.value`, so its distance from the start is
+            // its distance from `part.pos` — and the dot sits right before it.
+            const seq_pos = part.pos + (seq.ptr - part.value.ptr);
+            last_dot = seq_pos - 1;
+            // `.a`, `a..b`: no element before this dot.
+            if (current.items.len == 0) {
+                err_offset.* = last_dot;
+                return Parser.Error.UnexpectedToken;
+            }
             try elements.append(gpa, try current.toOwnedSlice(gpa));
-            if (seq.len > 0) try current.append(gpa, .{ .kind = .value, .value = seq, .children = &.{} });
+            if (seq.len > 0) try current.append(gpa, .{ .kind = .value, .value = seq, .children = &.{}, .pos = seq_pos });
         }
+    }
+    // `a. = 1`: no element after the last dot.
+    if (current.items.len == 0) {
+        err_offset.* = last_dot;
+        return Parser.Error.UnexpectedToken;
     }
     try elements.append(gpa, try current.toOwnedSlice(gpa));
 
     var return_node: ?Node = null;
     for (0..elements.items.len) |i| {
         const nodes = elements.items[elements.items.len - i - 1];
-        if (nodes.len == 0) return Parser.Error.UnexpectedToken;
-
-        const element: Node = if (nodes.len == 1) nodes[0] else .{ .kind = .concat, .children = nodes };
+        const element: Node = if (nodes.len == 1) nodes[0] else .{ .kind = .concat, .children = nodes, .pos = nodes[0].pos };
         const inner: Node = if (return_node) |nn|
-            .{ .kind = .block, .children = try gpa.dupe(Node, &.{nn}) }
+            .{ .kind = .block, .children = try gpa.dupe(Node, &.{nn}), .pos = nn.pos }
         else
             value;
-        return_node = .{ .kind = .assignment, .children = try gpa.dupe(Node, &.{ element, inner }) };
+        return_node = .{ .kind = .assignment, .children = try gpa.dupe(Node, &.{ element, inner }), .pos = element.pos };
     }
-    return return_node orelse Parser.Error.UnexpectedToken;
+    // `elements` always holds at least the last element, so the loop ran.
+    return return_node.?;
 }
 
 /// Applies `number.checkNumber` to every unquoted word of a text value. Only
@@ -507,7 +557,8 @@ fn prepareMemberNode(gpa: std.mem.Allocator, key: Node, value: Node) Parser.Erro
 ///
 /// A run of unquoted words is one part, but its words are exactly the tokens it
 /// was made of, separated by whitespace — so this sees what the tokenizer saw.
-fn checkNumbers(text: Node) number.NumberError!void {
+/// On failure `err_offset` is where the offending word starts.
+fn checkNumbers(text: Node, err_offset: *?usize) number.NumberError!void {
     const one = [_]Node{text};
     const parts = if (text.kind == .concat) text.children else &one;
     for (parts) |part| {
@@ -521,7 +572,11 @@ fn checkNumbers(text: Node) number.NumberError!void {
                 word_start = true;
                 continue;
             }
-            if (word_start) try number.checkNumber(part.value[i..]);
+            if (word_start) number.checkNumber(part.value[i..]) catch |err| {
+                // `part.value` is a slice of the input starting at `part.pos`.
+                err_offset.* = part.pos + i;
+                return err;
+            };
             word_start = false;
             i += 1;
         }
