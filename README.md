@@ -24,18 +24,19 @@ Requires Zig **0.16.0** or newer.
 > includes (`include` parses, but nothing splices the file in, so a file that
 > uses one is rejected). See [Features](#features) below for what
 > currently works, and [Conformance](#conformance) for how far that gets.
-> No tagged release yet: install straight from the repository, as below.
+> The latest release is [`v0.1.0`](https://github.com/lejmr/zig-hocon/tree/v0.1.0).
 
 ## Installation
 
 Add the package to your `build.zig.zon`:
 
 ```sh
-zig fetch --save git+https://github.com/lejmr/zig-hocon
+zig fetch --save https://github.com/lejmr/zig-hocon/archive/refs/tags/v0.1.0.tar.gz
 ```
 
 That records the dependency in `build.zig.zon`, pinned by its content hash. For
-a particular commit, append it: `git+https://github.com/lejmr/zig-hocon#<commit>`.
+the tip of `main` fetch `git+https://github.com/lejmr/zig-hocon`, for a particular
+commit append it: `git+https://github.com/lejmr/zig-hocon#<commit>`.
 
 Then hand the module to your executable in `build.zig`:
 
