@@ -9,6 +9,7 @@ const Node = Ast.Node;
 const unqoute = @import("utils/unqoute.zig");
 const number = @import("utils/number.zig");
 const Include = @import("Include.zig");
+const table = @import("table.zig");
 
 pub const Error = error{
     UnsupportedNodeKind,
@@ -23,6 +24,11 @@ pub const Value = union(enum) {
 
     // For right updates of already stored data, but not yet resolved
     pending: []Part,
+
+    /// A key written more than once, where a later value is a ref or a pending:
+    /// whether it merges with the ones before it, or looks back at them, is
+    /// known only once it is resolved. Bottom first, the way they were written.
+    stack: []Value,
 
     /// One part of a concatenation with a ref in it, which can join the others
     /// only once the refs have values. `pos` is where it starts, for when a
@@ -202,17 +208,51 @@ pub const Value = union(enum) {
         };
     }
 
-    /// Adds a member the way a repeated key is added: two objects merge,
-    /// anything else replaces what was there.
+    /// Adds a member the way a repeated key is added (see `push`).
     fn putMember(gpa: std.mem.Allocator, map: *std.StringArrayHashMapUnmanaged(Value), key: []const u8, value: Value) Error!void {
         if (map.getPtr(key)) |current_v| {
-            if (current_v.* == .object and value == .object) {
-                try current_v.update(gpa, value);
-            } else {
-                current_v.* = value;
-            }
+            try current_v.push(gpa, value);
         } else {
             try map.put(gpa, key, value);
+        }
+    }
+
+    /// Puts `other` on top of what a repeated key already holds. Two objects
+    /// merge. A ref or a pending goes on a stack above what was there, since it
+    /// may merge with it or look back at it once resolved; so does an object on
+    /// top of one. Anything else replaces what was there, which is then never
+    /// looked at again.
+    fn push(self: *Value, gpa: std.mem.Allocator, other: Value) Error!void {
+        switch (other) {
+            // From an include: its layers go on one by one.
+            .stack => |layers| for (layers) |layer| try self.push(gpa, layer),
+            .ref, .pending => {
+                // Built before it is stored: `self.* = .{ .stack = … self.* … }`
+                // would read `self` after its tag changed.
+                const below: []const Value = if (self.* == .stack) self.stack else &.{self.*};
+                const layers = try std.mem.concat(gpa, Value, &.{ below, &.{other} });
+                self.* = .{ .stack = layers };
+            },
+            .object => switch (self.*) {
+                .object => try self.update(gpa, other),
+                .ref, .pending => {
+                    const layers = try gpa.dupe(Value, &.{ self.*, other });
+                    self.* = .{ .stack = layers };
+                },
+                .stack => |layers| {
+                    // A copy: the slice may be shared with the value this one came from.
+                    const copy = try std.mem.concat(gpa, Value, &.{ layers, &.{other} });
+                    // Two objects next to each other merge right away.
+                    if (layers[layers.len - 1] == .object) {
+                        try copy[layers.len - 1].update(gpa, other);
+                        self.stack = copy[0..layers.len];
+                    } else {
+                        self.stack = copy;
+                    }
+                },
+                else => self.* = other,
+            },
+            else => self.* = other,
         }
     }
 
@@ -291,7 +331,7 @@ pub const Value = union(enum) {
             },
             // Stringify allows no error of its own, so an unresolved tree is refused
             // earlier, by `parseFromSlice(Value, …)`. Only a hand-built Value gets here.
-            .ref, .pending => return error.WriteFailed,
+            .ref, .pending, .stack => return error.WriteFailed,
         }
     }
 
@@ -305,7 +345,7 @@ pub const Value = union(enum) {
             .object => |members| for (members) |m| {
                 if (!m.value.isResolved()) break false;
             } else true,
-            .ref, .pending => false,
+            .ref, .pending, .stack => false,
         };
     }
 
@@ -319,6 +359,7 @@ pub const Value = union(enum) {
         var state: Resolving = .{ .err_pos = err_pos };
         defer {
             state.visiting.deinit(gpa);
+            state.fields.deinit(gpa);
             var it = state.index.valueIterator();
             while (it.next()) |members| members.deinit(gpa);
             state.index.deinit(gpa);
@@ -332,11 +373,28 @@ pub const Value = union(enum) {
     const Resolving = struct {
         // Places we are resolving right now, so a = ${b}, b = ${a} ends
         visiting: std.ArrayList(*Value) = .empty,
+        // Fields whose top value is being resolved right now, innermost last.
+        // A path that reaches one of them does not see the field (see `seen`).
+        fields: std.ArrayList(Field) = .empty,
         // Members of an object by key, built on the first lookup into it. Keyed by
         // the slice, which never changes once built: a resolved object is a new one.
         index: std.AutoHashMapUnmanaged([*]Member, std.StringHashMapUnmanaged(*Value)) = .empty,
         // Where the error points; written once, where the error starts.
         err_pos: *?Pos,
+    };
+
+    // One layer of a field being resolved, and what a path to the field sees
+    // meanwhile. A ref or a pending is self-referential: the path sees the
+    // layers below it, as if the field were never written from here up. An
+    // object is not: the path sees it merged onto the layers below.
+    const Field = struct {
+        place: *Value,
+        below: []const Value,
+        // The object being resolved, for an object layer.
+        object: ?*Value = null,
+        // `below` merged, worked out on the first path that needs it.
+        merged: ?Value = null,
+        progress: enum { todo, busy, done } = .todo,
     };
 
     // Returns null when the value is gone - ${?x} pointing to nothing
@@ -358,18 +416,18 @@ pub const Value = union(enum) {
                     try state.visiting.append(gpa, &m.value);
                     defer _ = state.visiting.pop();
 
-                    if (try m.value.resolveValue(gpa, root, state)) |val| {
+                    if (try resolveField(&m.value, gpa, root, state)) |val| {
                         try resolved.append(gpa, .{ .key = m.key, .value = val });
                     }
                 }
                 return .{ .object = try resolved.toOwnedSlice(gpa) };
             },
             .ref => |r| {
-                if (try follow(gpa, root, r.path, r.at(), state)) |val| return val;
+                if (try follow(gpa, root, r, r.path, state)) |val| return val;
                 // From an included file: not found with the scope in front, or
                 // gone (an optional that found nothing), so try the path as written.
                 if (r.scope_len > 0) {
-                    if (try follow(gpa, root, r.path[r.scope_len..], r.at(), state)) |val| return val;
+                    if (try follow(gpa, root, r, r.path[r.scope_len..], state)) |val| return val;
                 }
                 if (r.optional) return null;
                 state.err_pos.* = r.at();
@@ -395,14 +453,94 @@ pub const Value = union(enum) {
                 if (result == .scalar) result.scalar.quoted = true;
                 return result;
             },
+            // Only a field holds one, and a field is resolved by `resolveField`.
+            .stack => unreachable,
         }
     }
 
+    // Resolves the value of a field and stores it back, so the next ref there
+    // gets it for free: memoised per place, not per path.
+    fn resolveField(place: *Value, gpa: std.mem.Allocator, root: *Value, state: *Resolving) ResolveError!?Value {
+        // A field written once is a stack of one.
+        const one = [_]Value{place.*};
+        const val = switch (place.*) {
+            .stack => |layers| try resolveStack(place, layers, gpa, root, state),
+            .ref, .pending => try resolveStack(place, &one, gpa, root, state),
+            else => try place.resolveValue(gpa, root, state),
+        } orelse return null;
+        place.* = val;
+        return val;
+    }
+
+    // The layers of a field, from the top: the top one decides, and the ones
+    // below are resolved only when it merges with them or looks back at them.
+    // Null when there is nothing, or an optional that found nothing is all there is.
+    fn resolveStack(place: *Value, layers: []const Value, gpa: std.mem.Allocator, root: *Value, state: *Resolving) ResolveError!?Value {
+        if (layers.len == 0) return null;
+        const top = layers[layers.len - 1];
+        const below = layers[0 .. layers.len - 1];
+
+        switch (top) {
+            // Hides whatever is below it.
+            .scalar, .array => return try top.resolveValue(gpa, root, state),
+            // Looks forward, into itself merged with what was below it. The merge
+            // goes first, so a key it has and the layers below have too is one
+            // field with a stack of its own.
+            .object => {
+                var merged = top;
+                const under = if (mergeable(below)) try resolveStack(place, below, gpa, root, state) else null;
+                if (under) |u| if (u == .object) {
+                    merged = u;
+                    try merged.update(gpa, top);
+                };
+                const object = try gpa.create(Value);
+                object.* = merged;
+                try state.fields.append(gpa, .{ .place = place, .below = below, .object = object });
+                defer _ = state.fields.pop();
+                // A path ending at the object itself is a cycle, `a : { b : ${a} }`.
+                try state.visiting.append(gpa, object);
+                defer _ = state.visiting.pop();
+                return try object.resolveValue(gpa, root, state);
+            },
+            .ref, .pending => {
+                try state.fields.append(gpa, .{ .place = place, .below = below });
+                const val = try top.resolveValue(gpa, root, state);
+                const field = state.fields.pop().?;
+
+                // Gone, or an object that merges onto what was below: then that counts.
+                if (val != null and val.? != .object) return val;
+                const under = if (field.progress == .done)
+                    field.merged
+                else if (val != null and !mergeable(below))
+                    null
+                else
+                    try resolveStack(place, below, gpa, root, state);
+                // An optional that found nothing leaves what was below in place.
+                var result = val orelse return under;
+                if (under) |u| if (u == .object) {
+                    var merged = u;
+                    try merged.update(gpa, result);
+                    result = merged;
+                };
+                return result;
+            },
+            .stack => unreachable,
+        }
+    }
+
+    // Whether an object on top of these layers may merge with them. Text or a
+    // list on top of them never does, so they are not even looked at.
+    fn mergeable(layers: []const Value) bool {
+        if (layers.len == 0) return false;
+        const top = layers[layers.len - 1];
+        return top != .scalar and top != .array;
+    }
+
     // The value at a path, resolved; null when nothing is there or it vanishes.
-    // `from` is where the ref that asked is, for the errors on the way.
-    fn follow(gpa: std.mem.Allocator, root: *Value, path: []const Key, from: Pos, state: *Resolving) ResolveError!?Value {
-        const target = try lookup(gpa, root, path, from, state) orelse return null;
-        return try resolveTarget(target, gpa, root, from, state);
+    // `ref` is the one that asked, for the errors on the way.
+    fn follow(gpa: std.mem.Allocator, root: *Value, ref: Ref, path: []const Key, state: *Resolving) ResolveError!?Value {
+        const target = try lookup(gpa, root, ref, path, state) orelse return null;
+        return try resolveTarget(target, gpa, root, ref.at(), state);
     }
 
     // Resolves the place a ref points to and stores it back, next ref there is for free.
@@ -417,17 +555,16 @@ pub const Value = union(enum) {
         try state.visiting.append(gpa, target);
         defer _ = state.visiting.pop();
 
-        const val = try target.resolveValue(gpa, root, state) orelse return null;
-        target.* = val;
-        return val;
+        return try resolveField(target, gpa, root, state);
     }
 
     // Walks the path from root, a ref on the way has to be resolved first
-    fn lookup(gpa: std.mem.Allocator, root: *Value, path: []const Key, from: Pos, state: *Resolving) ResolveError!?*Value {
+    fn lookup(gpa: std.mem.Allocator, root: *Value, ref: Ref, path: []const Key, state: *Resolving) ResolveError!?*Value {
         var current = root;
         for (path) |key| {
-            if (current.* == .ref or current.* == .pending) {
-                _ = try resolveTarget(current, gpa, root, from, state) orelse return null;
+            current = try seen(current, gpa, root, ref, state) orelse return null;
+            if (current.* == .ref or current.* == .pending or current.* == .stack) {
+                _ = try resolveTarget(current, gpa, root, ref.at(), state) orelse return null;
             }
             if (current.* != .object) return null;
 
@@ -439,7 +576,47 @@ pub const Value = union(enum) {
             }
             current = members.value_ptr.get(key.value) orelse return null;
         }
-        return current;
+        return try seen(current, gpa, root, ref, state);
+    }
+
+    // What a path finds at `place`: the place itself, unless it is a field being
+    // resolved (see `Field`). With nothing below, a ref back to the field it is
+    // in finds nothing, as if it named a missing path; one that came round
+    // through another field is a cycle, unless it is optional.
+    fn seen(place: *Value, gpa: std.mem.Allocator, root: *Value, ref: Ref, state: *Resolving) ResolveError!?*Value {
+        var i = state.fields.items.len;
+        while (i > 0) {
+            i -= 1;
+            const field = &state.fields.items[i];
+            if (field.place != place) continue;
+            if (field.object) |object| return object;
+
+            switch (field.progress) {
+                .done => {},
+                // `a = [${a}], a = ${?a}`: the layers below lead back here.
+                .busy => {
+                    if (ref.optional) return null;
+                    state.err_pos.* = ref.at();
+                    return ResolveError.SubstitutionCycle;
+                },
+                .todo => {
+                    if (field.below.len == 0 and !ref.optional and i + 1 < state.fields.items.len) {
+                        state.err_pos.* = ref.at();
+                        return ResolveError.SubstitutionCycle;
+                    }
+                    field.progress = .busy;
+                    const below = field.below;
+                    // Resolving appends to `fields`, so `field` may have moved.
+                    const merged = try resolveStack(place, below, gpa, root, state);
+                    state.fields.items[i].merged = merged;
+                    state.fields.items[i].progress = .done;
+                },
+            }
+            const copy = try gpa.create(Value);
+            copy.* = state.fields.items[i].merged orelse return null;
+            return copy;
+        }
+        return place;
     }
 
     /// Unquoted and nothing but whitespace — any of it, NBSP and BOM included.
@@ -1618,8 +1795,149 @@ test "resolve.a missing target is an error" {
 
 // java ✓ · pyhocon ⚠️ · spec ✓ — `visiting`: a ref back to a place still being
 // resolved never ends. pyhocon catches the first, overflows its stack on the second.
+// `a = ${a}` is not one: it looks back at nothing (see the self-reference tables).
 test "resolve.a cycle is an error" {
     try expectResolveError("a = ${b}\nb = ${a}", error.SubstitutionCycle);
     try expectResolveError("a { b = ${a} }", error.SubstitutionCycle);
-    try expectResolveError("a = ${a}", error.SubstitutionCycle);
+}
+
+/// Runs a table of documents through parse, load and resolve; a row renders as
+/// the resolved document printed as JSON, and a `.bad` row must fail on the way.
+fn expectAllResolved(cases: []const table.Case) !void {
+    return table.expectAll(cases, .{ .dump = struct {
+        fn dump(gpa: std.mem.Allocator, src: [:0]const u8) anyerror![]u8 {
+            var parser = Ast.Parser{ .gpa = gpa, .t = .{ .t = Tokenizer.Tokenizer.init(src) } };
+            var root = try build(gpa, try parser.parse());
+            var err_pos: ?Value.Pos = null;
+            try root.resolve(gpa, &err_pos);
+            return std.json.Stringify.valueAlloc(gpa, root, .{});
+        }
+    }.dump });
+}
+
+// A key written again with a ref or a pending is a stack, not a replacement:
+// what the ref resolves to decides whether it merges with what was below, or
+// whether it is there to look back at. An object on top of one goes on the stack
+// too; text or a list on top replaces it all, never to be looked at.
+test "value.a ref on a repeated key stacks on what was there" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+    const gpa = arena.allocator();
+
+    var px = [_]Node{v("x")};
+    var e1 = [_]Node{v("1")};
+    var m = [_]Node{ v("b"), v("1") };
+    var assigns = [_]Node{n(.assignment, &m)};
+
+    // a = [1], a = ${x}, a = {b = 1}, a = {b = 1}: three layers, the two objects one
+    var l1 = [_]Node{ v("a"), n(.array, &e1) };
+    var l2 = [_]Node{ v("a"), n(.subst, &px) };
+    var l3 = [_]Node{ v("a"), n(.block, &assigns) };
+    var stacked = [_]Node{ n(.assignment, &l1), n(.assignment, &l2), n(.assignment, &l3), n(.assignment, &l3) };
+    const s = try build(gpa, n(.block, &stacked));
+    try testing.expectEqual(@as(usize, 1), s.object.len);
+    const layers = s.object[0].value.stack;
+    try testing.expectEqual(@as(usize, 3), layers.len);
+    try testing.expect(layers[0] == .array);
+    try testing.expect(layers[1] == .ref);
+    try testing.expect(layers[2] == .object);
+
+    // and text on top hides the lot
+    var l4 = [_]Node{ v("a"), v("42") };
+    var hidden = [_]Node{ n(.assignment, &l2), n(.assignment, &l3), n(.assignment, &l4) };
+    const h = try build(gpa, n(.block, &hidden));
+    try testing.expectEqualStrings("42", h.object[0].value.scalar.value);
+}
+
+// java ✓ · pyhocon ✓ · spec ✓ — a self-reference sees the value below it in the
+// stack, also through a path and inside a concatenation, and it is memoised per
+// `${…}`, not per path: the two `${a}` below resolve to x and to xy.
+test "resolve.a self-reference looks below" {
+    try expectAllResolved(&.{
+        .ok("mood = \"grumpy\"\nmood = ${mood}\" wombat\"", "{\"mood\":\"grumpy wombat\"}"),
+        .ok("a = [1]\na = ${a} [2]", "{\"a\":[1,2]}"),
+        .ok("a = { b = 1 }\na = ${a}", "{\"a\":{\"b\":1}}"),
+        .ok("a = x\na = ${a}y\nb = ${a}", "{\"a\":\"xy\",\"b\":\"xy\"}"),
+        .ok("a = { b = { c = 1 } }\na = ${a.b}\na = { b = 2 }", "{\"a\":{\"b\":2,\"c\":1}}"),
+        // the stack of a nested key, and a list that replaces it
+        .ok("a = { b = ${?a.b} [2], b = [1] }", "{\"a\":{\"b\":[1]}}"),
+    });
+}
+
+// java ✓ · pyhocon ⚠️ · spec ✓ — with nothing below, a self-reference is
+// undefined, not a cycle: an optional one disappears, a required one is an
+// error, and an optional cycle through two fields leaves neither. pyhocon calls
+// the optional two-field cycle a cycle; on `a = [${a}]` below an optional it
+// overflows its stack, where java and this say cycle — a list is not a
+// self-referential field (spec).
+test "resolve.a self-reference with nothing below is undefined" {
+    try expectAllResolved(&.{
+        .ok("a = ${?a}", "{}"),
+        .ok("a = ${?a}tea", "{\"a\":\"tea\"}"),
+        .ok("a = ${?b}\nb = ${?a}", "{}"),
+        .bad("a = ${a}"),
+        .bad("a = ${a}\na = { b = 1 }"),
+        .bad("a = [${a}]\na = ${?a}"),
+    });
+}
+
+// java ✓ · pyhocon ✓ · spec ✓ — an undefined optional on top leaves what was
+// below it, and that is then evaluated: the second row fails on `${nope}`.
+test "resolve.an undefined optional keeps what was below" {
+    try expectAllResolved(&.{
+        .ok("a = 1\na = ${?nope}", "{\"a\":1}"),
+        .bad("a = [${nope}]\na = ${?nope}"),
+    });
+}
+
+// java ⚠️ · pyhocon ✓ (⚠️ hangs on the third) · spec ✓ — a `null` in a stack
+// hides what is below it at its own key only, also when the key is reached
+// through a substitution. java carries the null along and drops `y`
+// (lightbend/config#864; suite duplicate-keys-and-object-merging/010-016).
+test "resolve.null stops a merge only at its own key" {
+    try expectAllResolved(&.{
+        .ok("v = { x = 1 }\nr = null\nr = ${v}\na = { y = 0 }\na = ${r}", "{\"v\":{\"x\":1},\"r\":{\"x\":1},\"a\":{\"y\":0,\"x\":1}}"),
+        .ok("v = { n = { old = 2 }, n = null, n = { x = 1 } }\na = { n = { y = 0 } }\na = ${v}", "{\"v\":{\"n\":{\"x\":1}},\"a\":{\"n\":{\"y\":0,\"x\":1}}}"),
+        .ok("v = { n = null, n = ${p} }\nv = ${q}\na = { n = { y = 0 } }\na = ${v}\np = { x = 1 }\nq = { z = 2 }", "{\"v\":{\"n\":{\"x\":1},\"z\":2},\"a\":{\"n\":{\"y\":0,\"x\":1},\"z\":2},\"p\":{\"x\":1},\"q\":{\"z\":2}}"),
+    });
+}
+
+// java ✓ (⚠️ BugOrBroken on the third) · pyhocon ✓ · spec ✓ — objects and
+// substitutions alternate in one stack, a stack nests inside a layer of another,
+// and a self-referential concatenation merges onto the layer below.
+test "resolve.objects and substitutions alternate in one stack" {
+    try expectAllResolved(&.{
+        .ok("a = { p = 1 }\na = ${x}\na = { r = 3 }\na = ${y}\nx = { q = 2 }\ny = { s = 4 }", "{\"a\":{\"p\":1,\"q\":2,\"r\":3,\"s\":4},\"x\":{\"q\":2},\"y\":{\"s\":4}}"),
+        .ok("a = ${x}\na = { b = ${y}, b = { c = 1 } }\nx = { d = 2 }\ny = { e = 3 }", "{\"a\":{\"d\":2,\"b\":{\"e\":3,\"c\":1}},\"x\":{\"d\":2},\"y\":{\"e\":3}}"),
+        .ok("a = { q = 1 }\na = { p = {}, p = ${x} } ${a}\nx = { r = 2 }", "{\"a\":{\"q\":1,\"p\":{\"r\":2}},\"x\":{\"r\":2}}"),
+    });
+}
+
+// java ⚠️ · pyhocon ✓ (⚠️ hangs on the last) · spec ✓ — a value hidden by one
+// it cannot merge with is never evaluated; an object that merges with it is.
+// java evaluates the hidden list in the second row and fails on `${nope}`.
+test "resolve.a hidden value is never evaluated" {
+    try expectAllResolved(&.{
+        .ok("a = ${nope}\na = 42", "{\"a\":42}"),
+        .ok("a = [${nope}]\nr = {}\na = ${r}", "{\"a\":{},\"r\":{}}"),
+        .bad("a = { b = ${nope} }\nr = {}\na = ${r}"),
+    });
+}
+
+// java ✓ · pyhocon ✓ · spec ✓ — an object layer is not self-referential: a
+// path into it looks forward, at the object merged onto the layers below, so
+// `y` sees this layer's `x` when it has one and the one below when it has not.
+test "resolve.an object layer looks forward" {
+    try expectAllResolved(&.{
+        .ok("a = ${b}\na = { x = 2, y = ${a.x} }\nb = { x = 1 }", "{\"a\":{\"x\":2,\"y\":2},\"b\":{\"x\":1}}"),
+        .ok("a = ${b}\na = { y = ${a.x} }\nb = { x = 1 }", "{\"a\":{\"x\":1,\"y\":1},\"b\":{\"x\":1}}"),
+    });
+}
+
+// java ✓ · pyhocon ✓ · spec ✓ (any one value, the same for both) — the order
+// both fields are resolved in is undefined, but each `${…}` resolves once.
+test "resolve.two fields that refer to each other agree" {
+    try expectAllResolved(&.{
+        .ok("a = 1\nb = 2\na = ${b}\nb = ${a}", "{\"a\":1,\"b\":1}"),
+    });
 }

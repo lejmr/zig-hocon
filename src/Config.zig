@@ -168,7 +168,7 @@ pub const Config = struct {
         // hands back its own — finished, so anything can print it.
         if (T == Value) return if (value.isResolved()) value else error.Unresolved;
         // Not resolved yet: refuse loudly instead of guessing.
-        if (value == .ref or value == .pending) return error.Unresolved;
+        if (value == .ref or value == .pending or value == .stack) return error.Unresolved;
         switch (@typeInfo(T)) {
             .int => {
                 if (value != .scalar) return error.TypeMismatch;

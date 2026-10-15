@@ -22,8 +22,7 @@ Requires Zig **0.16.0** or newer.
 > into a Zig struct of your own through `hocon.parseFromSlice`, shaped after
 > `std.json`, or prints as JSON from the `hocon` command line tool. Not yet:
 > includes (`include` parses, but nothing splices the file in, so a file that
-> uses one is rejected), `+=`, and a substitution that refers to the previous
-> value of its own key (`a = ${a} 2`). See [Features](#features) below for what
+> uses one is rejected) and `+=`. See [Features](#features) below for what
 > currently works, and [Conformance](#conformance) for how far that gets.
 > No tagged release yet: install straight from the repository, as below.
 
@@ -252,9 +251,14 @@ Not spec sections of their own, but needed to get there, and already done:
       them. `${?x}` with nothing behind it removes the member or the list
       element; inside a concatenation it is empty, so `${?nope}42` is the
       string `"42"`, as the spec says and where both oracles give the number
-      `42`. A reference that needs itself is `SubstitutionCycle`. Still to do: a
-      reference to the previous value of its own key (`a = ${a} 2`, and `+=`
-      with it) fails as a cycle today, and there is no fallback to environment
+      `42`. A key written again over a reference keeps both on a merge stack,
+      resolved from the top: a reference to the key's own previous value sees
+      the layers below it (`path = ${path} ":/opt"`, also through a path,
+      `${a.b}`), with nothing below it is undefined rather than a cycle, an
+      undefined `${?x}` on top leaves what was below, and `null` stops a merge
+      only at its own key. A value hidden by one it cannot merge with is never
+      evaluated. A reference that needs itself any other way is
+      `SubstitutionCycle`. Still to do: there is no fallback to environment
       variables yet
 
 - [ ] [Conversion of numerically-indexed objects to arrays](https://github.com/lightbend/config/blob/main/HOCON.md#conversion-of-numerically-indexed-objects-to-arrays)

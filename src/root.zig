@@ -511,15 +511,45 @@ test "diagnostics.Unresolved" {
     });
 }
 
+// A self-reference with nothing below it is undefined, as if it named a missing
+// path (spec), not a cycle: the caret is on its own `${`. Also when a value comes
+// for the key later — the self-reference cannot see forward.
+// java ✓ (UnresolvedSubstitution, same line) · pyhocon ✓ (same line and column) · spec ✓
+test "diagnostics.Unresolved self-reference" {
+    try expectCarets(&.{
+        \\a = ${a}
+        \\    ^ Unresolved
+        ,
+        \\mood = ${mood} wombat
+        \\       ^ Unresolved
+        \\mood = { grumpy = true }
+        ,
+    });
+}
+
+// The value a hidden layer would never have shown is evaluated once an object
+// merges onto it, and an undefined optional on top leaves it to be evaluated.
+// java ✓ (same line) · pyhocon ⚠️ hangs on the first · spec ✓
+test "diagnostics.Unresolved below a merge" {
+    try expectCarets(&.{
+        \\a = { b = ${nope} }
+        \\          ^ Unresolved
+        \\r = {}
+        \\a = ${r}
+        ,
+        \\a = [${nope}]
+        \\     ^ Unresolved
+        \\a = ${?nope}
+        ,
+    });
+}
+
 // The `${` that closes the cycle: the one that leads back to a member still
 // being resolved. In the second row `a` leads through `${b}` to `b`, and `${a}`
 // on line 2 leads back to `a`.
 // java ✓ (same line) · pyhocon ✓ (lists every `${` of the cycle) · spec ✓
 test "diagnostics.SubstitutionCycle" {
     try expectCarets(&.{
-        \\a = ${a}
-        \\    ^ SubstitutionCycle
-        ,
         \\a = ${b}
         \\b = ${a}
         \\    ^ SubstitutionCycle
@@ -537,6 +567,13 @@ test "diagnostics.SubstitutionCycle" {
         \\a = ${b}
         \\b = ${a}
         \\    ^ SubstitutionCycle
+        ,
+        // A list is not a self-referential field, so looking back from the
+        // optional on top only comes round to it again (java ✓, pyhocon ⚠️
+        // overflows its stack).
+        \\a = [${a}]
+        \\     ^ SubstitutionCycle
+        \\a = ${?a}
         ,
     });
 }
