@@ -10,7 +10,8 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
-    // `hocon <file.conf>` prints the file as JSON; `zig build run -- file.conf`.
+    // `hocon <file.conf>` prints the file resolved, as HOCON, or with `--json`
+    // as JSON; `zig build run -- file.conf`.
     const exe = b.addExecutable(.{
         .name = "hocon",
         .root_module = b.createModule(.{
@@ -53,6 +54,7 @@ pub fn build(b: *std.Build) void {
     // sub/defaults.conf, which includes inner.conf from its own directory, and
     // main.conf's own port comes after the include and wins.
     const cli_includes = b.addRunArtifact(exe);
+    cli_includes.addArg("--json");
     cli_includes.addFileArg(b.path("tests/cli-includes/main.conf"));
     cli_includes.expectStdOutEqual("{\"name\":\"from inner\",\"port\":443,\"log\":{\"level\":\"info\",\"file\":\"quiet-wombat.log\"}}\n");
     test_step.dependOn(&cli_includes.step);
@@ -61,10 +63,57 @@ pub fn build(b: *std.Build) void {
     // builds on what it left with self-references (`path = ${path}…`,
     // `server = ${server} {…}`) and appends with `+=`, one element a substitution
     // defined further down. java agrees (pyhocon fails on `+=`).
+    const layers_json = "{\"path\":\"/usr/bin:/opt/llama/bin\",\"plugins\":[\"auth\",\"metrics\",\"coffee-detector\"],\"server\":{\"port\":443,\"motto\":\"the wombat sleeps at noon\"},\"extra\":\"coffee-detector\"}\n";
     const cli_layers = b.addRunArtifact(exe);
+    cli_layers.addArg("--json");
     cli_layers.addFileArg(b.path("tests/cli-layers/prod.conf"));
-    cli_layers.expectStdOutEqual("{\"path\":\"/usr/bin:/opt/llama/bin\",\"plugins\":[\"auth\",\"metrics\",\"coffee-detector\"],\"server\":{\"port\":443,\"motto\":\"the wombat sleeps at noon\"},\"extra\":\"coffee-detector\"}\n");
+    cli_layers.expectStdOutEqual(layers_json);
     test_step.dependOn(&cli_layers.step);
+
+    // The same file printed as HOCON, the default: resolved into one file with
+    // no include left in it. Strings that were quoted stay quoted.
+    const layers_hocon =
+        \\path = "/usr/bin:/opt/llama/bin"
+        \\plugins = [auth, metrics, "coffee-detector"]
+        \\server {
+        \\  port = 443
+        \\  motto = "the wombat sleeps at noon"
+        \\}
+        \\extra = "coffee-detector"
+        \\
+    ;
+    const cli_hocon = b.addRunArtifact(exe);
+    cli_hocon.addFileArg(b.path("tests/cli-layers/prod.conf"));
+    cli_hocon.expectStdOutEqual(layers_hocon);
+    test_step.dependOn(&cli_hocon.step);
+
+    // And that file, read by the binary again, is the same JSON. java ✓ reads
+    // it to the same JSON too.
+    const to_hocon = b.addRunArtifact(exe);
+    to_hocon.addArg("--hocon");
+    to_hocon.addFileArg(b.path("tests/cli-layers/prod.conf"));
+    const flattened = to_hocon.captureStdOut(.{ .basename = "flattened.conf" });
+    const reread = b.addRunArtifact(exe);
+    reread.addArg("--json");
+    reread.addFileArg(flattened);
+    reread.expectStdOutEqual(layers_json);
+    test_step.dependOn(&reread.step);
+
+    // A format it does not know is refused before any file is read.
+    const bad_format = b.addRunArtifact(exe);
+    bad_format.addArgs(&.{ "--yaml", "no-such-file.conf" });
+    bad_format.expectExitCode(1);
+    bad_format.expectStdErrEqual("error: usage: hocon [--hocon | --json] <file.conf>\n");
+    test_step.dependOn(&bad_format.step);
+
+    // A flag alone, or an empty name, is no file name: usage, not FileNotFound.
+    for ([_][]const u8{ "--json", "" }) |arg| {
+        const no_file = b.addRunArtifact(exe);
+        no_file.addArg(arg);
+        no_file.expectExitCode(1);
+        no_file.expectStdErrEqual("error: usage: hocon [--hocon | --json] <file.conf>\n");
+        test_step.dependOn(&no_file.step);
+    }
 
     // The CLI on a broken file, checked as a user meets it: exit 1 and exactly
     // this on stderr. Run from the file's own directory, so the path it prints
@@ -111,4 +160,15 @@ pub fn build(b: *std.Build) void {
         \\
     );
     test_step.dependOn(&run_included.step);
+
+    // std.json writes no more than 256 lists and objects deep, so --json
+    // refuses a deeper document with one line, not a panic. HOCON writes it.
+    // java ⚠️ prints it.
+    _ = broken.add("deep.conf", "a = " ++ "[" ** 300 ++ "]" ** 300 ++ "\n");
+    const run_deep = b.addRunArtifact(exe);
+    run_deep.setCwd(broken.getDirectory());
+    run_deep.addArgs(&.{ "--json", "deep.conf" });
+    run_deep.expectExitCode(1);
+    run_deep.expectStdErrEqual("error: deep.conf: TooDeepForJson\n");
+    test_step.dependOn(&run_deep.step);
 }

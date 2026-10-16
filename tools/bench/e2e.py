@@ -2,7 +2,7 @@
 
     python3 e2e.py <out-dir> <file>...
 
-Times `hocon <file>`, the two Rust crates as a command, the typesafe/config Cli
+Times `hocon --json <file>`, the two Rust crates as a command, the typesafe/config Cli
 and the `pyhocon` tool from
 process start to exit, output to /dev/null — start-up, reading, parsing,
 printing JSON, everything a user waits for. Writes <out-dir>/e2e-{zig,java,py}.tsv
@@ -22,7 +22,7 @@ java = os.environ.get("JAVA", "java")
 jar = "tools/oracle/config-1.4.9.jar"
 rust = "tools/bench/rust/target/release/rust-hocon"
 commands = {
-    "zig": lambda f: ["zig-out/bin/hocon", f],
+    "zig": lambda f: ["zig-out/bin/hocon", "--json", f],
     "hocon-rs": lambda f: [rust, "hocon-rs", f],
     "hocon": lambda f: [rust, "hocon", f],
     "java": lambda f: [java, "-cp", "{}:{}/classes".format(jar, out), "Cli", f],

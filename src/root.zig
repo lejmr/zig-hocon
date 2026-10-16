@@ -9,6 +9,7 @@ test {
     _ = @import("Value.zig");
     _ = @import("Config.zig");
     _ = @import("Include.zig");
+    _ = @import("stringify.zig");
 }
 
 // Export functionality to users
@@ -22,6 +23,9 @@ pub const parseFromFileLeaky = config.parseFromFileLeaky;
 pub const ParseOptions = config.ParseOptions;
 pub const Diagnostics = @import("Diagnostics.zig");
 pub const ParseFromValueError = config.ConvertError;
+pub const stringify = @import("stringify.zig").stringify;
+pub const stringifyAlloc = @import("stringify.zig").stringifyAlloc;
+pub const StringifyOptions = @import("stringify.zig").Options;
 
 // ---------------------------------------------------------------------------
 // Tests of the public surface: called the way a user calls it, through the
@@ -142,6 +146,60 @@ test "file.out of memory at any point leaks nothing" {
             parsed.deinit();
         }
     }.run, .{path});
+}
+
+// The workflow of round 1 end to end (#10): the program writes its defaults
+// once with `stringify`, an environment includes them and says what differs —
+// an override, an object merged by a dotted key, `+=` — and that reads back
+// into the struct, everything it does not mention still the default.
+// java ✓ (same JSON from prod.conf) · pyhocon ⚠️ fails on `+=` · spec ✓
+test "file.defaults.conf from stringify, prod.conf on top of it" {
+    const App = struct {
+        name: []const u8 = "grumpy wombat",
+        port: u16 = 8080,
+        debug: bool = true,
+        plugins: []const []const u8 = &.{"auth"},
+        db: struct { host: []const u8 = "localhost", pool: u8 = 4 } = .{},
+        motto: ?[]const u8 = null,
+    };
+    const defaults = try hocon.stringifyAlloc(testing.allocator, App{}, .{});
+    defer testing.allocator.free(defaults);
+    try testing.expectEqualStrings(
+        \\name = "grumpy wombat"
+        \\port = 8080
+        \\debug = true
+        \\plugins = [auth]
+        \\db {
+        \\  host = localhost
+        \\  pool = 4
+        \\}
+        \\
+    , defaults);
+
+    var tmp = testing.tmpDir(.{});
+    defer tmp.cleanup();
+    try tmp.dir.writeFile(testing.io, .{ .sub_path = "defaults.conf", .data = defaults });
+    try tmp.dir.writeFile(testing.io, .{ .sub_path = "prod.conf", .data =
+        \\include "defaults.conf"
+        \\port = 443
+        \\debug = off
+        \\plugins += metrics
+        \\db.host = db.example.org
+        \\motto = the wombat sleeps at noon
+        \\
+    });
+    const path = try std.fmt.allocPrint(testing.allocator, ".zig-cache/tmp/{s}/prod.conf", .{tmp.sub_path});
+    defer testing.allocator.free(path);
+
+    const parsed = try hocon.parseFromFile(App, testing.allocator, testing.io, path, .{});
+    defer parsed.deinit();
+    try testing.expectEqualDeep(App{
+        .port = 443,
+        .debug = false,
+        .plugins = &.{ "auth", "metrics" },
+        .db = .{ .host = "db.example.org" },
+        .motto = "the wombat sleeps at noon",
+    }, parsed.value);
 }
 
 // ---------------------------------------------------------------------------
@@ -454,6 +512,25 @@ test "diagnostics.LeadingZeroIsNotAJsonNumber" {
         \\a = my cat is 01
         \\              ^ LeadingZeroIsNotAJsonNumber
         ,
+    });
+}
+
+// A HOCON file is UTF-8 (spec L117): the first byte that is not, quoted or
+// not, wherever it stands. Written with `\x` escapes, which a multiline string
+// does not have.
+// java ⚠️ reads the byte as U+FFFD · pyhocon ⚠️ UnicodeDecodeError, no place · spec ✓
+test "diagnostics.InvalidUtf8" {
+    try expectCarets(&.{
+        "a = caf\xe9\n       ^ InvalidUtf8",
+        "a = \"caf\xe9\"\n        ^ InvalidUtf8",
+        "a { b = 1 }\ncaf\xc3 = 1\n   ^ InvalidUtf8",
+        // Columns count code points, `é` is one. This took the place of a test
+        // for an error after a bad byte on the same line, which cannot happen
+        // now: the bad byte is the error.
+        "a = xé\xff [1]\n      ^ InvalidUtf8",
+        // An overlong `/` and a lone surrogate are not UTF-8 either.
+        "a = \xc0\xaf\n    ^ InvalidUtf8",
+        "a = \xed\xa0\x80\n    ^ InvalidUtf8",
     });
 }
 
@@ -787,15 +864,6 @@ test "diagnostics.UnsupportedConcatenation found by the resolver" {
         \\a = x ${?nope} [2]
         \\               ^ UnsupportedConcatenation
         ,
-    });
-}
-
-// Not UTF-8: a byte that does not continue a character is a column of its own,
-// so one bad byte costs one column and not the whole line.
-test "diagnostics.column survives a line that is not UTF-8" {
-    try expectCarets(&.{
-        "a = x\xff [1]\n       ^ UnsupportedConcatenation",
-        "a = xé\xff [1]\n        ^ UnsupportedConcatenation",
     });
 }
 

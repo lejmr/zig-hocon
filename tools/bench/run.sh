@@ -14,7 +14,7 @@
 # all five are checked to produce the same JSON for one file, so they are
 # measured doing the same work. Needs cargo for the Rust side.
 #
-# The second table is what a user waits for: `hocon <file>`, a typesafe/config
+# The second table is what a user waits for: `hocon --json <file>`, a typesafe/config
 # command (tools/bench/Cli.java) and the `pyhocon` tool, from process start to
 # exit with the JSON written, start-up included.
 set -eu
@@ -41,7 +41,7 @@ python3 tools/bench/gen.py $GEN "$OUT" $SIZES
 # Same work: all three must print the same JSON for a mid-sized file.
 probe="$OUT/10000.conf"
 [ -f "$probe" ] || python3 tools/bench/gen.py $GEN "$OUT" 10000
-zig-out/bin/hocon "$probe" > "$OUT/zig.json"
+zig-out/bin/hocon --json "$probe" > "$OUT/zig.json"
 conformance/adapters/oracle.sh hocon-java "$probe" > "$OUT/java.json"
 conformance/adapters/oracle.sh hocon-py "$probe" > "$OUT/py.json"
 "$RUST/rust-hocon" hocon-rs "$probe" > "$OUT/hocon-rs.json"

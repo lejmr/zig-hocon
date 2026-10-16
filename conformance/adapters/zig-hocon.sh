@@ -1,6 +1,6 @@
 #!/bin/sh
-# Adapter for this repository's own parser: the `hocon` CLI already speaks the
-# run.sh contract (path in, compact JSON out, non-zero on rejection).
+# Adapter for this repository's own parser: the `hocon` CLI with `--json` already
+# speaks the run.sh contract (path in, compact JSON out, non-zero on rejection).
 #
 #   zig build
 #   conformance/run.sh --text -- conformance/adapters/zig-hocon.sh
@@ -23,4 +23,4 @@ fi
 
 [ -x "$BIN" ] || { echo "no binary at $BIN — run \`zig build\` first" >&2; exit 2; }
 
-exec "$BIN" "$1"
+exec "$BIN" --json "$1"

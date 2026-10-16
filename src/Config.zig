@@ -191,10 +191,18 @@ pub const Config = struct {
                 return std.fmt.parseFloat(T, value.scalar.value);
             },
             .pointer => |info| {
+                // `*T` is a `T` of its own, as std.json reads one.
+                if (info.size == .one) {
+                    const one = try allocator.create(info.child);
+                    one.* = try parseFromValue(info.child, allocator, value);
+                    return one;
+                }
+                if (info.size != .slice) @compileError("hocon: unsupported target type " ++ @typeName(T));
                 switch (value) {
                     .scalar => {
                         if (info.child != u8) return error.TypeMismatch;
                         if (std.mem.eql(u8, value.scalar.value, "null") and !value.scalar.quoted) return error.TypeMismatch;
+                        if (info.sentinel() != null) return try allocator.dupeZ(u8, value.scalar.value);
                         return try allocator.dupe(u8, value.scalar.value);
                     },
                     .array => {
@@ -204,6 +212,7 @@ pub const Config = struct {
                             const val = try parseFromValue(info.child, allocator, item);
                             try a.append(allocator, val);
                         }
+                        if (info.sentinel()) |end| return try a.toOwnedSliceSentinel(allocator, end);
                         return try a.toOwnedSlice(allocator);
                     },
                     else => return error.TypeMismatch,
@@ -236,13 +245,47 @@ pub const Config = struct {
                 }
                 return result;
             },
-            .@"enum" => {
+            // A name, or for a non-exhaustive enum also a number, as std.json reads it.
+            .@"enum" => |info| {
                 if (value != .scalar) return error.TypeMismatch;
-                return std.meta.stringToEnum(T, value.scalar.value) orelse error.TypeMismatch;
+                if (std.meta.stringToEnum(T, value.scalar.value)) |tag| return tag;
+                if (info.is_exhaustive or value.scalar.quoted) return error.TypeMismatch;
+                return @enumFromInt(try std.fmt.parseInt(info.tag_type, value.scalar.value, 10));
             },
             .optional => |info| {
                 if (value == .scalar and !value.scalar.quoted and std.mem.eql(u8, value.scalar.value, "null")) return null;
                 return try parseFromValue(info.child, allocator, value);
+            },
+            // A list of exactly that many, or for `[N]u8` a string of N bytes,
+            // as `stringify` writes them.
+            .array => |info| {
+                var result: T = undefined;
+                // `undefined` leaves out the sentinel too.
+                if (info.sentinel()) |end| result[info.len] = end;
+                if (info.child == u8 and value == .scalar) {
+                    if (std.mem.eql(u8, value.scalar.value, "null") and !value.scalar.quoted) return error.TypeMismatch;
+                    if (value.scalar.value.len != info.len) return error.TypeMismatch;
+                    @memcpy(&result, value.scalar.value);
+                    return result;
+                }
+                if (value != .array or value.array.len != info.len) return error.TypeMismatch;
+                for (&result, value.array) |*item, v| item.* = try parseFromValue(info.child, allocator, v);
+                return result;
+            },
+            // `{ tag = payload }`, one member, the way std.json writes a tagged
+            // union; a `void` payload is `{}`.
+            .@"union" => |info| {
+                if (info.tag_type == null) @compileError("hocon: unsupported untagged union " ++ @typeName(T));
+                if (value != .object or value.object.len != 1) return error.TypeMismatch;
+                const member = value.object[0];
+                inline for (info.fields) |field| {
+                    if (std.mem.eql(u8, member.key.value, field.name)) {
+                        if (field.type != void) return @unionInit(T, field.name, try parseFromValue(field.type, allocator, member.value));
+                        if (member.value != .object or member.value.object.len != 0) return error.TypeMismatch;
+                        return @unionInit(T, field.name, {});
+                    }
+                }
+                return error.TypeMismatch;
             },
             // A compile error, not a runtime one: asking for `f64` fails the build
             // and points at the type, until a branch for it exists.
@@ -512,9 +555,56 @@ test "convert.default field value" {
 }
 
 // java ✓ · pyhocon – · spec – — getEnum matches the constant name exactly, case
-// included. pyhocon has no enums.
+// included. pyhocon has no enums. Zig only: a non-exhaustive enum also takes
+// the unquoted number of a value with no name, as std.json reads it.
 test "convert.enum" {
     const Level = enum { debug, info };
     try expectConverts(struct { level: Level }, "level = debug", .{ .level = .debug });
     try expectConvertError(struct { level: Level }, "level = DEBUG", error.TypeMismatch);
+
+    const Mood = enum(u8) { calm, _ };
+    try expectConverts(struct { mood: Mood }, "mood = 200", .{ .mood = @enumFromInt(200) });
+    try expectConverts(struct { mood: Mood }, "mood = calm", .{ .mood = .calm });
+    try expectConvertError(struct { mood: Mood }, "mood = \"200\"", error.TypeMismatch);
+    try expectConvertError(struct { level: Level }, "level = 0", error.TypeMismatch);
+}
+
+// Zig only, as std.json reads them — java and pyhocon have neither type. A
+// fixed array takes a list of exactly its length, `[N]u8` a string of N bytes.
+test "convert.array" {
+    try expectConverts(struct { a: [3]u8 }, "a = [1, 2, 3]", .{ .a = .{ 1, 2, 3 } });
+    try expectConverts(struct { a: [2][]const u8 }, "a = [tea, cake]", .{ .a = .{ "tea", "cake" } });
+    try expectConverts(struct { a: [6]u8 }, "a = wombat", .{ .a = "wombat".* });
+    try expectConvertError(struct { a: [3]u8 }, "a = [1, 2]", error.TypeMismatch);
+    try expectConvertError(struct { a: [2]u8 }, "a = wombat", error.TypeMismatch);
+    // A sentinel comes after the last one, in an array and in a slice.
+    try expectConverts(struct { a: [6:0]u8 }, "a = wombat", .{ .a = "wombat".* });
+    try expectConverts(struct { a: [2:0]u16 }, "a = [1, 2]", .{ .a = .{ 1, 2 } });
+    try expectConverts(struct { a: [:0]const u8 }, "a = wombat", .{ .a = "wombat" });
+    try expectConverts(struct { a: [:0]const u16 }, "a = [1, 2]", .{ .a = &.{ 1, 2 } });
+    // null is no text, as for `[]const u8`; quoted it is.
+    try expectConvertError(struct { a: [4]u8 }, "a = null", error.TypeMismatch);
+    try expectConverts(struct { a: [4]u8 }, "a = \"null\"", .{ .a = "null".* });
+    try expectConvertError(struct { a: [2]u16 }, "a = { b = 1 }", error.TypeMismatch);
+}
+
+// Zig only, as std.json reads it — a pointer to one value is that value,
+// allocated, which is how a type refers to itself.
+test "convert.pointer" {
+    const Turtle = struct { name: []const u8, below: ?*const @This() = null };
+    try expectConverts(Turtle, "name = top, below { name = bottom }", .{ .name = "top", .below = &.{ .name = "bottom" } });
+    try expectConverts(struct { a: *const u8 }, "a = 7", .{ .a = &7 });
+}
+
+// Zig only, as std.json reads it — `{ tag = payload }` with exactly one member;
+// a `void` payload is an empty object.
+test "convert.tagged union" {
+    const Storage = union(enum) { memory, disk: struct { path: []const u8 } };
+    const T = struct { storage: Storage };
+    try expectConverts(T, "storage { memory {} }", .{ .storage = .memory });
+    try expectConverts(T, "storage.disk.path = /tmp/wombat", .{ .storage = .{ .disk = .{ .path = "/tmp/wombat" } } });
+    try expectConvertError(T, "storage { tape {} }", error.TypeMismatch);
+    try expectConvertError(T, "storage { memory {}, disk { path = x } }", error.TypeMismatch);
+    try expectConvertError(T, "storage { memory = 1 }", error.TypeMismatch);
+    try expectConvertError(T, "storage = memory", error.TypeMismatch);
 }

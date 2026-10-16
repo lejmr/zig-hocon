@@ -134,17 +134,46 @@ defer parsed.deinit();
 try std.json.Stringify.value(parsed.value, .{}, writer);
 ```
 
+The other way round, `hocon.stringify` writes a value as HOCON, shaped after
+`std.json.Stringify` — a program can write its defaults once and let every
+environment `include` them:
+
+```zig
+try hocon.stringify(Server{ .host = "example.org" }, .{}, writer);
+```
+
+```
+host = example.org
+port = 8080
+level = info
+```
+
+Nested blocks, two spaces, keys in field order, quotes only where a string
+would not read back the same; a `null` optional is left out unless its default
+is something else. `stringifyAlloc(gpa, value, .{})` returns the text instead.
+A `hocon.Value` is written the way it was loaded, so one that was never
+resolved keeps its `${…}`, concatenations and repeated keys.
+
 ### Command line
 
-`zig build` also installs `hocon`, which prints a file as compact JSON:
+`zig build` also installs `hocon`, which prints a file resolved, as HOCON —
+includes, substitutions and `+=` worked out into one file — or with `--json` as
+compact JSON:
 
 ```sh
 $ zig build
 $ zig-out/bin/hocon server.conf
+server {
+  host = example.org
+  port = 8080
+  tags = [a, "b c"]
+  tls = on
+}
+$ zig-out/bin/hocon --json server.conf
 {"server":{"host":"example.org","port":8080,"tags":["a","b c"],"tls":"on"}}
 ```
 
-Unquoted `true`, `false`, `null` and numbers keep their JSON type, a number is
+In JSON, unquoted `true`, `false`, `null` and numbers keep their JSON type, a number is
 printed as written (`1e5` stays `1e5`), and anything quoted is a string. A file
 that does not parse, or holds a substitution that does not resolve, exits 1 and
 points at the spot on stderr, as above. `zig build run -- server.conf` does the same without the install step.
@@ -322,7 +351,8 @@ these are what makes the format pleasant, so they are on the roadmap.
 - [x] [Automatic type conversions](https://github.com/lightbend/config/blob/main/HOCON.md#automatic-type-conversions)
       — into a Zig type rather than through typed getters: integers, floats,
       `bool` (`true`/`yes`/`on`, `false`/`no`/`off`, lowercase only), strings,
-      slices, structs, optionals, enums and field defaults. A number reads as a
+      slices, fixed arrays, structs, tagged unions (`{ tag = … }`), optionals,
+      enums and field defaults. A number reads as a
       string exactly as written (`1.50` stays `"1.50"`), unquoted `null` fits
       only an optional, and objects and arrays never become strings. One
       deliberate difference from typesafe/config: `1.5` into an integer is an
@@ -405,8 +435,18 @@ rather than the format.
       does not resolve fails there rather than in the printer, since Stringify
       has no way to report an error of its own.
       This is the bridge the project is ultimately for.
-- [x] Command line — `hocon <file.conf>` prints JSON, exits 1 on rejection;
-      the same contract as a conformance adapter, so it is what the suite
+- [x] HOCON rendering — `hocon.stringify`, after `std.json.Stringify`: any
+      Zig value a config is made of, or a `Value`, resolved or not. A string is
+      bare only when it is a plain ASCII word that reads back as the same
+      string, otherwise a JSON string, always on one line (`\n`, never `"""`),
+      and bytes that are not UTF-8 are a list of numbers, as std.json has them;
+      a float is the shortest digits that read back the same, with an exponent
+      outside 1e-6…1e21, and `nan`/`inf` as strings. One known loss: a `${…}`
+      from a file included inside a block also falls back to the path without
+      that block, which one `${…}` cannot say.
+- [x] Command line — `hocon <file.conf>` prints the resolved file as HOCON,
+      `hocon --json <file.conf>` as JSON; exits 1 on rejection. With `--json`
+      it is the same contract as a conformance adapter, so it is what the suite
       measures (`conformance/adapters/zig-hocon.sh`).
 - [ ] Public API, the rest — the other `ParseOptions` fields (`ignore_unknown_fields`;
       unknown keys are ignored for now), and `parseFromValue`.
@@ -441,7 +481,7 @@ wins and the row says so. Where it stands today:
 | Java <sub>typesafe/config 1.4.9</sub> | 90% (399/445) | 99% (442/445) | 96% (428/445) |
 | Java main <sub>typesafe/config main@275f872, unreleased</sub> | 93% (412/445) | 96% (428/445) | 99% (442/445) |
 | pyhocon <sub>pyhocon 0.3.63</sub> | 70% (312/445) | 66% (295/445) | 68% (304/445) |
-| zig-hocon <sub>zig-hocon code@c15590f</sub> | 96% (425/445) | 86% (382/445) | 89% (395/445) |
+| zig-hocon <sub>zig-hocon code@060f08b</sub> | 96% (425/445) | 86% (382/445) | 89% (395/445) |
 
 <!-- conformance:end -->
 

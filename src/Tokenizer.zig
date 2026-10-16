@@ -31,6 +31,14 @@ pub const Token = struct {
     };
 };
 
+/// Whether the `+` at `word[i]` is the sign of an exponent, `1e+5`: the word
+/// starts like a number, an `e` comes before the `+` and a digit after it.
+pub fn isExponentSign(word: []const u8, i: usize) bool {
+    const in_number = std.ascii.isDigit(word[0]) or word[0] == '-';
+    const after_e = i > 0 and (word[i - 1] == 'e' or word[i - 1] == 'E');
+    return in_number and after_e and i + 1 < word.len and std.ascii.isDigit(word[i + 1]);
+}
+
 /// The byte length of the whitespace character `s` starts with, or 0 if it
 /// does not start with one. HOCON whitespace is the ASCII set (tab, VT, FF, CR,
 /// the separators 0x1C-0x1F, space), every Unicode space, line and paragraph
@@ -79,11 +87,6 @@ pub const Tokenizer = struct {
             sw_state: switch (state) {
                 // This is my initial state
                 .start => switch (c) {
-                    // Basic hocon syntax
-                    'a'...'z', 'A'...'Z', '0'...'9', '-', '.', '(', ')' => {
-                        state = .word;
-                        state_start = self.pos;
-                    },
                     '"' => {
                         state_start = self.pos;
                         if (self.input[self.pos + 1] == '"' and self.input[self.pos + 2] == '"') {
@@ -166,20 +169,32 @@ pub const Tokenizer = struct {
                     // End of the file
                     0 => continue :sw_state .eof,
 
+                    // Reserved, so they cannot start anything.
+                    '`', '^', '?', '!', '@', '*', '&', '\\' => return .{ .tag = .invalid, .loc = .{
+                        .start = self.pos,
+                        .end = self.pos,
+                    } },
+
                     // Leading whitespace before a token, even a multi-byte one
-                    // (U+00A0 is C2 A0), is skipped whole. Any other byte
-                    // cannot start a token.
+                    // (U+00A0 is C2 A0), is skipped whole. Any other character
+                    // starts unquoted text.
                     else => {
                         const len = whitespaceLen(self.input[self.pos..]);
-                        if (len == 0) return .{ .tag = .invalid, .loc = .{
-                            .start = self.pos,
-                            .end = self.pos,
-                        } };
-                        self.pos += len - 1;
+                        if (len == 0) {
+                            state = .word;
+                            state_start = self.pos;
+                        } else self.pos += len - 1;
                     },
                 },
                 .word => switch (c) {
-                    '`', '^', '?', '!', '@', '*', '&', '\\', '$', '"', '{', '}', '[', ']', ',', '+', '#', '\n' => return .{
+                    '`', '^', '?', '!', '@', '*', '&', '\\', '$', '"', '{', '}', '[', ']', ',', '#', '\n' => return .{
+                        .tag = .string,
+                        .loc = .{ .start = state_start, .end = self.pos },
+                    },
+
+                    // `+` is reserved too, except as the sign of an exponent,
+                    // `1e+5`: after the `e` of a number and before a digit.
+                    '+' => if (!isExponentSign(self.input[state_start..], self.pos - state_start)) return .{
                         .tag = .string,
                         .loc = .{ .start = state_start, .end = self.pos },
                     },
@@ -224,13 +239,16 @@ pub const Tokenizer = struct {
                 // Quoted string handling
                 .quoted => switch (c) {
                     '"' => {
-                        if (self.input[self.pos - 1] != '\\') {
-                            self.pos += 1;
-                            return .{ .tag = .quoted_string, .loc = .{
-                                .start = state_start,
-                                .end = self.pos,
-                            } };
-                        }
+                        self.pos += 1;
+                        return .{ .tag = .quoted_string, .loc = .{
+                            .start = state_start,
+                            .end = self.pos,
+                        } };
+                    },
+                    // The byte after a backslash is escaped, a quote or a
+                    // backslash alike; the end of the input is not.
+                    '\\' => if (self.input[self.pos + 1] != 0) {
+                        self.pos += 1;
                     },
                     0 => return .{ .tag = .invalid, .loc = .{
                         .start = state_start,
@@ -445,6 +463,16 @@ test "escaped quote inside quoted string does not terminate it" {
     try testing.expectEqualStrings("\"he said \\\"hi\\\"\"", t.input[tok.loc.start..tok.loc.end]);
 }
 
+// java ✓ · pyhocon ✓ · spec ✓ — a quoted string is a JSON string: `\\` is one
+// backslash, so the quote after it closes the string: `a = "C:\\"` -> {"a":"C:\\"}.
+test "an escaped backslash does not escape the closing quote" {
+    try expectAll(&.{
+        .ok("\"C:\\\\\" b", "quoted_string(\"C:\\\\\") string(b) eof"),
+        .ok("\"\\\\\\\"\"", "quoted_string(\"\\\\\\\"\") eof"),
+        .ok("\"a\\", "invalid"),
+    });
+}
+
 test "multiline string" {
     var t = Tokenizer.init("\"\"\"a \"quoted\" text\nsecond line\"\"\"");
     const tok = t.next();
@@ -648,6 +676,35 @@ test "+= is one token, + alone is not" {
         .ok("a += [1]", "string(a) plus_assignment(+=) l_bracket([) string(1) r_bracket(]) eof"),
         .ok("a + = b", "string(a) invalid"),
         .ok("a +b", "string(a) invalid"),
+    });
+}
+
+// java ✓ · pyhocon ✓ · spec ✓ — `+` after the `e` of a number is the sign of
+// its exponent, as in JSON: 'a = 1e+5' -> {"a":100000}. Only there, and only
+// with a digit after it, so `1e+=2` is still the key `1e` and `+=`. java ⚠️
+// rejects that one.
+test "+ in the exponent of a number belongs to the word" {
+    try expectAll(&.{
+        .ok("1e+5", "string(1e+5) eof"),
+        .ok("-1.5E+3,", "string(-1.5E+3) comma(,) eof"),
+        .ok("1e+=2", "string(1e) plus_assignment(+=) string(2) eof"),
+        .ok("e+5", "string(e) invalid"),
+        .ok("1e+", "string(1e) invalid"),
+    });
+}
+
+// java ✓ · pyhocon ✓ · spec ✓ — any character that is neither reserved nor
+// whitespace starts unquoted text, not only a letter or a digit:
+// 'a = %x' -> {"a":"%x"}, 'a = éa' -> {"a":"éa"}, 'a = \x01a' -> {"a":"\u0001a"}.
+// The pyhocon oracle reads stdin as Latin-1; from a file it reads `éa` right.
+test "unquoted text starts with any character that is not reserved" {
+    try expectAll(&.{
+        .ok("%x", "string(%x) eof"),
+        .ok("'q ~x <b> ;x", "string('q) string(~x) string(<b>) string(;x) eof"),
+        .ok("\u{e9}a", "string(\u{e9}a) eof"),
+        .ok("\x01a", "string(\x01a) eof"),
+        .ok("^x", "invalid"),
+        .ok("\\x", "invalid"),
     });
 }
 

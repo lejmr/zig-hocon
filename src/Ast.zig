@@ -89,10 +89,20 @@ pub const Parser = struct {
 
     /// Written out rather than inferred (`!Node`): `parseContainer` recurses, and
     /// an inferred error set cannot be resolved when it depends on itself.
-    pub const Error = error{UnexpectedToken} || number.NumberError || std.mem.Allocator.Error || unquote.Error;
+    pub const Error = error{ UnexpectedToken, InvalidUtf8 } || number.NumberError || std.mem.Allocator.Error || unquote.Error;
 
+    /// A file is UTF-8 (spec L117), checked here once, so neither the tokenizer
+    /// nor anything after it meets a byte that is not; the error is at the first.
     pub fn parse(self: *Parser) Error!Node {
-        return self.parseContainer(.eof, .root, 0);
+        const input = self.t.t.input;
+        var i: usize = 0;
+        while (i < input.len) {
+            const len = std.unicode.utf8ByteSequenceLength(input[i]) catch break;
+            if (i + len > input.len or !std.unicode.utf8ValidateSlice(input[i..][0..len])) break;
+            i += len;
+        } else return self.parseContainer(.eof, .root, 0);
+        self.err_offset = i;
+        return error.InvalidUtf8;
     }
 
     /// Every `UnexpectedToken` goes through here, so none can leave without
@@ -567,7 +577,7 @@ fn prepareMemberNode(gpa: std.mem.Allocator, key: Node, kind: Node.NodeKind, val
 /// A run of unquoted words is one part, but its words are exactly the tokens it
 /// was made of, separated by whitespace — so this sees what the tokenizer saw.
 /// On failure `err_offset` is where the offending word starts.
-fn checkNumbers(text: Node, err_offset: *?usize) number.NumberError!void {
+pub fn checkNumbers(text: Node, err_offset: *?usize) number.NumberError!void {
     const one = [_]Node{text};
     const parts = if (text.kind == .concat) text.children else &one;
     for (parts) |part| {

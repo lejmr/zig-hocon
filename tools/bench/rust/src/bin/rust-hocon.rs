@@ -1,5 +1,5 @@
 //! A crate as a command, for the end-to-end timings: read, parse, resolve,
-//! print compact JSON — the same job as `hocon <file>`.
+//! print compact JSON — the same job as `hocon --json <file>`.
 //!
 //!   rust-hocon <hocon-rs|hocon> <file>
 fn main() {

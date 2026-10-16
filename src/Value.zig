@@ -620,7 +620,7 @@ pub const Value = union(enum) {
     }
 
     /// Unquoted and nothing but whitespace — any of it, NBSP and BOM included.
-    fn isGap(self: Value) bool {
+    pub fn isGap(self: Value) bool {
         if (self != .scalar or self.scalar.quoted) return false;
         var rest = self.scalar.value;
         while (rest.len > 0) {
