@@ -17,6 +17,7 @@ const number = @import("utils/number.zig");
 const unqoute = @import("utils/unqoute.zig");
 const whitespaceLen = @import("Tokenizer.zig").whitespaceLen;
 const isExponentSign = @import("Tokenizer.zig").isExponentSign;
+const units = @import("units.zig");
 
 /// Nothing to set yet: it is here so a call reads like `std.json.Stringify.value`.
 pub const Options = struct {};
@@ -29,7 +30,8 @@ pub fn stringify(value: anytype, options: Options, w: *Writer) Writer.Error!void
     const document = switch (@typeInfo(T)) {
         .pointer => |p| if (p.size == .one) return stringify(value.*, options, w) else p.child != u8,
         .array => |a| a.child != u8,
-        .@"struct", .@"union", .void => true,
+        .@"struct" => comptime !isUnits(T),
+        .@"union", .void => true,
         else => false,
     };
     if (!document) @compileError("hocon: a document is a block or a list, not " ++ @typeName(T));
@@ -52,6 +54,7 @@ pub fn stringifyAlloc(gpa: std.mem.Allocator, value: anytype, options: Options) 
 fn writeValue(value: anytype, w: *Writer, indent: usize) Writer.Error!void {
     const T = @TypeOf(value);
     if (T == Value) return writeTree(value, w, indent);
+    if (comptime isUnits(T)) return value.format(w);
     switch (@typeInfo(T)) {
         .bool => try w.writeAll(if (value) "true" else "false"),
         .int, .comptime_int => try w.print("{d}", .{value}),
@@ -195,6 +198,7 @@ fn writeList(items: anytype, w: *Writer, indent: usize) Writer.Error!void {
 fn isBlock(value: anytype) bool {
     const T = @TypeOf(value);
     if (T == Value) return value == .object;
+    if (comptime isUnits(T)) return false;
     return switch (@typeInfo(T)) {
         .@"struct", .@"union", .void => true,
         .optional => if (value) |v| isBlock(v) else false,
@@ -207,6 +211,7 @@ fn isBlock(value: anytype) bool {
 fn isFlat(value: anytype) bool {
     const T = @TypeOf(value);
     if (T == Value) return value == .scalar or value == .ref;
+    if (comptime isUnits(T)) return true;
     return switch (@typeInfo(T)) {
         .optional => if (value) |v| isFlat(v) else true,
         .pointer => |p| if (p.size == .one) isFlat(value.*) else p.child == u8,
@@ -214,6 +219,12 @@ fn isFlat(value: anytype) bool {
         .@"struct", .@"union", .void => false,
         else => true,
     };
+}
+
+/// A struct that is one value in the units format, `90s`, `3mo`, `512MiB`: the
+/// largest unit it is a whole number of, so it reads back the same.
+fn isUnits(comptime T: type) bool {
+    return T == units.Duration or T == units.Period or T == units.Size;
 }
 
 /// Whether the block has anything in it, so an empty one is `{}` on one line.
@@ -541,6 +552,45 @@ test "stringify.null optionals" {
     try expectText(T{ .kept = null, .required = null }, "kept = null\nlist = [1, null]\n");
     try expectRoundTrip(T{ .kept = null, .required = null });
     try expectRoundTrip(T{ .gone = 1, .required = 2, .kept = 3 });
+}
+
+// java ✓ · pyhocon – · spec ✓ — a duration, a period and a size are one value
+// in the units format, the largest unit that says it exactly; java's
+// getDuration, getPeriod and getBytes read this text to the same values.
+// pyhocon has none of the three getters.
+test "stringify.durations, periods and sizes" {
+    const T = struct {
+        timeout: units.Duration = .of(90, .s),
+        idle: units.Duration = .of(120, .min),
+        retention: units.Period = .of(3, .mo),
+        audit: units.Period = .of(2, .weeks),
+        cache: units.Size = .of(512, .MiB),
+        disk: units.Size = .of(10, .kB),
+        backoff: []const units.Duration = &.{ .of(1500, .ms), .of(1, .ns) },
+        grace: ?units.Duration = null,
+    };
+    try expectText(T{},
+        \\timeout = 90s
+        \\idle = 2h
+        \\retention = 3mo
+        \\audit = 2w
+        \\cache = 512MiB
+        \\disk = 10kB
+        \\backoff = [1500ms, 1ns]
+        \\
+    );
+    try expectRoundTrip(T{});
+    // Every value a config can say comes back as it was. A period built with
+    // years and months both is not one: `14mo` reads back as 14 months.
+    try expectRoundTrip(T{
+        .timeout = .{ .nanoseconds = -1 },
+        .idle = .{ .nanoseconds = std.math.maxInt(i96) },
+        .retention = .of(-7, .y),
+        .audit = .of(-1, .d),
+        .cache = .{ .bytes = std.math.maxInt(u64) },
+        .disk = .of(5, .EiB),
+        .grace = .of(0, .s),
+    });
 }
 
 // java ✓ · pyhocon ✓ · spec ✓ (the text; the types are Zig's) — every type the

@@ -6,6 +6,7 @@ const Ast = @import("Ast.zig");
 const Tokenizer = @import("Tokenizer.zig").Tokenizer;
 const Include = @import("Include.zig");
 const Diagnostics = @import("Diagnostics.zig");
+const units = @import("units.zig");
 
 pub const Config = struct {
     object: Value,
@@ -109,8 +110,7 @@ pub const Config = struct {
         }, options);
     }
 
-    /// An error with nothing to point into: the file was never read, or the tree
-    /// it failed on has no positions.
+    /// An error with nothing to point into: the file was never read.
     fn noPlace(options: ParseOptions, err: anyerror) void {
         if (options.diagnostics) |diag| diag.* = .{ .err = err };
     }
@@ -136,9 +136,12 @@ pub const Config = struct {
         };
         // `.keep` leaves what waits for the environment in the tree on purpose.
         if (T == Value and options.env == .keep) return obj;
-        return parseFromValue(T, allocator, obj) catch |err| {
-            // The tree has no positions, so a conversion error has none either.
-            noPlace(options, err);
+        var failed: ?Value.Pos = null;
+        return convert(T, allocator, obj, &failed) catch |err| {
+            // Most conversion errors have no place: an object or a list does
+            // not know where it is written. Text read in units does.
+            files.failed = failed;
+            if (options.diagnostics) |diag| diag.* = .{ .err = err, .location = locate(keep, files) };
             return err;
         };
     }
@@ -169,18 +172,32 @@ pub const Config = struct {
         return obj;
     }
 
-    pub const ConvertError = error{ TypeMismatch, MissingField, Unresolved, UnsupportedType, OutOfMemory } ||
+    pub const ConvertError = error{ TypeMismatch, MissingField, Unresolved, UnsupportedType, OutOfMemory, UnknownUnit } ||
         std.fmt.ParseIntError;
 
     /// Converts a Value into T. `T` is comptime, so the compiler builds one copy
     /// of this function per target type, and the `switch` below is decided at
     /// compile time: for `usize` only the `.int` branch exists at all.
     pub fn parseFromValue(comptime T: type, allocator: Allocator, value: Value) ConvertError!T {
+        var failed: ?Value.Pos = null;
+        return convert(T, allocator, value, &failed);
+    }
+
+    /// `parseFromValue`, telling `failed` where the text is written that a
+    /// `Duration`, `Period` or `Size` could not be read from.
+    fn convert(comptime T: type, allocator: Allocator, value: Value, failed: *?Value.Pos) ConvertError!T {
         // The dynamic tree as it is, the way std.json.parseFromSlice(std.json.Value, …)
         // hands back its own — finished, so anything can print it.
         if (T == Value) return if (value.isResolved()) value else error.Unresolved;
         // Not resolved yet: refuse loudly instead of guessing.
         if (value == .ref or value == .pending or value == .stack) return error.Unresolved;
+        // Structs, but read from text in the units format: `10ms` is a Duration.
+        if (T == units.Duration or T == units.Period or T == units.Size) {
+            return T.fromValue(value) catch |err| {
+                if (value == .scalar) failed.* = value.scalar.at();
+                return err;
+            };
+        }
         switch (@typeInfo(T)) {
             .int => {
                 if (value != .scalar) return error.TypeMismatch;
@@ -206,7 +223,7 @@ pub const Config = struct {
                 // `*T` is a `T` of its own, as std.json reads one.
                 if (info.size == .one) {
                     const one = try allocator.create(info.child);
-                    one.* = try parseFromValue(info.child, allocator, value);
+                    one.* = try convert(info.child, allocator, value, failed);
                     return one;
                 }
                 if (info.size != .slice) @compileError("hocon: unsupported target type " ++ @typeName(T));
@@ -221,7 +238,7 @@ pub const Config = struct {
                         if (info.child == u8) return error.TypeMismatch;
                         var a: std.ArrayList(info.child) = .empty;
                         for (value.array) |item| {
-                            const val = try parseFromValue(info.child, allocator, item);
+                            const val = try convert(info.child, allocator, item, failed);
                             try a.append(allocator, val);
                         }
                         if (info.sentinel()) |end| return try a.toOwnedSliceSentinel(allocator, end);
@@ -251,7 +268,7 @@ pub const Config = struct {
 
                     if (found) |member| {
                         // At some point field.type can be optional, but we have value, so jump to .optional
-                        @field(result, field.name) = try parseFromValue(field.type, allocator, member.value);
+                        @field(result, field.name) = try convert(field.type, allocator, member.value, failed);
                     } else if (field.defaultValue()) |default| {
                         @field(result, field.name) = default;
                     } else if (@typeInfo(field.type) == .optional) {
@@ -271,7 +288,7 @@ pub const Config = struct {
             },
             .optional => |info| {
                 if (value == .scalar and !value.scalar.quoted and std.mem.eql(u8, value.scalar.value, "null")) return null;
-                return try parseFromValue(info.child, allocator, value);
+                return try convert(info.child, allocator, value, failed);
             },
             // A list of exactly that many, or for `[N]u8` a string of N bytes,
             // as `stringify` writes them.
@@ -290,7 +307,7 @@ pub const Config = struct {
                     return parseFromValue(T, allocator, .{ .array = items });
                 }
                 if (value != .array or value.array.len != info.len) return error.TypeMismatch;
-                for (&result, value.array) |*item, v| item.* = try parseFromValue(info.child, allocator, v);
+                for (&result, value.array) |*item, v| item.* = try convert(info.child, allocator, v, failed);
                 return result;
             },
             // `{ tag = payload }`, one member, the way std.json writes a tagged
@@ -301,7 +318,7 @@ pub const Config = struct {
                 const member = value.object[0];
                 inline for (info.fields) |field| {
                     if (std.mem.eql(u8, member.key.value, field.name)) {
-                        if (field.type != void) return @unionInit(T, field.name, try parseFromValue(field.type, allocator, member.value));
+                        if (field.type != void) return @unionInit(T, field.name, try convert(field.type, allocator, member.value, failed));
                         if (member.value != .object or member.value.object.len != 0) return error.TypeMismatch;
                         return @unionInit(T, field.name, {});
                     }

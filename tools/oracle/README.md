@@ -23,6 +23,15 @@ a = b\nc = d
 One result line out: compact JSON, or `ERROR <Class>: <message>`. Substitutions
 are left unresolved unless the line is prefixed with `resolve:`.
 
+`hocon-java` also has the typed getters of the units format: a line prefixed
+with `as:duration:`, `as:period:` or `as:bytes:` is resolved and its key `a`
+read with `getDuration` (printed in nanoseconds), `getPeriod` (`P1Y2M3D`) or
+`getBytes`. pyhocon has none of the three.
+
+```sh
+printf 'as:duration:a = 1.5 s\nas:bytes:a = 512K\n' | tools/oracle/hocon-java
+```
+
 ## Which one is right
 
 **`hocon-java` is the authority.** It is Lightbend's `typesafe/config`, the

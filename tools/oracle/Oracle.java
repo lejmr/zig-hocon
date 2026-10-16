@@ -12,6 +12,10 @@ import java.util.*;
  * A line prefixed with "file:" is a path instead of source text; the file is
  * parsed in place, so its includes resolve relative to it. Prefixes stack as
  * "resolve:file:<path>".
+ *
+ * A line prefixed with "as:duration:", "as:period:" or "as:bytes:" resolves
+ * the case and prints the typed getter of the key `a` instead: getDuration in
+ * nanoseconds, getPeriod as ISO-8601 (P1Y2M3D), getBytes in bytes.
  */
 public class Oracle {
     public static void main(String[] args) throws Exception {
@@ -20,6 +24,12 @@ public class Oracle {
         String line;
         while ((line = in.readLine()) != null) {
             if (line.isEmpty()) continue;
+            if (line.startsWith("as:")) {
+                String rest = line.substring("as:".length());
+                int colon = rest.indexOf(':');
+                System.out.println(typed(rest.substring(0, colon), unescape(rest.substring(colon + 1))));
+                continue;
+            }
             boolean resolve = line.startsWith("resolve:");
             if (resolve) line = line.substring("resolve:".length());
             boolean file = line.startsWith("file:");
@@ -50,6 +60,22 @@ public class Oracle {
             Config c = ConfigFactory.parseString(src);
             if (resolve) c = c.resolve();
             return c.root().render(ConfigRenderOptions.concise());
+        } catch (Exception e) {
+            String msg = e.getMessage();
+            if (msg != null) msg = msg.replace('\n', ' ');
+            return "ERROR " + e.getClass().getSimpleName() + ": " + msg;
+        }
+    }
+
+    static String typed(String kind, String src) {
+        try {
+            Config c = ConfigFactory.parseString(src).resolve();
+            return switch (kind) {
+                case "duration" -> Long.toString(c.getDuration("a").toNanos());
+                case "period" -> c.getPeriod("a").toString();
+                case "bytes" -> c.getBytes("a").toString();
+                default -> "ERROR unknown kind " + kind;
+            };
         } catch (Exception e) {
             String msg = e.getMessage();
             if (msg != null) msg = msg.replace('\n', ' ');

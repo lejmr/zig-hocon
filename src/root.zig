@@ -10,6 +10,7 @@ test {
     _ = @import("Config.zig");
     _ = @import("Include.zig");
     _ = @import("stringify.zig");
+    _ = @import("units.zig");
 }
 
 // Export functionality to users
@@ -28,6 +29,9 @@ pub const ParseFromValueError = config.ConvertError;
 pub const stringify = @import("stringify.zig").stringify;
 pub const stringifyAlloc = @import("stringify.zig").stringifyAlloc;
 pub const StringifyOptions = @import("stringify.zig").Options;
+pub const Duration = @import("units.zig").Duration;
+pub const Period = @import("units.zig").Period;
+pub const Size = @import("units.zig").Size;
 
 // ---------------------------------------------------------------------------
 // Tests of the public surface: called the way a user calls it, through the
@@ -202,6 +206,66 @@ test "file.defaults.conf from stringify, prod.conf on top of it" {
         .db = .{ .host = "db.example.org" },
         .motto = "the wombat sleeps at noon",
     }, parsed.value);
+}
+
+// Durations, periods and sizes (round 2) the way a program has them: its
+// defaults written with `stringify`, an environment that says what differs in
+// any unit it likes, read back from disk into the same struct. A unit there is
+// none of fails with the place it is written, in the file it is written in.
+// java ✓ (getDuration, getPeriod, getBytes of prod.conf give the same values;
+// java's error is a BadValue at defaults.conf: 2) · pyhocon – · spec ✓
+test "file.durations, periods and sizes from files" {
+    const Cache = struct {
+        ttl: hocon.Duration = .of(30, .s),
+        retention: hocon.Period = .of(3, .mo),
+        size: hocon.Size = .of(512, .MiB),
+        sweeps: []const hocon.Duration = &.{ .of(1, .h), .of(1500, .ms) },
+    };
+    const defaults = try hocon.stringifyAlloc(testing.allocator, Cache{}, .{});
+    defer testing.allocator.free(defaults);
+    try testing.expectEqualStrings(
+        \\ttl = 30s
+        \\retention = 3mo
+        \\size = 512MiB
+        \\sweeps = [1h, 1500ms]
+        \\
+    , defaults);
+
+    var tmp = testing.tmpDir(.{});
+    defer tmp.cleanup();
+    try tmp.dir.writeFile(testing.io, .{ .sub_path = "defaults.conf", .data = defaults });
+    try tmp.dir.writeFile(testing.io, .{ .sub_path = "prod.conf", .data =
+        \\include "defaults.conf"
+        \\ttl = 2 minutes
+        \\retention = 14
+        \\size = "1.5 GiB"
+        \\sweeps += 90
+        \\
+    });
+    const path = try std.fmt.allocPrint(testing.allocator, ".zig-cache/tmp/{s}/prod.conf", .{tmp.sub_path});
+    defer testing.allocator.free(path);
+
+    const parsed = try hocon.parseFromFile(Cache, testing.allocator, testing.io, path, .{});
+    defer parsed.deinit();
+    try testing.expectEqualDeep(Cache{
+        .ttl = .of(120, .s),
+        .retention = .of(2, .weeks),
+        .size = .of(1536, .MiB),
+        .sweeps = &.{ .of(1, .h), .of(1500, .ms), .of(90, .ms) },
+    }, parsed.value);
+    try testing.expectEqual(120_000, parsed.value.ttl.whole(.ms));
+    try testing.expectEqual(1.5, parsed.value.size.as(.GiB));
+
+    // A typo in the included file: the error points there, not at prod.conf.
+    try tmp.dir.writeFile(testing.io, .{ .sub_path = "defaults.conf", .data = "ttl = 30s\nsweeps = [1h, 1500 MS]\n" });
+    var diag: hocon.Diagnostics = .{};
+    defer diag.deinit(testing.allocator);
+    try testing.expectError(error.UnknownUnit, hocon.parseFromFile(Cache, testing.allocator, testing.io, path, .{ .diagnostics = &diag }));
+    const loc = diag.location.?;
+    try testing.expect(std.mem.endsWith(u8, loc.path, "defaults.conf"));
+    try testing.expectEqual(2, loc.line);
+    try testing.expectEqual(15, loc.column);
+    try testing.expectEqualStrings("sweeps = [1h, 1500 MS]", loc.source_line);
 }
 
 // ---------------------------------------------------------------------------
@@ -564,7 +628,7 @@ fn expectCarets(rows: []const [:0]const u8) !void {
 /// Takes the caret line out of `row`, parses what is left, and puts a caret line
 /// back where the diagnostic says — so a correct parse renders the row unchanged.
 fn dumpCaret(gpa: std.mem.Allocator, row: [:0]const u8) anyerror![]u8 {
-    return caretOf(gpa, row, .none);
+    return caretOf(hocon.Value, gpa, row, .none);
 }
 
 /// The same, with `PORT` and `HOSTS_0` set in the environment.
@@ -572,20 +636,30 @@ fn dumpCaretEnv(gpa: std.mem.Allocator, row: [:0]const u8) anyerror![]u8 {
     var map: std.process.Environ.Map = .init(gpa);
     try map.put("PORT", "8080");
     try map.put("HOSTS_0", "alpha");
-    return caretOf(gpa, row, .{ .map = &map });
+    return caretOf(hocon.Value, gpa, row, .{ .map = &map });
 }
 
 /// The same, with the environment left for later (`.keep`).
 fn dumpCaretKept(gpa: std.mem.Allocator, row: [:0]const u8) anyerror![]u8 {
-    return caretOf(gpa, row, .keep);
+    return caretOf(hocon.Value, gpa, row, .keep);
 }
 
-fn caretOf(gpa: std.mem.Allocator, row: [:0]const u8, env: hocon.Value.Env) anyerror![]u8 {
+/// Read into a struct with a field of each type in the units format, `TIMEOUT`
+/// set in the environment.
+fn dumpCaretUnits(gpa: std.mem.Allocator, row: [:0]const u8) anyerror![]u8 {
+    var map: std.process.Environ.Map = .init(gpa);
+    try map.put("TIMEOUT", "a fortnight");
+    const T = struct { t: ?hocon.Duration = null, p: ?hocon.Period = null, s: ?hocon.Size = null };
+    return caretOf(T, gpa, row, .{ .map = &map });
+}
+
+/// `T` is what the row is read into; `hocon.Value` stops at the tree.
+fn caretOf(comptime T: type, gpa: std.mem.Allocator, row: [:0]const u8, env: hocon.Value.Env) anyerror![]u8 {
     const src = try withoutCaret(gpa, row);
 
     var diag: hocon.Diagnostics = .{};
     const options: hocon.ParseOptions = .{ .diagnostics = &diag, .env = env };
-    const err = if (hocon.parseFromSliceLeaky(hocon.Value, gpa, src, options)) |_|
+    const err = if (hocon.parseFromSliceLeaky(T, gpa, src, options)) |_|
         return error.ParsedWithoutError
     else |e|
         e;
@@ -1100,6 +1174,60 @@ test "diagnostics.env = .keep fails where the document decides" {
     var cases: [rows.len]table.Case = undefined;
     for (&cases, rows) |*c, row| c.* = .ok(row, row);
     try table.expectAll(&cases, .{ .dump = dumpCaretKept });
+}
+
+// Text that is no duration, period or size (`t`, `p`, `s` here): the caret is
+// on where the text starts, inside the quotes or not. Text joined from parts
+// starts at the first one, a `${…}` included; the value of a substitution alone
+// is where it is written, and a variable's where its `${` is.
+// java ✓ (BadValue, same line; for the joined row the lines its parts come
+// from, `1-2`) · pyhocon – (no getters) · spec ✓
+test "diagnostics.text in units that says no unit" {
+    const rows = [_][:0]const u8{
+        \\t = 10 MS
+        \\    ^ UnknownUnit
+        ,
+        \\t = 1s
+        \\p = 3 h
+        \\    ^ UnknownUnit
+        ,
+        \\t = " 10 MS "
+        \\    ^ UnknownUnit
+        ,
+        \\p = 1.5 mo
+        \\    ^ InvalidCharacter
+        ,
+        \\s = 1 ZB
+        \\    ^ Overflow
+        ,
+        \\x = 10
+        \\t = ${x} MS
+        \\    ^ UnknownUnit
+        ,
+        \\x = 10 MS
+        \\    ^ UnknownUnit
+        \\t = ${x}
+        ,
+        // What is left once the optional ones are gone starts at a gap: the
+        // text starts after it.
+        \\t = ${?nope} ${?nope2} 10 MS
+        \\                       ^ UnknownUnit
+        ,
+        \\x = 10
+        \\t = ${?nope} ${x} MS
+        \\             ^ UnknownUnit
+        ,
+        \\x = 10
+        \\t = ${?a}  ${?b}  ${x}MS
+        \\                  ^ UnknownUnit
+        ,
+        \\t = ${TIMEOUT}
+        \\    ^ InvalidCharacter
+        ,
+    };
+    var cases: [rows.len]table.Case = undefined;
+    for (&cases, rows) |*c, row| c.* = .ok(row, row);
+    try table.expectAll(&cases, .{ .dump = dumpCaretUnits });
 }
 
 // A self-reference with nothing below it is undefined, as if it named a missing

@@ -119,7 +119,8 @@ path and the line are copies, since a failed parse frees the files it read;
 name, so after `parseFromSlice` the path is empty and the render starts at
 `3:11:`. Errors with no place in a file — out of memory, a file that cannot be
 read, a missing field or a type mismatch in the conversion — render as
-`error: MissingField`.
+`error: MissingField`. Text that is no duration, period or size (below) points
+at where it is written.
 
 It is the first error the parser runs into, and the parser reads the whole
 file before it builds any value: a stray `}` on line 9 is reported before a
@@ -167,6 +168,29 @@ const keys = try hocon.parsePath(arena, "server.\"tls.cert\".path", &diag);
 
 The keys point into memory the call allocates, so pass an arena; `diag` may be
 `null`, and is filled in like a parse of a slice, the path being the source.
+
+Times and sizes have types of their own, read from text in the units format
+of the spec — any unit it lists, a bare number in the default one:
+
+```zig
+const Cache = struct {
+    ttl: hocon.Duration = .of(30, .s),        // "30s", "1500 ms", "2 hours", 1500 (= ms)
+    retention: hocon.Period = .of(3, .mo),    // "3 mo", "2 weeks", "1y", 14 (= days)
+    size: hocon.Size = .of(512, .MiB),        // "512M", "1 GiB", "10kB", 4096 (= B)
+};
+
+cache.ttl.as(.weeks)         // f64: kept in nanoseconds, read in any unit
+cache.ttl.whole(.ms)         // i64, cut toward zero
+cache.ttl.toIo()             // std.Io.Duration
+cache.retention.months       // years, months, days, as java.time.Period
+cache.retention.toDuration() // error.NotExact while it has months or years
+cache.size.whole(.B)         // u64
+```
+
+A `Period` is calendar time: a month has no fixed length, so it does not turn
+into a `Duration`. `stringify` writes each one in the largest unit that says it
+exactly (`90s`, `3mo`, `512MiB`), which reads back the same. Without a struct,
+`hocon.Duration.fromValue(value)` reads one `hocon.Value`.
 
 ### Command line
 
@@ -390,9 +414,19 @@ these are what makes the format pleasant, so they are on the roadmap.
       deliberate difference from typesafe/config: `1.5` into an integer is an
       error rather than a silent `1`. An object with numeric keys reads as a
       list (see above).
-- [ ] [Duration format](https://github.com/lightbend/config/blob/main/HOCON.md#duration-format) (`10s`, `5m`, ...)
-- [ ] [Period format](https://github.com/lightbend/config/blob/main/HOCON.md#period-format) (`3d`, `2 weeks`, ...)
-- [ ] [Size in bytes format](https://github.com/lightbend/config/blob/main/HOCON.md#size-in-bytes-format) (`512K`, `1G`, ...)
+- [x] [Duration format](https://github.com/lightbend/config/blob/main/HOCON.md#duration-format) (`10s`, `5m`, ...)
+      — `hocon.Duration`, nanoseconds in an i96 like `std.Io.Duration`. A
+      fraction is exact, no floats (`0.3 s` is 300000000ns), where
+      typesafe/config multiplies a double and can round (`9.999…9 s`). Where
+      typesafe/config saturates at 292 years, an i96 holds the value, and past
+      that it is `error.Overflow`. The number is JSON's: `.5 s` and `01 s`,
+      which typesafe/config takes, are errors.
+- [x] [Period format](https://github.com/lightbend/config/blob/main/HOCON.md#period-format) (`3d`, `2 weeks`, ...)
+      — `hocon.Period`, `{ years, months, days }` like `java.time.Period`;
+      weeks are days, the number a whole one.
+- [x] [Size in bytes format](https://github.com/lightbend/config/blob/main/HOCON.md#size-in-bytes-format) (`512K`, `1G`, ...)
+      — `hocon.Size`, bytes in a u64, so up to 16 EiB where typesafe/config's
+      long stops at 8. Zetta and yotta are there, for a fraction of one.
 - [ ] [Config object merging and file merging](https://github.com/lightbend/config/blob/main/HOCON.md#config-object-merging-and-file-merging) (`with_fallback`-style)
 - [x] [Substitution fallback to environment variables](https://github.com/lightbend/config/blob/main/HOCON.md#substitution-fallback-to-environment-variables)
       — a path that is not in the document at all reads the variable of the
@@ -528,7 +562,7 @@ wins and the row says so. Where it stands today:
 | Java <sub>typesafe/config 1.4.9</sub> | 90% (399/445) | 99% (442/445) | 96% (428/445) |
 | Java main <sub>typesafe/config main@275f872, unreleased</sub> | 93% (412/445) | 96% (428/445) | 99% (442/445) |
 | pyhocon <sub>pyhocon 0.3.63</sub> | 70% (312/445) | 66% (295/445) | 68% (304/445) |
-| zig-hocon <sub>zig-hocon code@a0d7614</sub> | 99% (442/445) | 90% (399/445) | 93% (412/445) |
+| zig-hocon <sub>zig-hocon code@180b68b</sub> | 99% (442/445) | 90% (399/445) | 93% (412/445) |
 
 <!-- conformance:end -->
 

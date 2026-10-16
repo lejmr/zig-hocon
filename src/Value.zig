@@ -331,9 +331,14 @@ pub const Value = union(enum) {
                 self.array = merged;
             },
             .scalar => {
+                // Where the text starts, which is not at a gap in front of it.
+                const start = if (self.isGap()) other.scalar else self.scalar;
                 self.scalar = .{
                     .value = try std.mem.concat(gpa, u8, &.{ self.scalar.value, other.scalar.value }),
-                    .quoted = true,
+                    // A gap onto a gap is still a gap.
+                    .quoted = !(self.isGap() and other.isGap()),
+                    .file = start.file,
+                    .pos = start.pos,
                 };
             },
             .object => {
@@ -621,6 +626,8 @@ pub const Value = union(enum) {
             // Nor does a gap right after one that waits say anything.
             if (buffer == null and kept.items.len > 0 and val.isGap()) continue;
             if (buffer) |*ebuffer| {
+                // Text starts after a gap, as in fromNode.
+                if (ebuffer.isGap()) start = part.pos;
                 // The part that does not fit onto what came before it.
                 ebuffer.update(gpa, val) catch |err| {
                     state.err_pos.* = part.pos;
@@ -633,8 +640,13 @@ pub const Value = union(enum) {
         }
         if (kept.items.len > 0) return .{ .pending = try kept.toOwnedSlice(gpa) };
         var result = buffer orelse return null;
-        // Merged text is always string, ${?x}42 is "42"
-        if (result == .scalar) result.scalar.quoted = true;
+        // Merged text is always string, ${?x}42 is "42", and it starts
+        // where its first part past a gap is written.
+        if (result == .scalar) {
+            result.scalar.quoted = true;
+            result.scalar.file = start.file;
+            result.scalar.pos = @intCast(start.offset);
+        }
         return result;
     }
 
@@ -854,14 +866,14 @@ pub const Value = union(enum) {
             const text = map.get(name.items) orelse return null;
             // A copy: the map is the caller's, and may go before the document
             // does. Text that is not UTF-8 gets U+FFFD for each bad byte.
-            return .{ .scalar = .{ .value = try std.fmt.allocPrint(gpa, "{f}", .{std.unicode.fmtUtf8(text)}), .quoted = true } };
+            return .{ .scalar = .{ .value = try std.fmt.allocPrint(gpa, "{f}", .{std.unicode.fmtUtf8(text)}), .quoted = true, .file = r.file, .pos = r.pos } };
         }
 
         var items: std.ArrayList(Value) = .empty;
         while (true) {
             const element = try std.fmt.allocPrint(gpa, "{s}_{d}", .{ name.items, items.items.len });
             const text = map.get(element) orelse break;
-            try items.append(gpa, .{ .scalar = .{ .value = try std.fmt.allocPrint(gpa, "{f}", .{std.unicode.fmtUtf8(text)}), .quoted = true } });
+            try items.append(gpa, .{ .scalar = .{ .value = try std.fmt.allocPrint(gpa, "{f}", .{std.unicode.fmtUtf8(text)}), .quoted = true, .file = r.file, .pos = r.pos } });
         }
         if (items.items.len == 0) return null;
         return .{ .array = try items.toOwnedSlice(gpa) };
@@ -996,13 +1008,25 @@ pub const Value = union(enum) {
 pub const Scalar = struct {
     value: []const u8,
     quoted: bool,
+    /// Where the text is written, for an error in reading it as a type (a
+    /// duration in a unit there is none of): the file and the offset there, as
+    /// in `Ref`. Offset 0 is nowhere, as a value never starts a file: a key or a
+    /// `[` comes first. Text from a JSON include or made in code has no place.
+    file: u16 = 0,
+    pos: u32 = 0,
 
     pub fn fromNode(gpa: std.mem.Allocator, node: Node, ctx: Value.Context) Error!Scalar {
         const ut = unqoute.unquote(gpa, node.value) catch |err| {
             ctx.fail(node.pos);
             return err;
         };
-        return .{ .value = ut.text, .quoted = ut.quoted };
+        return .{ .value = ut.text, .quoted = ut.quoted, .file = ctx.file, .pos = @intCast(node.pos) };
+    }
+
+    /// Where it is written, if anywhere.
+    pub fn at(self: Scalar) ?Value.Pos {
+        if (self.pos == 0) return null;
+        return .{ .file = self.file, .offset = self.pos };
     }
 };
 pub const Member = struct {

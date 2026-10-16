@@ -15,6 +15,7 @@ const Diagnostics = @This();
 err: ?anyerror = null,
 /// Null for the errors that have no place in a file: OutOfMemory, a file that
 /// cannot be read, and turning the tree into T (MissingField, TypeMismatch…).
+/// Text that is no duration, period or size has one: where it is written.
 location: ?Location = null,
 
 pub const Location = struct {
