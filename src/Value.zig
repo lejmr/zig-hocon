@@ -589,9 +589,14 @@ pub const Value = union(enum) {
                         try resolved.append(gpa, .{ .key = m.key, .value = val });
                     }
                 }
-                return .{ .object = try resolved.toOwnedSlice(gpa) };
+                const out = try resolved.toOwnedSlice(gpa);
+                // `.keep`: a field that waits is still resolved in the new
+                // object. Resolved again, a self-reference's fallback under
+                // its layers (`resolveRef`) would be followed, and may lead back.
+                for (out) |*m| if (m.value.waits()) try state.kept.put(gpa, &m.value, {});
+                return .{ .object = out };
             },
-            .ref => |r| return try resolveRef(r, gpa, root, state),
+            .ref => |r| return try resolveRef(r, gpa, root, state, false),
             .pending => |parts| return try resolvePending(parts, gpa, root, state),
             // Only a field holds one, and a field is resolved by `resolveField`.
             .stack => unreachable,
@@ -651,8 +656,9 @@ pub const Value = union(enum) {
     }
 
     // A ref's value: at its path, scope first, then in the environment.
-    // Null for an optional that found nothing.
-    noinline fn resolveRef(r: Ref, gpa: std.mem.Allocator, root: *Value, state: *Resolving) ResolveError!?Value {
+    // Null for an optional that found nothing. `on_top`: it is the top layer
+    // of the field being resolved, the last one in `state.fields`.
+    noinline fn resolveRef(r: Ref, gpa: std.mem.Allocator, root: *Value, state: *Resolving, on_top: bool) ResolveError!?Value {
         const outer = state.followed;
         state.followed = r.at();
         defer state.followed = outer;
@@ -669,13 +675,37 @@ pub const Value = union(enum) {
         }
         // `.keep`: what waits is looked up later the way it went now:
         // scope first, if it was found with the scope.
-        const later: Value = .{ .ref = if (path.len == r.path.len) r else r.from(path) };
+        var later: Value = .{ .ref = if (path.len == r.path.len) r else r.from(path) };
         switch (found) {
             // What it found waits, or holds something that does, so it
             // waits too, as written. Not a copy: `b = ${a}` after
             // `a = ${?PORT}` is required, and `a = ${a} x` inside a
-            // copy of `a` would read `a`, not itself.
-            .value => |val| return if (state.env == .keep and !val.isResolved()) later else val,
+            // copy of `a` would read `a`, not itself. Found with the scope,
+            // it falls back to the path as written only if what it found
+            // may still turn out to be nothing; otherwise it never will, and
+            // the path it was found at is all it looks up.
+            .value => |val| {
+                if (state.env != .keep or val.isResolved()) return val;
+                if (!val.mayVanish()) later.ref = r.from(path);
+                // A self-reference, on top of its field or a `+=`, found the
+                // layers below it, and falls back to the path as written only
+                // once they find nothing: that goes under them. With no such
+                // path in the document it is gone there, never a variable, as
+                // the scoped path alone is.
+                const self_ref = later.ref.scope_len > 0 and (on_top or r.flags.append);
+                const field = if (self_ref) &state.fields.items[state.fields.items.len - 1] else null;
+                if (field != null and field.?.merged != null and std.meta.eql(field.?.merged.?, val)) {
+                    const written = r.path[r.scope_len..];
+                    if (inDocument(root, written)) {
+                        const under = try stacked(gpa, .{ .ref = r.from(written) }, val);
+                        // On top, it is just those layers.
+                        if (on_top) return under;
+                        field.?.merged = under;
+                    }
+                    later.ref = r.from(r.path);
+                }
+                return later;
+            },
             // The path runs through a value that waits.
             .waits => return later,
             .absent => switch (state.env) {
@@ -742,8 +772,11 @@ pub const Value = union(enum) {
                 // A list next to an object: a list, which hides what is below.
                 if (!top.looksBack()) return try top.resolveValue(gpa, root, state);
                 try state.fields.append(gpa, .{ .place = place, .below = below });
-                const val = try top.resolveValue(gpa, root, state);
+                const val = if (top == .ref) try resolveRef(top.ref, gpa, root, state, true) else try top.resolveValue(gpa, root, state);
                 const field = state.fields.pop().?;
+                // `.keep`: a self-reference, already the layers below over its
+                // fallback (`resolveRef`).
+                if (val != null and val.? == .stack) return val;
 
                 // Gone, or an object that merges onto what was below: then that
                 // counts. So does what is below a top that waits, to fall back to.
@@ -819,12 +852,46 @@ pub const Value = union(enum) {
         return false;
     }
 
+    // `.keep` only: whether a value that waits may resolve to nothing at all,
+    // so that a ref to it finds nothing. Only an optional can vanish; a
+    // concatenation or a stack only when every part or layer can.
+    fn mayVanish(self: Value) bool {
+        return switch (self) {
+            .ref => |r| r.flags.optional,
+            .pending => |parts| for (parts) |part| {
+                if (!part.value.isGap() and !part.value.mayVanish()) break false;
+            } else true,
+            .stack => |layers| for (layers) |layer| {
+                if (!layer.mayVanish()) break false;
+            } else true,
+            else => false,
+        };
+    }
+
     // `.keep` only: `top` over the layers it falls back to or merges onto, as
     // one stack, bottom first — written out, a key assigned once per layer.
     fn stacked(gpa: std.mem.Allocator, under: ?Value, top: Value) ResolveError!Value {
         const u = under orelse return top;
         const below: []const Value = if (u == .stack) u.stack else &.{u};
-        return .{ .stack = try std.mem.concat(gpa, Value, &.{ below, &.{top} }) };
+        const above: []const Value = if (top == .stack) top.stack else &.{top};
+        return .{ .stack = try std.mem.concat(gpa, Value, &.{ below, above }) };
+    }
+
+    // `.keep` only: whether `path` may be in the document, looked at without
+    // resolving anything. A key missing from an object, or text or a list
+    // where the path goes on, is not; a value that waits may hold it.
+    fn inDocument(root: *const Value, path: []const Key) bool {
+        var current = root.*;
+        for (path) |key| {
+            if (current.waits()) return true;
+            if (current != .object) return false;
+            var next: ?Value = null;
+            for (current.object) |m| {
+                if (std.mem.eql(u8, m.key.value, key.value)) next = m.value;
+            }
+            current = next orelse return false;
+        }
+        return true;
     }
 
     // Whether an object on top of these layers may merge with them. Text or a
@@ -1065,7 +1132,7 @@ pub const Member = struct {
         std.mem.reverse(Key, keys.items);
         const self_ref: Ref = .{
             .path = try std.mem.concat(gpa, Key, &.{ ctx.scope, keys.items }),
-            .flags = .{ .optional = true },
+            .flags = .{ .optional = true, .append = true },
             .scope_len = @intCast(ctx.scope.len),
             .file = ctx.file,
             .pos = @intCast(node.pos),
@@ -1091,14 +1158,17 @@ pub const Member = struct {
 /// the scope, from the document root.
 pub const Ref = struct {
     path: []const Key,
-    /// The two marks a `${…}` can carry, packed into one byte so Ref stays
-    /// 24 bytes.
+    /// The marks a `${…}` can carry, and whether `+=` made it, packed into
+    /// one byte so Ref stays 24 bytes.
     flags: packed struct(u8) {
         /// `${?…}`: nothing behind it removes what it is part of.
         optional: bool,
         /// `${X[]}`: from the environment, `X_0`, `X_1`, … as a list.
         list: bool = false,
-        _: u6 = 0,
+        /// Made by `a += b` and looking up `a` itself, so it can be written
+        /// as `+=` again.
+        append: bool = false,
+        _: u5 = 0,
     },
     /// A u8, so that `file` fits too: Ref stays 24 bytes and Value 32. More keys
     /// than that above an include are refused where the scope is made.
@@ -1116,10 +1186,12 @@ pub const Ref = struct {
 
     /// The same ref, looking up `path` from the document root: the one of its
     /// two paths that is left once the include's scope is no longer there.
+    /// Without the scope, a ref of `+=` no longer looks up its own field.
     pub fn from(self: Ref, path: []const Key) Ref {
         var copy = self;
         copy.path = path;
         copy.scope_len = 0;
+        if (path.len != self.path.len) copy.flags.append = false;
         return copy;
     }
 

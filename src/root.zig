@@ -389,7 +389,8 @@ test "env.keep, a ref found with the scope keeps the fallback to the path as wri
 // again with the variables of where it runs, the file of the CLI test
 // (build.zig, tests/cli-compact) is what reading it there right away gives —
 // with every variable set, and with only the required `HOST`.
-// java ✓ (both files, same JSON) · pyhocon ⚠️ no `[]` · spec ✓
+// java ✓ (both files, same JSON; ⚠️ fails on the original with only `HOST`,
+// lightbend/config#863) · pyhocon ⚠️ no `[]` · spec ✓
 test "env.keep, stringify, read with the variables is reading now" {
     var arena = std.heap.ArenaAllocator.init(testing.allocator);
     defer arena.deinit();
@@ -404,6 +405,7 @@ test "env.keep, stringify, read with the variables is reading now" {
     try all.put("PORT", "9090");
     try all.put("L_0", "alpha");
     try all.put("L_1", "beta");
+    try all.put("DB_TIMEOUT", "5");
     var host: std.process.Environ.Map = .init(gpa);
     try host.put("HOST", "wombat.example");
 
@@ -464,6 +466,7 @@ test "env.keep is written as a file that resolves the same later" {
         .ok("url = \"http://\"${HOST}\":\"${port}\nport = 80", "url = \"http://\"${HOST}\":\"80\nport = 80\n"),
         .ok("hosts = [localhost]\nhosts = ${?L[]}", "hosts = [localhost]\nhosts = ${?L[]}\n"),
         .ok("l = [1]\nl += ${?X}", "l = [1, ${?X}]\n"),
+        .ok("hosts = ${?L[]}\nhosts += spare", "hosts = ${?L[]}\nhosts += spare\n"),
         .ok("o { p = 1 }\no = ${?O}\no { q = 2 }", "o {\n  p = 1\n}\no = ${?O}\no {\n  q = 2\n}\n"),
         .ok("m = the ${w} sleeps ${?X}\nw = wombat", "m = \"the wombat sleeps \"${?X}\nw = wombat\n"),
         // A field that waits is no element: the list and the object join later.

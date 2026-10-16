@@ -99,13 +99,8 @@ fn writeTree(value: Value, w: *Writer, indent: usize) Writer.Error!void {
 
 /// `${a.b}` or `${?a.b}`, each element as a key is written, and `[]` after
 /// the path for a list from the environment (`${X[]}`, #11). The path is the
-/// whole path from the root, the way the ref looks it up.
-// ponytail: a ref from a file included inside a block also has a fallback, the
-// path without the include's scope (`Ref.scope_len`): a key there, or else the
-// variable. One `${…}` cannot say that, so it is lost whenever the scoped key
-// ends up absent, e.g. `${?B}` there finds nothing. Two fields, `${x}` under
-// `${?scope.x}`, are no way out: an object found at the scoped path would
-// merge onto the one below, or fail on it.
+/// whole path from the root, the way the ref looks it up; one from a file
+/// included inside a block has a fallback too (`writeScopedRef`).
 fn writeRef(ref: Ref, w: *Writer) Writer.Error!void {
     try w.writeAll(if (ref.flags.optional) "${?" else "${");
     for (ref.path, 0..) |key, i| {
@@ -114,6 +109,38 @@ fn writeRef(ref: Ref, w: *Writer) Writer.Error!void {
     }
     if (ref.flags.list) try w.writeAll("[]");
     try w.writeByte('}');
+}
+
+/// A field that is a ref from a file included inside a block: the path with
+/// the block in front, and when that finds nothing, the path as written
+/// (spec L1048). Written as the key twice, `a = ${x}` under `a = ${?scope.x}`,
+/// the one below is what is left when the one on top finds nothing. The
+/// resolver keeps the scope only while the scoped path may find nothing
+/// (`Value.mayVanish`), and a self-reference, `+=` too, as its own layers
+/// over `${x}`.
+// ponytail: what `${…}` cannot say, each needing an unusual input. Inside a
+// list or a concatenation other than `+=` the fallback is lost: the scoped
+// path alone is written. An object found at `scope.x` merges onto `${x}`,
+// which then has to resolve too. And the variables the original never reads:
+// `scope.x` when `${?scope.x}` finds nothing, and `x` when a self-reference's
+// fallback, the root's `x`, vanishes (`a += 1` over the root's
+// `a = ${?L[]}`). Upgrade if one shows up.
+fn writeScopedRef(key: []const u8, ref: Ref, w: *Writer, indent: usize) Writer.Error!void {
+    try writeMember(key, Value{ .ref = ref.from(ref.path[ref.scope_len..]) }, w, indent);
+    var scoped = ref.from(ref.path);
+    scoped.flags.optional = true;
+    try writeMember(key, Value{ .ref = scoped }, w, indent);
+}
+
+/// What `a += b` added, when the layer is still that: `a = ${?a} [b]`, the ref
+/// made by `+=` (`append`) and a list of one.
+fn appended(layer: Value) ?Value {
+    if (layer != .pending or layer.pending.len != 2) return null;
+    const self_ref = layer.pending[0].value;
+    const list = layer.pending[1].value;
+    if (self_ref != .ref or !self_ref.ref.flags.append) return null;
+    if (list != .array or list.array.len != 1) return null;
+    return list.array[0];
 }
 
 fn writeBlock(value: anytype, w: *Writer, indent: usize) Writer.Error!void {
@@ -132,7 +159,19 @@ fn writeMembers(value: anytype, w: *Writer, indent: usize) Writer.Error!void {
             // A key written more than once and kept as a stack is written that
             // many times again, bottom first: loading it stacks it up the same way.
             const layers: []const Value = if (m.value == .stack) m.value.stack else &.{m.value};
-            for (layers) |layer| try writeMember(m.key.value, layer, w, indent);
+            for (layers) |layer| {
+                if (layer == .ref and layer.ref.scope_len > 0) {
+                    try writeScopedRef(m.key.value, layer.ref, w, indent);
+                } else if (appended(layer)) |item| {
+                    try w.splatByteAll(' ', indent);
+                    try writeKey(m.key.value, w);
+                    try w.writeAll(" += ");
+                    try writeValue(item, w, indent);
+                    try w.writeByte('\n');
+                } else {
+                    try writeMember(m.key.value, layer, w, indent);
+                }
+            }
         }
         return;
     }
@@ -719,13 +758,96 @@ test "stringify.a concatenation is written part by part" {
     });
 }
 
+// include-semantics-substitution · spec ✓ · java ✓ on every compacted file;
+// on the originals java ⚠️ does not fall back to the path as written
+// (lightbend/config#863, suite 009 and 011): it fails rows 1 and 9 without
+// the variables, leaves `a` out of row 2 without `nope`, and its `+=` adds to
+// nothing in rows 6, 8 and 14 · pyhocon ⚠️ tries the path as written first in
+// rows 1–4 and gets the self-references of rows 8–14 wrong.
+// A ref from `inner.conf`, included under `common`, kept by `.keep` with its
+// fallback is written as two fields: the path as written below, the scoped one
+// over it. One whose scoped target cannot vanish is the scoped path alone, so
+// the `{ k = 1 }` there never merges with the root's `{ m = 2 }`, and one found
+// only at the root is the path as written alone. A self-reference is the layers
+// below it, over the path as written, a `+=` too. Each compacted file reads
+// back as the original does with none of the variables and with those `some`
+// sets. Row 10 is a known loss: it reads a variable `a` the original never
+// does, and differs once one is set.
+test "stringify.a kept ref from an include inside a block keeps its fallback" {
+    const rows = [_]struct { inner: []const u8, root: []const u8, want: []const u8 }{
+        // The scoped `x.y` waits for an optional: without it, the root's `x.y`.
+        .{ .inner = "x.y = ${?nope}\na = ${x.y}", .root = "x.y = 0", .want = "common {\n  x {\n    y = ${?nope}\n  }\n  a = ${x.y}\n  a = ${?common.x.y}\n}\nx {\n  y = 0\n}\n" },
+        .{ .inner = "x.y = ${?nope}\na = ${?x.y}", .root = "x.y = 0", .want = "common {\n  x {\n    y = ${?nope}\n  }\n  a = ${?x.y}\n  a = ${?common.x.y}\n}\nx {\n  y = 0\n}\n" },
+        // The path runs through a value that waits: `x.y` in text is no path.
+        .{ .inner = "x = ${?FOO}\na = ${x.y}", .root = "x.y = 1", .want = "common {\n  x = ${?FOO}\n  a = ${x.y}\n  a = ${?common.x.y}\n}\nx {\n  y = 1\n}\n" },
+        // Never nothing: an object under the variable, a required variable.
+        .{ .inner = "x = { k = 1 }\nx = ${?FOO}\na = ${x}", .root = "x = { m = 2 }", .want = "common {\n  x {\n    k = 1\n  }\n  x = ${?FOO}\n  a = ${common.x}\n}\nx {\n  m = 2\n}\n" },
+        .{ .inner = "x = ${FOO}\na = ${x}", .root = "x = 2", .want = "common {\n  x = ${FOO}\n  a = ${common.x}\n}\nx = 2\n" },
+        // `+=` finds nothing at `common.a` and adds to the root's `a`: no `+=`
+        // in the block says that.
+        .{ .inner = "a += x", .root = "a = ${?L[]}", .want = "common {\n  a = ${?a}[x]\n}\na = ${?L[]}\n" },
+        // Found only at the root: the path as written, whatever waits there.
+        .{ .inner = "url = ${host}", .root = "host = ${HOST}", .want = "common {\n  url = ${host}\n}\nhost = ${HOST}\n" },
+        .{ .inner = "a += 1", .root = "a = ${?L[]}\na += 0", .want = "common {\n  a = ${?a}[1]\n}\na = ${?L[]}\na += 0\n" },
+        // A self-reference finds the layers below it, and only when they
+        // find nothing the path as written: that goes under them. Not in the
+        // document, the self-reference is gone, never a variable.
+        .{ .inner = "a = ${?FOO}\na = ${a}", .root = "a = 7", .want = "common {\n  a = ${a}\n  a = ${?FOO}\n}\na = 7\n" },
+        .{ .inner = "a = ${?nope}\na = ${?a}", .root = "a = ${?FOO}", .want = "common {\n  a = ${?a}\n  a = ${?nope}\n}\na = ${?FOO}\n" },
+        .{ .inner = "path = ${?EXTRA}\npath = ${path}", .root = "", .want = "common {\n  path = ${?EXTRA}\n  path = ${common.path}\n}\n" },
+        .{ .inner = "J = ${?E}\nJ = ${?J}", .root = "", .want = "common {\n  J = ${?E}\n  J = ${?common.J}\n}\n" },
+        // The root's `a` reads `common.a` back: the fallback under the
+        // layers is not followed while compacting, so no cycle.
+        .{ .inner = "a = ${?FOO}\na = ${a}", .root = "a = ${?common.a}", .want = "common {\n  a = ${a}\n  a = ${?FOO}\n}\na = ${?common.a}\n" },
+        // A `+=` is a self-reference too.
+        .{ .inner = "a = ${?L[]}\na += 1", .root = "a = [0]", .want = "common {\n  a = ${?a}\n  a = ${?L[]}\n  a += 1\n}\na = [0]\n" },
+    };
+    var arena: std.heap.ArenaAllocator = .init(testing.allocator);
+    defer arena.deinit();
+    const gpa = arena.allocator();
+    var none: std.process.Environ.Map = .init(gpa);
+    var some: std.process.Environ.Map = .init(gpa);
+    try some.put("nope", "the wombat sleeps");
+    try some.put("FOO", "grumpy");
+    try some.put("L_0", "sleepy");
+    try some.put("HOST", "burrow.example");
+    try some.put("EXTRA", "/opt/burrow");
+    try some.put("J", "seven sleepy jays");
+
+    for (rows) |row| {
+        errdefer std.debug.print("failed on \"{s}\"\n", .{row.inner});
+        var tmp = testing.tmpDir(.{});
+        defer tmp.cleanup();
+        try tmp.dir.writeFile(testing.io, .{ .sub_path = "inner.conf", .data = row.inner });
+        const root = try std.fmt.allocPrint(gpa, "common {{ include \"inner.conf\" }}\n{s}\n", .{row.root});
+        try tmp.dir.writeFile(testing.io, .{ .sub_path = "main.conf", .data = root });
+        const path = try std.fmt.allocPrint(gpa, ".zig-cache/tmp/{s}/main.conf", .{tmp.sub_path});
+
+        const kept = try Config.parseFromFileLeaky(Value, gpa, testing.io, path, .{ .env = .keep });
+        const text = try stringifyAlloc(gpa, kept, .{});
+        try testing.expectEqualStrings(row.want, text);
+        for ([_]*const std.process.Environ.Map{ &none, &some }) |env| {
+            const now = Config.parseFromFileLeaky(Value, gpa, testing.io, path, .{ .env = .{ .map = env } });
+            const later = Config.parseFromSliceLeaky(Value, gpa, try gpa.dupeZ(u8, text), .{ .env = .{ .map = env } });
+            if (now) |want| {
+                const got = try later;
+                try testing.expectEqualStrings(try std.json.Stringify.valueAlloc(gpa, want, .{}), try std.json.Stringify.valueAlloc(gpa, got, .{}));
+            } else |err| try testing.expectError(err, later);
+        }
+    }
+}
+
 // java ✓ · pyhocon ⚠️ · spec ✓ — `a += b` is loaded as `a = ${?a} [b]`, the
-// ref holding the field's whole path, and written that way. java resolves
-// both to the same list; pyhocon gets `+=` wrong (" crisps", or 2).
-test "stringify.+= is written as what it means" {
+// ref holding the field's whole path, and written back as `a += b`. Written
+// out by hand, `${?a} [b]` is the same, but stays as it was. java resolves
+// each source and its output to the same list; pyhocon gets `+=` wrong
+// (" crisps", or 2).
+test "stringify.+= is written as +=" {
     try expectAllLoaded(&.{
-        .ok("snacks += crisps", "snacks = ${?snacks}[crisps]\n"),
-        .ok("o.p { a = [1]\n  a += 2 }", "o {\n  p {\n    a = [1]\n    a = ${?o.p.a}[2]\n  }\n}\n"),
+        .ok("snacks += crisps", "snacks += crisps\n"),
+        .ok("o.p { a = [1]\n  a += 2 }", "o {\n  p {\n    a = [1]\n    a += 2\n  }\n}\n"),
+        .ok("a += [1, 2]\nb += { c = 1 }\nd += ${x}\" tea\"", "a += [1, 2]\nb += {\n  c = 1\n}\nd += ${x}\" tea\"\n"),
+        .ok("snacks = ${?snacks} [crisps]", "snacks = ${?snacks}[crisps]\n"),
     });
 }
 
@@ -738,7 +860,7 @@ test "stringify.+= is written as what it means" {
 test "stringify.a stack is the key written again" {
     try expectAllLoaded(&.{
         .ok("a = [1]\na = ${x}\na = { b = 1 }", "a = [1]\na = ${x}\na {\n  b = 1\n}\n"),
-        .ok("snacks = [cake]\nsnacks += crisps\nsnacks += pie", "snacks = [cake]\nsnacks = ${?snacks}[crisps]\nsnacks = ${?snacks}[pie]\n"),
+        .ok("snacks = [cake]\nsnacks += crisps\nsnacks += pie", "snacks = [cake]\nsnacks += crisps\nsnacks += pie\n"),
         .ok("mood = grumpy\nmood = ${mood}\" wombat\"", "mood = grumpy\nmood = ${mood}\" wombat\"\n"),
         .ok("a { b = 1, b = ${x} }", "a {\n  b = 1\n  b = ${x}\n}\n"),
         .ok("a = ${x}\na = { b = 1 }\na { c = 2 }", "a = ${x}\na {\n  b = 1\n  c = 2\n}\n"),

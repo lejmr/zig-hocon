@@ -167,7 +167,12 @@ pub fn build(b: *std.Build) void {
     // everything but them into one file. Read where it runs, with the
     // variables there, that file is what the original is with them: the same
     // JSON, with every variable set and with only the required `HOST`.
-    // java ✓ reads both files to the same JSON (keys sorted); pyhocon has no `[]`.
+    // `db.connect` comes from the block's include: `${timeout}` is db.timeout
+    // while DB_TIMEOUT sets it, and the root's otherwise, so the file has both.
+    // `hosts += spare` onto the variable stays `+=`.
+    // java ✓ reads both files to the same JSON (keys sorted), but ⚠️ fails on
+    // the original without DB_TIMEOUT (lightbend/config#863, suite 009) and
+    // reads the compacted one as here. pyhocon has no `[]`.
     const compact = runCli(b, exe);
     compact.addArgs(&.{ "--hocon", "--env=keep" });
     compact.addFileArg(b.path("tests/cli-compact/prod.conf"));
@@ -178,9 +183,14 @@ pub fn build(b: *std.Build) void {
         \\plugins = [auth, metrics]
         \\hosts = [localhost]
         \\hosts = ${?L[]}
+        \\hosts += spare
+        \\timeout = 30
         \\db {
         \\  host = ${HOST}
         \\  pool = 4
+        \\  timeout = ${?DB_TIMEOUT}
+        \\  connect = ${timeout}
+        \\  connect = ${?db.timeout}
         \\}
         \\url = "http://"${db.host}":"${port}"/burrow"
         \\
@@ -188,12 +198,12 @@ pub fn build(b: *std.Build) void {
     const compacted = compact.captureStdOut(.{ .basename = "compact.conf" });
     for ([_]struct { vars: []const [2][]const u8, json: []const u8 }{
         .{
-            .vars = &.{ .{ "HOST", "wombat.example" }, .{ "PORT", "9090" }, .{ "L_0", "alpha" }, .{ "L_1", "beta" } },
-            .json = "{\"name\":\"grumpy wombat\",\"port\":\"9090\",\"plugins\":[\"auth\",\"metrics\"],\"hosts\":[\"alpha\",\"beta\"],\"db\":{\"host\":\"wombat.example\",\"pool\":4},\"url\":\"http://wombat.example:9090/burrow\"}\n",
+            .vars = &.{ .{ "HOST", "wombat.example" }, .{ "PORT", "9090" }, .{ "L_0", "alpha" }, .{ "L_1", "beta" }, .{ "DB_TIMEOUT", "5" } },
+            .json = "{\"name\":\"grumpy wombat\",\"port\":\"9090\",\"plugins\":[\"auth\",\"metrics\"],\"hosts\":[\"alpha\",\"beta\",\"spare\"],\"timeout\":30,\"db\":{\"host\":\"wombat.example\",\"pool\":4,\"timeout\":\"5\",\"connect\":\"5\"},\"url\":\"http://wombat.example:9090/burrow\"}\n",
         },
         .{
             .vars = &.{.{ "HOST", "wombat.example" }},
-            .json = "{\"name\":\"grumpy wombat\",\"port\":8080,\"plugins\":[\"auth\",\"metrics\"],\"hosts\":[\"localhost\"],\"db\":{\"host\":\"wombat.example\",\"pool\":4},\"url\":\"http://wombat.example:8080/burrow\"}\n",
+            .json = "{\"name\":\"grumpy wombat\",\"port\":8080,\"plugins\":[\"auth\",\"metrics\"],\"hosts\":[\"localhost\",\"spare\"],\"timeout\":30,\"db\":{\"host\":\"wombat.example\",\"pool\":4,\"connect\":30},\"url\":\"http://wombat.example:8080/burrow\"}\n",
         },
     }) |run| {
         for ([_]std.Build.LazyPath{ b.path("tests/cli-compact/prod.conf"), compacted }) |file| {

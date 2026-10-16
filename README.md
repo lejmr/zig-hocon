@@ -518,11 +518,17 @@ rather than the format.
       string, otherwise a JSON string, always on one line (`\n`, never `"""`),
       and bytes that are not UTF-8 are a list of numbers, as std.json has them;
       a float is the shortest digits that read back the same, with an exponent
-      outside 1e-6…1e21, and `nan`/`inf` as strings. One known loss: a `${…}`
-      from a file included inside a block also falls back to the path without
-      that block, a key or a variable, which one `${…}` cannot say. Written
-      out, that fallback is gone whenever the key inside the block ends up
-      absent, as with `--env=keep` and an optional there that finds nothing.
+      outside 1e-6…1e21, and `nan`/`inf` as strings. A `+=` still waiting is
+      written as `+=` again. A `${…}` from a file included inside a block
+      also falls back to the path without that block; a field that still
+      needs it is the key written twice, `a = ${x}` under `a = ${?block.x}`,
+      and a self-reference, `+=` too, is its earlier layers over `a = ${x}`.
+      Known losses, each needing an unusual input: inside a list or a
+      concatenation other than `+=` one `${…}` cannot say that, and only the
+      path with the block is written; an object found at `block.x` merges
+      onto `${x}`, which then has to resolve too; and written out, the
+      fallback reads variables the original never does, `block.x` with the
+      dot, and `x` once a self-reference's root `x` vanishes.
 - [x] Command line — `hocon <file.conf>` prints the resolved file as HOCON,
       `hocon --json <file.conf>` as JSON; exits 1 on rejection, and substitutions
       fall back to its environment (`--env=none` to not, `--env=keep` to leave
@@ -562,7 +568,7 @@ wins and the row says so. Where it stands today:
 | Java <sub>typesafe/config 1.4.9</sub> | 90% (399/445) | 99% (442/445) | 96% (428/445) |
 | Java main <sub>typesafe/config main@275f872, unreleased</sub> | 93% (412/445) | 96% (428/445) | 99% (442/445) |
 | pyhocon <sub>pyhocon 0.3.63</sub> | 70% (312/445) | 66% (295/445) | 68% (304/445) |
-| zig-hocon <sub>zig-hocon code@180b68b</sub> | 99% (442/445) | 90% (399/445) | 93% (412/445) |
+| zig-hocon <sub>zig-hocon code@806b997</sub> | 99% (442/445) | 90% (399/445) | 93% (412/445) |
 
 <!-- conformance:end -->
 
