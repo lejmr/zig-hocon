@@ -3,7 +3,7 @@
 # package's tests and every example against it: what `pip install` gives,
 # not python/. CI runs it for each Python and system.
 #
-#   tools/test-wheel.sh 3.12 zig-out/wheels/zig_hocon-0.1.0-py3-none-macosx_13_0_arm64.whl
+#   tools/test-wheel.sh 3.12 zig-out/wheels/zig_hocon-0.4.0-py3-none-macosx_13_0_arm64.whl
 set -eu
 version=$1
 wheel=$(cd "$(dirname "$2")" && pwd)/$(basename "$2")
