@@ -4,16 +4,36 @@ on:
   push:
     branches: [main]
   pull_request:
+  # release.yml runs it before it tags anything.
+  workflow_call:
 
 jobs:
+  # The library, the CLI and the C API (tests/c through the C compiler) on each
+  # system a release ships for.
   test:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest, macos-15-intel, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: mlugg/setup-zig@v2
         with:
           version: "0.16.0"
       - name: Check formatting
+        if: matrix.os == 'ubuntu-latest'
         run: zig fmt --check .
       - name: Run tests
         run: zig build test
+
+  # Conventional commits: CHANGELOG.md and the release notes are written from
+  # them, so every commit a pull request brings says what kind it is.
+  commits:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - run: sh tools/check-commits.sh "origin/${{ github.base_ref }}" HEAD
