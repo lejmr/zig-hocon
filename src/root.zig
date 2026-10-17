@@ -22,6 +22,8 @@ pub const parseFromFile = config.parseFromFile;
 pub const parseFromFileLeaky = config.parseFromFileLeaky;
 pub const ParseOptions = config.ParseOptions;
 pub const Diagnostics = @import("Diagnostics.zig");
+pub const Key = @import("Key.zig");
+pub const parsePath = Key.parsePath;
 pub const ParseFromValueError = config.ConvertError;
 pub const stringify = @import("stringify.zig").stringify;
 pub const stringifyAlloc = @import("stringify.zig").stringifyAlloc;
@@ -553,6 +555,19 @@ fn dumpCaretKept(gpa: std.mem.Allocator, row: [:0]const u8) anyerror![]u8 {
 }
 
 fn caretOf(gpa: std.mem.Allocator, row: [:0]const u8, env: hocon.Value.Env) anyerror![]u8 {
+    const src = try withoutCaret(gpa, row);
+
+    var diag: hocon.Diagnostics = .{};
+    const options: hocon.ParseOptions = .{ .diagnostics = &diag, .env = env };
+    const err = if (hocon.parseFromSliceLeaky(hocon.Value, gpa, src, options)) |_|
+        return error.ParsedWithoutError
+    else |e|
+        e;
+    return drawCaret(gpa, src, err, diag);
+}
+
+/// The source of a caret row: the row with its caret line taken out.
+fn withoutCaret(gpa: std.mem.Allocator, row: [:0]const u8) ![:0]u8 {
     var source: std.ArrayList(u8) = .empty;
     var rows = std.mem.splitScalar(u8, row, '\n');
     var first = true;
@@ -562,15 +577,11 @@ fn caretOf(gpa: std.mem.Allocator, row: [:0]const u8, env: hocon.Value.Env) anye
         first = false;
         try source.appendSlice(gpa, line);
     }
-    const src = try source.toOwnedSliceSentinel(gpa, 0);
+    return source.toOwnedSliceSentinel(gpa, 0);
+}
 
-    var diag: hocon.Diagnostics = .{};
-    const options: hocon.ParseOptions = .{ .diagnostics = &diag, .env = env };
-    const err = if (hocon.parseFromSliceLeaky(hocon.Value, gpa, src, options)) |_|
-        return error.ParsedWithoutError
-    else |e|
-        e;
-
+/// `src` with a caret line under the place `diag` holds for `err`.
+fn drawCaret(gpa: std.mem.Allocator, src: []const u8, err: anyerror, diag: hocon.Diagnostics) ![]u8 {
     // Said in the table's own report rather than as a bare `TestUnexpectedError`.
     const kept = diag.err orelse return std.fmt.allocPrint(gpa, "{t}, but Diagnostics is empty", .{err});
     if (kept != err) return std.fmt.allocPrint(gpa, "{t}, but Diagnostics holds {t}", .{ err, kept });
@@ -648,6 +659,13 @@ test "diagnostics.InvalidEscape" {
         \\a = 1
         \\b = ${a."\q"}
         \\        ^ InvalidEscape
+        ,
+        // A key is split while the file is read, so its bad escape comes before
+        // a syntax error further down (README, Diagnostics).
+        // java ✓ line 1 · pyhocon ⚠️ reports the `}` on line 2
+        \\"\q" = 1
+        \\^ InvalidEscape
+        \\b = }
         ,
     });
 }
@@ -803,13 +821,124 @@ test "diagnostics.UnexpectedToken extra comma" {
     });
 }
 
-// java ✓ (BadPath) · pyhocon ✓ (col 5) — a path with an empty element.
+// A path with an empty element fails at the dot that has nothing before or
+// after it, in a key and in a `${…}` alike: both go through Key.split. Until
+// #12 a key said UnexpectedToken and a substitution pointed at its `${`; the
+// dot is the more exact place, and one splitter has one answer.
+// java ✓ (BadPath, same line) · pyhocon ⚠️ drops the empty element of a key,
+// and points at the `${` (col 5) of a substitution · spec ✓
 test "diagnostics.MalformedKey" {
     try expectCarets(&.{
         \\a = ${a.}
-        \\    ^ MalformedKey
+        \\       ^ MalformedKey
+        ,
+        \\a = ${a..b}
+        \\        ^ MalformedKey
+        ,
+        \\a = ${."b"}
+        \\      ^ MalformedKey
+        ,
+        \\x = 1
+        \\a..b = 2
+        \\  ^ MalformedKey
+        ,
+        \\x = 1
+        \\.a = 2
+        \\^ MalformedKey
+        ,
+        \\a.b. = 1
+        \\   ^ MalformedKey
+        ,
+        \\x = 1
+        \\"a". = 2
+        \\   ^ MalformedKey
         ,
     });
+}
+
+// `parsePath`: a path given as text, `hocon get a."b.c"` and the like. It goes
+// through the parser and Key.split like a key or a `${…}`, so it fails where
+// they fail: the empty element at its dot, and anything that is not text at
+// its first character — a comment included, which in a file would simply end
+// the line. java ✓ (ConfigUtil.splitPath: BadPath on every row) · pyhocon ⚠️
+// (ConfigTree.parse_key accepts them all: drops empty elements, keeps `\q`,
+// splits `a = b` into `a ` and ` b`) · spec ✓
+test "diagnostics.parsePath" {
+    const rows = [_][:0]const u8{
+        \\a..b
+        \\  ^ MalformedKey
+        ,
+        \\.a
+        \\^ MalformedKey
+        ,
+        \\a."b".
+        \\     ^ MalformedKey
+        ,
+        \\a = b
+        \\  ^ UnexpectedToken
+        ,
+        \\a.${x}
+        \\  ^ UnexpectedToken
+        ,
+        \\a # the cat walked over the keyboard
+        \\  ^ UnexpectedToken
+        ,
+        // A comment in front is blamed where it starts, not at the newline that
+        // ends it (java: "Token not allowed in path expression: '# c' (COMMENT)").
+        \\# the parrot knows the password
+        \\^ UnexpectedToken
+        \\a
+        ,
+        \\  // the parrot knows the password
+        \\  ^ UnexpectedToken
+        \\a
+        ,
+        // A newline after the path is whitespace around it, so what comes after
+        // the newline is the extra text (java: BadPath at the newline).
+        \\a
+        \\b
+        \\^ UnexpectedToken
+        ,
+        \\"a
+        \\^ UnexpectedToken
+        ,
+        // Nothing at all is no path either: java's BadPath, ours the missing text.
+        "\n^ UnexpectedToken",
+        \\a."b\q"
+        \\  ^ InvalidEscape
+        ,
+        "caf\xe9\n   ^ InvalidUtf8",
+    };
+    var cases: [rows.len]table.Case = undefined;
+    for (&cases, rows) |*c, row| c.* = .ok(row, row);
+    try table.expectAll(&cases, .{ .dump = dumpPathCaret });
+}
+
+// The README's example, without diagnostics. Every suite path goes through it
+// in Key.zig's table; this is the call as a user writes it.
+// java ✓ (ConfigUtil.splitPath: [server, tls.cert, path], BadPath for `..`) ·
+// pyhocon ⚠️ (ConfigTree.parse_key keeps the quotes, `"tls.cert"`, and makes
+// `server..path` two elements) · spec ✓
+test "parsePath.a path as text is its keys" {
+    var arena: std.heap.ArenaAllocator = .init(testing.allocator);
+    defer arena.deinit();
+    const keys = try hocon.parsePath(arena.allocator(), "server.\"tls.cert\".path", null);
+    try testing.expectEqual(3, keys.len);
+    try testing.expectEqualStrings("server", keys[0].value);
+    try testing.expectEqualStrings("tls.cert", keys[1].value);
+    try testing.expectEqualStrings("path", keys[2].value);
+    try testing.expectError(error.MalformedKey, hocon.parsePath(arena.allocator(), "server..path", null));
+}
+
+/// `dumpCaret` for `parsePath`: the row without its caret line is the path.
+fn dumpPathCaret(gpa: std.mem.Allocator, row: [:0]const u8) anyerror![]u8 {
+    const src = try withoutCaret(gpa, row);
+    var diag: hocon.Diagnostics = .{};
+    const err = if (hocon.parsePath(gpa, src, &diag)) |_|
+        return error.ParsedWithoutError
+    else |e|
+        e;
+    return drawCaret(gpa, src, err, diag);
 }
 
 // Resolver: the `${` that has nothing behind it, and the first one when there
@@ -1082,28 +1211,6 @@ test "diagnostics.UnexpectedToken inside a value" {
     });
 }
 
-// A key with an empty element, at the dot that has nothing before or after it.
-// java ✓ (BadPath, same line) · pyhocon ⚠️ drops the empty element · spec ✓
-test "diagnostics.UnexpectedToken empty key element" {
-    try expectCarets(&.{
-        \\x = 1
-        \\a..b = 2
-        \\  ^ UnexpectedToken
-        ,
-        \\x = 1
-        \\.a = 2
-        \\^ UnexpectedToken
-        ,
-        \\a.b. = 1
-        \\   ^ UnexpectedToken
-        ,
-        \\x = 1
-        \\"a". = 2
-        \\   ^ UnexpectedToken
-        ,
-    });
-}
-
 // The quoted part with the bad escape, when something comes before it in the
 // same key or value. java ✓ (line 1) · pyhocon ⚠️ keeps `\q` as two characters
 test "diagnostics.InvalidEscape after another part" {
@@ -1220,6 +1327,58 @@ test "diagnostics.out of memory has no position" {
         }
     }
 }
+
+// The same for `parsePath`: its first allocation is the copy of the text, and a
+// quoted part that runs out while it is unquoted has no place either. Only one
+// allocation fails, so the copy of a place would get its memory if there were
+// a place to copy.
+test "diagnostics.out of memory in parsePath has no position" {
+    var arena: std.heap.ArenaAllocator = .init(testing.allocator);
+    defer arena.deinit();
+    var i: usize = 0;
+    while (true) : (i += 1) {
+        var failing: FailOnce = .{ .child = arena.allocator(), .fail_index = i };
+        var diag: hocon.Diagnostics = .{ .err = error.InvalidEscape };
+        if (hocon.parsePath(failing.allocator(), "a.\"b\\n\" \"c\\t\"", &diag)) |_| {
+            try testing.expectEqual(null, diag.err);
+            return;
+        } else |err| {
+            try testing.expectEqual(error.OutOfMemory, err);
+            try testing.expectEqual(error.OutOfMemory, diag.err.?);
+            try testing.expectEqual(null, diag.location);
+        }
+    }
+}
+
+/// Fails allocation number `fail_index` and that one only.
+/// `std.testing.FailingAllocator` keeps failing from there on, so whatever
+/// runs after the failure would run out too.
+const FailOnce = struct {
+    child: std.mem.Allocator,
+    fail_index: usize,
+    index: usize = 0,
+
+    fn allocator(self: *FailOnce) std.mem.Allocator {
+        return .{ .ptr = self, .vtable = &.{
+            .alloc = alloc,
+            .resize = std.mem.Allocator.noResize,
+            .remap = std.mem.Allocator.noRemap,
+            .free = free,
+        } };
+    }
+
+    fn alloc(ctx: *anyopaque, len: usize, alignment: std.mem.Alignment, ret_addr: usize) ?[*]u8 {
+        const self: *FailOnce = @ptrCast(@alignCast(ctx));
+        defer self.index += 1;
+        if (self.index == self.fail_index) return null;
+        return self.child.rawAlloc(len, alignment, ret_addr);
+    }
+
+    fn free(ctx: *anyopaque, memory: []u8, alignment: std.mem.Alignment, ret_addr: usize) void {
+        const self: *FailOnce = @ptrCast(@alignCast(ctx));
+        self.child.rawFree(memory, alignment, ret_addr);
+    }
+};
 
 // The same for a file, where the arena and the text come before there is a
 // place to point at.

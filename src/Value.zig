@@ -925,60 +925,22 @@ pub const Ref = struct {
         return copy;
     }
 
-    /// A malformed path is reported at the `${`, like everything about a ref;
-    /// a bad escape at the quoted part it is in.
+    /// The path is cut by `Key.split`, the splitter a key before `=` goes
+    /// through, so a malformed one fails the same way and at the same place:
+    /// the dot next to the empty element. A bad escape is at its quoted part.
     pub fn fromNode(gpa: std.mem.Allocator, node: Node, ctx: Value.Context) Error!Ref {
-        var single = [_]Node{node.children[0]};
-        const parts: []const Node = switch (node.children[0].kind) {
-            .value => &single,
-            .concat => node.children[0].children,
-            else => {
-                ctx.fail(node.pos);
-                return Error.UnsupportedNodeKind;
-            },
+        var err_offset: ?usize = null;
+        const elements = Key.split(gpa, node.children[0], &err_offset) catch |err| {
+            if (err_offset) |offset| ctx.fail(offset);
+            return err;
         };
 
-        var key_list: std.ArrayList(Key) = .empty;
-        var current: std.ArrayList(u8) = .empty;
-        defer current.deinit(gpa);
-        var written = false;
-
-        for (parts) |part| {
-            if (part.kind != .value) {
-                ctx.fail(node.pos);
-                return Error.MalformedKey;
-            }
-            const ut = unqoute.unquote(gpa, part.value) catch |err| {
-                ctx.fail(part.pos);
-                return err;
-            };
-            if (ut.quoted) {
-                try current.appendSlice(gpa, ut.text);
-                written = true;
-                continue;
-            }
-
-            var it = std.mem.splitScalar(u8, ut.text, '.');
-            try current.appendSlice(gpa, it.first());
-            while (it.next()) |x| {
-                if (current.items.len == 0 and !written) {
-                    ctx.fail(node.pos);
-                    return Error.MalformedKey;
-                }
-                try key_list.append(gpa, .{ .value = try gpa.dupe(u8, current.items) });
-                current.clearRetainingCapacity();
-                written = false;
-                try current.appendSlice(gpa, x);
-            }
-        }
-        if (current.items.len == 0 and !written) {
-            ctx.fail(node.pos);
-            return Error.MalformedKey;
-        }
-        try key_list.append(gpa, .{ .value = try gpa.dupe(u8, current.items) });
+        const path = try gpa.alloc(Key, ctx.scope.len + elements.len);
+        @memcpy(path[0..ctx.scope.len], ctx.scope);
+        for (path[ctx.scope.len..], elements) |*key, element| key.* = try Key.fromNode(gpa, element, ctx);
 
         return .{
-            .path = try std.mem.concat(gpa, Key, &.{ ctx.scope, key_list.items }),
+            .path = path,
             .flags = .{
                 .optional = if (node.kind == .subst_optional) true else false,
                 .list = std.mem.eql(u8, node.value, "[]"),
@@ -1677,8 +1639,8 @@ test "value.a key made of several parts is one member" {
 // parse a quoted path element at all, so it is not comparable here.
 //
 // The parser still lets these through (its own `substitution` table says so),
-// so the ref is where they have to stop: the same splitter that cuts the path
-// is the one that knows an element came out empty without quotes to say so.
+// so the ref is where they have to stop: `Key.split`, the splitter keys go
+// through, knows an element came out empty without quotes to say so.
 test "ref.an unquoted empty element is a BadPath" {
     var arena = std.heap.ArenaAllocator.init(testing.allocator);
     defer arena.deinit();

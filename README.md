@@ -155,6 +155,19 @@ is something else. `stringifyAlloc(gpa, value, .{})` returns the text instead.
 A `hocon.Value` is written the way it was loaded, so one that was never
 resolved keeps its `${…}`, concatenations and repeated keys.
 
+A path given as text — a name to look up, a command-line argument — becomes
+its keys through `hocon.parsePath`, by the same rules as a key in a file and the
+inside of a `${…}`: a quoted dot is a character, `""` is an empty key, and an
+unquoted empty element is an error at its dot:
+
+```zig
+const keys = try hocon.parsePath(arena, "server.\"tls.cert\".path", &diag);
+// keys[0].value == "server", keys[1].value == "tls.cert", keys[2].value == "path"
+```
+
+The keys point into memory the call allocates, so pass an arena; `diag` may be
+`null`, and is filled in like a parse of a slice, the path being the source.
+
 ### Command line
 
 `zig build` also installs `hocon`, which prints a file resolved, as HOCON —
@@ -246,18 +259,16 @@ Not spec sections of their own, but needed to get there, and already done:
       outside quotes is the only thing that ends an element, and the end of a
       part means nothing at all. So `${x."y.z"}` is two elements and finds the
       key `x { "y.z" = 1 }`, `${a"b"}` is the single element `ab`, and
-      `${a."".b}` keeps its empty middle, which java accepts. Still to do:
-      rejecting `.a`, `a.` and `a..b` as `BadPath`, and lending the same
-      splitter to the key side
+      `${a."".b}` keeps its empty middle, which java accepts. Keys, `${…}` and
+      `hocon.parsePath` share one splitter (`Key.split`), so `.a`, `a.` and
+      `a..b` are `MalformedKey` (java's `BadPath`) at the same dot in all three
 - [x] [Paths as keys](https://github.com/lightbend/config/blob/main/HOCON.md#paths-as-keys)
       — an unquoted dotted key nests: `a.b.c = 1` builds the same tree as
       `a { b { c = 1 } }`, `a.b {c = 1}` joins the two ways of writing it, and a
       number splits like any other unquoted string, so `1.5 = x` is `1 { 5 = x }`.
-      A malformed path (`.a`, `a.`, `a..b`) is rejected, though as the parser's
-      `UnexpectedToken` rather than the `BadPath` java names. Known gap: a key
-      written in several parts is left alone, so `"a"."b" = 1` and `a."b.c" = 1`
-      stay flat where java nests them. The splitter that path expressions use
-      answers exactly this and only wants wiring up here
+      A malformed path (`.a`, `a.`, `a..b`) is `MalformedKey`, java's `BadPath`.
+      A key written in parts splits the same way, so `"a"."b" = 1` nests and
+      `a."b.c" = 1` keeps `b.c` as one key
 
 - [x] [Duplicate keys and object merging](https://github.com/lightbend/config/blob/main/HOCON.md#duplicate-keys-and-object-merging)
       — a key written twice is one member, whether the two spellings meet inside
@@ -509,7 +520,7 @@ wins and the row says so. Where it stands today:
 | Java <sub>typesafe/config 1.4.9</sub> | 90% (399/445) | 99% (442/445) | 96% (428/445) |
 | Java main <sub>typesafe/config main@275f872, unreleased</sub> | 93% (412/445) | 96% (428/445) | 99% (442/445) |
 | pyhocon <sub>pyhocon 0.3.63</sub> | 70% (312/445) | 66% (295/445) | 68% (304/445) |
-| zig-hocon <sub>zig-hocon code@307d0c8</sub> | 98% (437/445) | 89% (394/445) | 91% (407/445) |
+| zig-hocon <sub>zig-hocon code@582bdfd</sub> | 98% (437/445) | 89% (394/445) | 91% (407/445) |
 
 <!-- conformance:end -->
 

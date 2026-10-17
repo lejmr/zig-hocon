@@ -5,7 +5,6 @@ const Tokenizer = @import("Tokenizer.zig");
 const Key = @import("Key.zig");
 const table = @import("table.zig");
 const Case = table.Case;
-const unquote = @import("utils/unqoute.zig");
 const number = @import("utils/number.zig");
 
 pub const Node = struct {
@@ -36,8 +35,8 @@ pub const Node = struct {
         concat,
         /// A substitution: `${a.b}`. `children[0]` is the path it refers to,
         /// kept as the text it was written as — `${a."b.c"}` and `${a.b.c}`
-        /// stay distinguishable because splitting on `.` happens later, once
-        /// keys and substitutions can share one splitter.
+        /// stay distinguishable because splitting on `.` happens later, in
+        /// `Ref.fromNode`, with the `Key.split` that cuts keys.
         ///
         /// Only the *reference* is syntax; what it resolves to, and whether the
         /// parts around it then join as text, merge as objects or concatenate
@@ -92,18 +91,56 @@ pub const Parser = struct {
 
     /// Written out rather than inferred (`!Node`): `parseContainer` recurses, and
     /// an inferred error set cannot be resolved when it depends on itself.
-    pub const Error = error{ UnexpectedToken, InvalidUtf8 } || number.NumberError || std.mem.Allocator.Error || unquote.Error;
+    pub const Error = error{ UnexpectedToken, InvalidUtf8 } || number.NumberError || Key.Error;
 
     /// A file is UTF-8 (spec L117), checked here once, so neither the tokenizer
     /// nor anything after it meets a byte that is not; the error is at the first.
     pub fn parse(self: *Parser) Error!Node {
+        try self.checkUtf8();
+        return self.parseContainer(.eof, .root, 0);
+    }
+
+    /// One path expression and nothing else, `a."b.c".d`: the text of a key or
+    /// of a `${…}`, given on its own (see `Key.parsePath`). Whitespace and
+    /// newlines around it are not part of it; anything else after it is an error
+    /// where it starts — a comment too, which the tokenizer would otherwise skip
+    /// without a word.
+    pub fn parsePath(self: *Parser) Error!Node {
+        try self.checkUtf8();
+        const input = self.t.t.input;
+        // Skipped by hand rather than as tokens: a newline token in front would
+        // stop `parseText` before it read anything.
+        const start = blankEnd(input, 0);
+        // The tokenizer skips a comment, so one in front would have its error
+        // at the newline after it rather than where it starts.
+        if (std.mem.startsWith(u8, input[start..], "#") or std.mem.startsWith(u8, input[start..], "//")) return self.fail(start);
+        self.t.t.pos = start;
+        const path = try self.parseText();
+        const end = blankEnd(input, self.t.last_end);
+        if (end < input.len) return self.fail(end);
+        return path;
+    }
+
+    /// Where the whitespace and newlines that start at `i` end.
+    fn blankEnd(input: []const u8, i: usize) usize {
+        var end = i;
+        while (end < input.len) {
+            const len = if (input[end] == '\n') 1 else Tokenizer.whitespaceLen(input[end..]);
+            if (len == 0) break;
+            end += len;
+        }
+        return end;
+    }
+
+    /// The error is at the first byte that is not UTF-8.
+    fn checkUtf8(self: *Parser) Error!void {
         const input = self.t.t.input;
         var i: usize = 0;
         while (i < input.len) {
             const len = std.unicode.utf8ByteSequenceLength(input[i]) catch break;
             if (i + len > input.len or !std.unicode.utf8ValidateSlice(input[i..][0..len])) break;
             i += len;
-        } else return self.parseContainer(.eof, .root, 0);
+        } else return;
         self.err_offset = i;
         return error.InvalidUtf8;
     }
@@ -516,61 +553,15 @@ pub const Parser = struct {
 /// nesting it stands for: `a.b = 1`, `"a"."b" = 1` and `a { b = 1 }` build the
 /// same tree on purpose. `kind` is the innermost member's, `.append` for `+=`:
 /// `a.b += 1` appends to `b`, not to `a`.
-/// Stupid part is a) is based on one node holding value="a.b" while
-///                b) concat(n("\"a\""),n("."),n("\"b\""))
 ///
-/// On failure `err_offset` is where: the part with a bad escape, or the dot
-/// next to an empty element.
+/// The cutting is `Key.split`, the one `${…}` uses too, and so is the place an
+/// error gets in `err_offset`.
 fn prepareMemberNode(gpa: std.mem.Allocator, key: Node, kind: Node.NodeKind, value: Node, err_offset: *?usize) Parser.Error!Node {
-    const first = [_]Node{key};
-    const parts = if (key.kind == .value) &first else key.children;
-
-    // Build hierarych of keys
-    var elements: std.ArrayList([]Node) = .empty;
-    defer elements.deinit(gpa);
-    var current: std.ArrayList(Node) = .empty;
-    defer current.deinit(gpa);
-    // Where the last dot was, for a key that ends in one.
-    var last_dot: usize = key.pos;
-
-    for (parts) |part| {
-        const unquoted = unquote.unquote(gpa, part.value) catch |err| {
-            err_offset.* = part.pos;
-            return err;
-        };
-        if (unquoted.quoted) {
-            try current.append(gpa, part);
-            continue;
-        }
-
-        var it = std.mem.splitScalar(u8, part.value, '.');
-        const head = it.first();
-        if (head.len > 0) try current.append(gpa, .{ .kind = .value, .value = head, .children = &.{}, .pos = part.pos });
-        while (it.next()) |seq| {
-            // `seq` is a slice of `part.value`, so its distance from the start is
-            // its distance from `part.pos` — and the dot sits right before it.
-            const seq_pos = part.pos + (seq.ptr - part.value.ptr);
-            last_dot = seq_pos - 1;
-            // `.a`, `a..b`: no element before this dot.
-            if (current.items.len == 0) {
-                err_offset.* = last_dot;
-                return Parser.Error.UnexpectedToken;
-            }
-            try elements.append(gpa, try current.toOwnedSlice(gpa));
-            if (seq.len > 0) try current.append(gpa, .{ .kind = .value, .value = seq, .children = &.{}, .pos = seq_pos });
-        }
-    }
-    // `a. = 1`: no element after the last dot.
-    if (current.items.len == 0) {
-        err_offset.* = last_dot;
-        return Parser.Error.UnexpectedToken;
-    }
-    try elements.append(gpa, try current.toOwnedSlice(gpa));
+    const elements = try Key.split(gpa, key, err_offset);
 
     var return_node: ?Node = null;
-    for (0..elements.items.len) |i| {
-        const nodes = elements.items[elements.items.len - i - 1];
-        const element: Node = if (nodes.len == 1) nodes[0] else .{ .kind = .concat, .children = nodes, .pos = nodes[0].pos };
+    for (0..elements.len) |i| {
+        const element = elements[elements.len - i - 1];
         const inner: Node = if (return_node) |nn|
             .{ .kind = .block, .children = try gpa.dupe(Node, &.{nn}), .pos = nn.pos }
         else
@@ -1432,8 +1423,8 @@ test "key.a dotted key is a path" {
 // left rather than the joined text: a dot inside an unquoted part ends an
 // element, a dot inside a quoted part is a character, and the boundary between
 // two parts means nothing — so `a"b".c` has two elements, the first made of
-// two parts. That is the same rule `${…}` already follows in Value.zig, and it
-// is why the quotes stay on the leaves here: the tree still has to tell
+// two parts. `${…}` goes through the same `Key.split`, and the rule is
+// why the quotes stay on the leaves here: the tree still has to tell
 // `"a.b"` from `a.b` one level down.
 //
 // An element made of one part is a `value`, of several a `concat`, exactly as
@@ -1503,11 +1494,10 @@ test "key.a multi-part key is a path too" {
 // reach one, `${a\nb}` stops at the newline, and `${${a}}` stops at a token that
 // is not text.
 //
-// The path is NOT split on `.` yet: `${a.b}` keeps the whole text. Nothing is
+// The path is NOT split on `.` here: `${a.b}` keeps the whole text. Nothing is
 // lost by waiting — `${a."b.c"}` and `${a.b.c}` already dump differently — and
-// splitting wants doing once, for keys and substitutions together, which is why
-// `${.a}` and `${a..b}` are still accepted here where java says BadPath. See
-// tools/oracle/README.md.
+// `Ref.fromNode` cuts it with the `Key.split` keys use, which is why `${.a}`
+// and `${a..b}` pass this table and fail there, as java's BadPath.
 test "substitution" {
     try expectAll(&.{
         .ok("a = ${b}", "root(assign(value(a), subst(value(b))))"),
