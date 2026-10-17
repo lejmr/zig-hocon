@@ -6,9 +6,13 @@
  * hands out is freed by the library: strings with `hocon_free_string`, a
  * filled-in error with `hocon_error_free`.
  *
+ * A file or a string is read up to 64 MiB. An include names a file, found
+ * next to the file that includes it, or an http(s) URL, which is fetched with
+ * no timeout: a server that never answers holds the parse.
+ *
  * A path is text, as in a config file: `db.host`, `a."b.c"`; "" is the root.
  * The conversions are the ones `hocon.parseFromValue` makes in Zig: `"5"` is
- * an int, `yes` a bool, `1.5` is no int, `null` is missing.
+ * an int, `yes` a bool, `1.5` is not an int, `null` is missing.
  *
  * A doc is used by one thread at a time; different docs need no locking.
  * Parsing, resolving and writing recurse once per level of nesting, up to
@@ -31,20 +35,22 @@ typedef struct hocon_doc hocon_doc;
 /* What a call returns: 0, or why it failed. */
 enum {
     HOCON_OK = 0,
-    /* The text is no HOCON, or an include failed. */
+    /* The text is not valid HOCON, or an include failed. */
     HOCON_ERR_PARSE = 1,
     /* A substitution with no value, a cycle; or, in a document read without
      * resolving (or with HOCON_ENV_KEEP), a value that still waits for one. */
     HOCON_ERR_SUBSTITUTION = 2,
     /* Nothing at the path, or `null` there. */
     HOCON_ERR_MISSING = 3,
-    /* The value is there and is not of the type asked for. */
+    /* The value is there and is not of the type asked for, or the path goes
+     * through a value that is not an object: `a.b` where `a = 5`. */
     HOCON_ERR_WRONG_TYPE = 4,
     /* The file cannot be read. */
     HOCON_ERR_IO = 5,
-    /* The path is no path: `a..b`. */
+    /* The path is not a valid path: `a..b`. */
     HOCON_ERR_BAD_PATH = 6,
-    /* More than 256 lists and objects deep, which JSON is not written for. */
+    /* `hocon_to_json` only: more than 256 lists and objects deep, which JSON
+     * is not written for. */
     HOCON_ERR_TOO_DEEP = 7,
     /* Out of memory, a NULL argument, options that make no sense. */
     HOCON_ERR_OTHER = 8,
@@ -54,10 +60,10 @@ enum {
 enum {
     /* The variables of this process, as they are when the parse starts. */
     HOCON_ENV_PROCESS = 0,
-    /* Nowhere: the path is undefined. */
+    /* Nowhere: `${NAME}` is an error, `${?NAME}` is left out. */
     HOCON_ENV_NONE = 1,
     /* `env_vars`, a NULL-terminated array of "KEY=VALUE" like `environ`.
-     * An entry that is not KEY=VALUE is skipped. */
+     * An entry that is not KEY=VALUE is skipped; NULL is no variables. */
     HOCON_ENV_MAP = 2,
     /* Later: the substitution stays in the document, everything else is
      * resolved; `hocon_to_hocon` writes it out to be read where it runs. */
@@ -90,7 +96,8 @@ typedef struct hocon_error {
 } hocon_error;
 
 /* NULL `opts` is HOCON_ENV_PROCESS, resolved. On failure NULL, and `err`
- * (when not NULL) says why. */
+ * (when not NULL) says why; on success its code is HOCON_OK. `err` needs no
+ * zeroing before. */
 hocon_doc *hocon_parse_file(const char *path, const hocon_options *opts, hocon_error *err);
 hocon_doc *hocon_parse_string(const char *src, size_t len, const hocon_options *opts, hocon_error *err);
 
@@ -111,7 +118,8 @@ int hocon_get_config(hocon_doc *h, const char *path);
 /* Why the last call on `h` that failed failed, as a parse error says it: a
  * value that does not convert is pointed at where it is written,
  * `app.conf:3:8: InvalidCharacter at db.pool: expected i64`. Code HOCON_OK
- * while no call has failed. The doc's own: valid until the next call on `h`
+ * while no call has failed; a call that succeeds leaves it as it was. NULL
+ * for a NULL doc. The doc's own: valid until the next call on `h`
  * fails, or `hocon_free`; not for `hocon_error_free`. */
 const hocon_error *hocon_last_error(hocon_doc *h);
 

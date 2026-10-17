@@ -412,6 +412,21 @@ export fn hocon_free(doc: ?*Doc) void {
     gpa.destroy(d);
 }
 
+/// std calls libc's statx on any musl, but musl has it only from 1.2.5: the
+/// musllinux_1_2 wheel would not load on Alpine 3.13–3.19. So libhocon has a
+/// statx of its own there, the system call itself, as std makes it on glibc
+/// 2.17 for the manylinux wheels. Hidden: it is for libhocon alone.
+fn statx(dir: c_int, path: [*:0]const u8, flags: u32, mask: std.os.linux.STATX, buf: *std.os.linux.Statx) callconv(.c) c_int {
+    const e = std.os.linux.errno(std.os.linux.statx(dir, path, flags, mask, buf));
+    if (e == .SUCCESS) return 0;
+    std.c._errno().* = @intFromEnum(e);
+    return -1;
+}
+
+comptime {
+    if (builtin.abi.isMusl()) @export(&statx, .{ .name = "statx", .visibility = .hidden });
+}
+
 // ---------------------------------------------------------------------------
 // Tests: the exported functions called as C calls them, with C's types. The
 // allocator is the testing one (`gpa`), so whatever a test does not free
@@ -839,4 +854,74 @@ test "capi.too deep for JSON" {
             return err;
         };
     }
+}
+
+// include/hocon.h is written by hand, so nothing but this keeps it true: every
+// function it declares is exported here with the same C types, every code and
+// every `HOCON_ENV_…` has the number the enums give it, and both structs have
+// the fields at the same places. A header that drifts fails the build.
+test "capi.hocon.h" {
+    const h = @import("hocon_h");
+    inline for (@typeInfo(Code).@"enum".fields) |f| {
+        const name = comptime if (f.value == 0) "HOCON_OK" else "HOCON_ERR_" ++ upper(f.name);
+        try testing.expectEqual(f.value, @field(h, name));
+    }
+    inline for (@typeInfo(Env).@"enum".fields) |f| {
+        try testing.expectEqual(f.value, @field(h, "HOCON_ENV_" ++ upper(f.name)));
+    }
+    comptime {
+        // The translated header has every libc and compiler macro in it too.
+        @setEvalBranchQuota(100_000);
+        if (!sameAbi(Options, h.hocon_options)) @compileError("hocon_options");
+        if (!sameAbi(Error, h.hocon_error)) @compileError("hocon_error");
+        var functions = 0;
+        for (@typeInfo(h).@"struct".decls) |d| {
+            if (!std.mem.startsWith(u8, d.name, "hocon_")) continue;
+            if (@typeInfo(@TypeOf(@field(h, d.name))) != .@"fn") continue;
+            if (!sameAbi(@TypeOf(@field(@This(), d.name)), @TypeOf(@field(h, d.name)))) @compileError(d.name);
+            functions += 1;
+        }
+        if (functions != 16) @compileError("hocon.h has lost a function, or has one more than the 16 exported here");
+    }
+}
+
+fn upper(comptime name: []const u8) []const u8 {
+    return comptime blk: {
+        var buf: [name.len]u8 = undefined;
+        _ = std.ascii.upperString(&buf, name);
+        const out = buf;
+        break :blk &out;
+    };
+}
+
+/// Whether C passes `Z` (the Zig side) and `C` (translated from hocon.h) the
+/// same way: ints of the same size and sign, pointers to such things with the
+/// same constness, structs with such fields at the same offsets. An opaque
+/// pointer in C (`hocon_doc *`) is any pointer here.
+fn sameAbi(comptime Z: type, comptime C: type) bool {
+    const z = @typeInfo(Z);
+    const c = @typeInfo(C);
+    if (z == .optional) return sameAbi(z.optional.child, C);
+    if (c == .optional) return sameAbi(Z, c.optional.child);
+    if (z == .@"enum") return sameAbi(z.@"enum".tag_type, C);
+    if (C == anyopaque or c == .@"opaque") return true;
+    return switch (z) {
+        .int, .float, .bool, .void => Z == C or (z == .int and c == .int and z.int.bits == c.int.bits and z.int.signedness == c.int.signedness),
+        .pointer => |zp| c == .pointer and zp.is_const == c.pointer.is_const and sameAbi(zp.child, c.pointer.child),
+        .@"struct" => |zs| blk: {
+            if (c != .@"struct" or @sizeOf(Z) != @sizeOf(C) or zs.fields.len != c.@"struct".fields.len) break :blk false;
+            for (zs.fields) |f| {
+                if (!@hasField(C, f.name) or @offsetOf(Z, f.name) != @offsetOf(C, f.name)) break :blk false;
+                if (!sameAbi(f.type, @FieldType(C, f.name))) break :blk false;
+            }
+            break :blk true;
+        },
+        .@"fn" => |zf| blk: {
+            const cf = c.@"fn";
+            if (zf.params.len != cf.params.len or !sameAbi(zf.return_type.?, cf.return_type.?)) break :blk false;
+            for (zf.params, cf.params) |zp, cp| if (!sameAbi(zp.type.?, cp.type.?)) break :blk false;
+            break :blk true;
+        },
+        else => false,
+    };
 }

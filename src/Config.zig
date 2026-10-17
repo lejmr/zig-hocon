@@ -56,6 +56,10 @@ pub const Config = struct {
         /// `parseFromValueIn` to point into. They live in the allocator the
         /// parse is given, as the values do.
         files: ?*Value.Files = null,
+        /// A key the struct has no field for is skipped. False makes it
+        /// `error.UnknownField`, a typo that would otherwise go unnoticed;
+        /// `std.json` has the same option.
+        ignore_unknown_fields: bool = true,
     };
 
     /// Like `parseFromSliceLeaky`, but any allocator will do: everything lands in
@@ -162,7 +166,7 @@ pub const Config = struct {
         // and without resolving every `${…}` is still there.
         if (T == Value and (options.env == .keep or !options.resolve)) return obj;
         var failed: Failed = .{};
-        return parseFromValue(T, allocator, obj, &failed) catch |err| {
+        return parseFromValue(T, allocator, obj, options, &failed) catch |err| {
             if (options.diagnostics) |diag| conversionFailed(diag, keep, files.*, err, failed);
             return err;
         };
@@ -174,7 +178,7 @@ pub const Config = struct {
     /// is from `value` down; `diag` is `allocator`'s, as the result is.
     pub fn parseFromValueIn(comptime T: type, allocator: Allocator, files: Value.Files, value: Value, diag: *Diagnostics) ConvertError!T {
         var failed: Failed = .{};
-        return parseFromValue(T, allocator, value, &failed) catch |err| {
+        return parseFromValue(T, allocator, value, .{}, &failed) catch |err| {
             conversionFailed(diag, allocator, files, err, failed);
             return err;
         };
@@ -316,15 +320,15 @@ pub const Config = struct {
         return obj;
     }
 
-    pub const ConvertError = error{ TypeMismatch, MissingField, Unresolved, UnsupportedType, OutOfMemory, UnknownUnit } ||
+    pub const ConvertError = error{ TypeMismatch, MissingField, UnknownField, Unresolved, UnsupportedType, OutOfMemory, UnknownUnit } ||
         std.fmt.ParseIntError;
 
     /// Converts a Value into T. `T` is comptime, so the compiler builds one copy
     /// of this function per target type, and the `switch` below is decided at
     /// compile time: for `usize` only the `.int` branch exists at all.
     /// `failed` learns where it failed and why (see `Failed`).
-    pub fn parseFromValue(comptime T: type, allocator: Allocator, value: Value, failed: *Failed) ConvertError!T {
-        return convert(T, allocator, value, failed) catch |err| {
+    pub fn parseFromValue(comptime T: type, allocator: Allocator, value: Value, options: ParseOptions, failed: *Failed) ConvertError!T {
+        return convert(T, allocator, value, options, failed) catch |err| {
             // The first level to see the error is the one it starts at: the
             // levels above it have added their step by the time they see it.
             if (failed.steps.items.len == 0 and failed.value == null) {
@@ -335,7 +339,7 @@ pub const Config = struct {
         };
     }
 
-    fn convert(comptime T: type, allocator: Allocator, value: Value, failed: *Failed) ConvertError!T {
+    fn convert(comptime T: type, allocator: Allocator, value: Value, options: ParseOptions, failed: *Failed) ConvertError!T {
         // The dynamic tree as it is, the way std.json.parseFromSlice(std.json.Value, …)
         // hands back its own — finished, so anything can print it.
         if (T == Value) return if (value.isResolved()) value else error.Unresolved;
@@ -378,7 +382,7 @@ pub const Config = struct {
                 // `*T` is a `T` of its own, as std.json reads one.
                 if (info.size == .one) {
                     const one = try allocator.create(info.child);
-                    one.* = try parseFromValue(info.child, allocator, value, failed);
+                    one.* = try parseFromValue(info.child, allocator, value, options, failed);
                     return one;
                 }
                 if (info.size != .slice) @compileError("hocon: unsupported target type " ++ @typeName(T));
@@ -393,7 +397,7 @@ pub const Config = struct {
                         if (info.child == u8) return error.TypeMismatch;
                         var a: std.ArrayList(info.child) = .empty;
                         for (value.array, 0..) |item, i| {
-                            const val = parseFromValue(info.child, allocator, item, failed) catch |err| {
+                            const val = parseFromValue(info.child, allocator, item, options, failed) catch |err| {
                                 try failed.steps.append(allocator, .{ .index = i });
                                 return err;
                             };
@@ -405,7 +409,7 @@ pub const Config = struct {
                     // A list is asked for, so numeric keys make one.
                     .object => {
                         const items = try Value.numbered(allocator, value.object) orelse return error.TypeMismatch;
-                        return parseFromValue(T, allocator, .{ .array = items }, failed);
+                        return parseFromValue(T, allocator, .{ .array = items }, options, failed);
                     },
                     else => return error.TypeMismatch,
                 }
@@ -426,7 +430,7 @@ pub const Config = struct {
 
                     if (found) |member| {
                         // At some point field.type can be optional, but we have value, so jump to .optional
-                        @field(result, field.name) = parseFromValue(field.type, allocator, member.value, failed) catch |err| {
+                        @field(result, field.name) = parseFromValue(field.type, allocator, member.value, options, failed) catch |err| {
                             try failed.steps.append(allocator, .{ .key = field.name });
                             return err;
                         };
@@ -438,6 +442,19 @@ pub const Config = struct {
                         // The path names the field; there is no value to point at.
                         try failed.steps.append(allocator, .{ .key = field.name });
                         return error.MissingField;
+                    }
+                }
+                if (!options.ignore_unknown_fields) {
+                    for (value.object) |m| {
+                        const known = inline for (info.fields) |field| {
+                            if (std.mem.eql(u8, m.key.value, field.name)) break true;
+                        } else false;
+                        if (!known) {
+                            // Points at the value: a key has no place of its own.
+                            failed.value = m.value;
+                            try failed.steps.append(allocator, .{ .key = m.key.value });
+                            return error.UnknownField;
+                        }
                     }
                 }
                 return result;
@@ -453,7 +470,7 @@ pub const Config = struct {
             .void => if (value != .object or value.object.len != 0) return error.TypeMismatch,
             .optional => |info| {
                 if (value == .scalar and !value.scalar.quoted and std.mem.eql(u8, value.scalar.value, "null")) return null;
-                return try parseFromValue(info.child, allocator, value, failed);
+                return try parseFromValue(info.child, allocator, value, options, failed);
             },
             // A list of exactly that many, or for `[N]u8` a string of N bytes,
             // as `stringify` writes them.
@@ -469,11 +486,11 @@ pub const Config = struct {
                 }
                 if (value == .object) {
                     const items = try Value.numbered(allocator, value.object) orelse return error.TypeMismatch;
-                    return parseFromValue(T, allocator, .{ .array = items }, failed);
+                    return parseFromValue(T, allocator, .{ .array = items }, options, failed);
                 }
                 if (value != .array or value.array.len != info.len) return error.TypeMismatch;
                 for (&result, value.array, 0..) |*item, v, i| {
-                    item.* = parseFromValue(info.child, allocator, v, failed) catch |err| {
+                    item.* = parseFromValue(info.child, allocator, v, options, failed) catch |err| {
                         try failed.steps.append(allocator, .{ .index = i });
                         return err;
                     };
@@ -488,7 +505,7 @@ pub const Config = struct {
                 const member = value.object[0];
                 inline for (info.fields) |field| {
                     if (std.mem.eql(u8, member.key.value, field.name)) {
-                        return @unionInit(T, field.name, parseFromValue(field.type, allocator, member.value, failed) catch |err| {
+                        return @unionInit(T, field.name, parseFromValue(field.type, allocator, member.value, options, failed) catch |err| {
                             try failed.steps.append(allocator, .{ .key = field.name });
                             return err;
                         });

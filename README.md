@@ -1,7 +1,8 @@
 <img src="docs/brand/zig-Hocon-badge-master-1650x500.png" width="600" alt="zig-Hocon">
 
 zig-Hocon is a [HOCON](https://github.com/lightbend/config/blob/main/HOCON.md)
-(Human-Optimized Config Object Notation) parser for [Zig](https://ziglang.org).
+(Human-Optimized Config Object Notation) parser for [Zig](https://ziglang.org),
+with a command line tool, a C library and a Python package on top of it.
 
 **Why?** I have been using HOCON in production for nearly five years, in other
 languages. It is the format I reach for when one service runs in several
@@ -17,16 +18,18 @@ only what sits on disk, and the parser fills the struct in — the same shape as
 
 Requires Zig **0.16.0** or newer.
 
-> **Status: early development.** Source text parses into a value graph,
-> substitutions resolve against the finished document, and the result converts
-> into a Zig struct of your own through `hocon.parseFromSlice`, shaped after
-> `std.json`, or prints as JSON from the `hocon` command line tool. Not yet:
-> includes (`include` parses, but nothing splices the file in, so a file that
-> uses one is rejected). See [Features](#features) below for what
-> currently works, and [Conformance](#conformance) for how far that gets.
+> **Status:** the whole spec but three cases the suite leaves to a human
+> ([Conformance](#conformance)): includes, substitutions with fallback to the
+> environment, merging, `+=`, and the conversion into a Zig struct of your own
+> through `hocon.parseFromSlice`, shaped after `std.json`, durations, periods
+> and sizes included. The `hocon` command line tool prints a file as JSON or
+> HOCON, compacts it into one file to deploy, and gets, checks and diffs
+> configs. See [Features](#features) below for the details.
 > The latest release is [`v0.1.0`](https://github.com/lejmr/zig-hocon/tree/v0.1.0).
 
 ## Installation
+
+### Zig library
 
 Add the package to your `build.zig.zon`:
 
@@ -46,6 +49,28 @@ exe.root_module.addImport("hocon", hocon.module("hocon"));
 ```
 
 and `@import("hocon")` works in your code.
+
+### Command line tool
+
+`zig build -Doptimize=ReleaseSafe` in a checkout puts `hocon` into
+`zig-out/bin/` ([Command line](#command-line) below).
+
+### Python package
+
+```sh
+pip install zig-hocon
+```
+
+One wheel per platform for every Python 3.10+, with the library inside and no
+dependencies: [Python](#python) below.
+
+### C library
+
+`zig build lib -Doptimize=ReleaseSafe` builds `libhocon` (`.dylib`, `.so` or
+`.dll`, for any `-Dtarget`) into `zig-out/lib/` and its header
+[`include/hocon.h`](include/hocon.h) into `zig-out/include/`. The header is the
+documentation: parse a file or a string, read values by path, write a subtree
+as JSON or HOCON, and errors with file, line, column and the line itself.
 
 ## Usage
 
@@ -532,7 +557,6 @@ these are what makes the format pleasant, so they are on the roadmap.
 - [x] [Size in bytes format](https://github.com/lightbend/config/blob/main/HOCON.md#size-in-bytes-format) (`512K`, `1G`, ...)
       — `hocon.Size`, bytes in a u64, so up to 16 EiB where typesafe/config's
       long stops at 8. Zetta and yotta are there, for a fraction of one.
-- [ ] [Config object merging and file merging](https://github.com/lightbend/config/blob/main/HOCON.md#config-object-merging-and-file-merging) (`with_fallback`-style)
 - [x] [Substitution fallback to environment variables](https://github.com/lightbend/config/blob/main/HOCON.md#substitution-fallback-to-environment-variables)
       — a path that is not in the document at all reads the variable of the
       same name (`${a.b}` reads `a.b`), always a string; `null` in the file
@@ -548,7 +572,12 @@ these are what makes the format pleasant, so they are on the roadmap.
 
 Deliberately out of scope: Java properties mapping, conventional JVM config file
 names, and override by system properties — all of them describe JVM conventions
-rather than the format.
+rather than the format. Merging two loaded configs in code (`withFallback`) is
+left out too: an `include` in the file does the same.
+
+A key the struct has no field for is skipped; `.ignore_unknown_fields = false`
+in the options makes it `error.UnknownField` at its place, as the option of the
+same name does in `std.json`.
 
 ### Implementation
 
@@ -642,8 +671,44 @@ rather than the format.
       measures (`conformance/adapters/zig-hocon.sh`). `hocon get` prints one
       value, `hocon check` reads files and with `--schema` into a struct,
       `hocon diff` compares two by path.
-- [ ] Public API, the rest — the other `ParseOptions` fields (`ignore_unknown_fields`;
-      unknown keys are ignored for now), and `parseFromValue`.
+- [x] C API — `include/hocon.h` over `src/capi.zig`: a document behind an
+      opaque handle, getters by path through the same conversions as Zig,
+      JSON and HOCON out, every environment mode and `resolve = false`.
+      Everything it hands out it frees itself.
+- [x] Python — `python/zig_hocon`, `ctypes` over the C API with pyhocon's
+      shape, and `zig build wheels` for every platform from one machine.
+
+## Python
+
+`pip install zig-hocon` — the same parser for Python, with pyhocon's API, through
+a thin `ctypes` layer over libhocon:
+
+```python
+from zig_hocon import ConfigFactory, KEEP
+
+conf = ConfigFactory.parse_file("deploy/prod/app.conf")   # ${VAR} from os.environ
+conf.get_int("db.pool")
+conf.get_duration("timeout")                              # datetime.timedelta
+settings = Settings.model_validate(conf.as_dict())        # pydantic
+
+ConfigFactory.parse_file(path, env={"PORT": "8080"})      # variables from a dict, or None
+ConfigFactory.parse_file(path, env=KEEP).to_hocon()       # one file to deploy
+ConfigFactory.parse_file(path, resolve=False)             # every ${…} as written
+```
+
+Errors carry the place, a caret under it, and for a getter the path and the
+type it wanted. The whole interface is in [python/README.md](python/README.md),
+moving over from pyhocon in [python/MIGRATING.md](python/MIGRATING.md);
+[examples/](examples) reads the same `.conf` files into pydantic, msgspec and
+dataclasses: layered environments, durations and sizes, errors, and compaction
+into one file to deploy. On a 10 MB file it takes about 0.3 s where pyhocon
+takes a minute.
+
+`zig build wheels` cross-compiles a wheel for macOS, Linux (manylinux and
+musllinux) and Windows into `zig-out/wheels/`, and
+`tools/test-wheel.sh 3.12 <wheel>` runs the package's tests and the examples
+against one. `conformance/adapters/zig-hocon-python.sh` runs the conformance
+suite through the package, and scores the same as the CLI.
 
 ## Reference oracles
 
@@ -675,7 +740,7 @@ wins and the row says so. Where it stands today:
 | Java <sub>typesafe/config 1.4.9</sub> | 90% (399/445) | 99% (442/445) | 96% (428/445) |
 | Java main <sub>typesafe/config main@275f872, unreleased</sub> | 93% (412/445) | 96% (428/445) | 99% (442/445) |
 | pyhocon <sub>pyhocon 0.3.63</sub> | 70% (312/445) | 66% (295/445) | 68% (304/445) |
-| zig-hocon <sub>zig-hocon code@197633a</sub> | 99% (442/445) | 90% (399/445) | 93% (412/445) |
+| zig-hocon <sub>zig-hocon code@431c6ef</sub> | 99% (442/445) | 90% (399/445) | 93% (412/445) |
 
 <!-- conformance:end -->
 

@@ -13,3 +13,5 @@ __pycache__/
 .pytest_cache/
 python/build/
 python/*.egg-info/
+# zig build wheels; the one for this machine, copied by hand.
+dist/

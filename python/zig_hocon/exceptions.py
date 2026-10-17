@@ -43,7 +43,7 @@ class ConfigException(Exception):
 
 
 class ConfigParseException(ConfigException):
-    """The text is no HOCON, or an include failed."""
+    """The text is not valid HOCON, or an include failed."""
 
 
 class ConfigSubstitutionException(ConfigException):

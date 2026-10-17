@@ -1786,6 +1786,32 @@ test "diagnostics.conversion without a position" {
     }
 }
 
+// `ignore_unknown_fields = false`: a key the struct has no field for is an
+// error, with its path, at its value (a key has no place of its own). The
+// default skips it, as before and as `std.json`'s option of the same name.
+// java – reads by path, never into a struct · pyhocon – the same · spec – an
+// API choice, not the format's
+test "diagnostics.conversion of an unknown field" {
+    const T = struct { port: u16 = 80, db: struct { host: []const u8 = "" } = .{} };
+    const skipped = try hocon.parseFromSlice(T, testing.allocator, "port = 8080\nprot = 8081", .{});
+    defer skipped.deinit();
+    try testing.expectEqual(8080, skipped.value.port);
+
+    const cases = [_]struct { src: [:0]const u8, want: []const u8 }{
+        .{ .src = "port = 8080\nprot = 8081", .want = "2:8: error: UnknownField at prot\nprot = 8081\n       ^\n" },
+        .{ .src = "db { host = a, hots = b }", .want = "1:23: error: UnknownField at db.hots\ndb { host = a, hots = b }\n                      ^\n" },
+    };
+    for (cases) |c| {
+        var diag: hocon.Diagnostics = .{};
+        defer diag.deinit(testing.allocator);
+        try testing.expectError(error.UnknownField, hocon.parseFromSlice(T, testing.allocator, c.src, .{ .diagnostics = &diag, .ignore_unknown_fields = false }));
+        var out: std.Io.Writer.Allocating = .init(testing.allocator);
+        defer out.deinit();
+        try diag.render(&out.writer);
+        try testing.expectEqualStrings(c.want, out.written());
+    }
+}
+
 // A key that a path has to quote is quoted in it, so the path can be pasted
 // into `parsePath` (or `hocon get`) as it is.
 test "diagnostics.conversion quotes a key that needs it" {

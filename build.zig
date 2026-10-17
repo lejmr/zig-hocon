@@ -77,10 +77,12 @@ pub fn build(b: *std.Build) void {
     // environment of that Python, the package from python/ with the library
     // just built. Runs every time: its inputs are files zig does not track.
     // Every line and branch of the package runs, or it fails (`pragma: no
-    // cover` for what no test can reach).
+    // cover` for what no test can reach). `python -m zig_hocon` is left out:
+    // test_main.py runs it as a process, as the conformance adapter does,
+    // where coverage does not follow.
     const python_version = b.option([]const u8, "python", "The Python test-python runs on (default 3.12)") orelse "3.12";
     const coverage_file = b.pathFromRoot(".zig-cache/python.coverage");
-    const pytest = b.addSystemCommand(&.{ "uv", "run", "--no-project", "--python", python_version, "--with", "pytest", "--with", "coverage", "python", "-m", "coverage", "run", "--branch", "--source=python/zig_hocon", "-m", "pytest", "-q", "python/tests" });
+    const pytest = b.addSystemCommand(&.{ "uv", "run", "--no-project", "--python", python_version, "--with", "pytest", "--with", "coverage", "python", "-m", "coverage", "run", "--branch", "--source=python/zig_hocon", "--omit=python/zig_hocon/__main__.py", "-m", "pytest", "-q", "python/tests" });
     pytest.setCwd(b.path("."));
     pytest.setEnvironmentVariable("PYTHONPATH", "python");
     pytest.setEnvironmentVariable("COVERAGE_FILE", coverage_file);
@@ -102,6 +104,47 @@ pub fn build(b: *std.Build) void {
     test_python_step.dependOn(&coverage.step);
     test_python_step.dependOn(&mypy.step);
 
+    // `zig build wheels`: a wheel for every platform into zig-out/wheels/,
+    // each with libhocon cross-compiled for it, packed by tools/wheel.py.
+    // ReleaseSafe and stripped whatever -Doptimize says: these are what pip
+    // installs. A tag names the oldest system the library runs on, so the
+    // target pins it: macOS 13 (zig's oldest), glibc 2.17 (manylinux2014).
+    const wheels_step = b.step("wheels", "Build the Python wheels of every platform into zig-out/wheels (needs python3.11+)");
+    const version = @import("build.zig.zon").version;
+    for ([_][2][]const u8{
+        .{ "aarch64-macos.13.0", "macosx_13_0_arm64" },
+        .{ "x86_64-macos.13.0", "macosx_13_0_x86_64" },
+        .{ "x86_64-linux-gnu.2.17", "manylinux_2_17_x86_64.manylinux2014_x86_64" },
+        .{ "aarch64-linux-gnu.2.17", "manylinux_2_17_aarch64.manylinux2014_aarch64" },
+        .{ "x86_64-linux-musl", "musllinux_1_2_x86_64" },
+        .{ "aarch64-linux-musl", "musllinux_1_2_aarch64" },
+        .{ "x86_64-windows", "win_amd64" },
+    }) |row| {
+        const triple, const tag = row;
+        const wheel_target = b.resolveTargetQuery(std.Target.Query.parse(.{ .arch_os_abi = triple }) catch @panic("bad target"));
+        const wheel_hocon = b.createModule(.{ .root_source_file = b.path("src/root.zig"), .target = wheel_target, .optimize = .ReleaseSafe, .strip = true });
+        const wheel_lib = b.addLibrary(.{ .linkage = .dynamic, .name = "hocon", .root_module = b.createModule(.{
+            .root_source_file = b.path("src/capi.zig"),
+            .target = wheel_target,
+            .optimize = .ReleaseSafe,
+            .strip = true,
+            .link_libc = true,
+            .imports = &.{.{ .name = "hocon", .module = wheel_hocon }},
+        }) });
+        wheel_lib.bundle_ubsan_rt = false;
+
+        const file_name = b.fmt("zig_hocon-{s}-py3-none-{s}.whl", .{ version, tag });
+        const pack = b.addSystemCommand(&.{ "python3", "tools/wheel.py" });
+        pack.setCwd(b.path("."));
+        const wheel = pack.addOutputFileArg(file_name);
+        pack.addArgs(&.{ version, tag });
+        pack.addFileArg(wheel_lib.getEmittedBin());
+        pack.addArg(wheel_lib.out_filename);
+        // It reads python/ too, which zig does not track: packed every time.
+        pack.has_side_effects = true;
+        wheels_step.dependOn(&b.addInstallFileWithDir(wheel, .{ .custom = "wheels" }, file_name).step);
+    }
+
     const mod_tests = b.addTest(.{
         .root_module = mod,
     });
@@ -114,8 +157,19 @@ pub fn build(b: *std.Build) void {
     const exe_tests = b.addTest(.{ .root_module = exe.root_module });
     test_step.dependOn(&b.addRunArtifact(exe_tests).step);
 
-    // The C API called from Zig with C's types (src/capi.zig's tests)…
-    test_step.dependOn(&b.addRunArtifact(b.addTest(.{ .root_module = capi })).step);
+    // The C API called from Zig with C's types (src/capi.zig's tests), with
+    // include/hocon.h translated to Zig, so a test holds the header to the code…
+    const capi_tests = b.createModule(.{
+        .root_source_file = b.path("src/capi.zig"),
+        .target = target,
+        .optimize = optimize,
+        .link_libc = true,
+        .imports = &.{
+            .{ .name = "hocon", .module = mod },
+            .{ .name = "hocon_h", .module = b.addTranslateC(.{ .root_source_file = b.path("include/hocon.h"), .target = target, .optimize = optimize }).createModule() },
+        },
+    });
+    test_step.dependOn(&b.addRunArtifact(b.addTest(.{ .root_module = capi_tests })).step);
 
     // …and from C: tests/c/hocon_test.c, built by zig cc against the library,
     // run here with nothing in its environment but what it sets itself.

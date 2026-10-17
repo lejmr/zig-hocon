@@ -1,0 +1,95 @@
+name: Python
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  # Every wheel, cross-compiled on one machine, as a release would build them.
+  wheels:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: "0.16.0"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: zig build wheels
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheels
+          path: zig-out/wheels/*.whl
+
+  # The wheel of each runner, installed into a fresh environment of each
+  # Python: the package's tests and every example against what pip installs.
+  test:
+    needs: wheels
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest, macos-15-intel, windows-latest]
+        python: ["3.10", "3.11", "3.12", "3.13", "3.14", "3.15"]
+        include:
+          - { os: ubuntu-latest, wheel: "*manylinux*x86_64.whl" }
+          - { os: ubuntu-24.04-arm, wheel: "*manylinux*aarch64.whl" }
+          - { os: macos-latest, wheel: "*macosx*arm64.whl" }
+          - { os: macos-15-intel, wheel: "*macosx*x86_64.whl" }
+          - { os: windows-latest, wheel: "*win_amd64.whl" }
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - uses: actions/download-artifact@v4
+        with:
+          name: wheels
+          path: wheels
+      - run: sh tools/test-wheel.sh ${{ matrix.python }} wheels/${{ matrix.wheel }}
+
+  # The musllinux wheels the same way, in Alpine 3.19: musl 1.2.4, older than
+  # the 1.2.5 that brought statx, which libhocon must not need from libc.
+  test-musl:
+    needs: wheels
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, arch: x86_64 }
+          - { os: ubuntu-24.04-arm, arch: aarch64 }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: wheels
+          path: wheels
+      - run: >
+          docker run --rm -v "$PWD:/w" -w /w python:3.12-alpine3.19
+          sh -c "pip install -q uv && sh tools/test-wheel.sh 3.12 wheels/*musllinux*${{ matrix.arch }}.whl"
+
+  # The conformance suite through the Python package scores what the CLI does.
+  conformance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: "0.16.0"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: zig build && zig build python
+      # run.sh exits 1 when a case fails, which some do: only a crash (2 and
+      # up) stops the step, and the comparison decides.
+      - name: Same score through Python as through the CLI
+        run: |
+          for mode in spec java; do
+            conformance/run.sh --$mode -- conformance/adapters/zig-hocon.sh > cli.json || [ $? -eq 1 ]
+            conformance/run.sh --$mode -- conformance/adapters/zig-hocon-python.sh > python.json || [ $? -eq 1 ]
+            python3 -c 'import json, sys; cli, py = (json.load(open(f)) for f in sys.argv[1:3]); print(sys.argv[3], cli["passed"], py["passed"]); sys.exit(cli["cases"] != py["cases"])' cli.json python.json $mode
+          done

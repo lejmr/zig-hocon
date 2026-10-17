@@ -6,19 +6,37 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "zig-hocon"
 version = "0.1.0"
-description = "HOCON for Python, parsed by zig-hocon: pyhocon's API on a Zig library"
+description = "HOCON configuration for Python: the whole spec, fast, with pyhocon's API"
 readme = "README.md"
 license = "BSD-3-Clause"
 requires-python = ">=3.10"
 dependencies = []
 classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Operating System :: MacOS",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: Implementation :: PyPy",
     "Topic :: Software Development :: Libraries",
+    "Topic :: System :: Systems Administration",
     "Typing :: Typed",
 ]
 
 [project.urls]
 Homepage = "https://github.com/lejmr/zig-hocon"
+Source = "https://github.com/lejmr/zig-hocon/tree/main/python"
+Issues = "https://github.com/lejmr/zig-hocon/issues"
+Conformance = "https://htmlpreview.github.io/?https://github.com/lejmr/zig-hocon/blob/main/conformance/report.html"
+Migrating = "https://github.com/lejmr/zig-hocon/blob/main/python/MIGRATING.md"
 
 [tool.setuptools]
 packages = ["zig_hocon"]
