@@ -9,7 +9,7 @@
    green** (`zig fmt --check` and `zig build test` both pass). Red CI = draft,
    no exceptions.
 3. One feature or fix per PR. If you're implementing more than one item from
-   the [README feature checklist](README.md#features), split it into separate
+   the [spec checklist](docs/spec.md), split it into separate
    PRs — smaller PRs get reviewed faster.
 4. If you're proposing a feature not yet on the checklist, open an issue
    first to discuss scope before investing time in a PR.
@@ -19,7 +19,7 @@
 - `zig fmt --check .` passes.
 - `zig build test` passes, including a new test for whatever you added or
   fixed.
-- If your PR implements a checklist item in the README, tick it off in the
+- If your PR implements an item of the spec checklist, tick it off in the
   same PR.
 
 ## Local setup
@@ -38,3 +38,32 @@ in HEAD; if not, it builds HEAD, runs the suite (about 25 seconds), and amends
 the fresh results into your last commit — or adds a commit on top when that one
 is already on the server. The push then stops once; push again and it goes
 through with the results included. `git push --no-verify` skips it.
+
+## Commits
+
+Conventional commits: `type(scope): what changed`, with type one of `feat`,
+`fix`, `perf`, `refactor`, `docs`, `test`, `build`, `ci`, `chore`, `revert`,
+and `!` after it for a change that breaks something. CI checks every commit a
+pull request brings (`tools/check-commits.sh`).
+
+A `feat` or a `fix` someone using the library would notice also gets a line
+under `## [Unreleased]` in [CHANGELOG.md](CHANGELOG.md), written for them:
+what they can do now, or what works that did not.
+
+## Releasing
+
+One version, one tag, everything at once: the Zig package, libhocon for C
+and the Python package. A release is **Actions → Release → Run workflow**
+on `main`, with the version. It refuses a version that has a tag already or
+that CHANGELOG.md has nothing for, runs every test on Linux, macOS and
+Windows and every wheel on each Python, and only then commits
+`chore(release): vX.Y.Z` (CHANGELOG.md, `build.zig.zon`,
+`python/pyproject.toml` and the README's install line), tags it, and
+publishes the GitHub release, with the CHANGELOG.md section as its notes and
+the wheels and C zips attached, and the wheels on PyPI. `dry_run` does all of
+it but push, and publishes to TestPyPI instead.
+
+Once, before the first release: on PyPI and on TestPyPI, add a pending
+publisher for the project `zig-hocon`, repository `lejmr/zig-hocon`, workflow
+`release.yml`, environment `pypi` (on TestPyPI: `testpypi`), and create the
+two environments in the repository settings.

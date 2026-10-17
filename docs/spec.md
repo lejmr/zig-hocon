@@ -1,0 +1,219 @@
+# Spec coverage
+
+Tracks coverage of the [HOCON spec](https://github.com/lightbend/config/blob/main/HOCON.md),
+following its own section names so the two can be read side by side. Checked
+items are implemented and tested; unchecked items are planned.
+
+## Syntax
+
+Everything under [§Syntax](https://github.com/lightbend/config/blob/main/HOCON.md#syntax),
+grouped in the order it is meant to be built rather than the spec's, and blank
+lines separate the stages. See **Order of work** below for why they fall this
+way.
+
+- [x] [Unchanged from JSON](https://github.com/lightbend/config/blob/main/HOCON.md#unchanged-from-json)
+      — a JSON document parses as HOCON
+- [x] [Comments](https://github.com/lightbend/config/blob/main/HOCON.md#comments) (`#` and `//`)
+- [x] [Omit root braces](https://github.com/lightbend/config/blob/main/HOCON.md#omit-root-braces)
+      — both `a = b` and `{ a = b }` are a valid root
+- [x] [Key-value separator](https://github.com/lightbend/config/blob/main/HOCON.md#key-value-separator)
+      — `=` and `:` are interchangeable, and may be omitted before `{`
+- [x] [Commas](https://github.com/lightbend/config/blob/main/HOCON.md#commas)
+      — interchangeable with newlines, runs collapse, a trailing one is allowed
+- [x] [Whitespace](https://github.com/lightbend/config/blob/main/HOCON.md#whitespace)
+      — kept verbatim inside a value, trimmed at its ends
+- [x] [Unquoted strings](https://github.com/lightbend/config/blob/main/HOCON.md#unquoted-strings)
+      — including the reserved characters that end one
+
+Not spec sections of their own, but needed to get there, and already done:
+
+- [x] Quoted and unquoted values stay distinguishable in the tree, which type
+      inference needs to tell `a = "1"` from `a = 1`
+- [x] A value with nothing in it (`a =`) is a parse error rather than a crash
+- [x] Nesting deeper than 500 (blocks, lists, dotted keys, also in an included
+      `.json` or `.properties`), or a chain of 500 substitutions or layers of one
+      key, is `error.TooDeep` rather than a stack overflow
+
+- [x] [Multi-line strings](https://github.com/lightbend/config/blob/main/HOCON.md#multi-line-strings)
+      — a text part like any other, on the key side and as an include path too;
+      the `"""` stay in the tree because escapes are literal inside them, which
+      is what tells `"""a\nb"""` from `"a\nb"`
+- [x] [Includes](https://github.com/lightbend/config/blob/main/HOCON.md#includes) (file, url, classpath, required)
+      — files, `file()`, `required()` and http(s) URLs, as `.conf`, strict `.json`
+      or `.properties`; a basename loads all three. Not supported: `classpath()`
+      and URL schemes other than http, https and file (an error). Merge stacks
+      across an include (`a = {…}` then `a = ${q}` in the included file) wait
+      for #7. Read through
+      `parseFromFile`; `parseFromSlice` has no files and refuses an include. An
+      http(s) fetch that takes longer than `ParseOptions.http_timeout` (30 s, each
+      fetch on its own) is `error.IncludeTimeout`, also when it is not `required`.
+
+- [x] [Path expressions](https://github.com/lightbend/config/blob/main/HOCON.md#path-expressions)
+      — a substitution path is split into elements when its reference is built,
+      so resolution never parses. The split walks the parts the parser left
+      rather than the text, which is what keeps a quoted dot out of it: a dot
+      outside quotes is the only thing that ends an element, and the end of a
+      part means nothing at all. So `${x."y.z"}` is two elements and finds the
+      key `x { "y.z" = 1 }`, `${a"b"}` is the single element `ab`, and
+      `${a."".b}` keeps its empty middle, which java accepts. Keys, `${…}` and
+      `hocon.parsePath` share one splitter (`Key.split`), so `.a`, `a.` and
+      `a..b` are `MalformedKey` (java's `BadPath`) at the same dot in all three
+- [x] [Paths as keys](https://github.com/lightbend/config/blob/main/HOCON.md#paths-as-keys)
+      — an unquoted dotted key nests: `a.b.c = 1` builds the same tree as
+      `a { b { c = 1 } }`, `a.b {c = 1}` joins the two ways of writing it, and a
+      number splits like any other unquoted string, so `1.5 = x` is `1 { 5 = x }`.
+      A malformed path (`.a`, `a.`, `a..b`) is `MalformedKey`, java's `BadPath`.
+      A key written in parts splits the same way, so `"a"."b" = 1` nests and
+      `a."b.c" = 1` keeps `b.c` as one key
+
+- [x] [Duplicate keys and object merging](https://github.com/lightbend/config/blob/main/HOCON.md#duplicate-keys-and-object-merging)
+      — a key written twice is one member, whether the two spellings meet inside
+      one block (`{b=1, b=2}`) or in a concatenation (`{b=1} {b=2}`), and the
+      surviving member keeps the position of the first. A key held by both sides
+      merges again only if both hold an object; anything else lets the
+      right-hand value win outright, so `{b=[1]} {b=[2]}` is `[2]` where the
+      `[1] [2]` of a concatenation would be `[1,2]`. That pair is the whole
+      difference between merging and concatenating
+- [x] [Value concatenation](https://github.com/lightbend/config/blob/main/HOCON.md#value-concatenation)
+      — the parser collects the parts of `a = x "y"`, `a = [1] [2]` and
+      `a = {x=1} {y=2}` with the whitespace between them, and the value graph
+      then joins them: lists concatenate flatly, objects merge, text parts join
+      and stop being numbers. Mixing kinds is the `WrongType` java reports, and
+      it is reported while loading rather than later. The whitespace between two
+      parts goes whichever way its neighbours do — a separator beside a list or
+      an object, a character beside text — and a *quoted* space is a value, so
+      `[1] " " [2]` is an error where `[1]   [2]` is `[1,2]`. A substitution is
+      the one part that cannot be joined into, so the parts around it are kept
+      in order for resolution to finish
+- [x] [Substitutions](https://github.com/lightbend/config/blob/main/HOCON.md#substitutions) (`${a.b.c}`, `${?a.b.c}`)
+      — `${…}` and `${?…}` become nodes of their own wherever a value may
+      stand, and everything java rejects at parse time is rejected here too
+      (`${}`, an unclosed `${a`, a newline or a nested `${` inside the path, `?`
+      anywhere but directly after `${`, and a substitution where a key or an
+      include target belongs). In the value graph a substitution becomes a
+      reference of its own and everything holding one stays pending, since its
+      type is unknown until it resolves — which is why `"1" ${x} [2]` loads and
+      only fails once `x` turns out to be a number, while `"1" [2] ${x}` fails
+      immediately. Resolution then runs once, over the finished document, so
+      `x = 1`, `a = ${x}`, `x = 2` gives `a = 2`. A path steps through objects
+      and through other references, each target is resolved once and stored
+      back, and the parts of a pending value join exactly the way loading joins
+      them. `${?x}` with nothing behind it removes the member or the list
+      element; inside a concatenation it is empty, so `${?nope}42` is the
+      string `"42"`, as the spec says and where both oracles give the number
+      `42`. A key written again over a reference keeps both on a merge stack,
+      resolved from the top: a reference to the key's own previous value sees
+      the layers below it (`path = ${path} ":/opt"`, also through a path,
+      `${a.b}`), with nothing below it is undefined rather than a cycle, an
+      undefined `${?x}` on top leaves what was below, and `null` stops a merge
+      only at its own key. A value hidden by one it cannot merge with is never
+      evaluated. A reference that needs itself any other way is
+      `SubstitutionCycle`.
+
+- [x] [Conversion of numerically-indexed objects to arrays](https://github.com/lightbend/config/blob/main/HOCON.md#conversion-of-numerically-indexed-objects-to-arrays)
+      — next to a list in a concatenation, and read into a slice or an array, an
+      object with numeric keys is the list of its values in key order, gaps
+      closed: `[] { "2" : b, "0" : a }` is `[a, b]`, and `list.0 = a` in a
+      properties file makes one. Other keys are left out; with none left it
+      stays a type error. Keys read as java reads them (`01`, `+1` count).
+- [x] [The `+=` field separator](https://github.com/lightbend/config/blob/main/HOCON.md#the--field-separator)
+      — `a += b` is `a = ${?a} [b]` with the field's whole path in the ref, so
+      it starts a list or appends to the one below it, also under a dotted key,
+      inside an object, and from a file that was included. `+` apart from `=`
+      is an error
+
+<details>
+<summary><b>Order of work</b> — why the stages above fall this way</summary>
+
+The guiding idea is to build one complete tree first and only then walk it. That
+is what puts includes so early: until they are spliced in, there is no complete
+tree to walk, because an include contributes members the merge would otherwise
+never see.
+
+Two constraints from the spec fix the rest of the order. An include has to be
+resolved before anything reads the values it contributes, and substitutions
+resolve against the *finished* object graph. Getting the second one wrong is a
+known pyhocon bug and one of the reasons this project exists.
+
+**Includes** next, as a tree operation: parse the referenced file and splice its
+root members in. Nothing here needs evaluation, which is why it can come this
+early, and it has to precede substitutions regardless.
+
+**Path expressions and paths as keys** before merging, not after. Merging has to
+know that `a.b = 1` and `a { b = 2 }` describe the same field, and a substitution
+written as `${a.b}` looks it up the same way — so splitting a key into segments is
+part of building the graph rather than something bolted on later.
+
+**Duplicate keys, merging and value concatenation** turned out to belong to
+building the value graph rather than to the walk over it. Java decides them while
+parsing too — `a = {x=1} {y=2}` prints merged without anything being resolved —
+and doing the same here buys an invariant worth having: once loading is done,
+every value that holds no substitution is finished. Resolution then never has to
+know what a quote or a gap meant, only how to put a value where a reference was
+and re-run the same two functions loading used.
+
+**Substitutions** are what is left for the walk, and the reason a value holding
+one stays pending: its type is unknown until the graph is finished, so the type
+check that rejects `1 [2]` cannot run across it. `+=` then costs almost nothing,
+since the spec defines `a += b` as sugar for `a = ${?a} [b]`.
+
+Somewhere around here the library becomes useful end to end: with merging done and
+**automatic type conversions** in place, a JSON rendering works — and type
+conversion is on the critical path rather than a convenience, since rendering has
+to decide whether `a = 1` is the number `1` or the string `"1"`.
+
+**Conversion of numerically-indexed objects to arrays** last of the syntax items:
+a small rule with few users.
+
+</details>
+
+## API recommendations
+
+[§API Recommendations](https://github.com/lightbend/config/blob/main/HOCON.md#api-recommendations)
+is explicitly advisory — a HOCON implementation is conforming without it — but
+these are what makes the format pleasant, so they are on the roadmap.
+
+- [x] [Automatic type conversions](https://github.com/lightbend/config/blob/main/HOCON.md#automatic-type-conversions)
+      — into a Zig type rather than through typed getters: integers, floats,
+      `bool` (`true`/`yes`/`on`, `false`/`no`/`off`, lowercase only), strings,
+      slices, fixed arrays, structs, tagged unions (`{ tag = … }`), optionals,
+      enums and field defaults. A number reads as a
+      string exactly as written (`1.50` stays `"1.50"`), unquoted `null` fits
+      only an optional, and objects and arrays never become strings. One
+      deliberate difference from typesafe/config: `1.5` into an integer is an
+      error rather than a silent `1`. An object with numeric keys reads as a
+      list (see above).
+- [x] [Duration format](https://github.com/lightbend/config/blob/main/HOCON.md#duration-format) (`10s`, `5m`, ...)
+      — `hocon.Duration`, nanoseconds in an i96 like `std.Io.Duration`. A
+      fraction is exact, no floats (`0.3 s` is 300000000ns), where
+      typesafe/config multiplies a double and can round (`9.999…9 s`). Where
+      typesafe/config saturates at 292 years, an i96 holds the value, and past
+      that it is `error.Overflow`. The number is JSON's: `.5 s` and `01 s`,
+      which typesafe/config takes, are errors.
+- [x] [Period format](https://github.com/lightbend/config/blob/main/HOCON.md#period-format) (`3d`, `2 weeks`, ...)
+      — `hocon.Period`, `{ years, months, days }` like `java.time.Period`;
+      weeks are days, the number a whole one.
+- [x] [Size in bytes format](https://github.com/lightbend/config/blob/main/HOCON.md#size-in-bytes-format) (`512K`, `1G`, ...)
+      — `hocon.Size`, bytes in a u64, so up to 16 EiB where typesafe/config's
+      long stops at 8. Zetta and yotta are there, for a fraction of one.
+- [x] [Substitution fallback to environment variables](https://github.com/lightbend/config/blob/main/HOCON.md#substitution-fallback-to-environment-variables)
+      — a path that is not in the document at all reads the variable of the
+      same name (`${a.b}` reads `a.b`), always a string; `null` in the file
+      blocks it, and a self-reference (`+=` too) never reads it. An optional
+      that found nothing makes no field, so a path to it reads the variable.
+      `${X[]}` collects `X_0`, `X_1`, … into a list. The variables come from
+      `ParseOptions.env` (`.{ .map = init.environ_map }`): by default there are
+      none, the library never reads the process. The CLI passes its own.
+      `.keep` resolves everything else and leaves what waits for the
+      environment in the tree; `hocon.stringify` writes it out as HOCON, a
+      default under a variable as the key written twice, to be resolved
+      where it runs. JSON cannot hold it.
+
+Deliberately out of scope: Java properties mapping, conventional JVM config file
+names, and override by system properties — all of them describe JVM conventions
+rather than the format. Merging two loaded configs in code (`withFallback`) is
+left out too: an `include` in the file does the same.
+
+A key the struct has no field for is skipped; `.ignore_unknown_fields = false`
+in the options makes it `error.UnknownField` at its place, as the option of the
+same name does in `std.json`.

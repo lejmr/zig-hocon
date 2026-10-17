@@ -7,7 +7,7 @@
 - [ ] `zig fmt --check .` passes
 - [ ] `zig build test` passes
 - [ ] Added/updated a test for this change
-- [ ] Ticked the matching item in the [README feature w checklist](../README.md#features), if applicable
+- [ ] Ticked the matching item in the [spec checklist](../docs/spec.md), if applicable
 - [ ] This PR is scoped to a single feature/fix (not a bundle)
 
 <!-- If any box above is unchecked, please open this as a Draft PR. -->
