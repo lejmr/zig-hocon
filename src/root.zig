@@ -32,6 +32,7 @@ pub const ParseFromValueError = config.ConvertError;
 pub const stringify = @import("stringify.zig").stringify;
 pub const stringifyAlloc = @import("stringify.zig").stringifyAlloc;
 pub const StringifyOptions = @import("stringify.zig").Options;
+pub const writeKey = @import("stringify.zig").writeKey;
 pub const Duration = @import("units/Duration.zig");
 pub const Period = @import("units/Period.zig");
 pub const Size = @import("units/Size.zig");
@@ -705,6 +706,8 @@ fn drawCaret(gpa: std.mem.Allocator, src: []const u8, err: anyerror, diag: hocon
             try out.writer.writeByte('\n');
             try out.writer.splatByteAll(' ', loc.column - 1);
             try out.writer.print("^ {t}", .{err});
+            if (diag.key_path.len > 0) try out.writer.print(" at {s}", .{diag.key_path});
+            if (diag.expected.len > 0) try out.writer.print(": expected {s}", .{diag.expected});
         }
     }
     if (loc.line >= n) try out.writer.print("\n(past the last line: {d}:{d} {t})", .{ loc.line, loc.column, err });
@@ -1185,50 +1188,51 @@ test "diagnostics.env = .keep fails where the document decides" {
 // Text that is no duration, period or size (`t`, `p`, `s` here): the caret is
 // on where the text starts, inside the quotes or not. Text joined from parts
 // starts at the first one, a `${…}` included; the value of a substitution alone
-// is where it is written, and a variable's where its `${` is.
+// is where it is written, and a variable's where its `${` is. The caret line
+// names the field and what it wanted, as every conversion error does (R2-6).
 // java ✓ (BadValue, same line; for the joined row the lines its parts come
 // from, `1-2`) · pyhocon – (no getters) · spec ✓
 test "diagnostics.text in units that says no unit" {
     const rows = [_][:0]const u8{
         \\t = 10 MS
-        \\    ^ UnknownUnit
+        \\    ^ UnknownUnit at t: expected duration
         ,
         \\t = 1s
         \\p = 3 h
-        \\    ^ UnknownUnit
+        \\    ^ UnknownUnit at p: expected period
         ,
         \\t = " 10 MS "
-        \\    ^ UnknownUnit
+        \\    ^ UnknownUnit at t: expected duration
         ,
         \\p = 1.5 mo
-        \\    ^ InvalidCharacter
+        \\    ^ InvalidCharacter at p: expected period
         ,
         \\s = 1 ZB
-        \\    ^ Overflow
+        \\    ^ Overflow at s: expected size
         ,
         \\x = 10
         \\t = ${x} MS
-        \\    ^ UnknownUnit
+        \\    ^ UnknownUnit at t: expected duration
         ,
         \\x = 10 MS
-        \\    ^ UnknownUnit
+        \\    ^ UnknownUnit at t: expected duration
         \\t = ${x}
         ,
         // What is left once the optional ones are gone starts at a gap: the
         // text starts after it.
         \\t = ${?nope} ${?nope2} 10 MS
-        \\                       ^ UnknownUnit
+        \\                       ^ UnknownUnit at t: expected duration
         ,
         \\x = 10
         \\t = ${?nope} ${x} MS
-        \\             ^ UnknownUnit
+        \\             ^ UnknownUnit at t: expected duration
         ,
         \\x = 10
         \\t = ${?a}  ${?b}  ${x}MS
-        \\                  ^ UnknownUnit
+        \\                  ^ UnknownUnit at t: expected duration
         ,
         \\t = ${TIMEOUT}
-        \\    ^ InvalidCharacter
+        \\    ^ InvalidCharacter at t: expected duration
         ,
     };
     var cases: [rows.len]table.Case = undefined;
@@ -1529,19 +1533,201 @@ test "diagnostics.render keeps the line as written" {
     }
 }
 
-// A conversion error is kept too, but without a place: the document was fine,
-// the type did not fit it. It renders as the first line alone.
-test "diagnostics.a conversion error has no position" {
-    var diag: hocon.Diagnostics = .{};
-    const T = struct { a: u8 };
-    try testing.expectError(error.MissingField, hocon.parseFromSlice(T, testing.allocator, "b = the cat sat on the keyboard", .{ .diagnostics = &diag }));
-    try testing.expectEqual(error.MissingField, diag.err.?);
-    try testing.expectEqual(null, diag.location);
+// A conversion error says which value did not fit and what the type wanted
+// there, and points at the value where the file still says where it was
+// written: a scalar read as it stands, the first element of a list, the first
+// key of an object, in the file it came from. An index goes after its list.
+// java ✓ names the same path and line (`db.pool has type STRING rather than
+// NUMBER`) · pyhocon ✓ the path · spec — says nothing about errors. The
+// column is ours, as for the parse errors above.
+fn expectTypeCarets(comptime T: type, comptime env: hocon.Value.Env, rows: []const [:0]const u8) !void {
+    const cases = try testing.allocator.alloc(table.Case, rows.len);
+    defer testing.allocator.free(cases);
+    for (cases, rows) |*c, row| c.* = .ok(row, row);
+    try table.expectAll(cases, .{ .dump = struct {
+        fn dump(gpa: std.mem.Allocator, row: [:0]const u8) anyerror![]u8 {
+            const src = try withoutCaret(gpa, row);
+            var diag: hocon.Diagnostics = .{};
+            const err = if (hocon.parseFromSliceLeaky(T, gpa, src, .{ .diagnostics = &diag, .env = env })) |_|
+                return error.ParsedWithoutError
+            else |e|
+                e;
+            return drawCaret(gpa, src, err, diag);
+        }
+    }.dump });
+}
 
+test "diagnostics.conversion" {
+    const Level = enum { debug, info };
+    const T = struct {
+        name: []const u8 = "grumpy wombat",
+        db: struct { pool: u8 = 4, hosts: []const []const u8 = &.{} } = .{},
+        ports: []const u16 = &.{},
+        level: Level = .info,
+        tls: ?struct { on: bool } = null,
+        mode: union(enum) { quiet: void, loud: u8 } = .quiet,
+        size: enum(u8) { small, big, _ } = .small,
+    };
+    try expectTypeCarets(T, .none, &.{
+        \\db { pool = eight }
+        \\            ^ InvalidCharacter at db.pool: expected u8
+        ,
+        \\db.pool = 300
+        \\          ^ Overflow at db.pool: expected u8
+        ,
+        // The second element is the one, and a quoted string is where its
+        // quote is.
+        \\ports = [80, "the owl"]
+        \\             ^ InvalidCharacter at ports[1]: expected u16
+        ,
+        \\name = "x"
+        \\level = "loud"
+        \\        ^ TypeMismatch at level: expected one of debug, info
+        ,
+        // A list where a string goes: its first element.
+        \\name = [the cat, sat]
+        \\        ^ TypeMismatch at name: expected string
+        ,
+        // An object where a number goes: its first key.
+        \\db { pool { size = 8 } }
+        \\            ^ TypeMismatch at db.pool: expected u8
+        ,
+        \\db.hosts = [alpha, [beta]]
+        \\                    ^ TypeMismatch at db.hosts[1]: expected string
+        ,
+        // Through a substitution, the value is where it was written.
+        \\eight = eight
+        \\        ^ InvalidCharacter at db.pool: expected u8
+        \\db.pool = ${eight}
+        ,
+        \\tls { on = maybe }
+        \\           ^ TypeMismatch at tls.on: expected bool
+        ,
+        // A tagged union is an object with one of its names as the one key,
+        // and a `void` payload is `{}`; a non-exhaustive enum takes a number
+        // too. Both are Zig's own: java and pyhocon have neither.
+        \\mode = quiet
+        \\       ^ TypeMismatch at mode: expected object with one of quiet, loud
+        ,
+        \\mode { quiet = 1 }
+        \\               ^ TypeMismatch at mode.quiet: expected empty object
+        ,
+        \\mode { loud = very }
+        \\              ^ InvalidCharacter at mode.loud: expected u8
+        ,
+        \\size = huge
+        \\       ^ InvalidCharacter at size: expected one of small, big or a number
+    });
+}
+
+// What `.keep` left waiting for the environment cannot go into a string, and
+// it is where its `${` is: alone, in a concatenation (where that starts), as
+// the last of a key set twice, or deep in a `Value` field. java — the oracle
+// reads no typed value (its `ConfigException.NotResolved` names the path) ·
+// pyhocon — resolves while it parses · spec — says nothing about errors.
+test "diagnostics.conversion of a value that waits for the environment" {
+    const T = struct { a: []const u8 = "", b: []const u8 = "", c: []const []const u8 = &.{}, d: ?hocon.Value = null };
+    try expectTypeCarets(T, .keep, &.{
+        \\a = fine
+        \\b = ${NOT_YET}
+        \\    ^ Unresolved at b
+        ,
+        \\b = the ${NOT_YET} owl
+        \\    ^ Unresolved at b
+        ,
+        \\b = fine
+        \\b = ${?NOT_YET}
+        \\    ^ Unresolved at b
+        ,
+        \\c = [fine, ${NOT_YET}]
+        \\           ^ Unresolved at c[1]
+        ,
+        \\d { fine = 1, later = ${NOT_YET} }
+        \\                      ^ Unresolved at d
+        ,
+        \\d = [fine, [also fine, ${NOT_YET}]]
+        \\                       ^ Unresolved at d
+    });
+}
+
+// An object with numeric keys read as a list (R2-1): the path has the index
+// in the list the keys make, `ports[1]` for the second key in order, here `5`;
+// the caret is on the value itself, so it is plain which one. An object with
+// no numeric key is no list, and is where its first key is. A `Duration` in
+// a list is a field like any other.
+// java ✓ the list is numbered the same way (its error names only `ports`) ·
+// pyhocon – no typed getters · spec ✓ numerically-indexed objects
+test "diagnostics.conversion of an object with numeric keys" {
+    const T = struct { ports: []const u16 = &.{}, pair: [2]u8 = .{ 0, 0 }, ttls: []const hocon.Duration = &.{} };
+    try expectTypeCarets(T, .none, &.{
+        \\ports { 0 = 80, 5 = "the owl" }
+        \\                    ^ InvalidCharacter at ports[1]: expected u16
+        ,
+        \\pair { 1 = 2, 0 = x }
+        \\                  ^ InvalidCharacter at pair[0]: expected u8
+        ,
+        \\ports { a = 1 }
+        \\        ^ TypeMismatch at ports: expected list
+        ,
+        \\ttls { 0 = 1s, 1 = 3 fortnights }
+        \\                   ^ UnknownUnit at ttls[1]: expected duration
+    });
+}
+
+// Without a place to point at, the first line alone, path and all: a missing
+// field has no value, and an empty list has nothing in it to point at. The
+// root has no path.
+test "diagnostics.conversion without a position" {
+    const T = struct { a: u8, b: struct { c: []const u8 } = .{ .c = "" }, d: [2]u16 = .{ 0, 0 } };
+    const cases = [_]struct { src: [:0]const u8, err: anyerror, want: []const u8 }{
+        .{ .src = "b = the cat sat on the keyboard", .err = error.MissingField, .want = "error: MissingField at a\n" },
+        .{ .src = "a = 1\nb { }", .err = error.MissingField, .want = "error: MissingField at b.c\n" },
+        .{ .src = "a = 1\nd = []", .err = error.TypeMismatch, .want = "error: TypeMismatch at d: expected list of 2\n" },
+        .{ .src = "[]", .err = error.TypeMismatch, .want = "error: TypeMismatch: expected object\n" },
+        .{ .src = "a = 1\n\"weird.key\" = 2\nb { c = [] }", .err = error.TypeMismatch, .want = "error: TypeMismatch at b.c: expected string\n" },
+    };
+    for (cases) |c| {
+        var diag: hocon.Diagnostics = .{};
+        defer diag.deinit(testing.allocator);
+        try testing.expectError(c.err, hocon.parseFromSlice(T, testing.allocator, c.src, .{ .diagnostics = &diag }));
+        try testing.expectEqual(null, diag.location);
+        var out: std.Io.Writer.Allocating = .init(testing.allocator);
+        defer out.deinit();
+        try diag.render(&out.writer);
+        try testing.expectEqualStrings(c.want, out.written());
+    }
+}
+
+// A key that a path has to quote is quoted in it, so the path can be pasted
+// into `parsePath` (or `hocon get`) as it is.
+test "diagnostics.conversion quotes a key that needs it" {
+    const T = struct { @"db.main": struct { pool: u8 } };
+    var diag: hocon.Diagnostics = .{};
+    defer diag.deinit(testing.allocator);
+    try testing.expectError(error.InvalidCharacter, hocon.parseFromSlice(T, testing.allocator, "\"db.main\".pool = x", .{ .diagnostics = &diag }));
+    try testing.expectEqualStrings("\"db.main\".pool", diag.key_path);
+}
+
+// The place and the path are copies, so they outlive the arena of a failed
+// parse, and `deinit` gives them back: this is `testing.allocator`.
+test "diagnostics.conversion in an included file" {
+    var tmp = testing.tmpDir(.{});
+    defer tmp.cleanup();
+    try tmp.dir.writeFile(testing.io, .{ .sub_path = "pool.conf", .data = "pool = eight\n" });
+    try tmp.dir.writeFile(testing.io, .{ .sub_path = "app.conf", .data = "name = grumpy wombat\ndb { include \"pool.conf\" }\n" });
+    const path = try std.fmt.allocPrint(testing.allocator, ".zig-cache/tmp/{s}/app.conf", .{tmp.sub_path});
+    defer testing.allocator.free(path);
+
+    var diag: hocon.Diagnostics = .{};
+    defer diag.deinit(testing.allocator);
+    const T = struct { name: []const u8, db: struct { pool: u8 } };
+    try testing.expectError(error.InvalidCharacter, hocon.parseFromFile(T, testing.allocator, testing.io, path, .{ .diagnostics = &diag }));
     var out: std.Io.Writer.Allocating = .init(testing.allocator);
     defer out.deinit();
     try diag.render(&out.writer);
-    try testing.expectEqualStrings("error: MissingField\n", out.written());
+    const want = try std.fmt.allocPrint(testing.allocator, ".zig-cache/tmp/{s}/pool.conf:1:8: error: InvalidCharacter at db.pool: expected u8\npool = eight\n       ^\n", .{tmp.sub_path});
+    defer testing.allocator.free(want);
+    try testing.expectEqualStrings(want, out.written());
 }
 
 // Out of memory has no position either. Every allocation the parse makes is

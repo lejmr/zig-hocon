@@ -303,7 +303,7 @@ fn writeString(text: []const u8, w: *Writer) Writer.Error!void {
 }
 
 /// One element of a path. A dot would split it, so `"a.b"` is quoted.
-fn writeKey(text: []const u8, w: *Writer) Writer.Error!void {
+pub fn writeKey(text: []const u8, w: *Writer) Writer.Error!void {
     if (isBare(text, false)) return w.writeAll(text);
     try writeQuoted(text, w);
 }

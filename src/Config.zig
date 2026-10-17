@@ -9,6 +9,7 @@ const Diagnostics = @import("Diagnostics.zig");
 const Duration = @import("units/Duration.zig");
 const Period = @import("units/Period.zig");
 const Size = @import("units/Size.zig");
+const stringify = @import("stringify.zig");
 
 pub const Config = struct {
     object: Value,
@@ -132,26 +133,129 @@ pub const Config = struct {
         var files: Value.Files = .{};
         const obj = load(allocator, path, source, ctx, options.env, &files) catch |err| {
             if (options.diagnostics) |diag| {
-                diag.* = .{ .err = err, .location = if (err == error.OutOfMemory) null else locate(keep, files) };
+                diag.* = .{ .err = err, .location = if (err == error.OutOfMemory) null else locate(keep, files, files.failed) };
             }
             return err;
         };
         // `.keep` leaves what waits for the environment in the tree on purpose.
         if (T == Value and options.env == .keep) return obj;
-        var failed: ?Value.Pos = null;
-        return convert(T, allocator, obj, &failed) catch |err| {
-            // Most conversion errors have no place: an object or a list does
-            // not know where it is written. Text read in units does.
-            files.failed = failed;
-            if (options.diagnostics) |diag| diag.* = .{ .err = err, .location = locate(keep, files) };
+        var failed: Failed = .{};
+        return parseFromValue(T, allocator, obj, &failed) catch |err| {
+            if (options.diagnostics) |diag| {
+                diag.* = .{ .err = err };
+                // Out of memory has no place, and no memory to copy one with.
+                if (err != error.OutOfMemory) {
+                    diag.expected = failed.expected;
+                    diag.key_path = keyPath(keep, failed.steps.items) catch "";
+                    if (failed.value) |value| diag.location = locate(keep, files, placeOf(files, value));
+                }
+            }
             return err;
         };
     }
 
-    /// Where the failed parse points, with its own copy of the path and the line:
+    /// Where a conversion failed, filled in on the way up from there: each
+    /// level adds its key or index, so `steps` is innermost first.
+    pub const Failed = struct {
+        steps: std.ArrayList(Step) = .empty,
+        /// The value that did not fit; null for a missing field, which has none.
+        value: ?Value = null,
+        /// What the level it failed at wanted there (`expected`).
+        expected: []const u8 = "",
+
+        pub const Step = union(enum) { key: []const u8, index: usize };
+    };
+
+    /// `db.pool`, `ports[1]`: the keys as a path says them, quoted where they
+    /// need it, an index after the list it is in.
+    fn keyPath(gpa: Allocator, steps: []const Failed.Step) ![]const u8 {
+        var out: std.Io.Writer.Allocating = .init(gpa);
+        defer out.deinit();
+        var i = steps.len;
+        while (i > 0) {
+            i -= 1;
+            switch (steps[i]) {
+                .key => |key| {
+                    if (i != steps.len - 1) try out.writer.writeByte('.');
+                    try stringify.writeKey(key, &out.writer);
+                },
+                .index => |index| try out.writer.print("[{d}]", .{index}),
+            }
+        }
+        return out.toOwnedSlice();
+    }
+
+    /// Where `value` was written, if it still says. A ref knows where its `${`
+    /// is, a concatenation waiting for one where it starts, and a scalar where
+    /// it is (`Scalar.at`). A key does not, but its text is a slice of the file
+    /// it was read from, unless it had to be put together (escapes): the file
+    /// it points into is the file, and how far in is the offset. A list is
+    /// where its first element is, an object where its first key is, a key set
+    /// twice where it was set last; but what waits for the environment is
+    /// where the first thing in it that waits is.
+    // ponytail: no place for an empty list or object, or a value from a
+    // `.json` include; a position on every value when that matters.
+    fn placeOf(files: Value.Files, value: Value) ?Value.Pos {
+        const text = switch (value) {
+            .ref => |r| return r.at(),
+            .pending => |parts| return parts[0].pos,
+            .stack => |items| return placeOf(files, items[items.len - 1]),
+            .array => |items| {
+                for (items) |item| if (!item.isResolved()) return placeOf(files, item);
+                for (items) |item| if (placeOf(files, item)) |pos| return pos;
+                return null;
+            },
+            .object => |members| for (members) |m| {
+                if (!m.value.isResolved()) return placeOf(files, m.value);
+            } else if (members.len > 0) members[0].key.value else return null,
+            .scalar => |s| return s.at(),
+        };
+        for (files.list.items, 0..) |file, i| {
+            const start = @intFromPtr(file.source.ptr);
+            const at = @intFromPtr(text.ptr);
+            if (at >= start and at < start + file.source.len) return .{ .file = @intCast(i), .offset = at - start };
+        }
+        return null;
+    }
+
+    /// What a value of type T is, in words, for `Diagnostics.expected`.
+    fn expected(comptime T: type) []const u8 {
+        if (T == Duration) return "duration";
+        if (T == Period) return "period";
+        if (T == Size) return "size";
+        return switch (@typeInfo(T)) {
+            .int, .float => @typeName(T),
+            .bool => "bool",
+            .pointer => |info| if (info.size == .one) expected(info.child) else if (info.child == u8) "string" else "list",
+            .optional => |info| expected(info.child),
+            .array => |info| if (info.child == u8)
+                std.fmt.comptimePrint("string of {d} bytes or list of {d}", .{ info.len, info.len })
+            else
+                std.fmt.comptimePrint("list of {d}", .{info.len}),
+            .@"struct" => "object",
+            .void => "empty object",
+            // The names it can be, `one of debug, info`, and for a union the
+            // object that has one of them as its key.
+            .@"enum" => |info| comptime if (info.is_exhaustive) oneOf(T) else oneOf(T) ++ " or a number",
+            .@"union" => comptime "object with " ++ oneOf(T),
+            else => "",
+        };
+    }
+
+    /// `one of debug, info`, the names of T. Called at compile time, the only
+    /// time `++` joins strings.
+    fn oneOf(comptime T: type) []const u8 {
+        var words: []const u8 = "one of";
+        for (std.meta.fieldNames(T), 0..) |name, i| {
+            words = words ++ (if (i == 0) " " else ", ") ++ name;
+        }
+        return words;
+    }
+
+    /// Where `place` is in `files`, with its own copy of the path and the line:
     /// the files themselves go with the parse.
-    fn locate(gpa: Allocator, files: Value.Files) ?Diagnostics.Location {
-        const at = files.failed orelse return null;
+    fn locate(gpa: Allocator, files: Value.Files, place: ?Value.Pos) ?Diagnostics.Location {
+        const at = place orelse return null;
         const file = files.list.items[at.file];
         return Diagnostics.locate(file.path, file.source, at.offset).dupe(gpa) catch null;
     }
@@ -180,26 +284,27 @@ pub const Config = struct {
     /// Converts a Value into T. `T` is comptime, so the compiler builds one copy
     /// of this function per target type, and the `switch` below is decided at
     /// compile time: for `usize` only the `.int` branch exists at all.
-    pub fn parseFromValue(comptime T: type, allocator: Allocator, value: Value) ConvertError!T {
-        var failed: ?Value.Pos = null;
-        return convert(T, allocator, value, &failed);
+    /// `failed` learns where it failed and why (see `Failed`).
+    pub fn parseFromValue(comptime T: type, allocator: Allocator, value: Value, failed: *Failed) ConvertError!T {
+        return convert(T, allocator, value, failed) catch |err| {
+            // The first level to see the error is the one it starts at: the
+            // levels above it have added their step by the time they see it.
+            if (failed.steps.items.len == 0 and failed.value == null) {
+                failed.value = value;
+                if (err != error.Unresolved) failed.expected = expected(T);
+            }
+            return err;
+        };
     }
 
-    /// `parseFromValue`, telling `failed` where the text is written that a
-    /// `Duration`, `Period` or `Size` could not be read from.
-    fn convert(comptime T: type, allocator: Allocator, value: Value, failed: *?Value.Pos) ConvertError!T {
+    fn convert(comptime T: type, allocator: Allocator, value: Value, failed: *Failed) ConvertError!T {
         // The dynamic tree as it is, the way std.json.parseFromSlice(std.json.Value, …)
         // hands back its own — finished, so anything can print it.
         if (T == Value) return if (value.isResolved()) value else error.Unresolved;
         // Not resolved yet: refuse loudly instead of guessing.
         if (value == .ref or value == .pending or value == .stack) return error.Unresolved;
         // Structs, but read from text in the units format: `10ms` is a Duration.
-        if (T == Duration or T == Period or T == Size) {
-            return T.fromValue(value) catch |err| {
-                if (value == .scalar) failed.* = value.scalar.at();
-                return err;
-            };
-        }
+        if (T == Duration or T == Period or T == Size) return T.fromValue(value);
         switch (@typeInfo(T)) {
             .int => {
                 if (value != .scalar) return error.TypeMismatch;
@@ -225,7 +330,7 @@ pub const Config = struct {
                 // `*T` is a `T` of its own, as std.json reads one.
                 if (info.size == .one) {
                     const one = try allocator.create(info.child);
-                    one.* = try convert(info.child, allocator, value, failed);
+                    one.* = try parseFromValue(info.child, allocator, value, failed);
                     return one;
                 }
                 if (info.size != .slice) @compileError("hocon: unsupported target type " ++ @typeName(T));
@@ -239,8 +344,11 @@ pub const Config = struct {
                     .array => {
                         if (info.child == u8) return error.TypeMismatch;
                         var a: std.ArrayList(info.child) = .empty;
-                        for (value.array) |item| {
-                            const val = try convert(info.child, allocator, item, failed);
+                        for (value.array, 0..) |item, i| {
+                            const val = parseFromValue(info.child, allocator, item, failed) catch |err| {
+                                try failed.steps.append(allocator, .{ .index = i });
+                                return err;
+                            };
                             try a.append(allocator, val);
                         }
                         if (info.sentinel()) |end| return try a.toOwnedSliceSentinel(allocator, end);
@@ -249,7 +357,7 @@ pub const Config = struct {
                     // A list is asked for, so numeric keys make one.
                     .object => {
                         const items = try Value.numbered(allocator, value.object) orelse return error.TypeMismatch;
-                        return parseFromValue(T, allocator, .{ .array = items });
+                        return parseFromValue(T, allocator, .{ .array = items }, failed);
                     },
                     else => return error.TypeMismatch,
                 }
@@ -270,12 +378,17 @@ pub const Config = struct {
 
                     if (found) |member| {
                         // At some point field.type can be optional, but we have value, so jump to .optional
-                        @field(result, field.name) = try convert(field.type, allocator, member.value, failed);
+                        @field(result, field.name) = parseFromValue(field.type, allocator, member.value, failed) catch |err| {
+                            try failed.steps.append(allocator, .{ .key = field.name });
+                            return err;
+                        };
                     } else if (field.defaultValue()) |default| {
                         @field(result, field.name) = default;
                     } else if (@typeInfo(field.type) == .optional) {
                         @field(result, field.name) = null;
                     } else {
+                        // The path names the field; there is no value to point at.
+                        try failed.steps.append(allocator, .{ .key = field.name });
                         return error.MissingField;
                     }
                 }
@@ -288,9 +401,11 @@ pub const Config = struct {
                 if (info.is_exhaustive or value.scalar.quoted) return error.TypeMismatch;
                 return @enumFromInt(try std.fmt.parseInt(info.tag_type, value.scalar.value, 10));
             },
+            // The payload of a tag that has none, as std.json writes it.
+            .void => if (value != .object or value.object.len != 0) return error.TypeMismatch,
             .optional => |info| {
                 if (value == .scalar and !value.scalar.quoted and std.mem.eql(u8, value.scalar.value, "null")) return null;
-                return try convert(info.child, allocator, value, failed);
+                return try parseFromValue(info.child, allocator, value, failed);
             },
             // A list of exactly that many, or for `[N]u8` a string of N bytes,
             // as `stringify` writes them.
@@ -306,23 +421,29 @@ pub const Config = struct {
                 }
                 if (value == .object) {
                     const items = try Value.numbered(allocator, value.object) orelse return error.TypeMismatch;
-                    return parseFromValue(T, allocator, .{ .array = items });
+                    return parseFromValue(T, allocator, .{ .array = items }, failed);
                 }
                 if (value != .array or value.array.len != info.len) return error.TypeMismatch;
-                for (&result, value.array) |*item, v| item.* = try convert(info.child, allocator, v, failed);
+                for (&result, value.array, 0..) |*item, v, i| {
+                    item.* = parseFromValue(info.child, allocator, v, failed) catch |err| {
+                        try failed.steps.append(allocator, .{ .index = i });
+                        return err;
+                    };
+                }
                 return result;
             },
             // `{ tag = payload }`, one member, the way std.json writes a tagged
-            // union; a `void` payload is `{}`.
+            // union; a `void` payload is `{}` (see `.void`).
             .@"union" => |info| {
                 if (info.tag_type == null) @compileError("hocon: unsupported untagged union " ++ @typeName(T));
                 if (value != .object or value.object.len != 1) return error.TypeMismatch;
                 const member = value.object[0];
                 inline for (info.fields) |field| {
                     if (std.mem.eql(u8, member.key.value, field.name)) {
-                        if (field.type != void) return @unionInit(T, field.name, try convert(field.type, allocator, member.value, failed));
-                        if (member.value != .object or member.value.object.len != 0) return error.TypeMismatch;
-                        return @unionInit(T, field.name, {});
+                        return @unionInit(T, field.name, parseFromValue(field.type, allocator, member.value, failed) catch |err| {
+                            try failed.steps.append(allocator, .{ .key = field.name });
+                            return err;
+                        });
                     }
                 }
                 return error.TypeMismatch;

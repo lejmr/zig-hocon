@@ -50,6 +50,10 @@ pub fn build(b: *std.Build) void {
     const test_step = b.step("test", "Run tests");
     test_step.dependOn(&run_mod_tests.step);
 
+    // The CLI's own tests, `diff` and `check --schema` in src/main.zig.
+    const exe_tests = b.addTest(.{ .root_module = exe.root_module });
+    test_step.dependOn(&b.addRunArtifact(exe_tests).step);
+
     // The real binary on a directory with nested includes: main.conf includes
     // sub/defaults.conf, which includes inner.conf from its own directory, and
     // main.conf's own port comes after the include and wins.
@@ -294,6 +298,312 @@ pub fn build(b: *std.Build) void {
         run_deeper.expectStdErrMatch(want);
         test_step.dependOn(&run_deeper.step);
     }
+
+    // `hocon get` (R2-5) on a real file: text bare, for a shell; an object as
+    // HOCON, or with `--json` anywhere among the arguments as JSON; a path as
+    // `parsePath` reads one, quotes and all. `--env` as everywhere else, and
+    // `--hocon` writes text as HOCON would. java ✓ (`getString`, `getConfig`,
+    // `getValue` on the same paths) · pyhocon ✓ · spec ✓ paths
+    for ([_]struct { args: []const []const u8, after: []const []const u8 = &.{}, out: []const u8 }{
+        .{ .args = &.{"name"}, .out = "grumpy wombat\n" },
+        .{ .args = &.{"zip"}, .out = "01234\n" },
+        .{ .args = &.{"zip"}, .after = &.{"--hocon"}, .out = "\"01234\"\n" },
+        .{ .args = &.{ "--json", "zip" }, .out = "\"01234\"\n" },
+        .{ .args = &.{"db"}, .out = "host = db.example.org\npool = 8\n" },
+        .{ .args = &.{ "db", "--json" }, .out = "{\"host\":\"db.example.org\",\"pool\":8}\n" },
+        .{ .args = &.{"plugins"}, .out = "[auth, metrics]\n" },
+        .{ .args = &.{"\"burrow.main\".depth"}, .out = "3\n" },
+        .{ .args = &.{" db.pool "}, .out = "8\n" },
+        .{ .args = &.{"port"}, .out = "9090\n" },
+        .{ .args = &.{"port"}, .after = &.{"--env=none"}, .out = "8080\n" },
+    }) |row| {
+        const run_get = runCli(b, exe);
+        run_get.addArg("get");
+        run_get.addArgs(row.args);
+        run_get.addFileArg(b.path("tests/cli-get/app.conf"));
+        run_get.addArgs(row.after);
+        run_get.setEnvironmentVariable("WOMBAT_PORT", "9090");
+        run_get.expectStdOutEqual(row.out);
+        test_step.dependOn(&run_get.step);
+    }
+
+    // What `get` refuses: a path that is not there, or not below an object,
+    // says so; a path that is no path gets a caret under where it stops being
+    // one; `--env=keep` leaves `port` two values until the environment picks.
+    for ([_]struct { path: []const u8, args: []const []const u8 = &.{}, err: []const u8 }{
+        .{ .path = "nope", .err = "error: no value at 'nope'\n" },
+        .{ .path = "name.first", .err = "error: no value at 'name.first'\n" },
+        .{ .path = "db.pool.size", .err = "error: no value at 'db.pool.size'\n" },
+        .{ .path = "\"burrow\".main", .err = "error: no value at '\"burrow\".main'\n" },
+        .{ .path = "db..pool", .err = "1:4: error: MalformedKey\ndb..pool\n   ^\n" },
+        .{ .path = "port", .args = &.{"--env=keep"}, .err = "error: app.conf: WaitsForTheEnvironment\n" },
+    }) |row| {
+        const run_get = runCli(b, exe);
+        run_get.setCwd(b.path("tests/cli-get"));
+        run_get.addFileInput(b.path("tests/cli-get/app.conf"));
+        run_get.addArgs(&.{ "get", row.path, "app.conf" });
+        run_get.addArgs(row.args);
+        run_get.expectExitCode(1);
+        run_get.expectStdErrEqual(row.err);
+        test_step.dependOn(&run_get.step);
+    }
+
+    // `hocon check` (R2-6) without a schema: each file parsed and resolved,
+    // includes and all, `ok` on stdout for the good ones, the error with its
+    // caret on stderr for the others, then how many failed; exit 1.
+    const check_files = [_][]const u8{ "staging/app.conf", "prod/app.conf", "broken/app.conf", "loud.conf", "slow.conf" };
+    const run_check = runCheck(b, exe);
+    run_check.addArgs(&.{"check"});
+    run_check.addArgs(&check_files);
+    run_check.expectExitCode(1);
+    run_check.expectStdOutEqual("staging/app.conf: ok\nprod/app.conf: ok\nloud.conf: ok\nslow.conf: ok\n");
+    run_check.expectStdErrEqual(
+        \\broken/app.conf:2:14: error: UnexpectedToken
+        \\db { host = x
+        \\             ^
+        \\1 of 5 failed
+        \\
+    );
+    test_step.dependOn(&run_check.step);
+
+    // All good is exit 0 and nothing on stderr.
+    const run_check_ok = runCheck(b, exe);
+    run_check_ok.addArgs(&.{ "check", "staging/app.conf", "loud.conf" });
+    run_check_ok.expectStdOutEqual("staging/app.conf: ok\nloud.conf: ok\n");
+    run_check_ok.expectStdErrEqual("");
+    test_step.dependOn(&run_check_ok.step);
+
+    // With `--schema`: `hocon` compiles a program with the struct in
+    // tests/cli-check/config.zig through the zig that runs this build, and the
+    // files are read into it. Type errors name the path and point at the
+    // value, in the file it is in, a `hocon.Duration` too. The cache it builds
+    // in is this build's, `$XDG_CACHE_HOME` here and `$HOME/.cache` for the
+    // runs below.
+    const home = b.pathResolve(&.{ b.graph.cache.cwd, b.cache_root.path orelse ".", "hocon-check" });
+    const run_schema = runSchema(b, exe, home, "config.zig:Config");
+    run_schema.addArgs(&check_files);
+    run_schema.setEnvironmentVariable("XDG_CACHE_HOME", b.pathJoin(&.{ home, ".cache" }));
+    run_schema.expectExitCode(1);
+    run_schema.expectStdOutEqual("staging/app.conf: ok\n");
+    run_schema.expectStdErrEqual(
+        \\prod/app.conf:5:10: error: InvalidCharacter at db.pool: expected u8
+        \\  pool = eight
+        \\         ^
+        \\broken/app.conf:2:14: error: UnexpectedToken
+        \\db { host = x
+        \\             ^
+        \\loud.conf:2:9: error: TypeMismatch at level: expected one of debug, info, warn
+        \\level = shouting
+        \\        ^
+        \\slow.conf:2:11: error: UnknownUnit at timeout: expected duration
+        \\timeout = 3 fortnights
+        \\          ^
+        \\4 of 5 failed
+        \\
+    );
+    test_step.dependOn(&run_schema.step);
+
+    // `config` is `Config` in other letters, and a type of its own, also on
+    // a file system that ignores case (macOS): read as it, prod's pool and
+    // the loud level are fine. After the run above, in the same cache.
+    const run_lower = runSchema(b, exe, home, "config.zig:config");
+    run_lower.addArgs(&check_files);
+    run_lower.step.dependOn(&run_schema.step);
+    run_lower.expectExitCode(1);
+    run_lower.expectStdOutEqual("staging/app.conf: ok\nprod/app.conf: ok\nloud.conf: ok\nslow.conf: ok\n");
+    run_lower.expectStdErrEqual(
+        \\broken/app.conf:2:14: error: UnexpectedToken
+        \\db { host = x
+        \\             ^
+        \\1 of 5 failed
+        \\
+    );
+    test_step.dependOn(&run_lower.step);
+
+    // The program reads the environment `hocon` was given, not the one
+    // `zig run` gives it: ZIG_EXE is the user's, or not there.
+    for ([_]?[]const u8{ null, "a confused zebra" }) |zig_exe| {
+        const run_env = runSchema(b, exe, home, "config.zig:Config");
+        run_env.addArg("zig-exe.conf");
+        run_env.step.dependOn(&run_schema.step);
+        if (zig_exe) |value| {
+            run_env.setEnvironmentVariable("ZIG_EXE", value);
+            run_env.expectStdOutEqual("zig-exe.conf: ok\n");
+        } else {
+            run_env.expectExitCode(1);
+            run_env.expectStdErrEqual("zig-exe.conf: error: MissingField at name\n1 of 1 failed\n");
+        }
+        test_step.dependOn(&run_env.step);
+    }
+
+    // A schema that is not there is said the way a .conf that is not there
+    // is, before anything is compiled; a cache that cannot be written says
+    // where it was to go.
+    for ([_]struct { schema: []const u8, cache: []const u8 = "", err: []const u8 }{
+        .{ .schema = "nope.zig:Config", .err = "error: nope.zig: FileNotFound\n" },
+        .{ .schema = "config.zig:Config", .cache = "/dev/null", .err = "error: --schema writes its cache in /dev/null: NotDir\n" },
+    }) |row| {
+        const run_bad = runSchema(b, exe, home, row.schema);
+        run_bad.addArg("loud.conf");
+        run_bad.setEnvironmentVariable("XDG_CACHE_HOME", row.cache);
+        run_bad.expectExitCode(1);
+        run_bad.expectStdErrEqual(row.err);
+        test_step.dependOn(&run_bad.step);
+    }
+
+    // `hocon diff` (R2-7): what prod.conf changes on top of the defaults it
+    // includes, path by path, values as JSON; a list compared whole, an
+    // object's keys in any order the same object, `null` a value of its own.
+    // Exit 1 when anything differs. The other way round, what prod added is
+    // what the defaults lack.
+    for ([_]struct { a: []const u8, b: []const u8, out: []const u8 }{
+        .{ .a = "defaults.conf", .b = "prod.conf", .out =
+        \\~ port: 8080 → 443
+        \\~ debug: true → false
+        \\~ plugins: ["auth"] → ["auth","metrics"]
+        \\+ db.host: "db.example.org"
+        \\~ feature.beta: true → null
+        \\
+        },
+        .{ .a = "prod.conf", .b = "defaults.conf", .out =
+        \\~ port: 443 → 8080
+        \\~ debug: false → true
+        \\~ plugins: ["auth","metrics"] → ["auth"]
+        \\- db.host
+        \\~ feature.beta: null → true
+        \\
+        },
+    }) |row| {
+        const run_diff = runCli(b, exe);
+        run_diff.addArg("diff");
+        run_diff.addFileArg(b.path(b.fmt("tests/cli-diff/{s}", .{row.a})));
+        run_diff.addFileArg(b.path(b.fmt("tests/cli-diff/{s}", .{row.b})));
+        run_diff.expectExitCode(1);
+        run_diff.expectStdOutEqual(row.out);
+        test_step.dependOn(&run_diff.step);
+    }
+
+    // The same as JSON, for a program to read.
+    const diff_json = runCli(b, exe);
+    diff_json.addArgs(&.{ "diff", "--json" });
+    diff_json.addFileArg(b.path("tests/cli-diff/prod.conf"));
+    diff_json.addFileArg(b.path("tests/cli-diff/defaults.conf"));
+    diff_json.expectExitCode(1);
+    diff_json.expectStdOutEqual("[{\"op\":\"changed\",\"path\":\"port\",\"old\":443,\"new\":8080},{\"op\":\"changed\",\"path\":\"debug\",\"old\":false,\"new\":true},{\"op\":\"changed\",\"path\":\"plugins\",\"old\":[\"auth\",\"metrics\"],\"new\":[\"auth\"]},{\"op\":\"removed\",\"path\":\"db.host\",\"old\":\"db.example.org\"},{\"op\":\"changed\",\"path\":\"feature.beta\",\"old\":null,\"new\":true}]\n");
+    test_step.dependOn(&diff_json.step);
+
+    // Compaction checked the way the plan has it: the file `--env=keep`
+    // wrote (above) and the one it came from, both read with the variables
+    // set, are no different: exit 0, nothing printed.
+    const diff_compact = runCli(b, exe);
+    diff_compact.addArg("diff");
+    diff_compact.addFileArg(b.path("tests/cli-compact/prod.conf"));
+    diff_compact.addFileArg(compacted);
+    diff_compact.setEnvironmentVariable("HOST", "wombat.example");
+    diff_compact.setEnvironmentVariable("PORT", "9090");
+    diff_compact.expectExitCode(0);
+    diff_compact.expectStdOutEqual("");
+    test_step.dependOn(&diff_compact.step);
+
+    // A file `diff` cannot read or compare exits 2, as diff(1) does: 1 is
+    // only for files that differ, so a script can tell the two apart.
+    for ([_]struct { args: []const []const u8, err: []const u8 }{
+        .{ .args = &.{ "deep.conf", "nofile.conf" }, .err = "nofile.conf: error: FileNotFound\n" },
+        .{ .args = &.{ "--env=keep", "prod.conf", "deep.conf" }, .err = "error: prod.conf: WaitsForTheEnvironment\n" },
+        .{ .args = &.{ "deep.conf", "deep.conf" }, .err = "error: deep.conf: TooDeepForJson\n" },
+    }) |row| {
+        const diff_bad = runCli(b, exe);
+        diff_bad.setCwd(broken.getDirectory());
+        diff_bad.addArg("diff");
+        diff_bad.addArgs(row.args);
+        diff_bad.expectExitCode(2);
+        diff_bad.expectStdErrEqual(row.err);
+        test_step.dependOn(&diff_bad.step);
+    }
+
+    // A stdout that is gone is one line on stderr, as for the command-less
+    // form, not a stack trace; `diff` exits 2 for it, as for any trouble.
+    // `get` names the file, as the command-less form does, since it writes
+    // the value the same way. `inputs` are the files the row reads, so the
+    // run reruns when one changes.
+    for ([_]struct { args: []const u8, inputs: []const []const u8, code: u8, err: []const u8 }{
+        .{ .args = "get name ../cli-get/app.conf", .inputs = &.{"tests/cli-get/app.conf"}, .code = 1, .err = "error: ../cli-get/app.conf: WriteFailed\n" },
+        .{ .args = "get db ../cli-get/app.conf", .inputs = &.{"tests/cli-get/app.conf"}, .code = 1, .err = "error: ../cli-get/app.conf: WriteFailed\n" },
+        .{ .args = "check loud.conf", .inputs = &.{"tests/cli-check/loud.conf"}, .code = 1, .err = "error: WriteFailed\n" },
+        .{ .args = "diff ../cli-diff/defaults.conf ../cli-diff/prod.conf", .inputs = &.{ "tests/cli-diff/defaults.conf", "tests/cli-diff/prod.conf" }, .code = 2, .err = "error: WriteFailed\n" },
+    }) |row| {
+        const closed = b.addSystemCommand(&.{ "sh", "-c", b.fmt("exec \"$0\" {s} >&-", .{row.args}) });
+        closed.addArtifactArg(exe);
+        closed.clearEnvironment();
+        closed.setCwd(b.path("tests/cli-check"));
+        for (row.inputs) |input| closed.addFileInput(b.path(input));
+        closed.expectExitCode(row.code);
+        closed.expectStdErrEqual(row.err);
+        test_step.dependOn(&closed.step);
+    }
+
+    // Every command says how it is called when it is called wrong, its own
+    // line; `hocon` alone lists all four.
+    const usage_get = "error: usage: hocon get [--hocon | --json] [--env=process|none|keep] <path> <file.conf>\n";
+    const usage_check = "error: usage: hocon check [--env=process|none|keep] [--schema <file.zig>:<Type>] <file.conf>...\n";
+    const usage_diff = "error: usage: hocon diff [--json] [--env=process|none|keep] <a.conf> <b.conf>\n";
+    for ([_]struct { args: []const []const u8, err: []const u8 }{
+        .{ .args = &.{}, .err =
+        \\error: usage: hocon [--hocon | --json] [--env=process|none|keep] <file.conf>
+        \\              hocon get [--hocon | --json] [--env=process|none|keep] <path> <file.conf>
+        \\              hocon check [--env=process|none|keep] [--schema <file.zig>:<Type>] <file.conf>...
+        \\              hocon diff [--json] [--env=process|none|keep] <a.conf> <b.conf>
+        \\
+        },
+        .{ .args = &.{"get"}, .err = usage_get },
+        .{ .args = &.{ "get", "port" }, .err = usage_get },
+        .{ .args = &.{ "get", "port", "a.conf", "b.conf" }, .err = usage_get },
+        .{ .args = &.{ "get", "--json", "--hocon", "port", "a.conf" }, .err = usage_get },
+        .{ .args = &.{ "get", "--env=shell", "port", "a.conf" }, .err = usage_get },
+        .{ .args = &.{ "get", "", "a.conf" }, .err = usage_get },
+        .{ .args = &.{ "get", "--schema", "x.zig:T", "port", "a.conf" }, .err = usage_get },
+        .{ .args = &.{"check"}, .err = usage_check },
+        .{ .args = &.{ "check", "--json", "a.conf" }, .err = usage_check },
+        .{ .args = &.{ "check", "a.conf", "--schema" }, .err = usage_check },
+        .{ .args = &.{ "check", "--schema", "config.zig", "a.conf" }, .err = usage_check },
+        .{ .args = &.{ "check", "--schema", "config.zig:Config;", "a.conf" }, .err = usage_check },
+        .{ .args = &.{ "check", "--schema", "config.zig:", "a.conf" }, .err = usage_check },
+        .{ .args = &.{ "check", "--schema", ":Config", "a.conf" }, .err = usage_check },
+        .{ .args = &.{ "check", "--schema", "a.zig:A", "--schema", "b.zig:B", "a.conf" }, .err = usage_check },
+        .{ .args = &.{ "diff", "a.conf" }, .err = usage_diff },
+        .{ .args = &.{ "diff", "--hocon", "a.conf", "b.conf" }, .err = usage_diff },
+        .{ .args = &.{ "diff", "--env=none", "--env=keep", "a.conf", "b.conf" }, .err = usage_diff },
+    }) |row| {
+        const bad = runCli(b, exe);
+        bad.addArgs(row.args);
+        bad.expectExitCode(1);
+        bad.expectStdErrEqual(row.err);
+        test_step.dependOn(&bad.step);
+    }
+}
+
+/// `hocon check` in tests/cli-check, so the paths it prints are the ones it
+/// was given. The files are its inputs: a change to one runs it again.
+fn runCheck(b: *std.Build, exe: *std.Build.Step.Compile) *std.Build.Step.Run {
+    const run = runCli(b, exe);
+    run.setCwd(b.path("tests/cli-check"));
+    for ([_][]const u8{ "config.zig", "staging/app.conf", "prod/app.conf", "broken/app.conf", "loud.conf", "slow.conf", "zig-exe.conf" }) |name| {
+        run.addFileInput(b.path(b.fmt("tests/cli-check/{s}", .{name})));
+    }
+    return run;
+}
+
+/// `hocon check --schema <schema>`, with the zig that runs this build on the
+/// PATH and its global cache, and `home/.cache` for a cache: an empty
+/// XDG_CACHE_HOME is none, as the XDG spec has it.
+fn runSchema(b: *std.Build, exe: *std.Build.Step.Compile, home: []const u8, schema: []const u8) *std.Build.Step.Run {
+    const run = runCheck(b, exe);
+    run.addArgs(&.{ "check", "--schema", schema });
+    run.setEnvironmentVariable("PATH", std.fs.path.dirname(b.graph.zig_exe).?);
+    run.setEnvironmentVariable("HOME", home);
+    run.setEnvironmentVariable("XDG_CACHE_HOME", "");
+    if (b.graph.global_cache_root.path) |global| run.setEnvironmentVariable("ZIG_GLOBAL_CACHE_DIR", global);
+    return run;
 }
 
 /// The binary for an end-to-end test. It gets none of the environment the

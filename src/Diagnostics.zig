@@ -14,9 +14,17 @@ const Diagnostics = @This();
 /// or the copies of the last one are lost.
 err: ?anyerror = null,
 /// Null for the errors that have no place in a file: OutOfMemory, a file that
-/// cannot be read, and turning the tree into T (MissingField, TypeMismatch…).
-/// Text that is no duration, period or size has one: where it is written.
+/// cannot be read, a missing field, and a value turned into T that does not
+/// say where it was written: an empty list or object, a value from a `.json`
+/// include.
 location: ?Location = null,
+/// For an error turning the tree into T: the path of the value it is about,
+/// `db.pool` or `ports[1]`, copied like the location. Empty for the others, and
+/// for the root.
+key_path: []const u8 = "",
+/// And what T wanted there: `u16`, `string`, `one of debug, info`. Empty when
+/// the error is not about the value's type, as for MissingField.
+expected: []const u8 = "",
 
 pub const Location = struct {
     /// The file the error is in, as it was named: the path the parse was given,
@@ -51,6 +59,7 @@ pub fn deinit(self: *Diagnostics, gpa: Allocator) void {
         gpa.free(loc.path);
         gpa.free(loc.source_line);
     }
+    if (self.key_path.len > 0) gpa.free(self.key_path);
     self.* = .{};
 }
 
@@ -100,13 +109,21 @@ pub fn locate(path: []const u8, source: []const u8, offset: usize) Location {
 /// Prints the error the way the zig compiler prints its own: `path:line:col:`,
 /// the line, and a caret under the column. Without a position it is the first
 /// line alone, `error: Name`. A slice has no path, so `line:col:` is all there is.
+/// A conversion error says which value and what it should have been:
+/// `error: TypeMismatch at db.pool: expected u8`.
 pub fn render(self: Diagnostics, w: *std.Io.Writer) std.Io.Writer.Error!void {
     // Nothing failed, nothing to say.
     const err = self.err orelse return;
-    const loc = self.location orelse return w.print("error: {t}\n", .{err});
+    if (self.location) |loc| {
+        if (loc.path.len > 0) try w.print("{s}:", .{loc.path});
+        try w.print("{d}:{d}: ", .{ loc.line, loc.column });
+    }
+    try w.print("error: {t}", .{err});
+    if (self.key_path.len > 0) try w.print(" at {s}", .{self.key_path});
+    if (self.expected.len > 0) try w.print(": expected {s}", .{self.expected});
+    try w.writeByte('\n');
 
-    if (loc.path.len > 0) try w.print("{s}:", .{loc.path});
-    try w.print("{d}:{d}: error: {t}\n", .{ loc.line, loc.column, err });
+    const loc = self.location orelse return;
     // A tab or a stray `\r` would move the text and leave the caret behind, and
     // ESC and the other control characters would steer the terminal, so each
     // prints as one space — the zig compiler does the same for tabs.

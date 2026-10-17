@@ -118,9 +118,21 @@ path and the line are copies, since a failed parse frees the files it read;
 `deinit` with the allocator the parse was given frees them. A slice has no file
 name, so after `parseFromSlice` the path is empty and the render starts at
 `3:11:`. Errors with no place in a file — out of memory, a file that cannot be
-read, a missing field or a type mismatch in the conversion — render as
-`error: MissingField`. Text that is no duration, period or size (below) points
-at where it is written.
+read — render as `error: FileNotFound`.
+
+An error in turning the document into your type also says which value it is
+about, `diag.key_path`, and what the type wanted there, `diag.expected`; text
+that is no duration, period or size (below) too. It points at the value where
+it is written, or at the `${` it came from. An empty list or object has nothing
+to point at, a value from an included `.json` file no place (std.json copies its
+text), and a missing field no value, so for those it is the first line alone:
+
+```
+deploy/prod/app.conf:7:10: error: InvalidCharacter at db.pool: expected u8
+  pool = eight
+         ^
+error: MissingField at db.host
+```
 
 It is the first error the parser runs into, and the parser reads the whole
 file before it builds any value: a stray `}` on line 9 is reported before a
@@ -228,6 +240,99 @@ host = ${?WOMBAT_HOST}
 port = 8080
 port = ${?WOMBAT_PORT}
 ```
+
+With a command in front, `hocon` does more than print the file. The commands
+read files the same way, and take `--env` like the above, `--json` where they
+print something, anywhere among their arguments (`hocon` alone lists them all).
+A file named like a command is `./get`.
+
+`hocon get <path> <file.conf>` prints one value. Text comes out as it is, so a
+shell script can take it; an object or a list comes out as HOCON, or with
+`--json` as JSON (`--hocon` writes text as HOCON too, quoted where it needs
+it). The path is a HOCON path, quotes and all, and one that is not there exits 1:
+
+```sh
+$ hocon get server.host server.conf
+example.org
+$ PORT=$(hocon get server.port server.conf)
+$ hocon get server --json server.conf
+{"host":"example.org","port":8080,"tags":["a","b c"],"tls":"on"}
+$ hocon get server.nope server.conf
+error: no value at 'server.nope'
+```
+
+`hocon check <file.conf>...` reads each file: syntax, includes, substitutions,
+cycles. A good one is `ok` on stdout, a bad one gets its error and caret on
+stderr, and at the end it says how many failed, with exit 1. With
+`--schema <file.zig>:<Type>` the files are read into your own struct, so a
+value of the wrong type fails as it would in your program:
+
+```sh
+$ hocon check --schema src/config.zig:Config deploy/*/app.conf
+deploy/prod/app.conf:7:10: error: InvalidCharacter at db.pool: expected u8
+  pool = eight
+         ^
+deploy/staging/app.conf: ok
+1 of 2 failed
+```
+
+A struct exists only when Zig compiles, so `hocon` writes a small program with
+your type in it and runs it with `zig run`, from the `PATH`. That needs a zig
+of the version the library is written for (0.16), and `src/config.zig` has to
+stand on its own: it imports `std` and `hocon`, nothing else. The library comes
+with the binary, which unpacks its own source into `~/.cache/zig-hocon/` (or
+`$XDG_CACHE_HOME`) the first time; zig caches the build, so only the first run
+of a type, or of a changed one, waits for the compiler.
+
+`hocon diff <a.conf> <b.conf>` compares two files as they resolve, path by
+path, not line by line. Values are printed as JSON, so `8080` and `"8080"` look
+as different as they are; a list is compared whole, an object key by key in any
+order. Exit 0 when there is no difference, 1 when there is, 2 when a file
+cannot be read or compared, as for diff(1); `--json` for a program to read:
+
+```sh
+$ hocon diff defaults.conf prod.conf
+~ port: 8080 → 443
+~ plugins: ["auth"] → ["auth","metrics"]
++ db.host: "db.example.org"
+- feature.beta
+$ hocon --env=keep prod.conf > deploy.conf && hocon diff prod.conf deploy.conf; echo $?
+0
+```
+
+#### From `build.zig`
+
+There is no build API: a build runs the binary from the dependency, over
+whatever files it finds. Here `zig build check-config` reads every
+`deploy/**/*.conf` into `Config`, and `zig build compact` writes the production
+config into one file, its variables left for the server:
+
+```zig
+const hocon = b.dependency("hocon", .{ .target = target, .optimize = optimize });
+
+const check = b.addRunArtifact(hocon.artifact("hocon"));
+check.addArgs(&.{ "check", "--schema", b.fmt("{s}:Config", .{b.pathFromRoot("src/config.zig")}) });
+check.addFileInput(b.path("src/config.zig"));
+var deploy = try b.build_root.handle.openDir(b.graph.io, "deploy", .{ .iterate = true });
+defer deploy.close(b.graph.io);
+var walker = try deploy.walk(b.allocator);
+defer walker.deinit();
+while (try walker.next(b.graph.io)) |entry| {
+    if (entry.kind == .file and std.mem.endsWith(u8, entry.path, ".conf"))
+        check.addFileArg(b.path(b.fmt("deploy/{s}", .{entry.path})));
+}
+b.step("check-config", "Check deploy/**/*.conf against Config").dependOn(&check.step);
+
+const compact = b.addRunArtifact(hocon.artifact("hocon"));
+compact.addArgs(&.{ "--hocon", "--env=keep" });
+compact.addFileArg(b.path("deploy/prod/app.conf"));
+const prod = compact.captureStdOut(.{ .basename = "prod.conf" });
+b.step("compact", "Compact deploy/prod/app.conf").dependOn(&b.addInstallFile(prod, "prod.conf").step);
+```
+
+`build` returns `!void` for the directory walk. A failed check fails the step,
+with the errors above in the build's output; leave the step out of the default
+one, or make it a dependency of `install`, as suits the project.
 
 ## Features
 
@@ -534,7 +639,9 @@ rather than the format.
       fall back to its environment (`--env=none` to not, `--env=keep` to leave
       them for later). With `--json` it is the same contract as a
       conformance adapter, so it is what the suite
-      measures (`conformance/adapters/zig-hocon.sh`).
+      measures (`conformance/adapters/zig-hocon.sh`). `hocon get` prints one
+      value, `hocon check` reads files and with `--schema` into a struct,
+      `hocon diff` compares two by path.
 - [ ] Public API, the rest — the other `ParseOptions` fields (`ignore_unknown_fields`;
       unknown keys are ignored for now), and `parseFromValue`.
 
@@ -568,7 +675,7 @@ wins and the row says so. Where it stands today:
 | Java <sub>typesafe/config 1.4.9</sub> | 90% (399/445) | 99% (442/445) | 96% (428/445) |
 | Java main <sub>typesafe/config main@275f872, unreleased</sub> | 93% (412/445) | 96% (428/445) | 99% (442/445) |
 | pyhocon <sub>pyhocon 0.3.63</sub> | 70% (312/445) | 66% (295/445) | 68% (304/445) |
-| zig-hocon <sub>zig-hocon code@482e52a</sub> | 99% (442/445) | 90% (399/445) | 93% (412/445) |
+| zig-hocon <sub>zig-hocon code@f26a094</sub> | 99% (442/445) | 90% (399/445) | 93% (412/445) |
 
 <!-- conformance:end -->
 
