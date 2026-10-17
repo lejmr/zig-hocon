@@ -1,15 +1,15 @@
 {
   "suite": "hocon-conformance",
   "implementation": "zig-hocon",
-  "version": "zig-hocon code@060f08b",
+  "version": "zig-hocon code@307d0c8",
   "mode": "java",
   "java_version": "1.4.9",
   "command": "conformance/adapters/zig-hocon.sh",
-  "ran_at": "2026-10-16T20:11:59Z",
+  "ran_at": "2026-10-17T19:12:23Z",
   "suite_digest": "2fe52df92f49aea2",
   "total": 445,
-  "passed": 382,
-  "percent": 85.8,
+  "passed": 394,
+  "percent": 88.5,
   "sections": {
     "array-and-object-concatenation": {
       "total": 19,
@@ -61,7 +61,7 @@
     },
     "include-substitution": {
       "total": 19,
-      "passed": 15
+      "passed": 16
     },
     "include-syntax": {
       "total": 15,
@@ -73,7 +73,7 @@
     },
     "list-values-from-environment-variables": {
       "total": 6,
-      "passed": 1
+      "passed": 6
     },
     "multi-line-strings": {
       "total": 9,
@@ -121,7 +121,7 @@
     },
     "substitution-fallback-to-environment": {
       "total": 8,
-      "passed": 2
+      "passed": 8
     },
     "substitutions": {
       "total": 37,
@@ -308,7 +308,7 @@
     "include-substitution/005-neither-path-defined-is-error/main.conf": "pass",
     "include-substitution/006-optional-substitution-with-neither-path-is-omitted/main.conf": "pass",
     "include-substitution/007-nested-include-relativized-through-both-levels/main.conf": "pass",
-    "include-substitution/008-original-path-falls-back-to-environment/main.conf": "fail",
+    "include-substitution/008-original-path-falls-back-to-environment/main.conf": "pass",
     "include-substitution/009-undefined-optional-at-fixed-up-path-falls-back/main.conf": "fail",
     "include-substitution/010-undefined-optional-at-fixed-up-path-with-no-original/main.conf": "pass",
     "include-substitution/011-optional-reference-falls-back-too/main.conf": "fail",
@@ -341,12 +341,12 @@
     "key-value-separator/004-value-on-the-line-after-the-separator.conf": "pass",
     "key-value-separator/005-separator-cannot-be-omitted-before-array.conf": "pass",
     "key-value-separator/006-newline-between-key-and-brace.conf": "open",
-    "list-values-from-environment-variables/001-list-from-indexed-variables.conf": "fail",
-    "list-values-from-environment-variables/002-optional-list-with-no-elements-is-undefined.conf": "fail",
+    "list-values-from-environment-variables/001-list-from-indexed-variables.conf": "pass",
+    "list-values-from-environment-variables/002-optional-list-with-no-elements-is-undefined.conf": "pass",
     "list-values-from-environment-variables/003-required-list-with-no-elements-is-error.conf": "pass",
-    "list-values-from-environment-variables/004-collection-stops-at-the-first-gap.conf": "fail",
-    "list-values-from-environment-variables/005-elements-are-strings.conf": "fail",
-    "list-values-from-environment-variables/006-config-keys-are-not-collected.conf": "fail",
+    "list-values-from-environment-variables/004-collection-stops-at-the-first-gap.conf": "pass",
+    "list-values-from-environment-variables/005-elements-are-strings.conf": "pass",
+    "list-values-from-environment-variables/006-config-keys-are-not-collected.conf": "pass",
     "multi-line-strings/001-basic-triple-quote.conf": "pass",
     "multi-line-strings/002-newlines-and-whitespace-preserved.conf": "pass",
     "multi-line-strings/003-unicode-escape-not-interpreted.conf": "pass",
@@ -477,14 +477,14 @@
     "string-value-concatenation/020-64-bit-number-kept-as-written.conf": "pass",
     "string-value-concatenation/021-false-becomes-string-in-concatenation.conf": "pass",
     "string-value-concatenation/022-quoted-and-unquoted-strings-concatenate.conf": "pass",
-    "substitution-fallback-to-environment/001-env-fallback-for-undefined-path.conf": "fail",
-    "substitution-fallback-to-environment/002-required-substitution-resolved-from-env.conf": "fail",
+    "substitution-fallback-to-environment/001-env-fallback-for-undefined-path.conf": "pass",
+    "substitution-fallback-to-environment/002-required-substitution-resolved-from-env.conf": "pass",
     "substitution-fallback-to-environment/003-config-value-wins-over-env.conf": "pass",
     "substitution-fallback-to-environment/004-null-in-config-blocks-env-lookup.conf": "pass",
-    "substitution-fallback-to-environment/005-config-lookup-is-case-sensitive.conf": "fail",
-    "substitution-fallback-to-environment/006-empty-env-var-is-empty-string.conf": "fail",
-    "substitution-fallback-to-environment/007-empty-env-var-creates-optional-field.conf": "fail",
-    "substitution-fallback-to-environment/008-env-vars-always-become-strings.conf": "fail",
+    "substitution-fallback-to-environment/005-config-lookup-is-case-sensitive.conf": "pass",
+    "substitution-fallback-to-environment/006-empty-env-var-is-empty-string.conf": "pass",
+    "substitution-fallback-to-environment/007-empty-env-var-creates-optional-field.conf": "pass",
+    "substitution-fallback-to-environment/008-env-vars-always-become-strings.conf": "pass",
     "substitutions/001-basic-substitution.conf": "pass",
     "substitutions/002-optional-substitution-syntax.conf": "pass",
     "substitutions/003-optional-substitution-whitespace-illegal.conf": "pass",
@@ -953,17 +953,6 @@
       "java": "unsupported"
     },
     {
-      "case": "include-substitution/008-original-path-falls-back-to-environment/main.conf",
-      "spec": "HOCON.md#include-semantics-substitution",
-      "rule": "an included file may intend to refer to the application's root config, for example to get a value from the environment; the original path CONFORMANCE_HOME is looked up and falls back to the environment variable",
-      "expected": {
-        "a": {
-          "home": "/from/env"
-        }
-      },
-      "got": "rejected (exit 1)"
-    },
-    {
       "case": "include-substitution/009-undefined-optional-at-fixed-up-path-falls-back/main.conf",
       "spec": "HOCON.md#include-semantics-substitution",
       "rule": "an undefined ${?nope} means common.x.y is never created, so ${x.y} is not found at the fixed-up path and is looked up at the original path x.y. typesafe/config treats the vanished value as a miss that ends the lookup -- except in some root key orders (see 014); lightbend/config#863 falls back",
@@ -1025,56 +1014,6 @@
         }
       },
       "open_question": "the spec is silent on a newline between a key and its brace; implementations disagree"
-    },
-    {
-      "case": "list-values-from-environment-variables/001-list-from-indexed-variables.conf",
-      "spec": "HOCON.md#list-values-from-environment-variables",
-      "rule": "the [] suffix collects CONFORMANCE_LIST_0, CONFORMANCE_LIST_1, ... until an index is missing, into a list of strings",
-      "expected": {
-        "a": [
-          "x",
-          "y"
-        ]
-      },
-      "got": "rejected (exit 1)"
-    },
-    {
-      "case": "list-values-from-environment-variables/002-optional-list-with-no-elements-is-undefined.conf",
-      "spec": "HOCON.md#list-values-from-environment-variables",
-      "rule": "with no CONFORMANCE_LIST_0 set, an optional ${?X[]} is undefined and the field is not created",
-      "expected": {},
-      "got": "rejected (exit 1)"
-    },
-    {
-      "case": "list-values-from-environment-variables/004-collection-stops-at-the-first-gap.conf",
-      "spec": "HOCON.md#list-values-from-environment-variables",
-      "rule": "indices are collected from 0 until one is missing, so with _0 and _2 set the list holds only the first",
-      "expected": {
-        "a": [
-          "x"
-        ]
-      },
-      "got": "rejected (exit 1)"
-    },
-    {
-      "case": "list-values-from-environment-variables/005-elements-are-strings.conf",
-      "spec": "HOCON.md#list-values-from-environment-variables",
-      "rule": "an element taken from the environment is a string, so 1 stays \"1\"",
-      "expected": {
-        "a": [
-          "1"
-        ]
-      },
-      "got": "rejected (exit 1)"
-    },
-    {
-      "case": "list-values-from-environment-variables/006-config-keys-are-not-collected.conf",
-      "spec": "HOCON.md#list-values-from-environment-variables",
-      "rule": "the [] suffix collects environment variables only, so the config key a_0 is not gathered and the optional substitution is undefined",
-      "expected": {
-        "a_0": "x"
-      },
-      "got": "rejected (exit 1)"
     },
     {
       "case": "numerically-indexed-objects-to-arrays/003-concatenation-converts-numeric-object-to-array.conf",
@@ -1276,63 +1215,6 @@
       },
       "got": "rejected (exit 1)",
       "java": "lenient"
-    },
-    {
-      "case": "substitution-fallback-to-environment/001-env-fallback-for-undefined-path.conf",
-      "spec": "HOCON.md#substitution-fallback-to-environment-variables",
-      "rule": "a substitution whose path is not defined in the configuration falls back to an environment variable of the same name",
-      "expected": {
-        "home": "/from/env"
-      },
-      "got": {}
-    },
-    {
-      "case": "substitution-fallback-to-environment/002-required-substitution-resolved-from-env.conf",
-      "spec": "HOCON.md#substitution-fallback-to-environment-variables",
-      "rule": "a required ${x} substitution that is not present in the configuration tree is searched for in the environment and resolves to the variable's value instead of being an error",
-      "expected": {
-        "x": "from-env"
-      },
-      "got": "rejected (exit 1)"
-    },
-    {
-      "case": "substitution-fallback-to-environment/005-config-lookup-is-case-sensitive.conf",
-      "spec": "HOCON.md#substitution-fallback-to-environment-variables",
-      "rule": "the lookup is case-sensitive all the way until the env variable fallback is reached, so a lowercase key does not shadow an uppercase substitution and the environment variable is used",
-      "expected": {
-        "conformance_x": "lower",
-        "x": "from-env"
-      },
-      "got": "rejected (exit 1)"
-    },
-    {
-      "case": "substitution-fallback-to-environment/006-empty-env-var-is-empty-string.conf",
-      "spec": "HOCON.md#substitution-fallback-to-environment-variables",
-      "rule": "an env variable set to the empty string is kept as such, so a required substitution resolves to \"\" rather than being undefined",
-      "expected": {
-        "x": ""
-      },
-      "got": "rejected (exit 1)"
-    },
-    {
-      "case": "substitution-fallback-to-environment/007-empty-env-var-creates-optional-field.conf",
-      "spec": "HOCON.md#substitution-fallback-to-environment-variables",
-      "rule": "an env variable set to the empty string is set to empty string rather than undefined, so an optional ${?x} substitution creates the field with \"\" instead of dropping it",
-      "expected": {
-        "x": ""
-      },
-      "got": {}
-    },
-    {
-      "case": "substitution-fallback-to-environment/008-env-vars-always-become-strings.conf",
-      "spec": "HOCON.md#substitution-fallback-to-environment-variables",
-      "rule": "environment variables always become a string value, so values that would parse as a number, a boolean or null in HOCON stay the strings \"42\", \"true\" and \"null\"",
-      "expected": {
-        "b": "true",
-        "n": "42",
-        "z": "null"
-      },
-      "got": "rejected (exit 1)"
     },
     {
       "case": "substitutions/039-undefined-optional-with-number-is-a-string.conf",

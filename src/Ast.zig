@@ -43,6 +43,9 @@ pub const Node = struct {
         /// parts around it then join as text, merge as objects or concatenate
         /// as lists, needs the finished document — so it stays here as a node
         /// rather than being folded into the neighbouring text.
+        ///
+        /// `value` is `[]` for `${X[]}`, a list collected from the environment
+        /// (`X_0`, `X_1`, …), and empty otherwise.
         subst,
         /// The same, written `${?a.b}`. The difference is not "may be missing":
         /// an unresolved optional substitution removes the *member it is part
@@ -206,12 +209,22 @@ pub const Parser = struct {
                     // The inside is a path expression, which is text — anything
                     // else ends it short of the `}` that is required next.
                     const path = try self.parseText();
+                    // `${X[]}`: a list from the environment. `[]` is one mark,
+                    // so nothing may stand between the brackets.
+                    var suffix: []const u8 = "";
+                    if (self.t.peek().tag == .l_bracket) {
+                        const open = self.t.next();
+                        const shut = self.t.next();
+                        if (shut.tag != .r_bracket or shut.loc.start != open.loc.end) return self.fail(open.loc.start);
+                        suffix = "[]";
+                    }
                     const close = self.t.next();
                     if (close.tag != .r_brace) return self.fail(close.loc.start);
 
                     break :blk Node{
                         .kind = if (tag == .dollar_brace_optional) .subst_optional else .subst,
                         .children = try self.gpa.dupe(Node, &.{path}),
+                        .value = suffix,
                         .pos = part_start,
                     };
                 },
@@ -625,6 +638,8 @@ fn dumpNode(node: Node, w: *std.Io.Writer) std.Io.Writer.Error!void {
                 try dumpNode(child, w);
             }
             try w.writeByte(')');
+            // The `[]` of `${X[]}`, after the path as it is written.
+            if (node.kind == .subst or node.kind == .subst_optional) try w.writeAll(node.value);
         },
         .value => try w.print("value({s})", .{node.value}),
         // The wrappers read back as written: include(required(file("a.conf"))).
@@ -1532,6 +1547,39 @@ test "substitution" {
         // `?` is a reserved character anywhere but directly after `${`.
         .bad("a = ${ ?a}"),
         .bad("a = ${a?}"),
+    });
+}
+
+// list-values-from-environment-variables · java ✓ · pyhocon ⚠️ · spec ✓ — `[]`
+// after the path asks for a list from the environment (Value.zig resolves it).
+// Read off java 1.4.9, which prints it back unresolved:
+//
+//   'a = ${L[]}'    -> {"a":${L[]}}      'a = ${L []}'  -> {"a":${L[]}}
+//   'a = ${a.b[]}'  -> {"a":${a.b[]}}    'a = ${L[ ]}'  -> BadPath
+//   'a = ${L[][]}'  -> BadPath           'a = ${L[]x}'  -> BadPath
+//
+// The spec writes `[]` straight after the name and says nothing about spaces;
+// java takes one before the `[`, where any path may end in whitespace, and
+// none inside. pyhocon has no `[]` at all: `${?L[]}` is undefined to it even
+// with `L_0` set.
+test "substitution.a [] suffix" {
+    try expectAll(&.{
+        .ok("a = ${L[]}", "root(assign(value(a), subst(value(L))[]))"),
+        .ok("a = ${?L[]}", "root(assign(value(a), subst?(value(L))[]))"),
+        .ok("a = ${L []}", "root(assign(value(a), subst(value(L))[]))"),
+        .ok("a = ${ L [] }", "root(assign(value(a), subst(value(L))[]))"),
+        .ok("a = ${a.b[]}", "root(assign(value(a), subst(value(a.b))[]))"),
+        .ok("a = ${\"L\"[]}", "root(assign(value(a), subst(value(\"L\"))[]))"),
+        .ok("a = [${L[]}]", "root(assign(value(a), array(subst(value(L))[])))"),
+        .ok("a = ${L[]} [1]", "root(assign(value(a), concat(subst(value(L))[], value( ), array(value(1)))))"),
+
+        .bad("a = ${[]}"),
+        .bad("a = ${L[ ]}"),
+        .bad("a = ${L[][]}"),
+        .bad("a = ${L[]x}"),
+        .bad("a = ${L[x]}"),
+        .bad("a = ${L[}"),
+        .bad("a = ${L]}"),
     });
 }
 

@@ -53,7 +53,7 @@ pub fn build(b: *std.Build) void {
     // The real binary on a directory with nested includes: main.conf includes
     // sub/defaults.conf, which includes inner.conf from its own directory, and
     // main.conf's own port comes after the include and wins.
-    const cli_includes = b.addRunArtifact(exe);
+    const cli_includes = runCli(b, exe);
     cli_includes.addArg("--json");
     cli_includes.addFileArg(b.path("tests/cli-includes/main.conf"));
     cli_includes.expectStdOutEqual("{\"name\":\"from inner\",\"port\":443,\"log\":{\"level\":\"info\",\"file\":\"quiet-wombat.log\"}}\n");
@@ -64,7 +64,7 @@ pub fn build(b: *std.Build) void {
     // `server = ${server} {…}`) and appends with `+=`, one element a substitution
     // defined further down. java agrees (pyhocon fails on `+=`).
     const layers_json = "{\"path\":\"/usr/bin:/opt/llama/bin\",\"plugins\":[\"auth\",\"metrics\",\"coffee-detector\"],\"server\":{\"port\":443,\"motto\":\"the wombat sleeps at noon\"},\"extra\":\"coffee-detector\"}\n";
-    const cli_layers = b.addRunArtifact(exe);
+    const cli_layers = runCli(b, exe);
     cli_layers.addArg("--json");
     cli_layers.addFileArg(b.path("tests/cli-layers/prod.conf"));
     cli_layers.expectStdOutEqual(layers_json);
@@ -82,37 +82,128 @@ pub fn build(b: *std.Build) void {
         \\extra = "coffee-detector"
         \\
     ;
-    const cli_hocon = b.addRunArtifact(exe);
+    const cli_hocon = runCli(b, exe);
     cli_hocon.addFileArg(b.path("tests/cli-layers/prod.conf"));
     cli_hocon.expectStdOutEqual(layers_hocon);
     test_step.dependOn(&cli_hocon.step);
 
     // And that file, read by the binary again, is the same JSON. java ✓ reads
     // it to the same JSON too.
-    const to_hocon = b.addRunArtifact(exe);
+    const to_hocon = runCli(b, exe);
     to_hocon.addArg("--hocon");
     to_hocon.addFileArg(b.path("tests/cli-layers/prod.conf"));
     const flattened = to_hocon.captureStdOut(.{ .basename = "flattened.conf" });
-    const reread = b.addRunArtifact(exe);
+    const reread = runCli(b, exe);
     reread.addArg("--json");
     reread.addFileArg(flattened);
     reread.expectStdOutEqual(layers_json);
     test_step.dependOn(&reread.step);
 
     // A format it does not know is refused before any file is read.
-    const bad_format = b.addRunArtifact(exe);
+    const bad_format = runCli(b, exe);
     bad_format.addArgs(&.{ "--yaml", "no-such-file.conf" });
     bad_format.expectExitCode(1);
-    bad_format.expectStdErrEqual("error: usage: hocon [--hocon | --json] <file.conf>\n");
+    bad_format.expectStdErrEqual("error: usage: hocon [--hocon | --json] [--env=process|none|keep] <file.conf>\n");
     test_step.dependOn(&bad_format.step);
 
     // A flag alone, or an empty name, is no file name: usage, not FileNotFound.
     for ([_][]const u8{ "--json", "" }) |arg| {
-        const no_file = b.addRunArtifact(exe);
+        const no_file = runCli(b, exe);
         no_file.addArg(arg);
         no_file.expectExitCode(1);
-        no_file.expectStdErrEqual("error: usage: hocon [--hocon | --json] <file.conf>\n");
+        no_file.expectStdErrEqual("error: usage: hocon [--hocon | --json] [--env=process|none|keep] <file.conf>\n");
         test_step.dependOn(&no_file.step);
+    }
+
+    // The environment end to end (#11): the binary reads the variables of its
+    // own process, and these are all it gets — nothing from the shell the
+    // build runs in. `WOMBAT_HOST` is unset, so the default under it stays;
+    // `HOME = null` in the file keeps `$HOME` out. java agrees; pyhocon drops
+    // `host`, `admins` and `home`.
+    const cli_env = runCli(b, exe);
+    cli_env.addArg("--json");
+    cli_env.addFileArg(b.path("tests/cli-env/prod.conf"));
+    cli_env.setEnvironmentVariable("HOME", "/home/the-wombat");
+    cli_env.setEnvironmentVariable("WOMBAT_PORT", "9090");
+    cli_env.setEnvironmentVariable("WOMBAT_ADMINS_0", "grumpy-owl");
+    cli_env.setEnvironmentVariable("WOMBAT_ADMINS_1", "sleepy-badger");
+    cli_env.setEnvironmentVariable("WOMBAT_MOOD", "grumpy");
+    cli_env.expectStdOutEqual("{\"server\":{\"host\":\"localhost\",\"port\":\"9090\"},\"admins\":[\"grumpy-owl\",\"sleepy-badger\"],\"motto\":\"the grumpy wombat sleeps at noon\",\"HOME\":null,\"home\":null}\n");
+    test_step.dependOn(&cli_env.step);
+
+    // `--env=` takes one of three; anything else, or the flag twice, is usage.
+    for ([_][]const []const u8{
+        &.{ "--env=shell", "prod.conf" },
+        &.{ "--env=", "prod.conf" },
+        &.{ "--env", "prod.conf" },
+        &.{ "--env=none", "--env=keep", "prod.conf" },
+        &.{ "--json", "--hocon", "prod.conf" },
+    }) |args| {
+        const bad_env = runCli(b, exe);
+        bad_env.addArgs(args);
+        bad_env.expectExitCode(1);
+        bad_env.expectStdErrEqual("error: usage: hocon [--hocon | --json] [--env=process|none|keep] <file.conf>\n");
+        test_step.dependOn(&bad_env.step);
+    }
+
+    // `--env=none`: the variables are there, and not read.
+    const env_none = runCli(b, exe);
+    env_none.addArgs(&.{ "--env=none", "--json" });
+    env_none.addFileArg(b.path("tests/cli-env/server.conf"));
+    env_none.setEnvironmentVariable("WOMBAT_PORT", "9090");
+    env_none.expectStdOutEqual("{\"host\":\"localhost\",\"port\":8080}\n");
+    test_step.dependOn(&env_none.step);
+
+    // `--env=keep` leaves a `${…}` for later, which only HOCON can write.
+    const keep_json = runCli(b, exe);
+    keep_json.addArgs(&.{ "--json", "--env=keep" });
+    keep_json.addFileArg(b.path("tests/cli-env/server.conf"));
+    keep_json.expectExitCode(1);
+    keep_json.expectStdErrMatch("WaitsForTheEnvironment\n");
+    test_step.dependOn(&keep_json.step);
+
+    // Compaction end to end (#11): `--env=keep` on a config with includes, an
+    // override, `+=` and variables, run with no variables at all, works out
+    // everything but them into one file. Read where it runs, with the
+    // variables there, that file is what the original is with them: the same
+    // JSON, with every variable set and with only the required `HOST`.
+    // java ✓ reads both files to the same JSON (keys sorted); pyhocon has no `[]`.
+    const compact = runCli(b, exe);
+    compact.addArgs(&.{ "--hocon", "--env=keep" });
+    compact.addFileArg(b.path("tests/cli-compact/prod.conf"));
+    compact.expectStdOutEqual(
+        \\name = grumpy wombat
+        \\port = 8080
+        \\port = ${?PORT}
+        \\plugins = [auth, metrics]
+        \\hosts = [localhost]
+        \\hosts = ${?L[]}
+        \\db {
+        \\  host = ${HOST}
+        \\  pool = 4
+        \\}
+        \\url = "http://"${db.host}":"${port}"/burrow"
+        \\
+    );
+    const compacted = compact.captureStdOut(.{ .basename = "compact.conf" });
+    for ([_]struct { vars: []const [2][]const u8, json: []const u8 }{
+        .{
+            .vars = &.{ .{ "HOST", "wombat.example" }, .{ "PORT", "9090" }, .{ "L_0", "alpha" }, .{ "L_1", "beta" } },
+            .json = "{\"name\":\"grumpy wombat\",\"port\":\"9090\",\"plugins\":[\"auth\",\"metrics\"],\"hosts\":[\"alpha\",\"beta\"],\"db\":{\"host\":\"wombat.example\",\"pool\":4},\"url\":\"http://wombat.example:9090/burrow\"}\n",
+        },
+        .{
+            .vars = &.{.{ "HOST", "wombat.example" }},
+            .json = "{\"name\":\"grumpy wombat\",\"port\":8080,\"plugins\":[\"auth\",\"metrics\"],\"hosts\":[\"localhost\"],\"db\":{\"host\":\"wombat.example\",\"pool\":4},\"url\":\"http://wombat.example:8080/burrow\"}\n",
+        },
+    }) |run| {
+        for ([_]std.Build.LazyPath{ b.path("tests/cli-compact/prod.conf"), compacted }) |file| {
+            const resolved = runCli(b, exe);
+            resolved.addArg("--json");
+            resolved.addFileArg(file);
+            for (run.vars) |kv| resolved.setEnvironmentVariable(kv[0], kv[1]);
+            resolved.expectStdOutEqual(run.json);
+            test_step.dependOn(&resolved.step);
+        }
     }
 
     // The CLI on a broken file, checked as a user meets it: exit 1 and exactly
@@ -124,7 +215,7 @@ pub fn build(b: *std.Build) void {
         \\port = 80 [1]
         \\
     );
-    const run_broken = b.addRunArtifact(exe);
+    const run_broken = runCli(b, exe);
     run_broken.setCwd(broken.getDirectory());
     run_broken.addArg("app.conf");
     run_broken.expectExitCode(1);
@@ -149,7 +240,7 @@ pub fn build(b: *std.Build) void {
         \\burst = ${max} ${unknown}
         \\
     );
-    const run_included = b.addRunArtifact(exe);
+    const run_included = runCli(b, exe);
     run_included.setCwd(broken.getDirectory());
     run_included.addArg("prod.conf");
     run_included.expectExitCode(1);
@@ -165,10 +256,18 @@ pub fn build(b: *std.Build) void {
     // refuses a deeper document with one line, not a panic. HOCON writes it.
     // java ⚠️ prints it.
     _ = broken.add("deep.conf", "a = " ++ "[" ** 300 ++ "]" ** 300 ++ "\n");
-    const run_deep = b.addRunArtifact(exe);
+    const run_deep = runCli(b, exe);
     run_deep.setCwd(broken.getDirectory());
     run_deep.addArgs(&.{ "--json", "deep.conf" });
     run_deep.expectExitCode(1);
     run_deep.expectStdErrEqual("error: deep.conf: TooDeepForJson\n");
     test_step.dependOn(&run_deep.step);
+}
+
+/// The binary for an end-to-end test. It gets none of the environment the
+/// build runs in, only the variables the test sets.
+fn runCli(b: *std.Build, exe: *std.Build.Step.Compile) *std.Build.Step.Run {
+    const run = b.addRunArtifact(exe);
+    run.clearEnvironment();
+    return run;
 }

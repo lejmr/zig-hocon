@@ -37,6 +37,11 @@ pub const Config = struct {
         /// One fetch of an `http(s)` include, from connect to the last byte; longer is
         /// `error.IncludeTimeout`.
         http_timeout: std.Io.Duration = Include.default_http_timeout,
+        /// Where a substitution whose path is not in the document looks next.
+        /// The library never reads the process environment on its own: pass
+        /// `.{ .map = init.environ_map }` for that, the way `std.process.run`
+        /// takes its `environ_map`.
+        env: Value.Env = .none,
     };
 
     /// Like `parseFromSliceLeaky`, but any allocator will do: everything lands in
@@ -118,12 +123,14 @@ pub const Config = struct {
         }
 
         var files: Value.Files = .{};
-        const obj = load(allocator, path, source, ctx, &files) catch |err| {
+        const obj = load(allocator, path, source, ctx, options.env, &files) catch |err| {
             if (options.diagnostics) |diag| {
                 diag.* = .{ .err = err, .location = if (err == error.OutOfMemory) null else locate(keep, files) };
             }
             return err;
         };
+        // `.keep` leaves what waits for the environment in the tree on purpose.
+        if (T == Value and options.env == .keep) return obj;
         return parseFromValue(T, allocator, obj) catch |err| {
             // The tree has no positions, so a conversion error has none either.
             noPlace(options, err);
@@ -141,7 +148,7 @@ pub const Config = struct {
 
     /// Source to a resolved tree. `files` gets this file and every file it
     /// includes, and on failure the place the error is at, if it has one.
-    fn load(gpa: Allocator, path: []const u8, source: [:0]const u8, ctx: Value.Context, files: *Value.Files) Value.ResolveError!Value {
+    fn load(gpa: Allocator, path: []const u8, source: [:0]const u8, ctx: Value.Context, env: Value.Env, files: *Value.Files) Value.ResolveError!Value {
         try files.list.append(gpa, .{ .path = path, .source = source });
         var main = ctx;
         main.files = files;
@@ -153,7 +160,7 @@ pub const Config = struct {
             return err;
         };
         var obj = try Value.fromNode(gpa, ast, main);
-        try obj.resolve(gpa, &files.failed);
+        try obj.resolve(gpa, env, &files.failed);
         return obj;
     }
 

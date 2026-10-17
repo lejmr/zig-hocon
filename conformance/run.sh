@@ -91,7 +91,9 @@ for case_file in $(find "$DIR" -name '*.conf' | sort); do
     # a .conf beside main.conf is a fixture, whatever else sits next to it
     case "$case_file" in */main.conf) ;; *) [ -f "$(dirname "$case_file")/main.conf" ] && continue ;; esac
 
-    # a case may ask for environment variables; they are set for the adapter only
+    # a case may ask for environment variables; they are set for the adapter only,
+    # and they are all it gets besides what an adapter needs to run, so the
+    # shell this runs in cannot change a score
     # ponytail: values with whitespace are refused rather than quoted — none needs it
     vars=
     if grep -q '"env"' "${case_file%.conf}.json"; then
@@ -100,7 +102,8 @@ for k, v in json.load(open(sys.argv[1])).get("env", {}).items():
     if any(c.isspace() for c in k + v): sys.exit("env value with whitespace in " + sys.argv[1])
     print(k + "=" + v)' "${case_file%.conf}.json") || exit 1
     fi
-    if out=$(env $vars "$@" "$case_file" 2>/dev/null); then status=0; else status=$?; fi
+    if out=$(env -i PATH="$PATH" HOME="$HOME" ${HOCON_BIN:+HOCON_BIN="$HOCON_BIN"} ${HOCON_JAVA_VERSION:+HOCON_JAVA_VERSION="$HOCON_JAVA_VERSION"} \
+        $vars "$@" "$case_file" 2>/dev/null); then status=0; else status=$?; fi
     printf '%s\037%s\037%s\036' "$case_file" "$status" "$out" >> "$RESULTS"
 done
 

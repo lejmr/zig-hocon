@@ -203,6 +203,217 @@ test "file.defaults.conf from stringify, prod.conf on top of it" {
 }
 
 // ---------------------------------------------------------------------------
+// The environment (#11) is the caller's to give: `ParseOptions.env`. The
+// library never reads the process on its own, so these tests build their own
+// variables and the shell they run in cannot change the result.
+// ---------------------------------------------------------------------------
+
+// java ✓ · pyhocon ⚠️ (no `[]`) · spec ✓ — a variable is a string, and a typed
+// field converts it like any other string: "9090" into a u16.
+test "env.variables fill a struct" {
+    var env: std.process.Environ.Map = .init(testing.allocator);
+    defer env.deinit();
+    try env.put("PORT", "9090");
+    try env.put("ADMINS_0", "grumpy-owl");
+    try env.put("ADMINS_1", "sleepy-badger");
+
+    const T = struct { port: u16, admins: []const []const u8, motto: []const u8 };
+    const parsed = try hocon.parseFromSlice(T, testing.allocator,
+        \\port = 80
+        \\port = ${?PORT}
+        \\admins = ${ADMINS[]}
+        \\motto = "the badger guards port "${PORT}
+    , .{ .env = .{ .map = &env } });
+    defer parsed.deinit();
+
+    try testing.expectEqual(9090, parsed.value.port);
+    try testing.expectEqual(2, parsed.value.admins.len);
+    try testing.expectEqualStrings("sleepy-badger", parsed.value.admins[1]);
+    try testing.expectEqualStrings("the badger guards port 9090", parsed.value.motto);
+}
+
+// The values are copied out of the map: freeing it right after the parse leaves
+// the result intact (the map's memory is scribbled over first, so a borrowed
+// slice would read as garbage, not as a lucky pass).
+test "env.the result outlives the map" {
+    var env: std.process.Environ.Map = .init(testing.allocator);
+    try env.put("MOOD", "grumpy");
+    const parsed = try hocon.parseFromSlice(hocon.Value, testing.allocator, "mood = ${MOOD}", .{ .env = .{ .map = &env } });
+    defer parsed.deinit();
+    @memset(@constCast(env.get("MOOD").?), 'x');
+    env.deinit();
+
+    try testing.expectEqualStrings("grumpy", parsed.value.object[0].value.scalar.value);
+}
+
+// `.keep`: everything the files can answer is resolved, what waits for the
+// environment stays in the tree — to be written out and resolved where it
+// runs. Zig only, no oracle has the mode. A struct cannot hold what waits,
+// so a field that needs it is `Unresolved`; one that does not is fine.
+test "env.keep leaves the environment for later" {
+    const parsed = try hocon.parseFromSlice(hocon.Value, testing.allocator,
+        \\port = ${?PORT}
+        \\motto = the wombat sleeps at noon
+    , .{ .env = .keep });
+    defer parsed.deinit();
+    try testing.expect(!parsed.value.isResolved());
+    try testing.expectEqualStrings("PORT", parsed.value.object[0].value.ref.path[0].value);
+
+    const T = struct { motto: []const u8 };
+    try testing.expectError(error.Unresolved, hocon.parseFromSlice(struct { port: u16 }, testing.allocator, "port = ${PORT}", .{ .env = .keep }));
+    const typed = try hocon.parseFromSlice(T, testing.allocator, "port = ${PORT}\nmotto = grumpy", .{ .env = .keep });
+    defer typed.deinit();
+    try testing.expectEqualStrings("grumpy", typed.value.motto);
+}
+
+// The files of the CLI test (build.zig, tests/cli-env): kept on one machine,
+// resolved on another with its variables, it is what the CLI prints there.
+// The ref from `server.conf`, included under `server`, has lost the scope it
+// was tried with: what is left is the variable's name.
+test "env.keep then resolve later is the CLI's answer" {
+    const parsed = try hocon.parseFromFile(hocon.Value, testing.allocator, testing.io, "tests/cli-env/prod.conf", .{ .env = .keep });
+    defer parsed.deinit();
+    const port = parsed.value.object[0].value.object[1].value;
+    try testing.expectEqual(2, port.stack.len);
+    try testing.expectEqual(1, port.stack[1].ref.path.len);
+    try testing.expectEqualStrings("WOMBAT_PORT", port.stack[1].ref.path[0].value);
+
+    var env: std.process.Environ.Map = .init(testing.allocator);
+    defer env.deinit();
+    try env.put("WOMBAT_PORT", "9090");
+    try env.put("WOMBAT_ADMINS_0", "grumpy-owl");
+    try env.put("WOMBAT_ADMINS_1", "sleepy-badger");
+    try env.put("WOMBAT_MOOD", "grumpy");
+
+    var later = parsed.value;
+    var err_pos: ?hocon.Value.Pos = null;
+    try later.resolve(parsed.arena.allocator(), .{ .map = &env }, &err_pos);
+    const json = try std.json.Stringify.valueAlloc(testing.allocator, later, .{});
+    defer testing.allocator.free(json);
+    try testing.expectEqualStrings("{\"server\":{\"host\":\"localhost\",\"port\":\"9090\"},\"admins\":[\"grumpy-owl\",\"sleepy-badger\"],\"motto\":\"the grumpy wombat sleeps at noon\",\"HOME\":null,\"home\":null}", json);
+}
+
+// include-semantics-substitution.1 · java ⚠️ (fails 009 and 014, leaves `a`
+// out of 011) · spec ✓ — a ref from an included file that is kept because its
+// scoped target waits keeps its scope: resolved later, the scoped `x.y`
+// vanishes and the path as written, `x.y` at the root, is found instead.
+test "env.keep, a ref found with the scope keeps the fallback to the path as written" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+    const gpa = arena.allocator();
+    var empty: std.process.Environ.Map = .init(gpa);
+
+    for ([_][]const u8{
+        "conformance/suite/include-substitution/009-undefined-optional-at-fixed-up-path-falls-back/main.conf",
+        "conformance/suite/include-substitution/011-optional-reference-falls-back-too/main.conf",
+        "conformance/suite/include-substitution/014-unrelated-key-does-not-change-the-result/main.conf",
+    }) |path| {
+        const now = try hocon.parseFromFileLeaky(hocon.Value, gpa, testing.io, path, .{ .env = .{ .map = &empty } });
+        var later = try hocon.parseFromFileLeaky(hocon.Value, gpa, testing.io, path, .{ .env = .keep });
+        var err_pos: ?hocon.Value.Pos = null;
+        try later.resolve(gpa, .{ .map = &empty }, &err_pos);
+        try testing.expectEqualStrings(
+            try std.json.Stringify.valueAlloc(gpa, now, .{}),
+            try std.json.Stringify.valueAlloc(gpa, later, .{}),
+        );
+    }
+}
+
+// Compaction through the library: kept, written by `stringify`, and read
+// again with the variables of where it runs, the file of the CLI test
+// (build.zig, tests/cli-compact) is what reading it there right away gives —
+// with every variable set, and with only the required `HOST`.
+// java ✓ (both files, same JSON) · pyhocon ⚠️ no `[]` · spec ✓
+test "env.keep, stringify, read with the variables is reading now" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+    const gpa = arena.allocator();
+    const path = "tests/cli-compact/prod.conf";
+
+    const kept = try hocon.parseFromFileLeaky(hocon.Value, gpa, testing.io, path, .{ .env = .keep });
+    const text = try hocon.stringifyAlloc(gpa, kept, .{});
+
+    var all: std.process.Environ.Map = .init(gpa);
+    try all.put("HOST", "wombat.example");
+    try all.put("PORT", "9090");
+    try all.put("L_0", "alpha");
+    try all.put("L_1", "beta");
+    var host: std.process.Environ.Map = .init(gpa);
+    try host.put("HOST", "wombat.example");
+
+    for ([_]*const std.process.Environ.Map{ &all, &host }) |env| {
+        const now = try hocon.parseFromFileLeaky(hocon.Value, gpa, testing.io, path, .{ .env = .{ .map = env } });
+        const later = try hocon.parseFromSliceLeaky(hocon.Value, gpa, try gpa.dupeZ(u8, text), .{ .env = .{ .map = env } });
+        try testing.expectEqualStrings(
+            try std.json.Stringify.valueAlloc(gpa, now, .{}),
+            try std.json.Stringify.valueAlloc(gpa, later, .{}),
+        );
+    }
+}
+
+/// `src` kept and written by `stringify`. That text has to read back, with
+/// and without the variables of `compact_env`, as `src` does right away; if
+/// not, the row says which.
+fn dumpCompacted(gpa: std.mem.Allocator, src: [:0]const u8) anyerror![]u8 {
+    const kept = try hocon.parseFromSliceLeaky(hocon.Value, gpa, src, .{ .env = .keep });
+    const text = try hocon.stringifyAlloc(gpa, kept, .{});
+
+    var none: std.process.Environ.Map = .init(gpa);
+    var some: std.process.Environ.Map = .init(gpa);
+    for (compact_env) |kv| try some.put(kv[0], kv[1]);
+    for ([_]*const std.process.Environ.Map{ &none, &some }) |env| {
+        const now = try resolvedJson(gpa, src, env);
+        const later = try resolvedJson(gpa, try gpa.dupeZ(u8, text), env);
+        if (!std.mem.eql(u8, now, later)) return std.fmt.allocPrint(gpa, "{s} reads back as {s}, not {s}", .{ text, later, now });
+    }
+    return text;
+}
+
+const compact_env = [_][2][]const u8{
+    .{ "PORT", "9090" },
+    .{ "HOST", "wombat.example" },
+    .{ "L_0", "alpha" },
+    .{ "L_1", "beta" },
+    .{ "X", "x" },
+    .{ "O", "plain text" },
+};
+
+/// JSON, or the name of the error.
+fn resolvedJson(gpa: std.mem.Allocator, src: [:0]const u8, env: *const std.process.Environ.Map) ![]const u8 {
+    const value = hocon.parseFromSliceLeaky(hocon.Value, gpa, src, .{ .env = .{ .map = env } }) catch |err| return @errorName(err);
+    return std.json.Stringify.valueAlloc(gpa, value, .{});
+}
+
+// What compaction writes. A key whose top waits is written once per layer,
+// bottom first, the way it was: `port = 8080` then `port = ${?PORT}` is a
+// default and the variable over it, and reads back to 9090 with PORT set and
+// to 8080 without. A key that refers to one that waits stays a reference.
+// Zig only, no oracle has `.keep`; each row is checked against reading the
+// source right away (`dumpCompacted`).
+test "env.keep is written as a file that resolves the same later" {
+    try table.expectAll(&.{
+        .ok("port = 8080\nport = ${?PORT}", "port = 8080\nport = ${?PORT}\n"),
+        .ok("port = ${PORT}", "port = ${PORT}\n"),
+        .ok("a = ${?PORT}\nb = ${a}", "a = ${?PORT}\nb = ${a}\n"),
+        .ok("url = \"http://\"${HOST}\":\"${port}\nport = 80", "url = \"http://\"${HOST}\":\"80\nport = 80\n"),
+        .ok("hosts = [localhost]\nhosts = ${?L[]}", "hosts = [localhost]\nhosts = ${?L[]}\n"),
+        .ok("l = [1]\nl += ${?X}", "l = [1, ${?X}]\n"),
+        .ok("o { p = 1 }\no = ${?O}\no { q = 2 }", "o {\n  p = 1\n}\no = ${?O}\no {\n  q = 2\n}\n"),
+        .ok("m = the ${w} sleeps ${?X}\nw = wombat", "m = \"the wombat sleeps \"${?X}\nw = wombat\n"),
+    }, .{ .dump = dumpCompacted });
+
+    // The first row, read back: the variable when it is set, the default when not.
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+    const gpa = arena.allocator();
+    var none: std.process.Environ.Map = .init(gpa);
+    var port: std.process.Environ.Map = .init(gpa);
+    try port.put("PORT", "9090");
+    try testing.expectEqualStrings("{\"port\":\"9090\"}", try resolvedJson(gpa, "port = 8080\nport = ${?PORT}\n", &port));
+    try testing.expectEqualStrings("{\"port\":8080}", try resolvedJson(gpa, "port = 8080\nport = ${?PORT}\n", &none));
+}
+
+// ---------------------------------------------------------------------------
 // Value as JSON — what the `hocon` CLI prints, and what the conformance suite
 // compares. `parseFromSlice(hocon.Value, …)` hands back the tree, and
 // std.json.Stringify finds `Value.jsonStringify` on its own.
@@ -325,6 +536,23 @@ fn expectCarets(rows: []const [:0]const u8) !void {
 /// Takes the caret line out of `row`, parses what is left, and puts a caret line
 /// back where the diagnostic says — so a correct parse renders the row unchanged.
 fn dumpCaret(gpa: std.mem.Allocator, row: [:0]const u8) anyerror![]u8 {
+    return caretOf(gpa, row, .none);
+}
+
+/// The same, with `PORT` and `HOSTS_0` set in the environment.
+fn dumpCaretEnv(gpa: std.mem.Allocator, row: [:0]const u8) anyerror![]u8 {
+    var map: std.process.Environ.Map = .init(gpa);
+    try map.put("PORT", "8080");
+    try map.put("HOSTS_0", "alpha");
+    return caretOf(gpa, row, .{ .map = &map });
+}
+
+/// The same, with the environment left for later (`.keep`).
+fn dumpCaretKept(gpa: std.mem.Allocator, row: [:0]const u8) anyerror![]u8 {
+    return caretOf(gpa, row, .keep);
+}
+
+fn caretOf(gpa: std.mem.Allocator, row: [:0]const u8, env: hocon.Value.Env) anyerror![]u8 {
     var source: std.ArrayList(u8) = .empty;
     var rows = std.mem.splitScalar(u8, row, '\n');
     var first = true;
@@ -337,7 +565,8 @@ fn dumpCaret(gpa: std.mem.Allocator, row: [:0]const u8) anyerror![]u8 {
     const src = try source.toOwnedSliceSentinel(gpa, 0);
 
     var diag: hocon.Diagnostics = .{};
-    const err = if (hocon.parseFromSliceLeaky(hocon.Value, gpa, src, .{ .diagnostics = &diag })) |_|
+    const options: hocon.ParseOptions = .{ .diagnostics = &diag, .env = env };
+    const err = if (hocon.parseFromSliceLeaky(hocon.Value, gpa, src, options)) |_|
         return error.ParsedWithoutError
     else |e|
         e;
@@ -604,6 +833,54 @@ test "diagnostics.Unresolved" {
     });
 }
 
+// The environment (#11) fails at the same places: the `${` that found no
+// variable, and the part that does not fit once one has a value. `PORT` and
+// `HOSTS_0` are set (`dumpCaretEnv`).
+// java ✓ (same line; 1.4.9 ⚠️ drops the `x` of the last row) · pyhocon ⚠️ has
+// no `[]` · spec ✓
+test "diagnostics.from the environment" {
+    const rows = [_][:0]const u8{
+        \\port = ${PORT}
+        \\host = ${HOST}
+        \\       ^ Unresolved
+        ,
+        \\ports = ${PORT[]}
+        \\        ^ Unresolved
+        ,
+        \\a = ${PORT}
+        \\b = ${HOSTS[]}x
+        \\              ^ UnsupportedConcatenation
+        ,
+        \\a = ${HOSTS[]} ${PORT}
+        \\               ^ UnsupportedConcatenation
+        ,
+    };
+    var cases: [rows.len]table.Case = undefined;
+    for (&cases, rows) |*c, row| c.* = .ok(row, row);
+    try table.expectAll(&cases, .{ .dump = dumpCaretEnv });
+}
+
+// `.keep` fails on what the document alone decides, whatever the variable
+// turns out to be, at the part it fails at when resolved right away: a list
+// stays a list across `${?PORT}`, and text stays text. Zig only, no oracle has
+// the mode; resolved right away, each row fails the same in java.
+test "diagnostics.env = .keep fails where the document decides" {
+    const rows = [_][:0]const u8{
+        \\a = [1] ${?PORT} x
+        \\                 ^ UnsupportedConcatenation
+        ,
+        \\a = ${?PORT} x [1]
+        \\               ^ UnsupportedConcatenation
+        ,
+        \\a = the wombat ${?MOOD} { sleeps = true }
+        \\                        ^ UnsupportedConcatenation
+        ,
+    };
+    var cases: [rows.len]table.Case = undefined;
+    for (&cases, rows) |*c, row| c.* = .ok(row, row);
+    try table.expectAll(&cases, .{ .dump = dumpCaretKept });
+}
+
 // A self-reference with nothing below it is undefined, as if it named a missing
 // path (spec), not a cycle: the caret is on its own `${`. Also when a value comes
 // for the key later — the self-reference cannot see forward.
@@ -782,6 +1059,14 @@ test "diagnostics.UnexpectedToken inside a value" {
         ,
         \\a = ${b [1]}
         \\        ^ UnexpectedToken
+        ,
+        // `[]` is one mark (#11): at its `[` when it is anything else. After
+        // it only the `}` may come. java ✓ BadPath on both, naming the `[`.
+        \\a = ${PORTS[ ]}
+        \\           ^ UnexpectedToken
+        ,
+        \\a = ${PORTS[]x}
+        \\             ^ UnexpectedToken
         ,
         // The newline ends the path, so the newline is the token that is not `}`.
         \\a = ${b

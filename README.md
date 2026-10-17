@@ -179,6 +179,19 @@ printed as written (`1e5` stays `1e5`), and anything quoted is a string. A file
 that does not parse, or holds a substitution that does not resolve, exits 1 and
 points at the spot on stderr, as above. `zig build run -- server.conf` does the same without the install step.
 
+A path that is not in the file reads the variable of the same name from the
+process environment; `--env=none` reads none. `--env=keep` compacts a config
+before it ships: includes, overrides and `+=` are worked out, and what waits
+for the environment stays as written, to be resolved on the server:
+
+```sh
+$ zig-out/bin/hocon --env=keep server.conf
+host = localhost
+host = ${?WOMBAT_HOST}
+port = 8080
+port = ${?WOMBAT_PORT}
+```
+
 ## Features
 
 Tracks coverage of the [HOCON spec](https://github.com/lightbend/config/blob/main/HOCON.md),
@@ -221,7 +234,7 @@ Not spec sections of their own, but needed to get there, and already done:
       or `.properties`; a basename loads all three. Not supported: `classpath()`
       and URL schemes other than http, https and file (an error). Merge stacks
       across an include (`a = {…}` then `a = ${q}` in the included file) wait
-      for #7, the environment fallback for #11. Read through
+      for #7. Read through
       `parseFromFile`; `parseFromSlice` has no files and refuses an include. An
       http(s) fetch that takes longer than `ParseOptions.http_timeout` (30 s, each
       fetch on its own) is `error.IncludeTimeout`, also when it is not `required`.
@@ -288,8 +301,7 @@ Not spec sections of their own, but needed to get there, and already done:
       undefined `${?x}` on top leaves what was below, and `null` stops a merge
       only at its own key. A value hidden by one it cannot merge with is never
       evaluated. A reference that needs itself any other way is
-      `SubstitutionCycle`. Still to do: there is no fallback to environment
-      variables yet
+      `SubstitutionCycle`.
 
 - [ ] [Conversion of numerically-indexed objects to arrays](https://github.com/lightbend/config/blob/main/HOCON.md#conversion-of-numerically-indexed-objects-to-arrays)
 - [x] [The `+=` field separator](https://github.com/lightbend/config/blob/main/HOCON.md#the--field-separator)
@@ -363,7 +375,18 @@ these are what makes the format pleasant, so they are on the roadmap.
 - [ ] [Period format](https://github.com/lightbend/config/blob/main/HOCON.md#period-format) (`3d`, `2 weeks`, ...)
 - [ ] [Size in bytes format](https://github.com/lightbend/config/blob/main/HOCON.md#size-in-bytes-format) (`512K`, `1G`, ...)
 - [ ] [Config object merging and file merging](https://github.com/lightbend/config/blob/main/HOCON.md#config-object-merging-and-file-merging) (`with_fallback`-style)
-- [ ] [Substitution fallback to environment variables](https://github.com/lightbend/config/blob/main/HOCON.md#substitution-fallback-to-environment-variables)
+- [x] [Substitution fallback to environment variables](https://github.com/lightbend/config/blob/main/HOCON.md#substitution-fallback-to-environment-variables)
+      — a path that is not in the document at all reads the variable of the
+      same name (`${a.b}` reads `a.b`), always a string; `null` in the file
+      blocks it, and a self-reference (`+=` too) never reads it. An optional
+      that found nothing makes no field, so a path to it reads the variable.
+      `${X[]}` collects `X_0`, `X_1`, … into a list. The variables come from
+      `ParseOptions.env` (`.{ .map = init.environ_map }`): by default there are
+      none, the library never reads the process. The CLI passes its own.
+      `.keep` resolves everything else and leaves what waits for the
+      environment in the tree; `hocon.stringify` writes it out as HOCON, a
+      default under a variable as the key written twice, to be resolved
+      where it runs. JSON cannot hold it.
 
 Deliberately out of scope: Java properties mapping, conventional JVM config file
 names, and override by system properties — all of them describe JVM conventions
@@ -444,10 +467,14 @@ rather than the format.
       a float is the shortest digits that read back the same, with an exponent
       outside 1e-6…1e21, and `nan`/`inf` as strings. One known loss: a `${…}`
       from a file included inside a block also falls back to the path without
-      that block, which one `${…}` cannot say.
+      that block, a key or a variable, which one `${…}` cannot say. Written
+      out, that fallback is gone whenever the key inside the block ends up
+      absent, as with `--env=keep` and an optional there that finds nothing.
 - [x] Command line — `hocon <file.conf>` prints the resolved file as HOCON,
-      `hocon --json <file.conf>` as JSON; exits 1 on rejection. With `--json`
-      it is the same contract as a conformance adapter, so it is what the suite
+      `hocon --json <file.conf>` as JSON; exits 1 on rejection, and substitutions
+      fall back to its environment (`--env=none` to not, `--env=keep` to leave
+      them for later). With `--json` it is the same contract as a
+      conformance adapter, so it is what the suite
       measures (`conformance/adapters/zig-hocon.sh`).
 - [ ] Public API, the rest — the other `ParseOptions` fields (`ignore_unknown_fields`;
       unknown keys are ignored for now), and `parseFromValue`.
@@ -482,7 +509,7 @@ wins and the row says so. Where it stands today:
 | Java <sub>typesafe/config 1.4.9</sub> | 90% (399/445) | 99% (442/445) | 96% (428/445) |
 | Java main <sub>typesafe/config main@275f872, unreleased</sub> | 93% (412/445) | 96% (428/445) | 99% (442/445) |
 | pyhocon <sub>pyhocon 0.3.63</sub> | 70% (312/445) | 66% (295/445) | 68% (304/445) |
-| zig-hocon <sub>zig-hocon code@060f08b</sub> | 96% (425/445) | 86% (382/445) | 89% (395/445) |
+| zig-hocon <sub>zig-hocon code@307d0c8</sub> | 98% (437/445) | 89% (394/445) | 91% (407/445) |
 
 <!-- conformance:end -->
 

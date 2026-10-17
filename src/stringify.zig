@@ -92,18 +92,22 @@ fn writeTree(value: Value, w: *Writer, indent: usize) Writer.Error!void {
     }
 }
 
-/// `${a.b}` or `${?a.b}`, each element as a key is written. The path is the
+/// `${a.b}` or `${?a.b}`, each element as a key is written, and `[]` after
+/// the path for a list from the environment (`${X[]}`, #11). The path is the
 /// whole path from the root, the way the ref looks it up.
 // ponytail: a ref from a file included inside a block also has a fallback, the
-// path without the include's scope (`Ref.scope_len`); one `${…}` cannot say
-// that, so it is lost. Write it as two fields, `${x}` under `${?scope.x}`, if
-// such a document ever needs to be written out unresolved.
+// path without the include's scope (`Ref.scope_len`): a key there, or else the
+// variable. One `${…}` cannot say that, so it is lost whenever the scoped key
+// ends up absent, e.g. `${?B}` there finds nothing. Two fields, `${x}` under
+// `${?scope.x}`, are no way out: an object found at the scoped path would
+// merge onto the one below, or fail on it.
 fn writeRef(ref: Ref, w: *Writer) Writer.Error!void {
-    try w.writeAll(if (ref.optional) "${?" else "${");
+    try w.writeAll(if (ref.flags.optional) "${?" else "${");
     for (ref.path, 0..) |key, i| {
         if (i > 0) try w.writeByte('.');
         try writeKey(key.value, w);
     }
+    if (ref.flags.list) try w.writeAll("[]");
     try w.writeByte('}');
 }
 
@@ -610,7 +614,7 @@ fn sameTree(a: Value, b: Value) bool {
             return true;
         },
         .ref => |r| {
-            if (r.optional != b.ref.optional or r.scope_len != b.ref.scope_len or r.path.len != b.ref.path.len) return false;
+            if (r.flags != b.ref.flags or r.scope_len != b.ref.scope_len or r.path.len != b.ref.path.len) return false;
             for (r.path, b.ref.path) |x, y| if (!x.eql(y)) return false;
             return true;
         },
@@ -637,6 +641,9 @@ test "stringify.a ref is written as its path" {
         .ok("a = ${include}", "a = ${\"include\"}\n"),
         .ok("a = [${x}, 1]", "a = [${x}, 1]\n"),
         .ok("a { b = ${?x} }", "a {\n  b = ${?x}\n}\n"),
+        // A list from the environment (#11) keeps its `[]`.
+        .ok("a = ${PATHS[]}", "a = ${PATHS[]}\n"),
+        .ok("a = ${?PATHS []}", "a = ${?PATHS[]}\n"),
     });
 }
 

@@ -330,7 +330,9 @@ pub const Value = union(enum) {
                 try jw.endObject();
             },
             // Stringify allows no error of its own, so an unresolved tree is refused
-            // earlier, by `parseFromSlice(Value, …)`. Only a hand-built Value gets here.
+            // earlier, by `parseFromSlice(Value, …)`. Only one kept for the
+            // environment (`Env.keep`) or built by hand gets here; `hocon.stringify`
+            // writes those, as HOCON.
             .ref, .pending, .stack => return error.WriteFailed,
         }
     }
@@ -351,15 +353,31 @@ pub const Value = union(enum) {
 
     pub const ResolveError = error{ Unresolved, SubstitutionCycle } || Error;
 
+    /// Where a substitution looks when its path is not in the document at all,
+    /// not even as `null`.
+    pub const Env = union(enum) {
+        /// Nowhere: the path is undefined.
+        none,
+        /// In these variables, e.g. `std.process.Init.environ_map`.
+        map: *const std.process.Environ.Map,
+        /// Later: the substitution stays in the tree for whoever resolves it
+        /// with the environment it runs in, e.g. a config written out on one
+        /// machine by `hocon.stringify` and read on another. Everything the
+        /// document can answer is resolved; what waits stays `.ref`, `.pending`
+        /// or `.stack` (see `waits`), which JSON cannot write.
+        keep,
+    };
+
     /// Replaces all refs and pendings in the document. Self has to be the root.
     /// On failure `err_pos` is the `${` of the substitution that failed, or the
     /// part that does not fit once the refs around it have values — in whichever
     /// file it came from.
-    pub fn resolve(self: *Value, gpa: std.mem.Allocator, err_pos: *?Pos) ResolveError!void {
-        var state: Resolving = .{ .err_pos = err_pos };
+    pub fn resolve(self: *Value, gpa: std.mem.Allocator, env: Env, err_pos: *?Pos) ResolveError!void {
+        var state: Resolving = .{ .env = env, .err_pos = err_pos };
         defer {
             state.visiting.deinit(gpa);
             state.fields.deinit(gpa);
+            state.kept.deinit(gpa);
             var it = state.index.valueIterator();
             while (it.next()) |members| members.deinit(gpa);
             state.index.deinit(gpa);
@@ -379,8 +397,32 @@ pub const Value = union(enum) {
         // Members of an object by key, built on the first lookup into it. Keyed by
         // the slice, which never changes once built: a resolved object is a new one.
         index: std.AutoHashMapUnmanaged([*]Member, std.StringHashMapUnmanaged(*Value)) = .empty,
+        // `.keep`: fields resolved to a value that waits. It looks the same as
+        // one that is not resolved yet, and resolving it again would give it
+        // again, at the price of everything it refers to.
+        kept: std.AutoHashMapUnmanaged(*Value, void) = .empty,
+        // Optionals that closed a cycle (one without `?` would be a
+        // SubstitutionCycle) and so found nothing. A field that vanished
+        // because of one is in the document: never a variable.
+        cycles: usize = 0,
+        // Where a path that is not in the document is looked up.
+        env: Env,
         // Where the error points; written once, where the error starts.
         err_pos: *?Pos,
+    };
+
+    // What a path leads to. Only `absent` goes on to the environment.
+    const Found = union(enum) {
+        // Not in the document: no such key, or an optional that found
+        // nothing and so made no field.
+        absent,
+        // A field that refers to itself and sees nothing below: it is in the
+        // document, so never a variable.
+        gone,
+        // `.keep` only: on the way is a value that waits, so where the path
+        // ends is known later.
+        waits,
+        value: Value,
     };
 
     // One layer of a field being resolved, and what a path to the field sees
@@ -390,7 +432,8 @@ pub const Value = union(enum) {
     const Field = struct {
         place: *Value,
         below: []const Value,
-        // The object being resolved, for an object layer.
+        // What a path finds at the field, for an object layer: the object being
+        // resolved.
         object: ?*Value = null,
         // `below` merged, worked out on the first path that needs it.
         merged: ?Value = null,
@@ -398,6 +441,12 @@ pub const Value = union(enum) {
     };
 
     // Returns null when the value is gone - ${?x} pointing to nothing
+    //
+    // The longer cases here and in `resolveStack` are `noinline` functions of
+    // their own, and so is `fromEnv`: inlined, their locals would sit in every
+    // frame of the recursion, and a deep document would run out of stack sooner.
+    // ponytail: there is no depth limit, so one deeper than the stack still
+    // crashes; a limit with an error of its own when that matters.
     fn resolveValue(self: Value, gpa: std.mem.Allocator, root: *Value, state: *Resolving) ResolveError!?Value {
         switch (self) {
             .scalar => return self,
@@ -422,45 +471,100 @@ pub const Value = union(enum) {
                 }
                 return .{ .object = try resolved.toOwnedSlice(gpa) };
             },
-            .ref => |r| {
-                if (try follow(gpa, root, r, r.path, state)) |val| return val;
-                // From an included file: not found with the scope in front, or
-                // gone (an optional that found nothing), so try the path as written.
-                if (r.scope_len > 0) {
-                    if (try follow(gpa, root, r, r.path[r.scope_len..], state)) |val| return val;
-                }
-                if (r.optional) return null;
-                state.err_pos.* = r.at();
-                return ResolveError.Unresolved;
-            },
-            .pending => |parts| {
-                // Same as concat in fromNode, just now refs have values
-                var buffer: ?Value = null;
-                for (parts) |part| {
-                    const val = try part.value.resolveValue(gpa, root, state) orelse continue;
-                    if (buffer) |*ebuffer| {
-                        // The part that does not fit onto what came before it.
-                        ebuffer.update(gpa, val) catch |err| {
-                            state.err_pos.* = part.pos;
-                            return err;
-                        };
-                    } else {
-                        buffer = val;
-                    }
-                }
-                var result = buffer orelse return null;
-                // Merged text is always string, ${?x}42 is "42"
-                if (result == .scalar) result.scalar.quoted = true;
-                return result;
-            },
+            .ref => |r| return try resolveRef(r, gpa, root, state),
+            .pending => |parts| return try resolvePending(parts, gpa, root, state),
             // Only a field holds one, and a field is resolved by `resolveField`.
             .stack => unreachable,
         }
     }
 
+    // A concatenation's value: its parts, resolved and joined.
+    noinline fn resolvePending(parts: []const Part, gpa: std.mem.Allocator, root: *Value, state: *Resolving) ResolveError!?Value {
+        // Same as concat in fromNode, just now refs have values
+        var buffer: ?Value = null;
+        var start: Pos = undefined;
+        // `.keep`: from the first part that waits on, the parts join
+        // later. These are them: what joined before it, then each one.
+        var kept: std.ArrayList(Part) = .empty;
+        for (parts) |part| {
+            const val = try part.value.resolveValue(gpa, root, state) orelse continue;
+            if (kept.items.len > 0) try kept.append(gpa, .{ .value = val, .pos = part.pos });
+            if (val.waits()) {
+                if (kept.items.len == 0) {
+                    if (buffer) |b| try kept.append(gpa, .{ .value = b, .pos = start });
+                    try kept.append(gpa, .{ .value = val, .pos = part.pos });
+                }
+                // Whatever it turns out to be joins onto the buffer and
+                // leaves it a list, an object or text, as it was — or
+                // fails. So the buffer goes on, to fail now on what
+                // fails anyway. A gap takes the shape of what comes next.
+                if (buffer) |b| if (b.isGap()) {
+                    buffer = null;
+                };
+                continue;
+            }
+            // Nor does a gap right after one that waits say anything.
+            if (buffer == null and kept.items.len > 0 and val.isGap()) continue;
+            if (buffer) |*ebuffer| {
+                // The part that does not fit onto what came before it.
+                ebuffer.update(gpa, val) catch |err| {
+                    state.err_pos.* = part.pos;
+                    return err;
+                };
+            } else {
+                buffer = val;
+                start = part.pos;
+            }
+        }
+        if (kept.items.len > 0) return .{ .pending = try kept.toOwnedSlice(gpa) };
+        var result = buffer orelse return null;
+        // Merged text is always string, ${?x}42 is "42"
+        if (result == .scalar) result.scalar.quoted = true;
+        return result;
+    }
+
+    // A ref's value: at its path, scope first, then in the environment.
+    // Null for an optional that found nothing.
+    noinline fn resolveRef(r: Ref, gpa: std.mem.Allocator, root: *Value, state: *Resolving) ResolveError!?Value {
+        var path = r.path;
+        var found = try follow(gpa, root, r, path, state);
+        // From an included file: nothing found with the scope in front,
+        // so try the path as written.
+        if ((found == .absent or found == .gone) and r.scope_len > 0) {
+            const scoped = found;
+            path = r.path[r.scope_len..];
+            found = try follow(gpa, root, r, path, state);
+            // A self-reference is in the document: no variable for it.
+            if (found == .absent and scoped == .gone) found = .gone;
+        }
+        // `.keep`: what waits is looked up later the way it went now:
+        // scope first, if it was found with the scope.
+        const later: Value = .{ .ref = if (path.len == r.path.len) r else r.from(path) };
+        switch (found) {
+            // What it found waits, or holds something that does, so it
+            // waits too, as written. Not a copy: `b = ${a}` after
+            // `a = ${?PORT}` is required, and `a = ${a} x` inside a
+            // copy of `a` would read `a`, not itself.
+            .value => |val| return if (state.env == .keep and !val.isResolved()) later else val,
+            // The path runs through a value that waits.
+            .waits => return later,
+            .absent => switch (state.env) {
+                .none => {},
+                .map => |map| if (try fromEnv(gpa, map, r)) |val| return val,
+                // Absent with the scope too, so `later` has none.
+                .keep => return later,
+            },
+            .gone => {},
+        }
+        if (r.flags.optional) return null;
+        state.err_pos.* = r.at();
+        return ResolveError.Unresolved;
+    }
+
     // Resolves the value of a field and stores it back, so the next ref there
     // gets it for free: memoised per place, not per path.
     fn resolveField(place: *Value, gpa: std.mem.Allocator, root: *Value, state: *Resolving) ResolveError!?Value {
+        if (state.kept.contains(place)) return place.*;
         // A field written once is a stack of one.
         const one = [_]Value{place.*};
         const val = switch (place.*) {
@@ -469,6 +573,7 @@ pub const Value = union(enum) {
             else => try place.resolveValue(gpa, root, state),
         } orelse return null;
         place.* = val;
+        if (val.waits()) try state.kept.put(gpa, place, {});
         return val;
     }
 
@@ -486,37 +591,25 @@ pub const Value = union(enum) {
             // Looks forward, into itself merged with what was below it. The merge
             // goes first, so a key it has and the layers below have too is one
             // field with a stack of its own.
-            .object => {
-                var merged = top;
-                const under = if (mergeable(below)) try resolveStack(place, below, gpa, root, state) else null;
-                if (under) |u| if (u == .object) {
-                    merged = u;
-                    try merged.update(gpa, top);
-                };
-                const object = try gpa.create(Value);
-                object.* = merged;
-                try state.fields.append(gpa, .{ .place = place, .below = below, .object = object });
-                defer _ = state.fields.pop();
-                // A path ending at the object itself is a cycle, `a : { b : ${a} }`.
-                try state.visiting.append(gpa, object);
-                defer _ = state.visiting.pop();
-                return try object.resolveValue(gpa, root, state);
-            },
+            .object => return try resolveObjectLayer(place, top, below, gpa, root, state),
             .ref, .pending => {
                 try state.fields.append(gpa, .{ .place = place, .below = below });
                 const val = try top.resolveValue(gpa, root, state);
                 const field = state.fields.pop().?;
 
-                // Gone, or an object that merges onto what was below: then that counts.
-                if (val != null and val.? != .object) return val;
+                // Gone, or an object that merges onto what was below: then that
+                // counts. So does what is below a top that waits, to fall back to.
+                if (val != null and val.? != .object and !val.?.waits()) return val;
                 const under = if (field.progress == .done)
                     field.merged
-                else if (val != null and !mergeable(below))
+                else if (val != null and !val.?.waits() and !mergeable(below))
                     null
                 else
                     try resolveStack(place, below, gpa, root, state);
                 // An optional that found nothing leaves what was below in place.
                 var result = val orelse return under;
+                if (result.waits()) return try stacked(gpa, under, result);
+                if (under) |u| if (u.waits()) return try stacked(gpa, u, result);
                 if (under) |u| if (u == .object) {
                     var merged = u;
                     try merged.update(gpa, result);
@@ -528,6 +621,42 @@ pub const Value = union(enum) {
         }
     }
 
+    // An object layer of a field: merged onto the layers below, then resolved.
+    noinline fn resolveObjectLayer(place: *Value, top: Value, below: []const Value, gpa: std.mem.Allocator, root: *Value, state: *Resolving) ResolveError!?Value {
+        var merged = top;
+        const under = if (mergeable(below)) try resolveStack(place, below, gpa, root, state) else null;
+        if (under) |u| if (u == .object) {
+            merged = u;
+            try merged.update(gpa, top);
+        };
+        const object = try placeFor(merged, gpa, state);
+        // `.keep`: over what waits, a path into the field waits too.
+        const seen_as = if (under != null and under.?.waits()) try placeFor(under.?, gpa, state) else object;
+        try state.fields.append(gpa, .{ .place = place, .below = below, .object = seen_as });
+        defer _ = state.fields.pop();
+        // A path ending at the object itself is a cycle, `a : { b : ${a} }`.
+        try state.visiting.append(gpa, object);
+        defer _ = state.visiting.pop();
+        const resolved = try object.resolveValue(gpa, root, state) orelse unreachable;
+        // `.keep`: whether it merges onto what is below is known later.
+        if (under) |u| if (u.waits()) return try stacked(gpa, u, resolved);
+        return resolved;
+    }
+
+    // `.keep` only: still to be resolved, as a whole. A list or an object with
+    // such a thing inside is not: it is already a list or an object.
+    fn waits(self: Value) bool {
+        return self == .ref or self == .pending or self == .stack;
+    }
+
+    // `.keep` only: `top` over the layers it falls back to or merges onto, as
+    // one stack, bottom first — written out, a key assigned once per layer.
+    fn stacked(gpa: std.mem.Allocator, under: ?Value, top: Value) ResolveError!Value {
+        const u = under orelse return top;
+        const below: []const Value = if (u == .stack) u.stack else &.{u};
+        return .{ .stack = try std.mem.concat(gpa, Value, &.{ below, &.{top} }) };
+    }
+
     // Whether an object on top of these layers may merge with them. Text or a
     // list on top of them never does, so they are not even looked at.
     fn mergeable(layers: []const Value) bool {
@@ -536,11 +665,48 @@ pub const Value = union(enum) {
         return top != .scalar and top != .array;
     }
 
-    // The value at a path, resolved; null when nothing is there or it vanishes.
-    // `ref` is the one that asked, for the errors on the way.
-    fn follow(gpa: std.mem.Allocator, root: *Value, ref: Ref, path: []const Key, state: *Resolving) ResolveError!?Value {
-        const target = try lookup(gpa, root, ref, path, state) orelse return null;
-        return try resolveTarget(target, gpa, root, ref.at(), state);
+    // The value at a path, resolved. `ref` is the one that asked, for the
+    // errors on the way.
+    fn follow(gpa: std.mem.Allocator, root: *Value, ref: Ref, path: []const Key, state: *Resolving) ResolveError!Found {
+        const target = switch (try lookup(gpa, root, ref, path, state)) {
+            .place => |place| place,
+            .absent => return .absent,
+            .gone => return .gone,
+            .waits => return .waits,
+        };
+        // An optional that found nothing leaves no field: not in the document.
+        // Unless it hit a cycle on the way, then the field is just gone.
+        const cycles = state.cycles;
+        const val = try resolveTarget(target, gpa, root, ref.at(), state) orelse
+            return if (state.cycles > cycles) .gone else .absent;
+        return .{ .value = val };
+    }
+
+    // The value of the variable named like the path as written, without the
+    // include's scope: `${a.b}` reads `a.b`. Always a string, `""` included;
+    // `${X[]}` collects `X_0`, `X_1`, … up to the first one missing.
+    // Null when there is no such variable, or not even `X_0`.
+    noinline fn fromEnv(gpa: std.mem.Allocator, map: *const std.process.Environ.Map, r: Ref) ResolveError!?Value {
+        var name: std.ArrayList(u8) = .empty;
+        for (r.path[r.scope_len..], 0..) |key, i| {
+            if (i > 0) try name.append(gpa, '.');
+            try name.appendSlice(gpa, key.value);
+        }
+        if (!r.flags.list) {
+            const text = map.get(name.items) orelse return null;
+            // A copy: the map is the caller's, and may go before the document
+            // does. Text that is not UTF-8 gets U+FFFD for each bad byte.
+            return .{ .scalar = .{ .value = try std.fmt.allocPrint(gpa, "{f}", .{std.unicode.fmtUtf8(text)}), .quoted = true } };
+        }
+
+        var items: std.ArrayList(Value) = .empty;
+        while (true) {
+            const element = try std.fmt.allocPrint(gpa, "{s}_{d}", .{ name.items, items.items.len });
+            const text = map.get(element) orelse break;
+            try items.append(gpa, .{ .scalar = .{ .value = try std.fmt.allocPrint(gpa, "{f}", .{std.unicode.fmtUtf8(text)}), .quoted = true } });
+        }
+        if (items.items.len == 0) return null;
+        return .{ .array = try items.toOwnedSlice(gpa) };
     }
 
     // Resolves the place a ref points to and stores it back, next ref there is for free.
@@ -558,15 +724,20 @@ pub const Value = union(enum) {
         return try resolveField(target, gpa, root, state);
     }
 
-    // Walks the path from root, a ref on the way has to be resolved first
-    fn lookup(gpa: std.mem.Allocator, root: *Value, ref: Ref, path: []const Key, state: *Resolving) ResolveError!?*Value {
+    // Walks the path from root, a ref on the way has to be resolved first.
+    // A key missing, or text where the path goes on, is `absent`: `${x.y}`
+    // with `x = 1` has no `x.y` in the document.
+    fn lookup(gpa: std.mem.Allocator, root: *Value, ref: Ref, path: []const Key, state: *Resolving) ResolveError!union(enum) { absent, gone, waits, place: *Value } {
         var current = root;
         for (path) |key| {
-            current = try seen(current, gpa, root, ref, state) orelse return null;
+            current = try seen(current, gpa, root, ref, state) orelse return .gone;
             if (current.* == .ref or current.* == .pending or current.* == .stack) {
-                _ = try resolveTarget(current, gpa, root, ref.at(), state) orelse return null;
+                const cycles = state.cycles;
+                const val = try resolveTarget(current, gpa, root, ref.at(), state) orelse
+                    return if (state.cycles > cycles) .gone else .absent;
+                if (val.waits()) return .waits;
             }
-            if (current.* != .object) return null;
+            if (current.* != .object) return .absent;
 
             const members = try state.index.getOrPut(gpa, current.object.ptr);
             if (!members.found_existing) {
@@ -574,9 +745,10 @@ pub const Value = union(enum) {
                 // A later duplicate overwrites, the last one wins as in the slice
                 for (current.object) |*m| try members.value_ptr.put(gpa, m.key.value, &m.value);
             }
-            current = members.value_ptr.get(key.value) orelse return null;
+            current = members.value_ptr.get(key.value) orelse return .absent;
         }
-        return try seen(current, gpa, root, ref, state);
+        const place = try seen(current, gpa, root, ref, state) orelse return .gone;
+        return .{ .place = place };
     }
 
     // What a path finds at `place`: the place itself, unless it is a field being
@@ -595,14 +767,20 @@ pub const Value = union(enum) {
                 .done => {},
                 // `a = [${a}], a = ${?a}`: the layers below lead back here.
                 .busy => {
-                    if (ref.optional) return null;
+                    if (ref.flags.optional) {
+                        state.cycles += 1;
+                        return null;
+                    }
                     state.err_pos.* = ref.at();
                     return ResolveError.SubstitutionCycle;
                 },
                 .todo => {
-                    if (field.below.len == 0 and !ref.optional and i + 1 < state.fields.items.len) {
-                        state.err_pos.* = ref.at();
-                        return ResolveError.SubstitutionCycle;
+                    if (field.below.len == 0 and i + 1 < state.fields.items.len) {
+                        if (!ref.flags.optional) {
+                            state.err_pos.* = ref.at();
+                            return ResolveError.SubstitutionCycle;
+                        }
+                        state.cycles += 1;
                     }
                     field.progress = .busy;
                     const below = field.below;
@@ -612,10 +790,18 @@ pub const Value = union(enum) {
                     state.fields.items[i].progress = .done;
                 },
             }
-            const copy = try gpa.create(Value);
-            copy.* = state.fields.items[i].merged orelse return null;
-            return copy;
+            return try placeFor(state.fields.items[i].merged orelse return null, gpa, state);
         }
+        return place;
+    }
+
+    // A new place holding `value`, resolved already, for a path to find.
+    // `.keep`: one that waits is marked as resolved, or the path that finds
+    // it would resolve it again.
+    fn placeFor(value: Value, gpa: std.mem.Allocator, state: *Resolving) ResolveError!*Value {
+        const place = try gpa.create(Value);
+        place.* = value;
+        if (value.waits()) try state.kept.put(gpa, place, {});
         return place;
     }
 
@@ -681,7 +867,7 @@ pub const Member = struct {
         std.mem.reverse(Key, keys.items);
         const self_ref: Ref = .{
             .path = try std.mem.concat(gpa, Key, &.{ ctx.scope, keys.items }),
-            .optional = true,
+            .flags = .{ .optional = true },
             .scope_len = @intCast(ctx.scope.len),
             .file = ctx.file,
             .pos = @intCast(node.pos),
@@ -707,7 +893,15 @@ pub const Member = struct {
 /// the scope, from the document root.
 pub const Ref = struct {
     path: []const Key,
-    optional: bool,
+    /// The two marks a `${…}` can carry, packed into one byte so Ref stays
+    /// 24 bytes.
+    flags: packed struct(u8) {
+        /// `${?…}`: nothing behind it removes what it is part of.
+        optional: bool,
+        /// `${X[]}`: from the environment, `X_0`, `X_1`, … as a list.
+        list: bool = false,
+        _: u6 = 0,
+    },
     /// A u8, so that `file` fits too: Ref stays 24 bytes and Value 32. More keys
     /// than that above an include are refused where the scope is made.
     scope_len: u8 = 0,
@@ -720,6 +914,15 @@ pub const Ref = struct {
     /// Where its `${` is, as a place in the document.
     pub fn at(self: Ref) Value.Pos {
         return .{ .file = self.file, .offset = self.pos };
+    }
+
+    /// The same ref, looking up `path` from the document root: the one of its
+    /// two paths that is left once the include's scope is no longer there.
+    pub fn from(self: Ref, path: []const Key) Ref {
+        var copy = self;
+        copy.path = path;
+        copy.scope_len = 0;
+        return copy;
     }
 
     /// A malformed path is reported at the `${`, like everything about a ref;
@@ -776,7 +979,10 @@ pub const Ref = struct {
 
         return .{
             .path = try std.mem.concat(gpa, Key, &.{ ctx.scope, key_list.items }),
-            .optional = if (node.kind == .subst_optional) true else false,
+            .flags = .{
+                .optional = if (node.kind == .subst_optional) true else false,
+                .list = std.mem.eql(u8, node.value, "[]"),
+            },
             .scope_len = @intCast(ctx.scope.len),
             .file = ctx.file,
             .pos = @intCast(node.pos),
@@ -850,13 +1056,13 @@ test "value.a substitution becomes a ref, optional and all" {
 
     var path = [_]Node{v("a.b")};
     const req = try build(gpa, n(.subst, &path));
-    try testing.expect(!req.ref.optional);
+    try testing.expect(!req.ref.flags.optional);
     try testing.expectEqual(@as(usize, 2), req.ref.path.len);
     try testing.expectEqualStrings("a", req.ref.path[0].value);
     try testing.expectEqualStrings("b", req.ref.path[1].value);
 
     const opt = try build(gpa, n(.subst_optional, &path));
-    try testing.expect(opt.ref.optional);
+    try testing.expect(opt.ref.flags.optional);
 }
 
 // The root of a document is an object like any other: its children are members,
@@ -1352,7 +1558,7 @@ test "value.+= is an optional self-reference and a one-element list" {
     const parts = o.object[0].value.object[0].value.pending;
     try testing.expectEqual(@as(usize, 2), parts.len);
     const r = parts[0].value.ref;
-    try testing.expect(r.optional);
+    try testing.expect(r.flags.optional);
     try testing.expectEqual(@as(u16, 1), r.scope_len);
     try testing.expectEqual(@as(usize, 3), r.path.len);
     for ([_][]const u8{ "inc", "a", "b" }, r.path) |want, got| try testing.expectEqualStrings(want, got.value);
@@ -1569,7 +1775,7 @@ test "value.an optional substitution parts a concatenation like any ref" {
     const p = try build(gpa, n(.concat, &parts));
     try testing.expectEqual(@as(usize, 2), p.pending.len);
     try testing.expect(p.pending[0].value == .ref);
-    try testing.expect(p.pending[0].value.ref.optional);
+    try testing.expect(p.pending[0].value.ref.flags.optional);
     try testing.expect(p.pending[1].value == .array);
 
     // and between two texts the gap is still a part of its own
@@ -1577,7 +1783,7 @@ test "value.an optional substitution parts a concatenation like any ref" {
     const t = try build(gpa, n(.concat, &texts));
     try testing.expectEqual(@as(usize, 3), t.pending.len);
     try testing.expectEqualStrings("1 ", t.pending[0].value.scalar.value);
-    try testing.expect(t.pending[1].value.ref.optional);
+    try testing.expect(t.pending[1].value.ref.flags.optional);
     try testing.expectEqualStrings(" 2", t.pending[2].value.scalar.value);
 }
 
@@ -1762,7 +1968,7 @@ fn expectResolved(src: [:0]const u8, expected: []const u8) !void {
     var parser = Ast.Parser{ .gpa = gpa, .t = .{ .t = @import("Tokenizer.zig").Tokenizer.init(src) } };
     var root = try build(gpa, try parser.parse());
     var err_pos: ?Value.Pos = null;
-    try root.resolve(gpa, &err_pos);
+    try root.resolve(gpa, .none, &err_pos);
     try testing.expectEqualStrings(expected, try std.json.Stringify.valueAlloc(gpa, root, .{}));
 }
 
@@ -1774,7 +1980,7 @@ fn expectResolveError(src: [:0]const u8, expected: anyerror) !void {
     var parser = Ast.Parser{ .gpa = gpa, .t = .{ .t = @import("Tokenizer.zig").Tokenizer.init(src) } };
     var root = try build(gpa, try parser.parse());
     var err_pos: ?Value.Pos = null;
-    try testing.expectError(expected, root.resolve(gpa, &err_pos));
+    try testing.expectError(expected, root.resolve(gpa, .none, &err_pos));
 }
 
 // java ✓ · pyhocon ✓ · spec ✓ — `.ref`: the whole finished document is looked
@@ -1852,7 +2058,7 @@ fn expectAllResolved(cases: []const table.Case) !void {
             var parser = Ast.Parser{ .gpa = gpa, .t = .{ .t = Tokenizer.Tokenizer.init(src) } };
             var root = try build(gpa, try parser.parse());
             var err_pos: ?Value.Pos = null;
-            try root.resolve(gpa, &err_pos);
+            try root.resolve(gpa, .none, &err_pos);
             return std.json.Stringify.valueAlloc(gpa, root, .{});
         }
     }.dump });
@@ -2006,4 +2212,375 @@ test "resolve.two fields that refer to each other agree" {
     try expectAllResolved(&.{
         .ok("a = 1\nb = 2\na = ${b}\nb = ${a}", "{\"a\":1,\"b\":1}"),
     });
+}
+
+// ---------------------------------------------------------------------------
+// The environment (#11): where a path that is not in the document looks next.
+// Every row runs against the same made-up variables, so a row reads like a
+// shell session: `PORT=8080 hocon app.conf`. An error renders as its name.
+// Oracle rows were run with these variables exported:
+//   `env PORT=8080 … tools/oracle/hocon-java` and the same for hocon-py.
+// ---------------------------------------------------------------------------
+
+const test_env = [_][2][]const u8{
+    .{ "PORT", "8080" },
+    .{ "EMPTY", "" },
+    .{ "NUM", "42" },
+    .{ "YES", "true" },
+    .{ "NOTHING", "null" },
+    .{ "x.y", "the dotted one" },
+    .{ "gone", "the environment" },
+    .{ "HOSTS_0", "alpha" },
+    .{ "HOSTS_1", "beta" },
+    .{ "GAP_0", "first" },
+    .{ "GAP_2", "after the gap" },
+    .{ "BYTES", "\xff\xfe" },
+    .{ "BYTES_0", "caf\xe9" },
+};
+
+fn expectAllFromEnv(cases: []const table.Case) !void {
+    return table.expectAll(cases, .{ .dump = struct {
+        fn dump(gpa: std.mem.Allocator, src: [:0]const u8) anyerror![]u8 {
+            var map: std.process.Environ.Map = .init(gpa);
+            for (test_env) |kv| try map.put(kv[0], kv[1]);
+
+            var parser = Ast.Parser{ .gpa = gpa, .t = .{ .t = Tokenizer.Tokenizer.init(src) } };
+            var root = try build(gpa, try parser.parse());
+            var err_pos: ?Value.Pos = null;
+            root.resolve(gpa, .{ .map = &map }, &err_pos) catch |err| return gpa.dupe(u8, @errorName(err));
+            return std.json.Stringify.valueAlloc(gpa, root, .{});
+        }
+    }.dump });
+}
+
+// substitution-fallback-to-environment · java ✓ · pyhocon ✓ · spec ✓ — a path
+// that is not in the document is a variable of the same name, always a string:
+// set to "" it is "", and 42, true and null stay text. A key in the document
+// wins, null included, and only the same case counts as the same key.
+test "env.a path not in the document reads the variable" {
+    try expectAllFromEnv(&.{
+        .ok("port = ${PORT}", "{\"port\":\"8080\"}"),
+        .ok("port = ${?PORT}", "{\"port\":\"8080\"}"),
+        .ok("url = \"http://localhost:\"${PORT}\"/wombat\"", "{\"url\":\"http://localhost:8080/wombat\"}"),
+        .ok("a = ${EMPTY}\nb = ${?EMPTY}", "{\"a\":\"\",\"b\":\"\"}"),
+        .ok("n = ${NUM}\nb = ${YES}\nz = ${NOTHING}", "{\"n\":\"42\",\"b\":\"true\",\"z\":\"null\"}"),
+        .ok("PORT = 443\nport = ${PORT}", "{\"PORT\":443,\"port\":443}"),
+        .ok("port = 443\na = ${PORT}", "{\"port\":443,\"a\":\"8080\"}"),
+        .ok("a = ${?NOPE}", "{}"),
+        .ok("a = ${NOPE}", "Unresolved"),
+    });
+}
+
+// substitution-fallback-to-environment.4 · java ✓ · pyhocon ⚠️ · spec ✓ —
+// `PORT = null` blocks the variable. pyhocon drops `port` altogether.
+test "env.null in the document blocks the variable" {
+    try expectAllFromEnv(&.{
+        .ok("PORT = null\nport = ${PORT}", "{\"PORT\":null,\"port\":null}"),
+    });
+}
+
+// java ✓ · pyhocon ⚠️ · spec ✓ — the variable is named like the path, dots
+// and all. `x = 1` has no `x.y` in it, so `${x.y}` is not in the document
+// either; pyhocon says "x has type int rather than dict" instead.
+//
+// `${"x.y"}` · java ⚠️ · pyhocon ⚠️ — both leave it unresolved: java reads the
+// variables as paths, so `x.y` is `y` inside `x`. The spec says "a variable of
+// the same name", and `x.y` is the name of both paths.
+test "env.the variable is named like the path" {
+    try expectAllFromEnv(&.{
+        .ok("b = ${x.y}", "{\"b\":\"the dotted one\"}"),
+        .ok("x = 1\nb = ${x.y}", "{\"x\":1,\"b\":\"the dotted one\"}"),
+        .ok("b = ${\"x.y\"}", "{\"b\":\"the dotted one\"}"),
+    });
+}
+
+// java ✓ · pyhocon ⚠️ · spec ✓ — a field that refers to itself, `+=`
+// included, sees what was below it, never a variable named like it: the
+// field is in the document. pyhocon reads `gone` from the environment in
+// both rows.
+test "env.a self-reference never reads the variable" {
+    try expectAllFromEnv(&.{
+        .ok("gone = ${?gone}", "{}"),
+        .ok("gone += 1", "{\"gone\":[1]}"),
+    });
+}
+
+// java ⚠️ · pyhocon ✓ (one row ⚠️) · spec ✓ — an optional that found nothing
+// leaves no field ("the field should not be created"), so the path is not
+// present and reads the variable, whatever the order of the fields. An
+// earlier rule said a vanished field was the document's and read nothing;
+// that came out differently by order, since an object resolved first has
+// dropped the field already. Java resolves keys in sorted order and reads
+// the variable only where the object comes first: never at the top level,
+// for `x { y = … }` not before `b`, but for `x = ${?NOPE}` always. pyhocon
+// fails `b = ${x.y}` before `x = ${?NOPE}` with a type error.
+test "env.a field that vanished reads the variable, in either order" {
+    try expectAllFromEnv(&.{
+        .ok("gone = ${?NOPE}\nb = ${?gone}", "{\"b\":\"the environment\"}"),
+        .ok("gone = ${?NOPE}\nb = ${gone}", "{\"b\":\"the environment\"}"),
+        .ok("b = ${gone}\ngone = ${?NOPE}", "{\"b\":\"the environment\"}"),
+        .ok("x { y = ${?NOPE} }\nb = ${x.y}", "{\"x\":{},\"b\":\"the dotted one\"}"),
+        .ok("b = ${x.y}\nx { y = ${?NOPE} }", "{\"b\":\"the dotted one\",\"x\":{}}"),
+        .ok("x = ${?NOPE}\nb = ${x.y}", "{\"b\":\"the dotted one\"}"),
+        .ok("b = ${x.y}\nx = ${?NOPE}", "{\"b\":\"the dotted one\"}"),
+    });
+}
+
+// java ✓ (one row ⚠️) · pyhocon ⚠️ · spec ✓ — fields that vanish because
+// their optionals refer to each other are in the document, so neither reads
+// its variable, whichever is set: a cycle counts as missing for `${?}`, never
+// as absent. In the last row the cycle runs through the layer below `gone`;
+// Java reads the variable `gone` there, the way it does for a self-reference
+// that finds nothing. pyhocon fails every row with a cycle error.
+test "env.an optional cycle never reads the variable" {
+    try expectAllFromEnv(&.{
+        .ok("gone = ${?PORT}\nPORT = ${?gone}", "{}"),
+        .ok("PORT = ${?gone}\ngone = ${?PORT}", "{}"),
+        .ok("gone = ${?NUM}\nNUM = ${?gone}\nb = ${gone}", "Unresolved"),
+        .ok("gone = ${?PORT}\ngone = ${?gone}\nPORT = ${?gone}", "{}"),
+    });
+}
+
+// java ✓ · pyhocon ⚠️ · spec ✓ — a variable is a string, and text that is not
+// UTF-8 becomes one with each bad byte as U+FFFD, the way Java decodes it
+// ("encoding is handled by Java"). Raw bytes would print as JSON numbers and
+// as HOCON that does not read back. pyhocon keeps them as lone surrogates.
+test "env.a variable that is not UTF-8 is a string all the same" {
+    try expectAllFromEnv(&.{
+        .ok("b = ${BYTES}", "{\"b\":\"\u{FFFD}\u{FFFD}\"}"),
+        .ok("l = ${BYTES[]}", "{\"l\":[\"caf\u{FFFD}\"]}"),
+    });
+}
+
+// list-values-from-environment-variables · java ✓ · pyhocon ⚠️ · spec ✓ —
+// `${X[]}` is `X_0`, `X_1`, … up to the first one missing, each a string. No
+// `X_0` is undefined: an error, or nothing for `${?X[]}`. A key in the
+// document wins as for any path, and its `_0` keys are not collected. pyhocon
+// has no `[]` and leaves every row undefined.
+//
+// `${HOSTS[]}x` · java 1.4.9 ⚠️ drops the `x` (main says WrongType) — a list
+// and text do not join.
+test "env.a list from numbered variables" {
+    try expectAllFromEnv(&.{
+        .ok("hosts = ${HOSTS[]}", "{\"hosts\":[\"alpha\",\"beta\"]}"),
+        .ok("hosts = ${?HOSTS[]}", "{\"hosts\":[\"alpha\",\"beta\"]}"),
+        .ok("a = ${GAP[]}", "{\"a\":[\"first\"]}"),
+        .ok("a = ${?NOPE[]}", "{}"),
+        .ok("a = ${NOPE[]}", "Unresolved"),
+        .ok("a = ${PORT[]}", "Unresolved"),
+        .ok("HOSTS = [q]\na = ${HOSTS[]}", "{\"HOSTS\":[\"q\"],\"a\":[\"q\"]}"),
+        .ok("NOPE_0 = q\nb = ${?NOPE[]}", "{\"NOPE_0\":\"q\"}"),
+        .ok("a = ${HOSTS[]} [gamma]", "{\"a\":[\"alpha\",\"beta\",\"gamma\"]}"),
+        .ok("a = [${HOSTS[]}]", "{\"a\":[[\"alpha\",\"beta\"]]}"),
+        .ok("a = ${HOSTS[]}x", "UnsupportedConcatenation"),
+    });
+}
+
+// No environment given, no environment read: the default is the document alone.
+test "env.none by default" {
+    try expectAllResolved(&.{
+        .bad("port = ${PORT}"),
+        .ok("port = ${?PORT}", "{}"),
+        .ok("hosts = ${?HOSTS[]}", "{}"),
+    });
+}
+
+// ---------------------------------------------------------------------------
+// `Env.keep`: everything the document can answer is resolved, what waits for
+// the environment stays. Zig only — no oracle has such a mode — so the second
+// test below is the check: the kept tree, resolved later, says what the
+// document resolved there and then would.
+// ---------------------------------------------------------------------------
+
+/// The kept tree in a HOCON-like shorthand: a ref as written, a pending as its
+/// parts side by side, a stack as its layers bottom first.
+fn writeKept(value: Value, w: *std.Io.Writer) !void {
+    switch (value) {
+        .scalar => |s| if (s.quoted) try w.print("\"{s}\"", .{s.value}) else try w.writeAll(s.value),
+        .array => |items| {
+            try w.writeByte('[');
+            for (items, 0..) |item, i| {
+                if (i > 0) try w.writeAll(", ");
+                try writeKept(item, w);
+            }
+            try w.writeByte(']');
+        },
+        .object => |members| {
+            try w.writeByte('{');
+            for (members, 0..) |m, i| {
+                if (i > 0) try w.writeAll(", ");
+                try w.print("{s}: ", .{m.key.value});
+                try writeKept(m.value, w);
+            }
+            try w.writeByte('}');
+        },
+        .ref => |r| {
+            try w.writeAll(if (r.flags.optional) "${?" else "${");
+            for (r.path, 0..) |key, i| {
+                if (i > 0) try w.writeByte('.');
+                try w.writeAll(key.value);
+            }
+            try w.writeAll(if (r.flags.list) "[]}" else "}");
+        },
+        .pending => |parts| for (parts) |part| try writeKept(part.value, w),
+        .stack => |layers| {
+            try w.writeAll("stack(");
+            for (layers, 0..) |layer, i| {
+                if (i > 0) try w.writeAll(", ");
+                try writeKept(layer, w);
+            }
+            try w.writeByte(')');
+        },
+    }
+}
+
+fn expectAllKept(cases: []const table.Case) !void {
+    return table.expectAll(cases, .{ .dump = struct {
+        fn dump(gpa: std.mem.Allocator, src: [:0]const u8) anyerror![]u8 {
+            var parser = Ast.Parser{ .gpa = gpa, .t = .{ .t = Tokenizer.Tokenizer.init(src) } };
+            var root = build(gpa, try parser.parse()) catch |err| return gpa.dupe(u8, @errorName(err));
+            var err_pos: ?Value.Pos = null;
+            root.resolve(gpa, .keep, &err_pos) catch |err| return gpa.dupe(u8, @errorName(err));
+            var out: std.Io.Writer.Allocating = .init(gpa);
+            try writeKept(root, &out.writer);
+            return out.toOwnedSlice();
+        }
+    }.dump });
+}
+
+// What stays, and in what shape. A path in the document is resolved as ever;
+// one that is not stays as written. A key that refers to one that waits
+// waits too, as `${a}`: the key is there to be found again, and copying
+// `${?PORT}` would make the required `b` optional. A field whose top waits
+// keeps what is below it — `port = 8080` then `port = ${?PORT}` is the usual
+// way to give a variable a default. A self-reference and `+=` look only
+// below, never at the environment, so they never wait on their own.
+test "keep.what waits for the environment stays" {
+    try expectAllKept(&.{
+        .ok("port = ${?PORT}", "{port: ${?PORT}}"),
+        .ok("port = ${PORT}", "{port: ${PORT}}"),
+        .ok("hosts = ${?HOSTS[]}", "{hosts: ${?HOSTS[]}}"),
+        .ok("x = 1\nb = ${x}", "{x: 1, b: 1}"),
+        .ok("PORT = null\np = ${PORT}", "{PORT: null, p: null}"),
+        .ok("x = 1\nb = ${x.y}", "{x: 1, b: ${x.y}}"),
+        .ok("a = ${?PORT}\nb = ${a}", "{a: ${?PORT}, b: ${a}}"),
+        .ok("url = \"http://\"${HOST}\":\"${port}\nport = 80", "{url: \"http://\"${HOST}\":\"80, port: 80}"),
+        .ok("m = the ${w} sleeps ${?MOOD}\nw = wombat", "{m: \"the wombat sleeps \"${?MOOD}, w: wombat}"),
+        .ok("port = 8080\nport = ${?PORT}", "{port: stack(8080, ${?PORT})}"),
+        .ok("a = ${?PORT}\na = ${a}x", "{a: stack(${?PORT}, ${a}x)}"),
+        // a self-reference over one that waits is kept once, not followed again
+        .ok("a = ${?X}\na = ${a} x\na = ${a} y", "{a: stack(${?X}, ${a}\" x\", ${a}\" y\")}"),
+        .ok("a = ${?X}\na += 1\na += 2", "{a: stack(${?X}, ${?a}[1], ${?a}[2])}"),
+        // an object that holds what waits is referred to, not copied: a copy
+        // merged onto itself doubled `p` with every line
+        .ok("a = { p = ${?X} }\na = ${a} { q = 1 }\na = ${a} { r = 1 }", "{a: stack({p: ${?X}}, ${a}{q: 1}, ${a}{r: 1})}"),
+        .ok("o { p = 1 }\no = ${?O}", "{o: stack({p: 1}, ${?O})}"),
+        .ok("o { p = 1 }\no = ${?O}\no { q = 2 }", "{o: stack({p: 1}, ${?O}, {q: 2})}"),
+        .ok("l = [1]\nl += ${?X}", "{l: [1, ${?X}]}"),
+        .ok("l += 1", "{l: [1]}"),
+        .ok("gone = ${?gone}", "{}"),
+        // what the document alone decides fails now, as ever, also across a
+        // part that waits: a list stays a list, text stays text
+        .ok("a = [1] x", "UnsupportedConcatenation"),
+        .ok("a = [1] ${?PORT} x", "UnsupportedConcatenation"),
+        .ok("a = ${?PORT} [1] x", "UnsupportedConcatenation"),
+        .ok("a = x ${?PORT} [1]", "UnsupportedConcatenation"),
+        .ok("a = [1] ${?X} [2]", "{a: [1]${?X}[2]}"),
+        .ok("a = ${?X} [1]", "{a: ${?X}[1]}"),
+        .ok("a = x ${?X} y", "{a: \"x \"${?X}\" y\"}"),
+        .ok("a = ${a}", "Unresolved"),
+    });
+}
+
+// The point of keeping: resolving the kept tree later, with whatever
+// environment is there then, is resolving the document with it. Every source
+// is tried with no variables and with all of `test_env` plus a few more, and
+// both ways have to agree on the JSON, or on the error.
+test "keep.resolved later is the same as resolved now" {
+    const sources = [_][:0]const u8{
+        "port = ${?PORT}",
+        "port = ${PORT}",
+        "hosts = ${?HOSTS[]}",
+        "hosts = ${HOSTS[]} [gamma]",
+        "x = 1\nb = ${x.y}",
+        "a = ${?PORT}\nb = ${a}",
+        "a = ${?PORT}\nb = ${?a}",
+        "url = \"http://\"${HOST}\":\"${port}\nport = 80",
+        "m = the ${w} sleeps ${?MOOD}\nw = wombat",
+        "port = 8080\nport = ${?PORT}",
+        "a = ${?PORT}\na = ${a}x",
+        "a = ${?NOPE}\na = ${a}x",
+        "a = ${?X}\na = ${a} x\na = ${a} y",
+        "a = ${X}\na = ${a} x\na = ${a} y",
+        "a = ${?X}\na += 1\na += 2",
+        "a { l = [1] }\na { l = ${?L} }\na { l += 2 }\nd = ${a}",
+        "a = { p = ${?X} }\na = ${a} { q = 1 }\na = ${a} { r = 1 }",
+        "a { c = ${?C} }\na { c = ${a.c} x }\nd = ${a}",
+        "a { c = 1 }\na = ${?O}\nd = ${a}\nd { c = ${d.c} y }",
+        "a { c = 1 }\na = ${?O}\nd = ${a}\nd { e = 2, c = ${?d.c} y }",
+        "o { a = ${?X}\na = ${o.a} x\na = ${o.a} y }",
+        "o { p = 1 }\no = ${?O}",
+        "o { p = 1 }\no = ${?O}\no { q = 2 }",
+        "o { p = 1 }\no = ${?OBJ}\no { q = 2 }",
+        "o { p = 1, p = ${?PORT} }\nb = ${o}\nc = ${o.p}",
+        "l = [1]\nl += ${?X}",
+        "l = [${?PORT}, ${?NOPE}]\nm = ${l} [2]",
+        "a = ${?HOSTS[]}x",
+        "a = [1] ${?PORT} x",
+        "a = [1] ${?X} [2]",
+        "a = ${?X} [1]",
+    };
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+    const gpa = arena.allocator();
+
+    var none: std.process.Environ.Map = .init(gpa);
+    var some: std.process.Environ.Map = .init(gpa);
+    for (test_env) |kv| try some.put(kv[0], kv[1]);
+    try some.put("HOST", "wombat.example");
+    try some.put("O", "a string where an object was");
+    try some.put("X", "x");
+    try some.put("C", "q");
+    try some.put("L", "a string where a list was");
+
+    for (sources) |src| for ([_]*const std.process.Environ.Map{ &none, &some }) |env| {
+        const now = try resolvedJson(gpa, src, .{ .map = env }, false);
+        const later = try resolvedJson(gpa, src, .{ .map = env }, true);
+        testing.expectEqualStrings(now, later) catch |err| {
+            std.debug.print("source: {s}\nenv: {s}\n", .{ src, if (env == &none) "none" else "some" });
+            return err;
+        };
+    };
+}
+
+// Each field is resolved once, also one that waits: kept, a chain where every
+// key joins the one before it twice is as cheap as resolved now, not 2^n. The
+// allocator gives out ten times what one pass over 40 keys takes (781), and fails
+// after that.
+test "keep.a field that waits is resolved once" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+    var out: std.Io.Writer.Allocating = .init(arena.allocator());
+    try out.writer.writeAll("a0 = ${?X}\n");
+    for (1..40) |i| try out.writer.print("a{d} = ${{a{d}}}${{a{d}}}\n", .{ i, i - 1, i - 1 });
+    const src = try out.toOwnedSliceSentinel(0);
+
+    var failing = testing.FailingAllocator.init(arena.allocator(), .{ .fail_index = 8_000 });
+    const gpa = failing.allocator();
+    var parser = Ast.Parser{ .gpa = gpa, .t = .{ .t = Tokenizer.Tokenizer.init(src) } };
+    var root = try build(gpa, try parser.parse());
+    var err_pos: ?Value.Pos = null;
+    try root.resolve(gpa, .keep, &err_pos);
+    try testing.expectEqual(.pending, std.meta.activeTag(root.object[39].value));
+}
+
+/// `src` resolved with `env` as JSON, or the name of the error. With `kept`,
+/// it is resolved with `.keep` first, and the tree that leaves resolved again.
+fn resolvedJson(gpa: std.mem.Allocator, src: [:0]const u8, env: Value.Env, kept: bool) ![]const u8 {
+    var parser = Ast.Parser{ .gpa = gpa, .t = .{ .t = Tokenizer.Tokenizer.init(src) } };
+    var root = try build(gpa, try parser.parse());
+    var err_pos: ?Value.Pos = null;
+    if (kept) root.resolve(gpa, .keep, &err_pos) catch |err| return @errorName(err);
+    root.resolve(gpa, env, &err_pos) catch |err| return @errorName(err);
+    return std.json.Stringify.valueAlloc(gpa, root, .{});
 }

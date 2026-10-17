@@ -482,6 +482,11 @@ fn parseFixtures(arena: Allocator, files: []const Fixture) ![]const u8 {
 }
 
 fn parseFixturesWith(arena: Allocator, files: []const Fixture, options: Config.ParseOptions) ![]const u8 {
+    return std.json.Stringify.valueAlloc(arena, try loadFixtures(arena, files, options), .{});
+}
+
+/// The same, the tree itself.
+fn loadFixtures(arena: Allocator, files: []const Fixture, options: Config.ParseOptions) !Value {
     var tmp = testing.tmpDir(.{});
     defer tmp.cleanup();
     const rel = try std.fmt.allocPrint(arena, ".zig-cache/tmp/{s}", .{tmp.sub_path});
@@ -493,8 +498,7 @@ fn parseFixturesWith(arena: Allocator, files: []const Fixture, options: Config.P
         try tmp.dir.writeFile(testing.io, .{ .sub_path = f.path, .data = text });
     }
     const main = try std.fs.path.join(arena, &.{ rel, files[0].path });
-    const value = try Config.parseFromFileLeaky(Value, arena, testing.io, main, options);
-    return std.json.Stringify.valueAlloc(arena, value, .{});
+    return Config.parseFromFileLeaky(Value, arena, testing.io, main, options);
 }
 
 fn expectJson(files: []const Fixture, want: []const u8) !void {
@@ -995,6 +999,70 @@ test "include.an include in a list keeps its substitutions as written" {
         .{ .path = "main.conf", .text = "a = [ { include \"child.conf\" } ]\ny = 1" },
         .{ .path = "child.conf", .text = "x = ${y}" },
     }, "{\"a\":[{\"x\":1}],\"y\":1}");
+}
+
+// ---------------------------------------------------------------------------
+// The environment (#11) from an included file: the variable is named like the
+// path as written, and only a path that is in the document at neither of its
+// two places reads it. Every row is checked twice: resolved with `env` right
+// away, and kept (`Env.keep`) first, then resolved with `env` — both have to
+// say `want`, the JSON or the error.
+// ---------------------------------------------------------------------------
+
+fn expectWithEnv(files: []const Fixture, vars: []const [2][]const u8, want: []const u8) !void {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+    const gpa = arena.allocator();
+    var env: std.process.Environ.Map = .init(gpa);
+    for (vars) |kv| try env.put(kv[0], kv[1]);
+
+    const now = parseFixturesWith(gpa, files, .{ .env = .{ .map = &env } }) catch |err| @errorName(err);
+    try testing.expectEqualStrings(want, now);
+
+    var later = try loadFixtures(gpa, files, .{ .env = .keep });
+    var err_pos: ?Value.Pos = null;
+    later.resolve(gpa, .{ .map = &env }, &err_pos) catch |err| return testing.expectEqualStrings(want, @errorName(err));
+    try testing.expectEqualStrings(want, try std.json.Stringify.valueAlloc(gpa, later, .{}));
+}
+
+// java ✓ · pyhocon – · spec ✓ — `+=` on a new key refers to itself and finds
+// nothing below: that is the document's answer, and the variable named like
+// the key is never read.
+//
+// An optional that vanished · java ⚠️ ({"s":{}}) · pyhocon ✓ · spec ✓ — it
+// leaves no field, so neither path is present and the variable is read, as
+// for a vanished field outside an include (see Value.zig, "env.a field that
+// vanished"). An earlier rule kept it the document's; that depended on the
+// order of the fields.
+test "include.env: a self-reference never reads the variable, a vanished field does" {
+    try expectWithEnv(&.{
+        .{ .path = "main.conf", .text = "s { include \"inc.conf\" }" },
+        .{ .path = "inc.conf", .text = "l += 1" },
+    }, &.{.{ "l", "the wombat is not a list" }}, "{\"s\":{\"l\":[1]}}");
+    for ([_][:0]const u8{ "x = ${?NOPE}\ny = ${?x}", "y = ${?x}\nx = ${?NOPE}" }) |inc| try expectWithEnv(&.{
+        .{ .path = "main.conf", .text = "s { include \"inc.conf\" }" },
+        .{ .path = "inc.conf", .text = inc },
+    }, &.{.{ "x", "the otter took it" }}, "{\"s\":{\"y\":\"the otter took it\"}}");
+    // Absent at both: the variable, named without the scope.
+    try expectWithEnv(&.{
+        .{ .path = "main.conf", .text = "s { include \"inc.conf\" }" },
+        .{ .path = "inc.conf", .text = "y = ${?x}" },
+    }, &.{.{ "x", "the otter took it" }}, "{\"s\":{\"y\":\"the otter took it\"}}");
+}
+
+// java ✓ · pyhocon – · spec ✓ — a path that runs through a key waiting for
+// the environment (`o = ${?O}` over an object) is in the document as far as
+// that key: kept, it has to be looked up later the way it was now, scope
+// first. Unset, `o` is the object below; set to text, `s.o.b` is not there,
+// so `o.b` is, and then the variable `o.b`.
+test "include.env: a path through a key that waits is kept with its scope" {
+    const files: []const Fixture = &.{
+        .{ .path = "main.conf", .text = "s { include \"inc.conf\" }" },
+        .{ .path = "inc.conf", .text = "o { b = 1 }\no = ${?O}\nc = ${o.b}" },
+    };
+    try expectWithEnv(files, &.{}, "{\"s\":{\"o\":{\"b\":1},\"c\":1}}");
+    try expectWithEnv(files, &.{.{ "O", "plain text" }}, "Unresolved");
+    try expectWithEnv(files, &.{ .{ "O", "plain text" }, .{ "o.b", "the badger" } }, "{\"s\":{\"o\":\"plain text\",\"c\":\"the badger\"}}");
 }
 
 // ---------------------------------------------------------------------------
