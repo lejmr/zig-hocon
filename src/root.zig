@@ -24,6 +24,9 @@ pub const parseFromSlice = config.parseFromSlice;
 pub const parseFromSliceLeaky = config.parseFromSliceLeaky;
 pub const parseFromFile = config.parseFromFile;
 pub const parseFromFileLeaky = config.parseFromFileLeaky;
+pub const parseFromSliceInDirLeaky = config.parseFromSliceInDirLeaky;
+pub const parseFromValue = config.parseFromValue;
+pub const parseFromValueIn = config.parseFromValueIn;
 pub const ParseOptions = config.ParseOptions;
 pub const Diagnostics = @import("Diagnostics.zig");
 pub const Key = @import("Key.zig");
@@ -488,6 +491,91 @@ test "env.keep is written as a file that resolves the same later" {
     try port.put("PORT", "9090");
     try testing.expectEqualStrings("{\"port\":\"9090\"}", try resolvedJson(gpa, "port = 8080\nport = ${?PORT}\n", &port));
     try testing.expectEqualStrings("{\"port\":8080}", try resolvedJson(gpa, "port = 8080\nport = ${?PORT}\n", &none));
+}
+
+// `.resolve = false`: the tree as written, every `${…}` still in it — also
+// the ones the document itself could answer. Written by `stringify`, it is a
+// file that reads back, resolved, as the source does (`dumpUnresolved`).
+// java ✓ (parseString without resolve() renders the same `${…}`, a key written
+// twice twice, `+=` as `${?l}[2]`) · pyhocon ✓ (`resolve=False`) · spec ✓
+test "resolve.false keeps every substitution" {
+    try table.expectAll(&.{
+        .ok("a = 1\nb = ${a}", "a = 1\nb = ${a}\n"),
+        .ok("port = 8080\nport = ${?PORT}", "port = 8080\nport = ${?PORT}\n"),
+        .ok("url = \"http://\"${HOST}\":\"${port}\nport = 80", "url = \"http://\"${HOST}\":\"${port}\nport = 80\n"),
+        .ok("m = the ${w} sleeps\nw = wombat", "m = \"the \"${w}\" sleeps\"\nw = wombat\n"),
+        .ok("o { p = 1 }\no = ${?O}\no { q = 2 }", "o {\n  p = 1\n}\no = ${?O}\no {\n  q = 2\n}\n"),
+        .ok("a = ${?nope}", "a = ${?nope}\n"),
+    }, .{ .dump = dumpUnresolved });
+}
+
+/// `src` read without resolving and written by `stringify`; that text has to
+/// read back as `src` does, with and without the variables of `compact_env`.
+fn dumpUnresolved(gpa: std.mem.Allocator, src: [:0]const u8) anyerror![]u8 {
+    const tree = try hocon.parseFromSliceLeaky(hocon.Value, gpa, src, .{ .resolve = false });
+    const text = try hocon.stringifyAlloc(gpa, tree, .{});
+
+    var none: std.process.Environ.Map = .init(gpa);
+    var some: std.process.Environ.Map = .init(gpa);
+    for (compact_env) |kv| try some.put(kv[0], kv[1]);
+    for ([_]*const std.process.Environ.Map{ &none, &some }) |env| {
+        const now = try resolvedJson(gpa, src, env);
+        const later = try resolvedJson(gpa, try gpa.dupeZ(u8, text), env);
+        if (!std.mem.eql(u8, now, later)) return std.fmt.allocPrint(gpa, "{s} reads back as {s}, not {s}", .{ text, later, now });
+    }
+    return text;
+}
+
+// Into a struct: a field with a substitution in it cannot be filled, one
+// without is. java ✓ (getString on an unresolved config: NotResolved) ·
+// pyhocon ⚠️ hands back the substitution object · spec –
+test "resolve.false into a struct" {
+    const T = struct { motto: []const u8 };
+    try testing.expectError(error.Unresolved, hocon.parseFromSlice(T, testing.allocator, "motto = ${m}\nm = grumpy", .{ .resolve = false }));
+    const parsed = try hocon.parseFromSlice(T, testing.allocator, "motto = grumpy\nport = ${PORT}", .{ .resolve = false });
+    defer parsed.deinit();
+    try testing.expectEqualStrings("grumpy", parsed.value.motto);
+}
+
+// Not resolving changes nothing about where a syntax error is, and a
+// substitution that has no value is no error at all.
+test "diagnostics.resolve = false" {
+    var cases = [_]table.Case{
+        .ok("a = ${b\n       ^ UnexpectedToken", "a = ${b\n       ^ UnexpectedToken"),
+        .ok("a = [${b}] {}\n           ^ UnsupportedConcatenation", "a = [${b}] {}\n           ^ UnsupportedConcatenation"),
+    };
+    try table.expectAll(&cases, .{ .dump = struct {
+        fn dump(gpa: std.mem.Allocator, row: [:0]const u8) anyerror![]u8 {
+            const src = try withoutCaret(gpa, row);
+            var diag: hocon.Diagnostics = .{};
+            const err = if (hocon.parseFromSliceLeaky(hocon.Value, gpa, src, .{ .diagnostics = &diag, .resolve = false })) |_|
+                return error.ParsedWithoutError
+            else |e|
+                e;
+            return drawCaret(gpa, src, err, diag);
+        }
+    }.dump });
+    const tree = try hocon.parseFromSlice(hocon.Value, testing.allocator, "a = ${b}", .{ .resolve = false });
+    tree.deinit();
+}
+
+// A string that stands for a file in a directory includes from there, the
+// way pyhocon's `parse_string(…, basedir=…)` does. java – (parseString has no
+// directory) · pyhocon ✓ · spec ✓ (a relative include is found where the
+// including file is)
+test "file.a slice in a directory includes from it" {
+    var tmp = testing.tmpDir(.{});
+    defer tmp.cleanup();
+    testing.allocator.free(try writeProd(&tmp));
+    const dir = try std.fmt.allocPrint(testing.allocator, ".zig-cache/tmp/{s}", .{tmp.sub_path});
+    defer testing.allocator.free(dir);
+
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+    const app = try hocon.parseFromSliceInDirLeaky(Prod, arena.allocator(), testing.io, dir, "include \"prod.conf\"\nname = the owl ate the router", .{});
+    try testing.expectEqualStrings("the owl ate the router", app.name);
+    try testing.expectEqual(443, app.port);
+    try testing.expectEqualStrings("grumpy-wombat.pem", app.tls.cert);
 }
 
 // ---------------------------------------------------------------------------

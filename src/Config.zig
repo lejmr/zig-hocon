@@ -10,6 +10,7 @@ const Duration = @import("units/Duration.zig");
 const Period = @import("units/Period.zig");
 const Size = @import("units/Size.zig");
 const stringify = @import("stringify.zig");
+const number = @import("utils/number.zig");
 
 pub const Config = struct {
     object: Value,
@@ -46,6 +47,15 @@ pub const Config = struct {
         /// `.{ .map = init.environ_map }` for that, the way `std.process.run`
         /// takes its `environ_map`.
         env: Value.Env = .none,
+        /// False reads the document without resolving it: every `${…}` stays in
+        /// the tree as written, to be printed by `hocon.stringify` (pyhocon's
+        /// `resolve=False`). Only `Value` can hold that; a field of any other
+        /// type with a substitution in it is `error.Unresolved`.
+        resolve: bool = true,
+        /// Filled in with the files the document was read from, for a later
+        /// `parseFromValueIn` to point into. They live in the allocator the
+        /// parse is given, as the values do.
+        files: ?*Value.Files = null,
     };
 
     /// Like `parseFromSliceLeaky`, but any allocator will do: everything lands in
@@ -72,6 +82,14 @@ pub const Config = struct {
     pub fn parseFromSliceLeaky(comptime T: type, allocator: Allocator, file_content: [:0]const u8, options: ParseOptions) !T {
         // No file behind the text, so an `include` in it is an error.
         return parseSource(T, allocator, allocator, "", file_content, .{}, options);
+    }
+
+    /// `parseFromSliceLeaky` for text that stands for a file in `dir`: an
+    /// `include` in it is read through `io` from there, as from a file in that
+    /// directory (pyhocon's `parse_string(…, basedir=…)`). An error in the text
+    /// itself has no path, as for any slice.
+    pub fn parseFromSliceInDirLeaky(comptime T: type, allocator: Allocator, io: std.Io, dir: []const u8, source: [:0]const u8, options: ParseOptions) !T {
+        return parseSource(T, allocator, allocator, "", source, .{ .io = io, .http_timeout = options.http_timeout, .dir = dir }, options);
     }
 
     /// Reads the file at `path` and every file it includes through `io`, and
@@ -130,28 +148,47 @@ pub const Config = struct {
             return error.StreamTooLong;
         }
 
-        var files: Value.Files = .{};
-        const obj = load(allocator, path, source, ctx, options.env, &files) catch |err| {
+        var own: Value.Files = .{};
+        // The caller's, when it wants to point into the document later.
+        const files = options.files orelse &own;
+        files.* = .{};
+        const obj = load(allocator, path, source, ctx, options, files) catch |err| {
             if (options.diagnostics) |diag| {
-                diag.* = .{ .err = err, .location = if (err == error.OutOfMemory) null else locate(keep, files, files.failed) };
+                diag.* = .{ .err = err, .location = if (err == error.OutOfMemory) null else locate(keep, files.*, files.failed) };
             }
             return err;
         };
-        // `.keep` leaves what waits for the environment in the tree on purpose.
-        if (T == Value and options.env == .keep) return obj;
+        // `.keep` leaves what waits for the environment in the tree on purpose,
+        // and without resolving every `${…}` is still there.
+        if (T == Value and (options.env == .keep or !options.resolve)) return obj;
         var failed: Failed = .{};
         return parseFromValue(T, allocator, obj, &failed) catch |err| {
-            if (options.diagnostics) |diag| {
-                diag.* = .{ .err = err };
-                // Out of memory has no place, and no memory to copy one with.
-                if (err != error.OutOfMemory) {
-                    diag.expected = failed.expected;
-                    diag.key_path = keyPath(keep, failed.steps.items) catch "";
-                    if (failed.value) |value| diag.location = locate(keep, files, placeOf(files, value));
-                }
-            }
+            if (options.diagnostics) |diag| conversionFailed(diag, keep, files.*, err, failed);
             return err;
         };
+    }
+
+    /// `parseFromValue` on a value of a document read before with
+    /// `ParseOptions.files`: on failure `diag` says what a parse into T would,
+    /// what T wanted and where in `files` the value is written. The path in it
+    /// is from `value` down; `diag` is `allocator`'s, as the result is.
+    pub fn parseFromValueIn(comptime T: type, allocator: Allocator, files: Value.Files, value: Value, diag: *Diagnostics) ConvertError!T {
+        var failed: Failed = .{};
+        return parseFromValue(T, allocator, value, &failed) catch |err| {
+            conversionFailed(diag, allocator, files, err, failed);
+            return err;
+        };
+    }
+
+    /// Fills `diag` for a conversion that failed with `err`, its copies made
+    /// with `keep`.
+    fn conversionFailed(diag: *Diagnostics, keep: Allocator, files: Value.Files, err: anyerror, failed: Failed) void {
+        diag.* = .{ .err = err };
+        // Out of memory has no place, and no memory to copy one with.
+        if (err == error.OutOfMemory) return;
+        diag.expected = failed.expected;
+        diag.key_path = keyPath(keep, failed.steps.items) catch "";
+        if (failed.value) |value| diag.location = locate(keep, files, placeOf(files, value));
     }
 
     /// Where a conversion failed, filled in on the way up from there: each
@@ -260,9 +297,10 @@ pub const Config = struct {
         return Diagnostics.locate(file.path, file.source, at.offset).dupe(gpa) catch null;
     }
 
-    /// Source to a resolved tree. `files` gets this file and every file it
-    /// includes, and on failure the place the error is at, if it has one.
-    fn load(gpa: Allocator, path: []const u8, source: [:0]const u8, ctx: Value.Context, env: Value.Env, files: *Value.Files) Value.ResolveError!Value {
+    /// Source to a tree, resolved unless `options.resolve` says not to. `files`
+    /// gets this file and every file it includes, and on failure the place the
+    /// error is at, if it has one.
+    fn load(gpa: Allocator, path: []const u8, source: [:0]const u8, ctx: Value.Context, options: ParseOptions, files: *Value.Files) Value.ResolveError!Value {
         try files.list.append(gpa, .{ .path = path, .source = source });
         var main = ctx;
         main.files = files;
@@ -274,7 +312,7 @@ pub const Config = struct {
             return err;
         };
         var obj = try Value.fromNode(gpa, ast, main);
-        try obj.resolve(gpa, env, &files.failed);
+        if (options.resolve) try obj.resolve(gpa, options.env, &files.failed);
         return obj;
     }
 
@@ -309,6 +347,9 @@ pub const Config = struct {
             .int => {
                 if (value != .scalar) return error.TypeMismatch;
                 if (std.mem.eql(u8, value.scalar.value, "null") and !value.scalar.quoted) return error.TypeMismatch;
+                // Text is read with the JSON rules (spec L1238): std.fmt alone
+                // would also take `1_000` and `+5`.
+                if (!number.isJsonNumber(value.scalar.value)) return error.InvalidCharacter;
                 return std.fmt.parseInt(T, value.scalar.value, 10);
             },
             .bool => {
@@ -324,6 +365,13 @@ pub const Config = struct {
             .float => {
                 if (value != .scalar) return error.TypeMismatch;
                 if (std.mem.eql(u8, value.scalar.value, "null") and !value.scalar.quoted) return error.TypeMismatch;
+                // Text is read with the JSON rules (spec L1238), and the two
+                // words `stringify` writes for an infinite f64. std.fmt alone
+                // would also take `1_000`, `+5`, `0x10`, `nan` and `Infinity`.
+                const not_finite = for ([_][]const u8{ "inf", "-inf" }) |word| {
+                    if (std.mem.eql(u8, value.scalar.value, word)) break true;
+                } else false;
+                if (!not_finite and !number.isJsonNumber(value.scalar.value)) return error.InvalidCharacter;
                 return std.fmt.parseFloat(T, value.scalar.value);
             },
             .pointer => |info| {
@@ -497,6 +545,17 @@ test "convert.int" {
     try expectConverts(struct { a: i64 }, "a = -3", .{ .a = -3 });
     try expectConverts(struct { a: usize }, "a = \"5\"", .{ .a = 5 });
     try expectConvertError(struct { a: usize }, "a = abc", error.InvalidCharacter);
+}
+
+// automatic-type-conversions L1238 · java ⚠️ reads `+5` and `0x1p3` · pyhocon
+// ⚠️ also `1_000` · spec ✓ — text becomes a number by the JSON rules, not by
+// whatever std.fmt also reads.
+test "convert.number from text is a JSON number" {
+    try expectConvertError(struct { a: usize }, "a = 1_000", error.InvalidCharacter);
+    try expectConvertError(struct { a: i64 }, "a = \"+5\"", error.InvalidCharacter);
+    try expectConvertError(struct { a: f64 }, "a = \"0x1p3\"", error.InvalidCharacter);
+    try expectConvertError(struct { a: f64 }, "a = nan", error.InvalidCharacter);
+    try expectConverts(struct { a: f64 }, "a = \"-1.5e3\"", .{ .a = -1500 });
 }
 
 // unquoted-strings.12-13 · java ⚠️ · pyhocon ⚠️ · spec ✓ — text that only starts

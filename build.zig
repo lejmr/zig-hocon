@@ -42,6 +42,66 @@ pub fn build(b: *std.Build) void {
     const bench_step = b.step("bench", "Build the parse-speed runner used by tools/bench/run.sh");
     bench_step.dependOn(&b.addInstallArtifact(bench, .{}).step);
 
+    // libhocon: the C API of include/hocon.h (src/capi.zig), a shared library
+    // for any -Dtarget — libhocon.so, libhocon.dylib, hocon.dll — and the
+    // header, installed with the rest; `zig build lib` builds them alone.
+    const capi = b.createModule(.{
+        .root_source_file = b.path("src/capi.zig"),
+        .target = target,
+        .optimize = optimize,
+        .link_libc = true,
+        .imports = &.{.{ .name = "hocon", .module = mod }},
+    });
+    const lib = b.addLibrary(.{ .linkage = .dynamic, .name = "hocon", .root_module = capi });
+    // Debug's UBSan handlers would be exported next to hocon_*, and could
+    // clash with a host's own.
+    lib.bundle_ubsan_rt = false;
+    lib.installHeader(b.path("include/hocon.h"), "hocon.h");
+    // On Windows hocon.exe and hocon.dll both have a hocon.pdb: the DLL's
+    // goes to lib/, or one would overwrite the other in bin/.
+    const install_lib = b.addInstallArtifact(lib, .{ .pdb_dir = if (lib.producesPdbFile()) .{ .override = .lib } else .default });
+    b.getInstallStep().dependOn(&install_lib.step);
+    const lib_step = b.step("lib", "Build libhocon and hocon.h into zig-out/lib and zig-out/include");
+    lib_step.dependOn(&install_lib.step);
+
+    // The Python package loads the library next to it: `zig build python`
+    // copies it into python/zig_hocon/, for `pip install python/`.
+    const py_lib = b.addUpdateSourceFiles();
+    py_lib.addCopyFileToSource(lib.getEmittedBin(), b.fmt("python/zig_hocon/{s}", .{lib.out_filename}));
+    // The licence goes with the library: setuptools finds it next to pyproject.toml.
+    py_lib.addCopyFileToSource(b.path("LICENSE"), "python/LICENSE");
+    const python_step = b.step("python", "Copy libhocon into python/zig_hocon/, for pip install python/");
+    python_step.dependOn(&py_lib.step);
+
+    // `zig build test-python [-Dpython=3.13]`: pytest on python/tests in a uv
+    // environment of that Python, the package from python/ with the library
+    // just built. Runs every time: its inputs are files zig does not track.
+    // Every line and branch of the package runs, or it fails (`pragma: no
+    // cover` for what no test can reach).
+    const python_version = b.option([]const u8, "python", "The Python test-python runs on (default 3.12)") orelse "3.12";
+    const coverage_file = b.pathFromRoot(".zig-cache/python.coverage");
+    const pytest = b.addSystemCommand(&.{ "uv", "run", "--no-project", "--python", python_version, "--with", "pytest", "--with", "coverage", "python", "-m", "coverage", "run", "--branch", "--source=python/zig_hocon", "-m", "pytest", "-q", "python/tests" });
+    pytest.setCwd(b.path("."));
+    pytest.setEnvironmentVariable("PYTHONPATH", "python");
+    pytest.setEnvironmentVariable("COVERAGE_FILE", coverage_file);
+    pytest.has_side_effects = true;
+    pytest.step.dependOn(&py_lib.step);
+    const coverage = b.addSystemCommand(&.{ "uv", "run", "--no-project", "--python", python_version, "--with", "coverage", "python", "-m", "coverage", "report", "-m", "--skip-covered", "--fail-under=100" });
+    coverage.setCwd(b.path("."));
+    coverage.setEnvironmentVariable("COVERAGE_FILE", coverage_file);
+    coverage.has_side_effects = true;
+    coverage.step.dependOn(&pytest.step);
+    // The types too: the package as mypy --strict reads it for the oldest
+    // Python it runs on, and python/tests/typed_usage.py as a program sees them.
+    const mypy = b.addSystemCommand(&.{ "uv", "run", "--no-project", "--python", python_version, "--with", "mypy", "mypy", "--strict", "--python-version", "3.10", "python/zig_hocon", "python/tests/typed_usage.py" });
+    mypy.setCwd(b.path("."));
+    mypy.setEnvironmentVariable("PYTHONPATH", "python");
+    mypy.has_side_effects = true;
+    mypy.step.dependOn(&py_lib.step);
+    const test_python_step = b.step("test-python", "Run the Python package's tests with coverage, and type check (needs uv)");
+    test_python_step.dependOn(&coverage.step);
+    test_python_step.dependOn(&mypy.step);
+
     const mod_tests = b.addTest(.{
         .root_module = mod,
     });
@@ -53,6 +113,36 @@ pub fn build(b: *std.Build) void {
     // The CLI's own tests, `diff` and `check --schema` in src/main.zig.
     const exe_tests = b.addTest(.{ .root_module = exe.root_module });
     test_step.dependOn(&b.addRunArtifact(exe_tests).step);
+
+    // The C API called from Zig with C's types (src/capi.zig's tests)…
+    test_step.dependOn(&b.addRunArtifact(b.addTest(.{ .root_module = capi })).step);
+
+    // …and from C: tests/c/hocon_test.c, built by zig cc against the library,
+    // run here with nothing in its environment but what it sets itself.
+    const c_test = b.addExecutable(.{
+        .name = "hocon-c-test",
+        .root_module = b.createModule(.{ .target = target, .optimize = optimize, .link_libc = true }),
+    });
+    c_test.root_module.addCSourceFile(.{ .file = b.path("tests/c/hocon_test.c"), .flags = &.{ "-std=c99", "-Wall", "-Wextra", "-Werror" } });
+    c_test.root_module.addIncludePath(b.path("include"));
+    c_test.root_module.linkLibrary(lib);
+    const run_c_test = runCli(b, c_test);
+    run_c_test.setCwd(b.path("."));
+    run_c_test.addArgs(&.{ "tests/c/app.conf", "tests/c/broken.conf" });
+    for ([_][]const u8{ "app.conf", "defaults.conf", "broken.conf" }) |name| run_c_test.addFileInput(b.path(b.fmt("tests/c/{s}", .{name})));
+    run_c_test.expectStdOutEqual(
+        \\port = 443
+        \\motto = the badger guards port 9090
+        \\timeout = 2500000000 ns
+        \\cache = 536870912 bytes
+        \\retention = 0y 3mo 0d
+        \\json = {"port":443,"timeout":"2.5s","cache":"512MiB","motto":"the badger guards port 9090","retention":"3mo"}
+        \\pool = HOCON_ERR_MISSING
+        \\tests/c/broken.conf:2:11: UnsupportedConcatenation
+        \\port = 80 [1]
+        \\
+    );
+    test_step.dependOn(&run_c_test.step);
 
     // The real binary on a directory with nested includes: main.conf includes
     // sub/defaults.conf, which includes inner.conf from its own directory, and
