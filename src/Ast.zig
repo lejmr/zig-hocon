@@ -82,16 +82,27 @@ const PeakingTokenizer = struct {
     }
 };
 
+/// How deep blocks, lists and the elements of dotted keys may nest, in a file
+/// and in the tree its substitutions resolve to (so what is printed reads
+/// back), and how long a chain of substitutions may be (see `Value.Resolving`).
+/// Parsing, merging and resolving all recurse that deep, and the stack is not
+/// endless: past this it is `error.TooDeep`, not a crash. A debug build uses
+/// some 8 KiB of stack per level of a chain, and a thread gets 8 MiB. No config
+/// needs a tenth of it.
+pub const max_depth = 500;
+
 pub const Parser = struct {
     gpa: std.mem.Allocator,
     t: PeakingTokenizer,
     /// Where the error `parse` returned points, as a byte offset. Null for an
     /// error that has no place in the text: OutOfMemory.
     err_offset: ?usize = null,
+    /// How deep the parser is right now (see `max_depth`).
+    depth: usize = 0,
 
     /// Written out rather than inferred (`!Node`): `parseContainer` recurses, and
     /// an inferred error set cannot be resolved when it depends on itself.
-    pub const Error = error{ UnexpectedToken, InvalidUtf8 } || number.NumberError || Key.Error;
+    pub const Error = error{ UnexpectedToken, InvalidUtf8, TooDeep } || number.NumberError || Key.Error;
 
     /// A file is UTF-8 (spec L117), checked here once, so neither the tokenizer
     /// nor anything after it meets a byte that is not; the error is at the first.
@@ -116,6 +127,8 @@ pub const Parser = struct {
         if (std.mem.startsWith(u8, input[start..], "#") or std.mem.startsWith(u8, input[start..], "//")) return self.fail(start);
         self.t.t.pos = start;
         const path = try self.parseText();
+        // A `+` belongs to a number here too, as in a key (`parseMember`).
+        try checkNumbers(path, number.checkPlus, &self.err_offset);
         const end = blankEnd(input, self.t.last_end);
         if (end < input.len) return self.fail(end);
         return path;
@@ -167,6 +180,21 @@ pub const Parser = struct {
     /// separator is still required once the newlines are gone.
     fn parseMember(self: *Parser) Error!Node {
         const key = try self.parseText();
+        try checkNumbers(key, number.checkPlus, &self.err_offset);
+
+        // Each dot of a key is a block more: `a.b.c = 1` is `a { b { c = 1 } }`.
+        // A dot in a quoted part splits nothing.
+        const one = [_]Node{key};
+        var dots: usize = 0;
+        for (if (key.kind == .concat) key.children else &one) |part| {
+            if (!std.mem.startsWith(u8, part.value, "\"")) dots += std.mem.count(u8, part.value, ".");
+        }
+        self.depth += dots;
+        defer self.depth -= dots;
+        if (self.depth > max_depth) {
+            self.err_offset = key.pos;
+            return error.TooDeep;
+        }
 
         while (self.t.peek().tag == .newline) _ = self.t.next();
         const kind: Node.NodeKind = switch (self.t.peek().tag) {
@@ -200,7 +228,6 @@ pub const Parser = struct {
         var parts: std.ArrayList(Node) = .empty;
         defer parts.deinit(self.gpa);
 
-        var concat_type: ?Node.NodeKind = null;
         // Where the previous part ended, so the whitespace before the next one
         // can be sliced out. Null until the first part, which has nothing before
         // it to be separated from.
@@ -219,25 +246,17 @@ pub const Parser = struct {
             const part: Node = switch (self.t.peek().tag) {
                 .string, .quoted_string, .multiline_string => blk: {
                     const text = try self.parseText();
-                    try checkNumbers(text, &self.err_offset);
+                    try checkNumbers(text, number.checkNumber, &self.err_offset);
                     break :blk text;
                 },
+                // `[1] {"0" : 2}` is a list once the object is converted, so
+                // whether a list and an object fit together is for value building.
                 .l_brace => blk: {
                     _ = self.t.next();
-                    if (concat_type != null and concat_type != .block) {
-                        return self.fail(part_start);
-                    }
-                    concat_type = .block;
-
                     break :blk try self.parseContainer(.r_brace, .block, part_start);
                 },
                 .l_bracket => blk: {
                     _ = self.t.next();
-                    if (concat_type != null and concat_type != .array) {
-                        return self.fail(part_start);
-                    }
-                    concat_type = .array;
-
                     break :blk try self.parseContainer(.r_bracket, .array, part_start);
                 },
                 .dollar_brace_optional, .dollar_brace => |tag| blk: {
@@ -246,6 +265,7 @@ pub const Parser = struct {
                     // The inside is a path expression, which is text — anything
                     // else ends it short of the `}` that is required next.
                     const path = try self.parseText();
+                    try checkNumbers(path, number.checkPlus, &self.err_offset);
                     // `${X[]}`: a list from the environment. `[]` is one mark,
                     // so nothing may stand between the brackets.
                     var suffix: []const u8 = "";
@@ -468,6 +488,12 @@ pub const Parser = struct {
 
     /// `pos` is where the container opened: its `{` or `[`, or 0 for the root.
     fn parseContainer(self: *Parser, ending: Tokenizer.Token.Tag, containerType: Node.NodeKind, pos: usize) Error!Node {
+        self.depth += 1;
+        defer self.depth -= 1;
+        if (self.depth > max_depth) {
+            self.err_offset = pos;
+            return error.TooDeep;
+        }
         var objects: std.ArrayList(Node) = .empty;
         // A root that opens with `{` or `[` is the whole document: nothing may
         // come before it and nothing after it. Only root needs this — inside a
@@ -513,7 +539,7 @@ pub const Parser = struct {
 
                     break :blk try self.parseMember();
                 },
-                .l_brace => blk: {
+                .l_brace, .l_bracket => |tag| blk: {
                     // A brace where a member begins has no key to attach itself
                     // to .. `{ {a=1} }`. Merging two objects is a *value*, so it
                     // happens in parseValue, not here.
@@ -522,13 +548,10 @@ pub const Parser = struct {
                     if (objects.items.len > 0) return self.fail(token.loc.start);
                     braced_root = true;
                     _ = self.t.next();
-                    break :blk try self.parseContainer(.r_brace, .block, token.loc.start);
-                },
-                .l_bracket => blk: {
-                    if (containerType == .block) return self.fail(token.loc.start);
-                    if (objects.items.len > 0) return self.fail(token.loc.start);
-                    braced_root = true;
-                    _ = self.t.next();
+                    // The root itself, braced: no level more than without the braces.
+                    self.depth -= 1;
+                    defer self.depth += 1;
+                    if (tag == .l_brace) break :blk try self.parseContainer(.r_brace, .block, token.loc.start);
                     break :blk try self.parseContainer(.r_bracket, .array, token.loc.start);
                 },
                 else => return self.fail(token.loc.start),
@@ -574,34 +597,34 @@ fn prepareMemberNode(gpa: std.mem.Allocator, key: Node, kind: Node.NodeKind, val
     return return_node.?;
 }
 
-/// Applies `number.checkNumber` to every unquoted word of a text value. Only
-/// values: in a key or a `${…}` path a dot separates elements, so `1.2.3 = x`
-/// and `${-.33}` are paths where `a = 1.2.3` is not a number.
+/// Applies `check` to every unquoted word of a text: `number.checkNumber` to
+/// a value, `number.checkPlus` to a key or a `${…}` path. There a dot separates
+/// elements, so `1.2.3 = x` and `${-.33}` are paths where `a = 1.2.3` is not a
+/// number; only the rule for `+` is the same everywhere.
 ///
 /// A run of unquoted words is one part, but its words are exactly the tokens it
 /// was made of, separated by whitespace — so this sees what the tokenizer saw.
 /// On failure `err_offset` is where the offending word starts.
-pub fn checkNumbers(text: Node, err_offset: *?usize) number.NumberError!void {
+pub fn checkNumbers(text: Node, check: *const fn ([]const u8) number.NumberError!void, err_offset: *?usize) number.NumberError!void {
     const one = [_]Node{text};
     const parts = if (text.kind == .concat) text.children else &one;
     for (parts) |part| {
         if (std.mem.startsWith(u8, part.value, "\"")) continue;
         var i: usize = 0;
-        var word_start = true;
         while (i < part.value.len) {
             const ws = Tokenizer.whitespaceLen(part.value[i..]);
             if (ws > 0) {
                 i += ws;
-                word_start = true;
                 continue;
             }
-            if (word_start) number.checkNumber(part.value[i..]) catch |err| {
+            var end = i;
+            while (end < part.value.len and Tokenizer.whitespaceLen(part.value[end..]) == 0) end += 1;
+            check(part.value[i..end]) catch |err| {
                 // `part.value` is a slice of the input starting at `part.pos`.
                 err_offset.* = part.pos + i;
                 return err;
             };
-            word_start = false;
-            i += 1;
+            i = end;
         }
     }
 }
@@ -887,6 +910,66 @@ test "commas.separate, and only once" {
     });
 }
 
+// java ✓ · pyhocon ⚠️ (rejects `1e+5.x` but also `1e+5x`, reads `-1e+5.5` as
+// "-1e5.5") · spec ✓ — `+` is reserved in text and stands only in the exponent
+// of a number, so a run of number characters with a `+` in it has to be a
+// number. In a key and a `${…}` path too, where the rest of the number rules
+// do not hold:
+//   'a = 1e+5.x' -> java Parse error      'a = 1e5.x' -> java {"a":"1e5.x"}
+//   'a = 1e+5x'  -> java {"a":"1e+5x"}    '1e+5 = 1'  -> java {"1e+5":1}
+test "numbers.a + belongs to a number" {
+    try expectAll(&.{
+        .bad("a = 1e+5.x"),
+        .bad("a = -1e+5.5"),
+        .bad("a = [1e+5e+5]"),
+        .bad("a = tea 1e+5.x"),
+        .bad("1e+5.5 = 1"),
+        .bad("a { 1e+5.x = 1 }"),
+        .bad("a = ${1e+5.x}"),
+
+        .ok("a = 1e5.x", "root(assign(value(a), value(1e5.x)))"),
+        .ok("a = 1e+5x", "root(assign(value(a), value(1e+5x)))"),
+        .ok("1e+5 = 1", "root(assign(value(1e+5), value(1)))"),
+        .ok("\"1e+5\".x = 1", "root(assign(value(\"1e+5\"), block(assign(value(x), value(1)))))"),
+    });
+}
+
+// java ⚠️ (no limit: the JVM's stack is big) · pyhocon ⚠️ (RecursionError past
+// some 300) · spec – (says nothing) — blocks, lists and dotted keys nest at most
+// `max_depth` deep, the root counting as one, braced or not, so 3000 brackets
+// are an error and not a stack overflow. A dot inside quotes is no level.
+test "nesting.deeper than max_depth is an error" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+    const gpa = arena.allocator();
+    const rows = [_]struct { [:0]const u8, bool }{
+        .{ "a = " ++ "[" ** 499 ++ "]" ** 499, true },
+        .{ "a = " ++ "[" ** 500 ++ "]" ** 500, false },
+        .{ "a = " ++ "[" ** 3000 ++ "]" ** 3000, false },
+        // braces round the root are the root's own
+        .{ "{ a = " ++ "[" ** 499 ++ "]" ** 499 ++ " }", true },
+        .{ "{ a = " ++ "[" ** 500 ++ "]" ** 500 ++ " }", false },
+        .{ "[" ** 500 ++ "]" ** 500, true },
+        .{ "[" ** 501 ++ "]" ** 501, false },
+        .{ "a " ++ "{ a " ** 498 ++ "{}" ++ "}" ** 498, true },
+        .{ "a " ++ "{ a " ** 499 ++ "{}" ++ "}" ** 499, false },
+        .{ "a" ++ ".a" ** 499 ++ " = 1", true },
+        .{ "a" ++ ".a" ** 500 ++ " = 1", false },
+        .{ "\"" ++ "a." ** 3000 ++ "\" = 1", true },
+        .{ "a.a { b.b = " ++ "[" ** 496 ++ "]" ** 496 ++ " }", true },
+        .{ "a.a { b.b = " ++ "[" ** 497 ++ "]" ** 497 ++ " }", false },
+    };
+    for (rows) |row| {
+        const src, const ok = row;
+        var p = Parser{ .gpa = gpa, .t = .{ .t = Tokenizer.Tokenizer.init(src) } };
+        if (ok) {
+            _ = try p.parse();
+        } else {
+            try testing.expectError(error.TooDeep, p.parse());
+        }
+    }
+}
+
 // unchanged-from-json/009-014, unquoted-strings/012, 022 · java ⚠️ · pyhocon ⚠️ ·
 // spec ✓ — a value word that starts with a digit or `-` starts with a number:
 // the run of `0-9 + - . e E` after it must be a JSON number, with no fallback to
@@ -914,8 +997,10 @@ test "numbers.are JSON numbers or an error" {
         .bad("a = 5E"),
         .bad("a = -foo"),
         .bad("a = -"),
-        // Every word of a value, not only the first.
+        // Every word of a value, not only the first, whatever comes after it.
         .bad("a = foo 1e"),
+        .bad("a = 01 x"),
+        .bad("a = 1e x"),
         .bad("a = [1, 01]"),
 
         .ok("a = 0", "root(assign(value(a), value(0)))"),
@@ -1237,6 +1322,10 @@ test "member.newline does not end an unfinished member" {
         .ok("a = \n\n b", "root(assign(value(a), value(b)))"),
         .ok("a b\n= c", "root(assign(value(a b), value(c)))"),
         .ok("include\n\"a.conf\"", "root(include(\"a.conf\"))"),
+        // key-value-separator/006 (open review row, spec silent) · java ✓ ·
+        // pyhocon ✓: the block a key waits for may come after newlines too.
+        .ok("foo\n{ a = 1 }", "root(assign(value(foo), block(assign(value(a), value(1)))))"),
+        .ok("foo // a comment\n\n{ a = 1 }", "root(assign(value(foo), block(assign(value(a), value(1)))))"),
 
         // A complete member still ends at the newline.
         .ok("a = b\nc = d", "root(assign(value(a), value(b)), assign(value(c), value(d)))"),

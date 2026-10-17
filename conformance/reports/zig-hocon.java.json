@@ -1,15 +1,15 @@
 {
   "suite": "hocon-conformance",
   "implementation": "zig-hocon",
-  "version": "zig-hocon code@23d4265",
+  "version": "zig-hocon code@a0d7614",
   "mode": "java",
   "java_version": "1.4.9",
   "command": "conformance/adapters/zig-hocon.sh",
-  "ran_at": "2026-10-17T19:55:55Z",
+  "ran_at": "2026-10-17T20:26:05Z",
   "suite_digest": "2fe52df92f49aea2",
   "total": 445,
-  "passed": 394,
-  "percent": 88.5,
+  "passed": 399,
+  "percent": 89.7,
   "sections": {
     "array-and-object-concatenation": {
       "total": 19,
@@ -81,7 +81,7 @@
     },
     "numerically-indexed-objects-to-arrays": {
       "total": 7,
-      "passed": 3
+      "passed": 7
     },
     "omit-root-braces": {
       "total": 14,
@@ -129,7 +129,7 @@
     },
     "unchanged-from-json": {
       "total": 27,
-      "passed": 20
+      "passed": 21
     },
     "units-format": {
       "total": 6,
@@ -357,12 +357,12 @@
     "multi-line-strings/008-backslash-kept-literally.conf": "pass",
     "multi-line-strings/009-six-quotes-are-an-empty-string.conf": "pass",
     "numerically-indexed-objects-to-arrays/001-object-with-numeric-keys-stays-object.conf": "pass",
-    "numerically-indexed-objects-to-arrays/003-concatenation-converts-numeric-object-to-array.conf": "fail",
-    "numerically-indexed-objects-to-arrays/004-concatenation-ignores-non-integer-keys.conf": "fail",
+    "numerically-indexed-objects-to-arrays/003-concatenation-converts-numeric-object-to-array.conf": "pass",
+    "numerically-indexed-objects-to-arrays/004-concatenation-ignores-non-integer-keys.conf": "pass",
     "numerically-indexed-objects-to-arrays/005-empty-object-concatenation-not-converted.conf": "pass",
     "numerically-indexed-objects-to-arrays/006-object-without-integer-keys-not-converted.conf": "pass",
-    "numerically-indexed-objects-to-arrays/007-sparse-integer-keys-sorted-and-reindexed.conf": "fail",
-    "numerically-indexed-objects-to-arrays/008-negative-key-ignored-in-conversion.conf": "fail",
+    "numerically-indexed-objects-to-arrays/007-sparse-integer-keys-sorted-and-reindexed.conf": "pass",
+    "numerically-indexed-objects-to-arrays/008-negative-key-ignored-in-conversion.conf": "pass",
     "omit-root-braces/001-implicit-root-object.conf": "pass",
     "omit-root-braces/002-explicit-root-object-unaffected.conf": "pass",
     "omit-root-braces/003-missing-open-brace-with-close-brace-illegal.conf": "pass",
@@ -548,7 +548,7 @@
     "unchanged-from-json/024-raw-utf8-in-quoted-string.conf": "pass",
     "unchanged-from-json/025-nan-is-not-a-number.conf": "pass",
     "unchanged-from-json/026-surrogate-pair-escape.conf": "pass",
-    "unchanged-from-json/027-unpaired-surrogate-escape-is-kept.conf": "fail",
+    "unchanged-from-json/027-unpaired-surrogate-escape-is-kept.conf": "pass",
     "units-format/001-number-value-is-default-unit.conf": "pass",
     "units-format/002-quoted-string-with-no-unit-uses-default-unit.conf": "pass",
     "units-format/003-string-with-unit-name-specifies-interpretation.conf": "pass",
@@ -1016,55 +1016,6 @@
       "open_question": "the spec is silent on a newline between a key and its brace; implementations disagree"
     },
     {
-      "case": "numerically-indexed-objects-to-arrays/003-concatenation-converts-numeric-object-to-array.conf",
-      "spec": "HOCON.md#conversion-of-numerically-indexed-objects-to-arrays",
-      "rule": "the conversion should be done in a concatenation when a list is expected and an object with numeric keys is found, so the trailing object concatenates onto the array as elements x, y",
-      "expected": {
-        "a": [
-          1,
-          2,
-          "x",
-          "y"
-        ]
-      },
-      "got": "rejected (exit 1)"
-    },
-    {
-      "case": "numerically-indexed-objects-to-arrays/004-concatenation-ignores-non-integer-keys.conf",
-      "spec": "HOCON.md#conversion-of-numerically-indexed-objects-to-arrays",
-      "rule": "the conversion should ignore any keys which do not parse as positive integers, so key \"foo\" is dropped and only \"0\" contributes to the resulting array",
-      "expected": {
-        "a": [
-          1,
-          "x"
-        ]
-      },
-      "got": "rejected (exit 1)"
-    },
-    {
-      "case": "numerically-indexed-objects-to-arrays/007-sparse-integer-keys-sorted-and-reindexed.conf",
-      "spec": "HOCON.md#conversion-of-numerically-indexed-objects-to-arrays",
-      "rule": "the conversion should sort by the integer value of each key and then build the array; missing indices such as \"1\" are eliminated rather than left as gaps, so keys \"0\" and \"2\" become a two-element array",
-      "expected": {
-        "a": [
-          "x",
-          "y"
-        ]
-      },
-      "got": "rejected (exit 1)"
-    },
-    {
-      "case": "numerically-indexed-objects-to-arrays/008-negative-key-ignored-in-conversion.conf",
-      "spec": "HOCON.md#conversion-of-numerically-indexed-objects-to-arrays",
-      "rule": "the conversion ignores any keys which do not parse as positive integers, and \"-1\" is not a positive integer, so it is dropped and only key \"0\" contributes",
-      "expected": {
-        "a": [
-          "x"
-        ]
-      },
-      "got": "rejected (exit 1)"
-    },
-    {
       "case": "omit-root-braces/006-array-root-unaffected.conf",
       "spec": "HOCON.md#omit-root-braces",
       "rule": "the implicit {} wrap fires only when the file does not begin with a square bracket or curly brace, so a file starting with [ keeps its array root; the include section says so outright -- 'both JSON and HOCON allow arrays as root values in a document' (the reason an included file may not be one). typesafe/config has no array-rooted config at all and rejects the document as LIST rather than object.",
@@ -1287,15 +1238,6 @@
       },
       "got": "rejected (exit 1)",
       "java": "lenient"
-    },
-    {
-      "case": "unchanged-from-json/027-unpaired-surrogate-escape-is-kept.conf",
-      "spec": "HOCON.md#unchanged-from-json",
-      "rule": "quoted strings are JSON strings, and JSON's grammar accepts any \\uXXXX escape, an unpaired surrogate included, so the string holds that one code unit",
-      "expected": {
-        "a": "\ud83d"
-      },
-      "got": "rejected (exit 1)"
     },
     {
       "case": "unquoted-strings/012-unquoted-cannot-start-with-hyphen.conf",

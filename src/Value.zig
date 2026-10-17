@@ -124,8 +124,8 @@ pub const Value = union(enum) {
                     (node.children[0].kind == .block or node.children[0].kind == .array))
                     return Value.fromNode(gpa, node.children[0], ctx);
 
-                var members_map: std.StringArrayHashMapUnmanaged(Value) = .empty;
-                defer members_map.deinit(gpa);
+                var members: std.ArrayList(Member) = .empty;
+                defer members.deinit(gpa);
 
                 for (node.children) |assignment| {
                     // An include stands where its members would: they come in at
@@ -137,21 +137,16 @@ pub const Value = union(enum) {
                             ctx.fail(assignment.pos);
                             return err;
                         };
-                        for (included.object) |m| try putMember(gpa, &members_map, m.key.value, m.value);
+                        try members.appendSlice(gpa, included.object);
                         continue;
                     }
                     if (assignment.kind != .assignment and assignment.kind != .append) {
                         ctx.fail(assignment.pos);
                         return Error.UnsupportedNodeKind;
                     }
-                    const member = try Member.fromNode(gpa, assignment, ctx);
-                    try putMember(gpa, &members_map, member.key.value, member.value);
+                    try members.append(gpa, try Member.fromNode(gpa, assignment, ctx));
                 }
-                var members: std.ArrayList(Member) = .empty;
-                for (members_map.keys(), members_map.values()) |k, val| {
-                    try members.append(gpa, .{ .key = .{ .value = k }, .value = val });
-                }
-                break :blk .{ .object = try members.toOwnedSlice(gpa) };
+                break :blk .{ .object = try mergeMembers(gpa, members.items) };
             },
             .array => blk: {
                 var members: std.ArrayList(Value) = .empty;
@@ -174,7 +169,21 @@ pub const Value = union(enum) {
                     const tag = std.meta.activeTag(val);
 
                     if (buffer) |*ebuffer| {
-                        if (ebuffer.* == .ref or tag == .ref) {
+                        // A list and an object join once the object is resolved:
+                        // a field of it can be a stack, which no list holds. An
+                        // object right after a list joins the list, not the
+                        // object: `[0] {"0" : 1, x : 2} {y : 3}` is `[0, 1] {y : 3}`.
+                        const after_list = values.items.len > 0 and values.items[values.items.len - 1].value == .array;
+                        const list_and_object = (ebuffer.* == .array and tag == .object) or
+                            (ebuffer.* == .object and (tag == .array or (tag == .object and after_list)));
+                        // Next to a list an object is one only with a numeric
+                        // key, and whether it has one is known now.
+                        const object = if (tag == .object) val else ebuffer.*;
+                        if (list_and_object and try numbered(gpa, object.object) == null) {
+                            ctx.fail(ch.pos);
+                            return Error.UnsupportedConcatenation;
+                        }
+                        if (ebuffer.* == .ref or tag == .ref or list_and_object) {
                             try values.append(gpa, .{ .value = ebuffer.*, .pos = .{ .file = ctx.file, .offset = buffer_pos } });
                             buffer = val;
                             buffer_pos = ch.pos;
@@ -208,13 +217,45 @@ pub const Value = union(enum) {
         };
     }
 
-    /// Adds a member the way a repeated key is added (see `push`).
-    fn putMember(gpa: std.mem.Allocator, map: *std.StringArrayHashMapUnmanaged(Value), key: []const u8, value: Value) Error!void {
-        if (map.getPtr(key)) |current_v| {
-            try current_v.push(gpa, value);
-        } else {
-            try map.put(gpa, key, value);
+    /// The members in the order their keys first came, a key written more than
+    /// once holding what its values make one on top of the other (see `push`).
+    fn mergeMembers(gpa: std.mem.Allocator, members: []const Member) Error![]Member {
+        var by_key: std.StringArrayHashMapUnmanaged(std.ArrayList(Value)) = .empty;
+        defer by_key.deinit(gpa);
+        for (members) |m| {
+            const entry = try by_key.getOrPut(gpa, m.key.value);
+            if (!entry.found_existing) entry.value_ptr.* = .empty;
+            try entry.value_ptr.append(gpa, m.value);
         }
+        var merged: std.ArrayList(Member) = .empty;
+        for (by_key.keys(), by_key.values()) |key, *written| {
+            defer written.deinit(gpa);
+            try merged.append(gpa, .{ .key = .{ .value = key }, .value = try fold(gpa, written.items) });
+        }
+        return merged.toOwnedSlice(gpa);
+    }
+
+    /// The values of one key, each pushed onto the ones before it. Objects that
+    /// follow each other merge first, all at once, which is the same, as merging
+    /// is associative: a thousand `a.x = …` lines are then a thousand steps, not
+    /// half a million, which merging them two at a time took.
+    fn fold(gpa: std.mem.Allocator, written: []const Value) Error!Value {
+        var result: ?Value = null;
+        var i: usize = 0;
+        while (i < written.len) {
+            var end = i + 1;
+            while (written[i] == .object and end < written.len and written[end] == .object) end += 1;
+            var next = written[i];
+            if (end - i > 1) {
+                var members: std.ArrayList(Member) = .empty;
+                defer members.deinit(gpa);
+                for (written[i..end]) |object| try members.appendSlice(gpa, object.object);
+                next = .{ .object = try mergeMembers(gpa, members.items) };
+            }
+            if (result) |*r| try r.push(gpa, next) else result = next;
+            i = end;
+        }
+        return result.?;
     }
 
     /// Puts `other` on top of what a repeated key already holds. Two objects
@@ -222,6 +263,9 @@ pub const Value = union(enum) {
     /// may merge with it or look back at it once resolved; so does an object on
     /// top of one. Anything else replaces what was there, which is then never
     /// looked at again.
+    // ponytail: a ref or a pending is appended by copying the stack, so a key
+    // written as a ref thousands of times is quadratic (10 000: 0.2 s). Build the
+    // layers in one list in `fold` if a real file ever does that.
     fn push(self: *Value, gpa: std.mem.Allocator, other: Value) Error!void {
         switch (other) {
             // From an include: its layers go on one by one.
@@ -268,6 +312,17 @@ pub const Value = union(enum) {
                 self.* = other;
                 return;
             }
+            // A list and an object with numeric keys: the object is a list too.
+            if (tag_self == .array and tag_other == .object) {
+                const items = try numbered(gpa, other.object) orelse return Error.UnsupportedConcatenation;
+                self.array = try std.mem.concat(gpa, Value, &.{ self.array, items });
+                return;
+            }
+            if (tag_self == .object and tag_other == .array) {
+                const items = try numbered(gpa, self.object) orelse return Error.UnsupportedConcatenation;
+                self.* = .{ .array = try std.mem.concat(gpa, Value, &.{ items, other.array }) };
+                return;
+            }
             return Error.UnsupportedConcatenation;
         }
         switch (tag_other) {
@@ -282,23 +337,50 @@ pub const Value = union(enum) {
                 };
             },
             .object => {
-                // Convert self block to hasmap
-                var map: std.StringArrayHashMapUnmanaged(Value) = .empty;
-                defer map.deinit(gpa);
-                for (self.object) |m| try putMember(gpa, &map, m.key.value, m.value);
-
-                // Update self about other
-                for (other.object) |oo| try putMember(gpa, &map, oo.key.value, oo.value);
-
-                // Convert to list of Members
-                var merged: std.ArrayList(Member) = .empty;
-                for (map.keys(), map.values()) |k, val| {
-                    try merged.append(gpa, .{ .key = .{ .value = k }, .value = val });
-                }
-                self.object = try merged.toOwnedSlice(gpa);
+                const both = try std.mem.concat(gpa, Member, &.{ self.object, other.object });
+                defer gpa.free(both);
+                self.object = try mergeMembers(gpa, both);
             },
             else => return Error.UnsupportedConcatenation,
         }
+    }
+
+    /// The values of an object with numeric keys as a list, in the order of the
+    /// keys: `{ "2" : b, "0" : a }` is `[a, b]` (spec L1184), for where a list is
+    /// expected: next to one, or read into a slice (`Config`). A key that is not
+    /// a whole number of 0 or more is left out; null when no key is one. A key
+    /// is read the way java reads it, `Integer.parseInt`: `01`, `+1` and `-0`
+    /// count, `1_0` and anything over 2^31 - 1 do not. Only ASCII digits, where
+    /// java takes any Unicode digit, `١`. `1` and `01` are one index, and the
+    /// later one wins, as for a repeated key.
+    pub fn numbered(gpa: std.mem.Allocator, members: []const Member) std.mem.Allocator.Error!?[]Value {
+        const Entry = struct {
+            index: i32,
+            value: Value,
+
+            fn lessThan(_: void, a: @This(), b: @This()) bool {
+                return a.index < b.index;
+            }
+        };
+        var entries: std.ArrayList(Entry) = .empty;
+        defer entries.deinit(gpa);
+        for (members) |m| {
+            // std.fmt.parseInt skips `_`, java does not.
+            if (std.mem.indexOfScalar(u8, m.key.value, '_') != null) continue;
+            const index = std.fmt.parseInt(i32, m.key.value, 10) catch continue;
+            if (index < 0) continue;
+            try entries.append(gpa, .{ .index = index, .value = m.value });
+        }
+        if (entries.items.len == 0) return null;
+
+        // Stable: of two entries with one index, the later one stays later.
+        std.mem.sort(Entry, entries.items, {}, Entry.lessThan);
+        var items: std.ArrayList(Value) = .empty;
+        for (entries.items, 0..) |e, i| {
+            if (i + 1 < entries.items.len and entries.items[i + 1].index == e.index) continue;
+            try items.append(gpa, e.value);
+        }
+        return try items.toOwnedSlice(gpa);
     }
 
     /// Found by `std.json.Stringify` on its own, the way `std.json.Value` is:
@@ -308,23 +390,40 @@ pub const Value = union(enum) {
     /// unquoted `true`/`false`/`null` are themselves, unquoted text that is a
     /// JSON number is a number printed as written, and anything else a string.
     /// A `.ref` or `.pending` cannot be printed before resolving.
+    ///
+    /// Text with a surrogate on its own, `"\ud83d"`, is written as it was read;
+    /// `jw.write` would make it a list of bytes.
+    ///
+    /// std.json writes 256 lists and objects deep at most, and past that panics
+    /// in a safe build: deeper is `error.WriteFailed`.
     pub fn jsonStringify(self: Value, jw: anytype) !void {
+        if ((self == .array or self == .object) and jw.indent_level >= 256) return error.WriteFailed;
         switch (self) {
             .scalar => |s| {
-                if (s.quoted) return jw.write(s.value);
-                if (std.mem.eql(u8, s.value, "true")) return jw.write(true);
-                if (std.mem.eql(u8, s.value, "false")) return jw.write(false);
-                if (std.mem.eql(u8, s.value, "null")) return jw.write(null);
-                // Printed as written, not parsed and re-rendered: 1e5 stays 1e5.
-                if (number.isJsonNumber(s.value)) return jw.print("{s}", .{s.value});
-                return jw.write(s.value);
+                if (!s.quoted) {
+                    if (std.mem.eql(u8, s.value, "true")) return jw.write(true);
+                    if (std.mem.eql(u8, s.value, "false")) return jw.write(false);
+                    if (std.mem.eql(u8, s.value, "null")) return jw.write(null);
+                    // Printed as written, not parsed and re-rendered: 1e5 stays 1e5.
+                    if (number.isJsonNumber(s.value)) return jw.print("{s}", .{s.value});
+                }
+                if (!unqoute.hasSurrogate(s.value)) return jw.write(s.value);
+                try jw.beginWriteRaw();
+                try unqoute.writeJson(s.value, jw.options, jw.writer);
+                jw.endWriteRaw();
             },
             // `jw.write` on a Value comes back here: the recursion is std's.
             .array => |items| try jw.write(items),
             .object => |members| {
                 try jw.beginObject();
                 for (members) |m| {
-                    try jw.objectField(m.key.value);
+                    if (unqoute.hasSurrogate(m.key.value)) {
+                        try jw.beginObjectFieldRaw();
+                        try unqoute.writeJson(m.key.value, jw.options, jw.writer);
+                        jw.endObjectFieldRaw();
+                    } else {
+                        try jw.objectField(m.key.value);
+                    }
                     try jw.write(m.value);
                 }
                 try jw.endObject();
@@ -409,6 +508,17 @@ pub const Value = union(enum) {
         env: Env,
         // Where the error points; written once, where the error starts.
         err_pos: *?Pos,
+        // How many lists and objects deep the value being resolved is, the root
+        // counting as one, as in the parser: what a substitution brings in
+        // counts where it lands, so the resolved tree is no deeper than a file
+        // may be (`Ast.max_depth`), and reads back.
+        depth: usize = 0,
+        // How many `resolveStack` calls are open: one per substitution in a
+        // chain, and per layer of a key written again. At most `Ast.max_depth`.
+        chain: usize = 0,
+        // The innermost substitution being followed: a list or an object it
+        // brings in that is too deep has no place to point at, so this is it.
+        followed: ?Pos = null,
     };
 
     // What a path leads to. Only `absent` goes on to the environment.
@@ -426,14 +536,14 @@ pub const Value = union(enum) {
     };
 
     // One layer of a field being resolved, and what a path to the field sees
-    // meanwhile. A ref or a pending is self-referential: the path sees the
-    // layers below it, as if the field were never written from here up. An
-    // object is not: the path sees it merged onto the layers below.
+    // meanwhile. A ref or a pending that looks back is self-referential: the
+    // path sees the layers below it, as if the field were never written from
+    // here up. An object is not: the path sees it merged onto the layers below.
     const Field = struct {
         place: *Value,
         below: []const Value,
-        // What a path finds at the field, for an object layer: the object being
-        // resolved.
+        // What a path finds at the field, when it is an object: the object layer
+        // being resolved, or the object right below a ref (see `seen`).
         object: ?*Value = null,
         // `below` merged, worked out on the first path that needs it.
         merged: ?Value = null,
@@ -445,9 +555,14 @@ pub const Value = union(enum) {
     // The longer cases here and in `resolveStack` are `noinline` functions of
     // their own, and so is `fromEnv`: inlined, their locals would sit in every
     // frame of the recursion, and a deep document would run out of stack sooner.
-    // ponytail: there is no depth limit, so one deeper than the stack still
-    // crashes; a limit with an error of its own when that matters.
     fn resolveValue(self: Value, gpa: std.mem.Allocator, root: *Value, state: *Resolving) ResolveError!?Value {
+        const level: usize = if (self == .array or self == .object) 1 else 0;
+        state.depth += level;
+        defer state.depth -= level;
+        if (state.depth > Ast.max_depth) {
+            state.err_pos.* = state.followed;
+            return error.TooDeep;
+        }
         switch (self) {
             .scalar => return self,
             .array => |items| {
@@ -489,7 +604,7 @@ pub const Value = union(enum) {
         for (parts) |part| {
             const val = try part.value.resolveValue(gpa, root, state) orelse continue;
             if (kept.items.len > 0) try kept.append(gpa, .{ .value = val, .pos = part.pos });
-            if (val.waits()) {
+            if (val.waits() or (buffer != null and waitsInList(buffer.?, val))) {
                 if (kept.items.len == 0) {
                     if (buffer) |b| try kept.append(gpa, .{ .value = b, .pos = start });
                     try kept.append(gpa, .{ .value = val, .pos = part.pos });
@@ -526,6 +641,9 @@ pub const Value = union(enum) {
     // A ref's value: at its path, scope first, then in the environment.
     // Null for an optional that found nothing.
     noinline fn resolveRef(r: Ref, gpa: std.mem.Allocator, root: *Value, state: *Resolving) ResolveError!?Value {
+        const outer = state.followed;
+        state.followed = r.at();
+        defer state.followed = outer;
         var path = r.path;
         var found = try follow(gpa, root, r, path, state);
         // From an included file: nothing found with the scope in front,
@@ -585,6 +703,22 @@ pub const Value = union(enum) {
         const top = layers[layers.len - 1];
         const below = layers[0 .. layers.len - 1];
 
+        state.chain += 1;
+        defer state.chain -= 1;
+        // Said at a layer that has a place; an object layer has none, and the
+        // one below it is a ref or a pending, or it would have merged.
+        if (state.chain > Ast.max_depth) switch (top) {
+            .ref => |r| {
+                state.err_pos.* = r.at();
+                return error.TooDeep;
+            },
+            .pending => |parts| {
+                state.err_pos.* = parts[0].pos;
+                return error.TooDeep;
+            },
+            else => {},
+        };
+
         switch (top) {
             // Hides whatever is below it.
             .scalar, .array => return try top.resolveValue(gpa, root, state),
@@ -593,6 +727,8 @@ pub const Value = union(enum) {
             // field with a stack of its own.
             .object => return try resolveObjectLayer(place, top, below, gpa, root, state),
             .ref, .pending => {
+                // A list next to an object: a list, which hides what is below.
+                if (!top.looksBack()) return try top.resolveValue(gpa, root, state);
                 try state.fields.append(gpa, .{ .place = place, .below = below });
                 const val = try top.resolveValue(gpa, root, state);
                 const field = state.fields.pop().?;
@@ -643,10 +779,32 @@ pub const Value = union(enum) {
         return resolved;
     }
 
+    // A ref, or a concatenation with one among its parts: it may look back at
+    // what its key held before (spec L684). A list next to an object is not,
+    // with a ref inside them or not.
+    fn looksBack(self: Value) bool {
+        if (self == .ref) return true;
+        if (self != .pending) return false;
+        for (self.pending) |part| {
+            if (part.value == .ref) return true;
+        }
+        return false;
+    }
+
     // `.keep` only: still to be resolved, as a whole. A list or an object with
     // such a thing inside is not: it is already a list or an object.
     fn waits(self: Value) bool {
         return self == .ref or self == .pending or self == .stack;
+    }
+
+    // `.keep` only: a list and an object with a field that waits. Joined, the
+    // field would be an element, and an element cannot wait the way a field does.
+    fn waitsInList(a: Value, b: Value) bool {
+        const object = if (a == .array and b == .object) b else if (a == .object and b == .array) a else return false;
+        for (object.object) |m| {
+            if (m.value.waits()) return true;
+        }
+        return false;
     }
 
     // `.keep` only: `top` over the layers it falls back to or merges onto, as
@@ -662,7 +820,7 @@ pub const Value = union(enum) {
     fn mergeable(layers: []const Value) bool {
         if (layers.len == 0) return false;
         const top = layers[layers.len - 1];
-        return top != .scalar and top != .array;
+        return top == .object or top.looksBack();
     }
 
     // The value at a path, resolved. `ref` is the one that asked, for the
@@ -677,7 +835,7 @@ pub const Value = union(enum) {
         // An optional that found nothing leaves no field: not in the document.
         // Unless it hit a cycle on the way, then the field is just gone.
         const cycles = state.cycles;
-        const val = try resolveTarget(target, gpa, root, ref.at(), state) orelse
+        const val = try resolveTarget(target, gpa, root, ref, state) orelse
             return if (state.cycles > cycles) .gone else .absent;
         return .{ .value = val };
     }
@@ -710,11 +868,16 @@ pub const Value = union(enum) {
     }
 
     // Resolves the place a ref points to and stores it back, next ref there is for free.
-    // `from` is where the ref that asked is, the one that closes a cycle.
-    fn resolveTarget(target: *Value, gpa: std.mem.Allocator, root: *Value, from: Pos, state: *Resolving) ResolveError!?Value {
+    // `ref` is the one that asked, the one that closes a cycle. An optional one
+    // finds nothing there instead (spec L714): `a = [${?a}]` is `[]`.
+    fn resolveTarget(target: *Value, gpa: std.mem.Allocator, root: *Value, ref: Ref, state: *Resolving) ResolveError!?Value {
         for (state.visiting.items) |place| {
             if (place == target) {
-                state.err_pos.* = from;
+                if (ref.flags.optional) {
+                    state.cycles += 1;
+                    return null;
+                }
+                state.err_pos.* = ref.at();
                 return ResolveError.SubstitutionCycle;
             }
         }
@@ -733,7 +896,7 @@ pub const Value = union(enum) {
             current = try seen(current, gpa, root, ref, state) orelse return .gone;
             if (current.* == .ref or current.* == .pending or current.* == .stack) {
                 const cycles = state.cycles;
-                const val = try resolveTarget(current, gpa, root, ref.at(), state) orelse
+                const val = try resolveTarget(current, gpa, root, ref, state) orelse
                     return if (state.cycles > cycles) .gone else .absent;
                 if (val.waits()) return .waits;
             }
@@ -782,8 +945,19 @@ pub const Value = union(enum) {
                         }
                         state.cycles += 1;
                     }
-                    field.progress = .busy;
                     const below = field.below;
+                    // An object that hides the layers under it: the path goes
+                    // into it, and resolves only the members it passes (spec
+                    // L776). In place, so they are done when the rest is needed.
+                    // Every path sees this one object, so one that leads back
+                    // into it is a cycle.
+                    if (below.len > 0 and below[below.len - 1] == .object and !mergeable(below[0 .. below.len - 1])) {
+                        const object = try gpa.create(Value);
+                        object.* = below[below.len - 1];
+                        field.object = object;
+                        return object;
+                    }
+                    field.progress = .busy;
                     // Resolving appends to `fields`, so `field` may have moved.
                     const merged = try resolveStack(place, below, gpa, root, state);
                     state.fields.items[i].merged = merged;
@@ -1347,7 +1521,8 @@ test "value.an empty concatenation is an error, not an index out of range" {
 // non-object-or-list' comes out of java at *parse* time; 'a = 1 [2]' never
 // gets as far as resolve. The gap between the parts does not soften the pair:
 // in '{b=1} "s"' the object stands against the string, the space belongs to
-// neither.
+// neither. A list next to an object without a numeric key is here too: no key
+// can make it a list.
 test "value.mixing containers with anything else fails at load" {
     var arena = std.heap.ArenaAllocator.init(testing.allocator);
     defer arena.deinit();
@@ -1821,7 +1996,7 @@ test "value.an empty quoted string is a value, not a gap" {
 //   'a = {} {b=1}'     -> {"a":{"b":1}}
 //   'a = {b=1} {}'     -> {"a":{"b":1}}
 //   'a = {} {}'        -> {"a":{}}
-//   'a = {} [1]'       -> WrongType      empty or not, a kind is a kind
+//   'a = {} [1]'       -> WrongType      no numeric key to make it a list
 test "value.an empty container joins without adding anything" {
     var arena = std.heap.ArenaAllocator.init(testing.allocator);
     defer arena.deinit();
@@ -2075,6 +2250,103 @@ test "resolve.a self-reference looks below" {
     });
 }
 
+// java ✓ · pyhocon ⚠️ WrongType on the first four rows and the cycle, ✓ on the
+// fifth · spec ✓ — a path into the object below resolves only what it passes:
+// `c` ends as `true`, which hides the object, and a substitution that is hidden
+// is never looked at (spec L776). A member that leads back into it is a cycle.
+test "resolve.a self-reference resolves only its path below" {
+    try expectAllResolved(&.{
+        .ok("c = { b = ${nope}, a = true }\nc : ${c.a}", "{\"c\":true}"),
+        .ok("c = { b = ${nope} }\nc : { a = true }\nc : ${c.a}", "{\"c\":true}"),
+        .ok("c = { b = 2, a = ${c.b} }\nc : ${c.a}", "{\"c\":2}"),
+        .ok("c = { b = 1, a = true }\nc : ${c.a}\nd = ${c}", "{\"c\":true,\"d\":true}"),
+        .ok("c = { a = { x = 1 } }\nc : ${c.a} { y = 2 }", "{\"c\":{\"a\":{\"x\":1},\"x\":1,\"y\":2}}"),
+        .bad("c = { b = ${nope}, a = { x = 1 } }\nc : ${c.a}"),
+    });
+    try expectResolveError("c = { a = ${c} }\nc : ${c.a}", error.SubstitutionCycle);
+}
+
+// numerically-indexed-objects-to-arrays/003–008 · java ✓ · pyhocon ✗ (WrongType
+// on every row that converts) · spec ✓ — next to a list, an object with numeric
+// keys is a list of its values, ordered by the keys, gaps closed. Keys are read
+// like java's `Integer.parseInt`, so `01` and `1` are one index, the later wins.
+// Left to right: in the second to last row the list is `[0, 1]` before `{y : 3}`
+// comes, and that has no numeric key. The last row is java ⚠️ `[1]`: java
+// converts the object before `${?nope}` removes its only field; resolved, it is
+// empty, and an empty object is not converted (spec L1212).
+test "resolve.an object with numeric keys next to a list is a list" {
+    try expectAllResolved(&.{
+        .ok("a = [1, 2] { \"0\" : x, \"1\" : y }", "{\"a\":[1,2,\"x\",\"y\"]}"),
+        .ok("a = { \"0\" : x, \"1\" : y } [1]", "{\"a\":[\"x\",\"y\",1]}"),
+        .ok("a = [] { \"2\" : y, \"0\" : x }", "{\"a\":[\"x\",\"y\"]}"),
+        .ok("a = [] { \"-1\" : z, \"0\" : x }", "{\"a\":[\"x\"]}"),
+        .ok("a = [1] { \"0\" : x, foo : y }", "{\"a\":[1,\"x\"]}"),
+        .ok("a = [] { \"01\" : x, \"1\" : y }", "{\"a\":[\"y\"]}"),
+        .ok("a = [] { \"+1\" : x, \"-0\" : y, \"1_0\" : z, \"2147483648\" : w }", "{\"a\":[\"y\",\"x\"]}"),
+        .ok("a = { 0 : x } { 1 : y } [] { 0 : z }", "{\"a\":[\"x\",\"y\",\"z\"]}"),
+        // java ⚠️ reads any Unicode digit, `١` and `０` too: [1,"y","x"], [1,"x"]
+        .ok("a = [1] { \"١\" : x, \"0\" : y }", "{\"a\":[1,\"y\"]}"),
+        .bad("a = [1] { \"０\" : x }"),
+        // through a substitution, the way a properties file makes a list
+        .ok("a.0 = x\na.1 = y\nb = [] ${a}", "{\"a\":{\"0\":\"x\",\"1\":\"y\"},\"b\":[\"x\",\"y\"]}"),
+        .ok("a = { 0 : x }\na = [] ${a}", "{\"a\":[\"x\"]}"),
+        // a key written twice is one field, merged before it is an element
+        .ok("a = [] { \"0\" : { x : 1 }, \"0\" : ${b} }\nb { y : 2 }", "{\"a\":[{\"x\":1,\"y\":2}],\"b\":{\"y\":2}}"),
+        .bad("a = [1] {}"),
+        .bad("a = [1] { b = 1 }"),
+        .bad("a = [0] { \"0\" : 1, x : 2 } { y : 3 }"),
+        .bad("a = [1] { \"0\" : ${?nope} }"),
+        // no numeric key is known at load, so a later value does not hide it
+        .bad("a = [1] {}\na = 2"),
+        .bad("a = { x : 1 } [1]\na = 2"),
+        .bad("a = [0] { \"0\" : 1, x : 2 } { y : 3 }\na = 2"),
+        .ok("a = [1] { \"0\" : 1 }\na = 2", "{\"a\":2}"),
+    });
+}
+
+// java ✓ · pyhocon ✓ on the first three rows, ⚠️ WrongType on the rest (no
+// numeric keys) · spec ✓ — objects after a substitution merge before it has a
+// value, as anywhere but right after a list: a field the later object hides is
+// never looked at (spec L776), and two numeric objects are one before they join
+// the list.
+test "resolve.objects after a substitution merge first" {
+    try expectAllResolved(&.{
+        .ok("x = ${?nope} { c = ${missing} } { c = 1 }", "{\"x\":{\"c\":1}}"),
+        .ok("b = { k = 1 }\nx = ${b} { c = ${missing} } { c = 1 }", "{\"b\":{\"k\":1},\"x\":{\"k\":1,\"c\":1}}"),
+        .ok("x = [ ${?nope} { c = ${missing} } { c = 1 } ]", "{\"x\":[{\"c\":1}]}"),
+        .ok("a = [1]\na = ${a} { \"0\" : tea } { \"0\" : coffee }", "{\"a\":[1,\"coffee\"]}"),
+        .ok("b = [1]\na = ${b} { \"0\" : x } { y : 1 }", "{\"b\":[1],\"a\":[1,\"x\"]}"),
+        .ok("a = [1] ${?n} { \"0\" : x } { \"0\" : y }", "{\"a\":[1,\"y\"]}"),
+    });
+}
+
+// java ✓ (a cycle, the first three; the rest as here) · pyhocon ⚠️ WrongType,
+// it converts no object · spec ✓ — a list next to an object is a list, with a
+// substitution inside it or not, so it is not self-referential (spec L684): a
+// ref in it to its own key is a cycle, and it hides what the key held before.
+test "resolve.a list next to an object does not look back" {
+    try expectResolveError("a = [5]\na = [${a}] { \"0\" : 2 }", error.SubstitutionCycle);
+    try expectResolveError("a = { x : 5 }\na = [1] { \"0\" : ${a.x} }", error.SubstitutionCycle);
+    try expectResolveError("a = { \"0\" : 5 }\na = { \"1\" : ${a} } [2]", error.SubstitutionCycle);
+    try expectAllResolved(&.{
+        .ok("a = [1] { \"0\" : ${nope} }\na = { x : 1 }", "{\"a\":{\"x\":1}}"),
+        .ok("a = [1] { \"0\" : 2 }\na = ${?n}", "{\"a\":[1,2]}"),
+        .ok("a = [1] { \"0\" : 2 }\na = ${a} [3]", "{\"a\":[1,2,3]}"),
+    });
+}
+
+// self-referential-examples/014 (open review row) · java ✓ first row, ⚠️ second
+// (1 and 1 again) · pyhocon ✓ · spec ✓ — two keys that refer to each other over
+// a value of their own: the spec allows both 1, both 2, or an error (L875), only
+// never two different values. Resolved in key order, the first key's own value
+// below wins.
+test "resolve.two keys over each other agree on one value" {
+    try expectAllResolved(&.{
+        .ok("a : 1\nb : 2\na : ${b}\nb : ${a}", "{\"a\":1,\"b\":1}"),
+        .ok("b : 2\na : 1\nb : ${a}\na : ${b}", "{\"b\":2,\"a\":2}"),
+    });
+}
+
 // java ✓ · pyhocon ⚠️ · spec ✓ — with nothing below, a self-reference is
 // undefined, not a cycle: an optional one disappears, a required one is an
 // error, and an optional cycle through two fields leaves neither. pyhocon calls
@@ -2089,6 +2361,22 @@ test "resolve.a self-reference with nothing below is undefined" {
         .bad("a = ${a}"),
         .bad("a = ${a}\na = { b = 1 }"),
         .bad("a = [${a}]\na = ${?a}"),
+    });
+}
+
+// java ✓ (⚠️ last row) · pyhocon ⚠️ · spec ✓ — inside a list or an object a ref
+// back to its own field is a cycle, and an optional one finds nothing there
+// (spec L714), also with a value below. In the last row the object is empty
+// once the ref is gone, so it does not convert (spec L1212); java converts it
+// first and gives `[1]`. pyhocon keeps a null in the list, takes `5` from
+// below, and fails on the numbered object.
+test "resolve.an optional ref in a cycle finds nothing" {
+    try expectAllResolved(&.{
+        .ok("a = [${?a}]", "{\"a\":[]}"),
+        .ok("a = 5\na = [${?a}]", "{\"a\":[]}"),
+        .ok("a = { b : ${?a} }", "{\"a\":{}}"),
+        .ok("a = [1] { \"0\" : ${?a}, \"1\" : 2 }", "{\"a\":[1,2]}"),
+        .bad("a = [1] { \"0\" : ${?a} }"),
     });
 }
 
@@ -2513,6 +2801,27 @@ test "keep.resolved later is the same as resolved now" {
             return err;
         };
     };
+}
+
+// A key written again and again, `a.x0 = 0` … `a.x1999 = 1999` the way a
+// properties-like file does, and nested one deeper: the objects merge all at
+// once (`fold`), so the bytes it takes grow with the lines. Two at a time,
+// each row took 525 MB; now it is 5 to 8 MB, the budget is 20.
+// Zig only (java – · pyhocon – · spec –)
+test "merge.a key written many times costs as many steps" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+    inline for (.{ "a.x{d} = {d}\n", "a.b.x{d} = {d}\n", "a {{ x{d} = {d} }}\n" }) |line| {
+        var out: std.Io.Writer.Allocating = .init(arena.allocator());
+        for (0..2000) |i| try out.writer.print(line, .{ i, i });
+        const src = try out.toOwnedSliceSentinel(0);
+
+        var counting = testing.FailingAllocator.init(arena.allocator(), .{});
+        const gpa = counting.allocator();
+        var parser = Ast.Parser{ .gpa = gpa, .t = .{ .t = Tokenizer.Tokenizer.init(src) } };
+        _ = try build(gpa, try parser.parse());
+        try testing.expect(counting.allocated_bytes < 20 * 1024 * 1024);
+    }
 }
 
 // Each field is resolved once, also one that waits: kept, a chain where every

@@ -12,24 +12,104 @@ pub const UnquotedText = struct {
 
 /// Takes the delimiter off and applies escapes, and says which delimiter it was:
 /// once the text is out, `a = "1"` and `a = 1` both read `1`, and only the flag
-/// tells them apart. A HOCON quoted string is a JSON string by definition, so
-/// `std.json` does that half — `\u`, surrogate pairs and all.
+/// tells them apart. A HOCON quoted string is a JSON string by definition (see
+/// `unescape`).
 pub fn unquote(gpa: mem.Allocator, in: []const u8) Error!UnquotedText {
     if (in.len >= 6 and mem.startsWith(u8, in, "\"\"\"") and mem.endsWith(u8, in, "\"\"\"")) {
         // Escapes stay literal inside a triple-quoted string.
         return .{ .text = in[3 .. in.len - 3], .quoted = true };
     }
     if (in.len >= 2 and in[0] == '"' and in[in.len - 1] == '"') {
-        return .{
-            .text = std.json.parseFromSliceLeaky([]const u8, gpa, in, .{}) catch |err| switch (err) {
-                // Without this, a failed allocation would report a bad escape.
-                error.OutOfMemory => return error.OutOfMemory,
-                else => return Error.InvalidEscape,
-            },
-            .quoted = true,
-        };
+        return .{ .text = try unescape(gpa, in[1 .. in.len - 1]), .quoted = true };
     }
     return .{ .text = in, .quoted = false }; // unquoted text arrives as it was written
+}
+
+/// The inside of a JSON string, escapes applied. `\u` counts UTF-16 code
+/// units: a high surrogate and the low one right after it are one character.
+/// JSON takes a surrogate on its own too, `"\ud83d"`, and UTF-8 has no bytes
+/// for that, so the text is WTF-8: UTF-8 that may hold one (std.unicode).
+/// `writeJson` writes it back as `\ud83d`. std.json would refuse it.
+fn unescape(gpa: mem.Allocator, in: []const u8) Error![]const u8 {
+    var out: std.ArrayList(u8) = .empty;
+    errdefer out.deinit(gpa);
+    var i: usize = 0;
+    while (i < in.len) {
+        const c = in[i];
+        i += 1;
+        if (c != '\\') {
+            // JSON wants these escaped, a tab too.
+            if (c < 0x20) return Error.InvalidEscape;
+            try out.append(gpa, c);
+            continue;
+        }
+        if (i == in.len) return Error.InvalidEscape;
+        const e = in[i];
+        i += 1;
+        const byte: u8 = switch (e) {
+            '"', '\\', '/' => e,
+            'b' => 0x08,
+            'f' => 0x0C,
+            'n' => '\n',
+            'r' => '\r',
+            't' => '\t',
+            'u' => {
+                const unit = try hex4(in[i..]);
+                i += 4;
+                var code: u21 = unit;
+                if (std.unicode.utf16IsHighSurrogate(unit) and mem.startsWith(u8, in[i..], "\\u")) {
+                    const low = try hex4(in[i + 2 ..]);
+                    if (std.unicode.utf16IsLowSurrogate(low)) {
+                        code = std.unicode.utf16DecodeSurrogatePair(&.{ unit, low }) catch unreachable;
+                        i += 6;
+                    }
+                }
+                var buf: [4]u8 = undefined;
+                const len = std.unicode.wtf8Encode(code, &buf) catch unreachable;
+                try out.appendSlice(gpa, buf[0..len]);
+                continue;
+            },
+            else => return Error.InvalidEscape,
+        };
+        try out.append(gpa, byte);
+    }
+    return out.toOwnedSlice(gpa);
+}
+
+/// The four hex digits of a `\u` escape. Only digits: `std.fmt.parseInt` would
+/// take `+fff` too.
+fn hex4(in: []const u8) Error!u16 {
+    if (in.len < 4) return Error.InvalidEscape;
+    for (in[0..4]) |h| {
+        if (!std.ascii.isHex(h)) return Error.InvalidEscape;
+    }
+    return std.fmt.parseInt(u16, in[0..4], 16) catch unreachable;
+}
+
+/// Writes `text` as a JSON string, quotes and all, the way `std.json` writes
+/// one, except that a surrogate on its own (see `unescape`) is `\ud83d` again.
+/// In WTF-8 such a surrogate is three bytes, 0xED then 0xA0 or more; in UTF-8
+/// 0xED is never followed by that.
+pub fn writeJson(text: []const u8, options: std.json.Stringify.Options, w: *std.Io.Writer) std.Io.Writer.Error!void {
+    try w.writeByte('"');
+    var start: usize = 0;
+    var i: usize = 0;
+    while (i + 2 < text.len) : (i += 1) {
+        if (text[i] != 0xED or text[i + 1] < 0xA0) continue;
+        try std.json.Stringify.encodeJsonStringChars(text[start..i], options, w);
+        // The low bits of the second and the third byte, under 0xD000.
+        const unit = 0xD000 | @as(u16, text[i + 1] & 0x3F) << 6 | (text[i + 2] & 0x3F);
+        try w.print("\\u{x:0>4}", .{unit});
+        i += 2;
+        start = i + 1;
+    }
+    try std.json.Stringify.encodeJsonStringChars(text[start..], options, w);
+    try w.writeByte('"');
+}
+
+/// Text with a surrogate on its own in it (see `unescape`): WTF-8 that is not UTF-8.
+pub fn hasSurrogate(text: []const u8) bool {
+    return !std.unicode.utf8ValidateSlice(text) and std.unicode.wtf8ValidateSlice(text);
 }
 
 // ---------------------------------------------------------------------------
@@ -110,12 +190,13 @@ test "unquote.a quote can be content" {
 //   'a = "\z"'  -> ConfigException  backslash-z is not an escape
 //   'a = "x\"'  -> ConfigException  an escape that never finished
 test "unquote.an escape that is not one is an error" {
-    var arena = std.heap.ArenaAllocator.init(testing.allocator);
-    defer arena.deinit();
-    const gpa = arena.allocator();
+    // No arena: what was written before the bad escape is freed, or it leaks.
+    const gpa = testing.allocator;
 
     try testing.expectError(Error.InvalidEscape, unquote(gpa, "\"a\\zb\""));
     try testing.expectError(Error.InvalidEscape, unquote(gpa, "\"a\\\""));
+    // JSON has no raw control characters in a string, a tab included.
+    try testing.expectError(Error.InvalidEscape, unquote(gpa, "\"a\tb\""));
 }
 
 // java ✓ · pyhocon ⚠️ · spec ✓ — `std.json` does the decoding, and this is
@@ -137,10 +218,7 @@ test "unquote.an escape that is not one is an error" {
 // pyhocon diverges on the multiline row: it processes `\u` inside `"""` too and
 // says {"a":"A"}. Java leaves it alone, and java is the authority here.
 //
-// Open, deliberately untested: java takes a LONE high surrogate ('a = "\ud83d"'
-// parses, and only its JSON printer gives up and writes "?"). UTF-8 has no
-// encoding for one, so that row needs a decision — reject it, or carry WTF-8 —
-// before it can be a test.
+// A surrogate on its own is the next test.
 test "unquote.a unicode escape is UTF-16 in and UTF-8 out" {
     var arena = std.heap.ArenaAllocator.init(testing.allocator);
     defer arena.deinit();
@@ -154,4 +232,48 @@ test "unquote.a unicode escape is UTF-16 in and UTF-8 out" {
 
     try testing.expectError(Error.InvalidEscape, unquote(gpa, "\"\\uZZZZ\""));
     try testing.expectError(Error.InvalidEscape, unquote(gpa, "\"\\u00\""));
+}
+
+// unchanged-from-json/027 · java ✓ (and it prints each back as written) ·
+// pyhocon ⚠️ keeps the escape as six characters · spec ✓ — JSON takes any
+// `\uXXXX`, a surrogate on its own too, and the string then holds that one code
+// unit. UTF-8 has no bytes for it, WTF-8 has (U+D83D is 0xED 0xA0 0xBD), and
+// `writeJson` turns them back into the escape:
+//
+//   'a = "\ud83d"'              -> {"a":"\ud83d"}
+//   'a = "\ude00\ud83d"'        -> {"a":"\ude00\ud83d"}   low then high is no pair
+//   'a = "\ud83d\ud83d\ude00"'  -> {"a":"\ud83d😀"}       the second high has its low
+//   'a = "\u+fff"'              -> java ⚠️ {"a":"\u0fff"}: it reads the digits with
+//                                  Integer.parseInt; JSON wants four hex digits
+test "unquote.a surrogate on its own is kept" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+    const gpa = arena.allocator();
+
+    try expectText("\xed\xa0\xbd", true, "\"\\ud83d\"");
+    try expectText("\xed\xb8\x80\xed\xa0\xbd", true, "\"\\ude00\\ud83d\"");
+    try expectText("\xed\xa0\xbd\u{1f600}", true, "\"\\ud83d\\ud83d\\ude00\"");
+    try expectText("tea\xed\xa0\xbd", true, "\"tea\\uD83D\"");
+
+    try testing.expectError(Error.InvalidEscape, unquote(gpa, "\"\\u+fff\""));
+    try testing.expectError(Error.InvalidEscape, unquote(gpa, "\"\\ud83d\\u12\""));
+    try testing.expectError(Error.InvalidEscape, unquote(gpa, "\"\\ud83d\\\""));
+}
+
+// What `unquote` read, `writeJson` writes as it was: a surrogate on its own as
+// its escape, everything else the way std.json writes it, `escape_unicode` too.
+// java ✓ (prints the escape back) · pyhocon ⚠️ keeps it as six characters · spec ✓
+test "unquote.writeJson writes a surrogate back as its escape" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+    const gpa = arena.allocator();
+
+    for ([_][]const u8{ "\"\\ud83d\"", "\"\\ude00\\ud83d\"", "\"x\\ud83dy\\n\"", "\"\\ud83d😀\"", "\"the wombat sleeps\"", "\"\"" }) |in| {
+        var out: std.Io.Writer.Allocating = .init(gpa);
+        try writeJson((try unquote(gpa, in)).text, .{}, &out.writer);
+        try testing.expectEqualStrings(in, out.written());
+    }
+    var out: std.Io.Writer.Allocating = .init(gpa);
+    try writeJson("é\xed\xa0\xbd", .{ .escape_unicode = true }, &out.writer);
+    try testing.expectEqualStrings("\"\\u00e9\\ud83d\"", out.written());
 }

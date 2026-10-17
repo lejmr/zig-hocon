@@ -14,6 +14,7 @@ const Value = @import("Value.zig").Value;
 const Ref = @import("Value.zig").Ref;
 const Ast = @import("Ast.zig");
 const number = @import("utils/number.zig");
+const unqoute = @import("utils/unqoute.zig");
 const whitespaceLen = @import("Tokenizer.zig").whitespaceLen;
 const isExponentSign = @import("Tokenizer.zig").isExponentSign;
 
@@ -66,7 +67,8 @@ fn writeValue(value: anytype, w: *Writer, indent: usize) Writer.Error!void {
         .pointer => |p| switch (p.size) {
             .one => try writeValue(value.*, w, indent),
             // Bytes are a string when they are text, as HOCON is UTF-8.
-            .slice => if (p.child == u8 and std.unicode.utf8ValidateSlice(value)) try writeString(value, w) else try writeList(value, w, indent),
+            // WTF-8 as well: what a quoted `"\ud83d"` was read into (see `unqoute`).
+            .slice => if (p.child == u8 and std.unicode.wtf8ValidateSlice(value)) try writeString(value, w) else try writeList(value, w, indent),
             else => @compileError("hocon: cannot stringify " ++ @typeName(T)),
         },
         else => @compileError("hocon: cannot stringify " ++ @typeName(T)),
@@ -258,7 +260,7 @@ fn writeKey(text: []const u8, w: *Writer) Writer.Error!void {
 /// a newline is `\n`, never a `"""` block, which has no escapes and cannot end
 /// in a quote.
 fn writeQuoted(text: []const u8, w: *Writer) Writer.Error!void {
-    try std.json.Stringify.encodeJsonString(text, .{}, w);
+    try unqoute.writeJson(text, .{}, w);
 }
 
 /// A word that reads back as the same string without quotes: ASCII letters,
@@ -304,7 +306,7 @@ fn isRaw(text: []const u8) bool {
     while (last > 0 and text[last] & 0xC0 == 0x80) last -= 1;
     if (whitespaceLen(text) > 0 or whitespaceLen(text[last..]) > 0) return false;
     var at: ?usize = null;
-    Ast.checkNumbers(.{ .kind = .value, .children = &.{}, .value = text }, &at) catch return false;
+    Ast.checkNumbers(.{ .kind = .value, .children = &.{}, .value = text }, number.checkNumber, &at) catch return false;
     return true;
 }
 
@@ -449,6 +451,8 @@ test "stringify.strings are quoted where they have to be" {
         .{ "C:\\", "\"C:\\\\\"" },
         .{ "line one\nline two\ttab", "\"line one\\nline two\\ttab\"" },
         .{ "bell\x07", "\"bell\\u0007\"" },
+        // a surrogate on its own, as a quoted `"\ud83d"` is read (see `unqoute`)
+        .{ "lone \xed\xa0\xbd", "\"lone \\ud83d\"" },
     };
     for (rows) |row| {
         const in, const want = row;
@@ -706,6 +710,7 @@ test "stringify.a loaded scalar keeps how it was written" {
         .ok("a {}\nb = []\nc = [{ d = 1 }, { e = 2 }]", "a {}\nb = []\nc = [\n  {\n    d = 1\n  }\n  {\n    e = 2\n  }\n]\n"),
         .ok("a = 1e+5\nb = [-1.5E+3]", "a = 1e+5\nb = [-1.5E+3]\n"),
         .ok("a = 1e+5 x\nb = [1e+5 b]\nc = x 1e+5", "a = 1e+5 x\nb = [1e+5 b]\nc = x 1e+5\n"),
+        .ok("\"\\ud83d\" = \"half a \\ud83d\"", "\"\\ud83d\" = \"half a \\ud83d\"\n"),
         .ok("[1, 2]", "[1, 2]\n"),
         .ok("", ""),
     });

@@ -237,6 +237,9 @@ Not spec sections of their own, but needed to get there, and already done:
 - [x] Quoted and unquoted values stay distinguishable in the tree, which type
       inference needs to tell `a = "1"` from `a = 1`
 - [x] A value with nothing in it (`a =`) is a parse error rather than a crash
+- [x] Nesting deeper than 500 (blocks, lists, dotted keys, also in an included
+      `.json` or `.properties`), or a chain of 500 substitutions or layers of one
+      key, is `error.TooDeep` rather than a stack overflow
 
 - [x] [Multi-line strings](https://github.com/lightbend/config/blob/main/HOCON.md#multi-line-strings)
       — a text part like any other, on the key side and as an include path too;
@@ -314,7 +317,12 @@ Not spec sections of their own, but needed to get there, and already done:
       evaluated. A reference that needs itself any other way is
       `SubstitutionCycle`.
 
-- [ ] [Conversion of numerically-indexed objects to arrays](https://github.com/lightbend/config/blob/main/HOCON.md#conversion-of-numerically-indexed-objects-to-arrays)
+- [x] [Conversion of numerically-indexed objects to arrays](https://github.com/lightbend/config/blob/main/HOCON.md#conversion-of-numerically-indexed-objects-to-arrays)
+      — next to a list in a concatenation, and read into a slice or an array, an
+      object with numeric keys is the list of its values in key order, gaps
+      closed: `[] { "2" : b, "0" : a }` is `[a, b]`, and `list.0 = a` in a
+      properties file makes one. Other keys are left out; with none left it
+      stays a type error. Keys read as java reads them (`01`, `+1` count).
 - [x] [The `+=` field separator](https://github.com/lightbend/config/blob/main/HOCON.md#the--field-separator)
       — `a += b` is `a = ${?a} [b]` with the field's whole path in the ref, so
       it starts a list or appends to the one below it, also under a dotted key,
@@ -380,8 +388,8 @@ these are what makes the format pleasant, so they are on the roadmap.
       string exactly as written (`1.50` stays `"1.50"`), unquoted `null` fits
       only an optional, and objects and arrays never become strings. One
       deliberate difference from typesafe/config: `1.5` into an integer is an
-      error rather than a silent `1`. Not yet: numerically-indexed objects as
-      lists.
+      error rather than a silent `1`. An object with numeric keys reads as a
+      list (see above).
 - [ ] [Duration format](https://github.com/lightbend/config/blob/main/HOCON.md#duration-format) (`10s`, `5m`, ...)
 - [ ] [Period format](https://github.com/lightbend/config/blob/main/HOCON.md#period-format) (`3d`, `2 weeks`, ...)
 - [ ] [Size in bytes format](https://github.com/lightbend/config/blob/main/HOCON.md#size-in-bytes-format) (`512K`, `1G`, ...)
@@ -520,7 +528,7 @@ wins and the row says so. Where it stands today:
 | Java <sub>typesafe/config 1.4.9</sub> | 90% (399/445) | 99% (442/445) | 96% (428/445) |
 | Java main <sub>typesafe/config main@275f872, unreleased</sub> | 93% (412/445) | 96% (428/445) | 99% (442/445) |
 | pyhocon <sub>pyhocon 0.3.63</sub> | 70% (312/445) | 66% (295/445) | 68% (304/445) |
-| zig-hocon <sub>zig-hocon code@23d4265</sub> | 98% (437/445) | 89% (394/445) | 91% (407/445) |
+| zig-hocon <sub>zig-hocon code@a0d7614</sub> | 99% (442/445) | 90% (399/445) | 93% (412/445) |
 
 <!-- conformance:end -->
 

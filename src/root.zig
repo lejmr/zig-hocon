@@ -402,6 +402,10 @@ test "env.keep is written as a file that resolves the same later" {
         .ok("l = [1]\nl += ${?X}", "l = [1, ${?X}]\n"),
         .ok("o { p = 1 }\no = ${?O}\no { q = 2 }", "o {\n  p = 1\n}\no = ${?O}\no {\n  q = 2\n}\n"),
         .ok("m = the ${w} sleeps ${?X}\nw = wombat", "m = \"the wombat sleeps \"${?X}\nw = wombat\n"),
+        // A field that waits is no element: the list and the object join later.
+        .ok("l = [1] { 0 = ${?X} }", "l = [1]{\n  \"0\" = ${?X}\n}\n"),
+        .ok("l = [] { 0 { m = moody }, 0 = ${?O} } [2]", "l = []{\n  \"0\" {\n    m = moody\n  }\n  \"0\" = ${?O}\n}[2]\n"),
+        .ok("l = [] { 0 = tea, 1 = ${?X} }", "l = []{\n  \"0\" = tea\n  \"1\" = ${?X}\n}\n"),
     }, .{ .dump = dumpCompacted });
 
     // The first row, read back: the variable when it is set, the default when not.
@@ -499,11 +503,33 @@ test "parsed.an array root parses into a slice" {
     try testing.expectEqualSlices(u32, &.{ 4, 8, 15, 16, 23, 42 }, parsed.value);
 }
 
+// unchanged-from-json/027 · java ✓ · pyhocon ⚠️ (keeps the escape as text) ·
+// spec ✓ — a surrogate on its own goes out as it came in, in a value and in a
+// key; std.json alone would write its WTF-8 bytes as a list of numbers.
+test "json.a surrogate on its own is written as it was read" {
+    const parsed = try hocon.parseFromSlice(hocon.Value, testing.allocator, "\"\\ud83d\" = \"half a \\ud83d\"", .{});
+    defer parsed.deinit();
+    const json = try std.json.Stringify.valueAlloc(testing.allocator, parsed.value, .{});
+    defer testing.allocator.free(json);
+    try testing.expectEqualStrings("{\"\\ud83d\":\"half a \\ud83d\"}", json);
+}
+
 // Resolution runs inside the parse, so a substitution with nothing behind it is
 // refused there — Stringify allows no error of its own, printing is too late.
 test "json.an unresolved substitution is an error" {
     try testing.expectError(error.Unresolved, hocon.parseFromSlice(hocon.Value, testing.allocator, "a = ${b}", .{}));
     try testing.expectError(error.Unresolved, hocon.parseFromSlice(hocon.Value, testing.allocator, "a { b = [1, ${c}] }", .{}));
+}
+
+// Zig only (java – · pyhocon – · spec –) — a tree std.json cannot write,
+// deeper than its 256 open lists and objects, is an error, not a panic; the
+// parser takes up to 500.
+test "json.deeper than std.json writes is an error" {
+    const parsed = try hocon.parseFromSlice(hocon.Value, testing.allocator, "a = " ++ "[" ** 300 ++ "]" ** 300, .{});
+    defer parsed.deinit();
+    var out: std.Io.Writer.Allocating = .init(testing.allocator);
+    defer out.deinit();
+    try testing.expectError(error.WriteFailed, std.json.Stringify.value(parsed.value, .{}, &out.writer));
 }
 
 // ---------------------------------------------------------------------------
@@ -800,6 +826,72 @@ test "diagnostics.BadNumber" {
         \\        ^ BadNumber
         ,
     });
+}
+
+// A `+` outside the exponent of a number, in a value, a key or a path: the word
+// it is in. java ✓ (Parse error, same line) · pyhocon ✓ on the first two rows,
+// the third is Unresolved there · spec ✓
+test "diagnostics.BadNumber a + that is no exponent" {
+    try expectCarets(&.{
+        \\a = tea 1e+5.x
+        \\        ^ BadNumber
+        ,
+        \\a { 1e+5.5 = 1 }
+        \\    ^ BadNumber
+        ,
+        \\a = ${1e+5.x}
+        \\      ^ BadNumber
+        ,
+    });
+}
+
+// Nested past `max_depth` (500), the bracket, block or key where it went too
+// deep, or the substitution that brought in what is; chained past it, the
+// substitution or the layer the resolver gave up at.
+// java ⚠️ resolves them all · pyhocon ⚠️ RecursionError, no line · spec –
+test "diagnostics.TooDeep" {
+    try expectCarets(&.{
+        "a = " ++ "[" ** 600 ++ "]" ** 600 ++ "\n" ++ " " ** 503 ++ "^ TooDeep",
+        "a" ++ ".a" ** 600 ++ " = 1\n^ TooDeep",
+        "a = [[ {}, " ++ "{ b " ** 498 ++ "{}" ++ "}" ** 498 ++ " ]]\n" ++ " " ** 1999 ++ "^ TooDeep",
+        // What a substitution brings in nests where it lands: `y` is 600 deep.
+        "z" ++ ".a" ** 299 ++ " = tea\ny" ++ ".a" ** 299 ++ " = ${z}\n" ++ " " ** 602 ++ "^ TooDeep",
+    });
+
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+    const gpa = arena.allocator();
+    // `a0 = ${a1}` … `a600 = 1`: the 501st link is one too many.
+    var chain: std.ArrayList(u8) = .empty;
+    for (0..600) |i| {
+        try chain.print(gpa, "a{d} = ${{a{d}}}\n", .{ i, i + 1 });
+        if (i == 500) try chain.appendSlice(gpa, "       ^ TooDeep\n");
+    }
+    try chain.appendSlice(gpa, "a600 = 1");
+    const row = try chain.toOwnedSliceSentinel(gpa, 0);
+    try testing.expectEqualStrings(row, try dumpCaret(gpa, row));
+
+    // `x0 = [${x1}]` … `x600 = 1`: every link a list deeper, and `${x499}`
+    // brings in the 501st.
+    var lists: std.ArrayList(u8) = .empty;
+    for (0..600) |i| {
+        try lists.print(gpa, "x{d} = [${{x{d}}}]\n", .{ i, i + 1 });
+        if (i == 498) try lists.appendSlice(gpa, "        ^ TooDeep\n");
+    }
+    try lists.appendSlice(gpa, "x600 = 1");
+    const nested = try lists.toOwnedSliceSentinel(gpa, 0);
+    try testing.expectEqualStrings(nested, try dumpCaret(gpa, nested));
+
+    // A key written 600 times over itself: resolved from the top, the 500th
+    // layer down is too deep.
+    var layers: std.ArrayList(u8) = .empty;
+    try layers.appendSlice(gpa, "a = sleepy");
+    for (0..600) |i| {
+        try layers.appendSlice(gpa, "\na = ${a} wombat");
+        if (i == 99) try layers.appendSlice(gpa, "\n    ^ TooDeep");
+    }
+    const stacked = try layers.toOwnedSliceSentinel(gpa, 0);
+    try testing.expectEqualStrings(stacked, try dumpCaret(gpa, stacked));
 }
 
 // A comma no element claims (#6) points at that comma.
@@ -1233,6 +1325,24 @@ test "diagnostics.UnsupportedConcatenation text then an object" {
     });
 }
 
+// A list next to an object with no numeric key, or a list that the object after
+// it no longer fits once an earlier one made it longer: the object is the part.
+// java ✓ (WrongType, line 1) · pyhocon ✓ line (WrongType on every list and
+// object) · spec ✓
+test "diagnostics.UnsupportedConcatenation a list and an object" {
+    try expectCarets(&.{
+        \\a = [1] { b = 1 }
+        \\        ^ UnsupportedConcatenation
+        ,
+        \\a = { b = 1 } [1]
+        \\              ^ UnsupportedConcatenation
+        ,
+        \\a = [0] { "0" : 1, x : 2 } { y : 3 }
+        \\                           ^ UnsupportedConcatenation
+        ,
+    });
+}
+
 // A misfit only the resolver sees is the same part that load would blame: the
 // first one that does not fit onto what came before it. A `${?x}` with nothing
 // behind it is gone by then, so it is never the one.
@@ -1260,8 +1370,9 @@ test "diagnostics.UnsupportedConcatenation found by the resolver" {
 }
 
 // The rendered line is the source line as written — indentation kept, a CRLF
-// ending gone, the caret indented by code points — except that a tab or a stray
-// `\r` prints as one space, or the caret would not line up under it.
+// ending gone, the caret indented by code points — except that a tab, a stray
+// `\r` or another control character prints as one space, or the caret would not
+// line up under it.
 test "diagnostics.render keeps the line as written" {
     const cases = [_]struct { src: [:0]const u8, err: anyerror = error.UnsupportedConcatenation, want: []const u8 }{
         .{ .src = "name = grumpy wombat\r\n  port = 80 [1]\r\n", .want = "2:13: error: UnsupportedConcatenation\n  port = 80 [1]\n            ^\n" },
@@ -1270,6 +1381,8 @@ test "diagnostics.render keeps the line as written" {
         // Only `\n` starts a line, so a lone `\r` keeps the line together — and
         // since it is whitespace (#6), `1\rb` is one value and the `=` is what fails.
         .{ .src = "a = 1\rb = }", .err = error.UnexpectedToken, .want = "1:9: error: UnexpectedToken\na = 1 b = }\n        ^\n" },
+        // Nor does any other control character reach the terminal: ESC c resets it.
+        .{ .src = "a = x\x1bcy, b = ${nope}", .err = error.Unresolved, .want = "1:15: error: Unresolved\na = x cy, b = ${nope}\n              ^\n" },
     };
     for (cases) |c| {
         var diag: hocon.Diagnostics = .{};

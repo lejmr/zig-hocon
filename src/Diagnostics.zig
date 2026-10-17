@@ -106,10 +106,11 @@ pub fn render(self: Diagnostics, w: *std.Io.Writer) std.Io.Writer.Error!void {
 
     if (loc.path.len > 0) try w.print("{s}:", .{loc.path});
     try w.print("{d}:{d}: error: {t}\n", .{ loc.line, loc.column, err });
-    // A tab or a stray `\r` would move the text and leave the caret behind, so
-    // each prints as one space — the zig compiler does the same for tabs.
+    // A tab or a stray `\r` would move the text and leave the caret behind, and
+    // ESC and the other control characters would steer the terminal, so each
+    // prints as one space — the zig compiler does the same for tabs.
     for (loc.source_line) |c| {
-        try w.writeByte(if (c == '\t' or c == '\r') ' ' else c);
+        try w.writeByte(if (c < 0x20 or c == 0x7f) ' ' else c);
     }
     try w.writeByte('\n');
     try w.splatByteAll(' ', loc.column - 1);

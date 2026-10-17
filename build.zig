@@ -262,6 +262,28 @@ pub fn build(b: *std.Build) void {
     run_deep.expectExitCode(1);
     run_deep.expectStdErrEqual("error: deep.conf: TooDeepForJson\n");
     test_step.dependOn(&run_deep.step);
+
+    // Deeper than the parser goes (500), a chain of substitutions longer than
+    // the resolver follows, a chain that nests a list deeper at each link: an
+    // error with its place, not a stack overflow.
+    _ = broken.add("deeper.conf", "a = " ++ "[" ** 3000 ++ "]" ** 3000 ++ "\n");
+    _ = broken.add("chain.conf", "a = ${a}\n" ** 3000);
+    var links: std.ArrayList(u8) = .empty;
+    for (0..3000) |i| links.print(b.allocator, "x{d} = [${{x{d}}}]\n", .{ i, i + 1 }) catch @panic("OOM");
+    _ = broken.add("links.conf", links.items);
+    for ([_][2][]const u8{
+        .{ "deeper.conf", "deeper.conf:1:504: error: TooDeep\n" },
+        .{ "chain.conf", "chain.conf:2500:5: error: TooDeep\n" },
+        .{ "links.conf", "links.conf:499:9: error: TooDeep\n" },
+    }) |row| {
+        const name, const want = row;
+        const run_deeper = b.addRunArtifact(exe);
+        run_deeper.setCwd(broken.getDirectory());
+        run_deeper.addArg(name);
+        run_deeper.expectExitCode(1);
+        run_deeper.expectStdErrMatch(want);
+        test_step.dependOn(&run_deeper.step);
+    }
 }
 
 /// The binary for an end-to-end test. It gets none of the environment the

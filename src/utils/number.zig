@@ -44,14 +44,28 @@ pub const NumberError = error{ LeadingZeroIsNotAJsonNumber, HyphenIsNotAJsonNumb
 /// no fallback to text. So `1e`, `01`, `1.`, `-.5` and `-foo` are errors.
 ///
 /// Text after the run concatenates with the number it starts with, as in `5EB`
-/// or `10.0bar` — which needs a number to be there: `-foo` has none.
+/// or `10.0bar` — which needs a number to be there: `-foo` has none. Nor may
+/// the run hold a `+` then: `1e+5.x`.
 pub fn checkNumber(word: []const u8) NumberError!void {
     if (word.len == 0 or !(std.ascii.isDigit(word[0]) or word[0] == '-')) return;
     const end = std.mem.indexOfNone(u8, word, "0123456789+-.eE") orelse word.len;
     const run = word[0..end];
     if (isJsonNumber(run)) return;
+    try checkPlus(word);
     if (end < word.len and std.ascii.isDigit(word[@intFromBool(word[0] == '-')])) return;
     if (run.len == 1) return error.HyphenIsNotAJsonNumber;
     if (run[0] == '0' and std.ascii.isDigit(run[1])) return error.LeadingZeroIsNotAJsonNumber;
     return error.BadNumber;
+}
+
+/// In text `+` is reserved; it stands only in the exponent of a number. So a
+/// word that starts with a run holding one (see `checkNumber`) needs the run to
+/// be a number: `1e+5x` is the number and `x`, `1e+5.x` is an error where
+/// `1e5.x` is text. In a key and a `${…}` path too, where nothing else about
+/// numbers holds: `1e+5.5 = 1` is an error, `1.5 = 1` a path.
+pub fn checkPlus(word: []const u8) NumberError!void {
+    if (word.len == 0 or !(std.ascii.isDigit(word[0]) or word[0] == '-')) return;
+    const end = std.mem.indexOfNone(u8, word, "0123456789+-.eE") orelse word.len;
+    const run = word[0..end];
+    if (std.mem.indexOfScalar(u8, run, '+') != null and !isJsonNumber(run)) return error.BadNumber;
 }

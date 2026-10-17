@@ -126,8 +126,11 @@ pub fn split(gpa: std.mem.Allocator, path: Node, err_offset: *?usize) Error![]No
         if (mem.startsWith(u8, part.value, "\"")) {
             // The escapes are checked here although `fromNode` unquotes again:
             // a key is split while the file is read, so its bad escape is the
-            // first error rather than one found after the whole file.
-            _ = unquote(gpa, part.value) catch |err| {
+            // first error rather than one found after the whole file. The text
+            // is not kept, so it goes into an arena that is gone right after.
+            var check: std.heap.ArenaAllocator = .init(gpa);
+            defer check.deinit();
+            _ = unquote(check.allocator(), part.value) catch |err| {
                 err_offset.* = part.pos;
                 return err;
             };
@@ -431,6 +434,21 @@ test "split.every suite path is the same keys as a key, a substitution and text"
         .ok("\"b.c\"", "[b.c]"), // 021
         .ok("true", "[true]"), // 022
         .ok("a.${x}", "UnexpectedToken at 2"), // 023
+    };
+    try table.expectAll(&cases, .{ .dump = asKey });
+    try table.expectAll(&cases, .{ .dump = asSubstitution });
+    try table.expectAll(&cases, .{ .dump = asText });
+}
+
+// java ✓ (as a key and a substitution) · pyhocon ⚠️ splits `1e+5.5` at the
+// dot · spec ✓ — `+` stands only in the exponent of a number, so a run of
+// number characters with one in it is a number, cut three ways alike.
+test "split.a + that is no exponent fails as a key, a substitution and text" {
+    const cases = [_]table.Case{
+        .ok("1e+5", "[1e+5]"),
+        .ok("1e+5.5", "BadNumber at 0"),
+        // after a letter it is no sign at all
+        .ok("a.1e+5.x", "UnexpectedToken at 4"),
     };
     try table.expectAll(&cases, .{ .dump = asKey });
     try table.expectAll(&cases, .{ .dump = asSubstitution });

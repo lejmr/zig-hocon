@@ -46,6 +46,11 @@ pub const Config = struct {
 
     /// Like `parseFromSliceLeaky`, but any allocator will do: everything lands in
     /// an arena owned by the result, and `deinit` on the result frees it.
+    ///
+    /// Text comes out as UTF-8, with one exception JSON makes: a surrogate on
+    /// its own, quoted `"\ud83d"`, has no UTF-8, so it stays as its three WTF-8
+    /// bytes, in a `[]const u8` as in a `Value`. Check with
+    /// `std.unicode.utf8ValidateSlice` where UTF-8 is required.
     pub fn parseFromSlice(comptime T: type, gpa: Allocator, source: [:0]const u8, options: ParseOptions) !Parsed(T) {
         const arena = gpa.create(std.heap.ArenaAllocator) catch |err| {
             noPlace(options, err);
@@ -222,6 +227,11 @@ pub const Config = struct {
                         if (info.sentinel()) |end| return try a.toOwnedSliceSentinel(allocator, end);
                         return try a.toOwnedSlice(allocator);
                     },
+                    // A list is asked for, so numeric keys make one.
+                    .object => {
+                        const items = try Value.numbered(allocator, value.object) orelse return error.TypeMismatch;
+                        return parseFromValue(T, allocator, .{ .array = items });
+                    },
                     else => return error.TypeMismatch,
                 }
             },
@@ -274,6 +284,10 @@ pub const Config = struct {
                     if (value.scalar.value.len != info.len) return error.TypeMismatch;
                     @memcpy(&result, value.scalar.value);
                     return result;
+                }
+                if (value == .object) {
+                    const items = try Value.numbered(allocator, value.object) orelse return error.TypeMismatch;
+                    return parseFromValue(T, allocator, .{ .array = items });
                 }
                 if (value != .array or value.array.len != info.len) return error.TypeMismatch;
                 for (&result, value.array) |*item, v| item.* = try parseFromValue(info.child, allocator, v);
@@ -500,6 +514,12 @@ test "convert.string outlives the source buffer" {
     try testing.expectEqualStrings("and now it looks innocent", got.c);
 }
 
+// unchanged-from-json/027 · java ✓ (a String holds one UTF-16 unit) · pyhocon ⚠️
+// keeps the escape as text · spec ✓ — a surrogate on its own is its WTF-8 bytes.
+test "convert.a surrogate on its own is WTF-8 in a string" {
+    try expectConverts(struct { s: []const u8 }, "s = \"tea\\ud83d\"", .{ .s = "tea\xed\xa0\xbd" });
+}
+
 // automatic-type-conversions L1252 automatic-type-conversions L1244 · java ✓ · pyhocon ⚠️ · spec ✓ — null into a plain type is an error;
 // only an unquoted null is null, a quoted "null" is the four letters.
 // pyhocon hands back None instead of failing.
@@ -524,13 +544,16 @@ test "convert.list" {
 // converted. The suite pins only the other half (conversion-of-numerically-indexed-objects-to-arrays.2: without a list asked for
 // it stays an object), because JSON output cannot ask.
 test "convert.list from a numerically-indexed object" {
-    if (true) return error.SkipZigTest; // needs the S15 conversion in the slice branch
     const T = struct { a: []const usize };
     try expectConverts(T, "a { \"0\" = 1, \"1\" = 2 }", .{ .a = &.{ 1, 2 } });
     try expectConverts(T, "a { \"2\" = 20, \"0\" = 0 }", .{ .a = &.{ 0, 20 } });
     try expectConverts(T, "a { \"0\" = 1, x = 9 }", .{ .a = &.{1} });
     try expectConvertError(T, "a {}", error.TypeMismatch);
     try expectConvertError(T, "a { x = 1 }", error.TypeMismatch);
+    // the way a properties file writes a list, and a fixed array as well
+    try expectConverts(T, "a.1 = 2\na.0 = 1\na.-1 = 9", .{ .a = &.{ 1, 2 } });
+    try expectConverts(struct { a: [2][]const u8 }, "a { 1 = cake, 0 = tea }", .{ .a = .{ "tea", "cake" } });
+    try expectConvertError(struct { a: [3]u8 }, "a { 0 = 1, 1 = 2 }", error.TypeMismatch);
 }
 
 // Zig only: no field in java can be "absent" — a missing path is an error there,

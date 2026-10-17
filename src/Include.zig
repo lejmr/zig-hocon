@@ -376,10 +376,12 @@ fn fromJson(gpa: Allocator, source: []const u8) values.Error!Value {
         error.OutOfMemory => return error.OutOfMemory,
         else => return error.InvalidJson,
     };
-    return fromJsonValue(gpa, parsed);
+    return fromJsonValue(gpa, parsed, 1);
 }
 
-fn fromJsonValue(gpa: Allocator, json: std.json.Value) Allocator.Error!Value {
+/// `depth` is how deep `json` is in the file, for `Ast.max_depth`.
+fn fromJsonValue(gpa: Allocator, json: std.json.Value, depth: usize) error{ TooDeep, OutOfMemory }!Value {
+    if (depth > Ast.max_depth and (json == .array or json == .object)) return error.TooDeep;
     switch (json) {
         // true, false, null and numbers are unquoted text, as they would be in HOCON.
         .null => return .{ .scalar = .{ .value = "null", .quoted = false } },
@@ -388,13 +390,13 @@ fn fromJsonValue(gpa: Allocator, json: std.json.Value) Allocator.Error!Value {
         .string => |text| return .{ .scalar = .{ .value = text, .quoted = true } },
         .array => |items| {
             var list: std.ArrayList(Value) = .empty;
-            for (items.items) |item| try list.append(gpa, try fromJsonValue(gpa, item));
+            for (items.items) |item| try list.append(gpa, try fromJsonValue(gpa, item, depth + 1));
             return .{ .array = try list.toOwnedSlice(gpa) };
         },
         .object => |map| {
             var members: std.ArrayList(values.Member) = .empty;
             for (map.keys(), map.values()) |key, item| {
-                try members.append(gpa, .{ .key = .{ .value = key }, .value = try fromJsonValue(gpa, item) });
+                try members.append(gpa, .{ .key = .{ .value = key }, .value = try fromJsonValue(gpa, item, depth + 1) });
             }
             return .{ .object = try members.toOwnedSlice(gpa) };
         },
@@ -415,6 +417,8 @@ const Property = struct {
 ///
 /// A key ends at the first `=`, `:` or whitespace, as in java.util.Properties.
 fn fromProperties(gpa: Allocator, source: []const u8) values.Error!Value {
+    // UTF-8, as a HOCON file is.
+    if (!std.unicode.utf8ValidateSlice(source)) return error.InvalidUtf8;
     var root: Property = .{};
     var lines = std.mem.splitScalar(u8, source, '\n');
     while (lines.next()) |raw| {
@@ -434,6 +438,8 @@ fn fromProperties(gpa: Allocator, source: []const u8) values.Error!Value {
 
         var current = &root;
         var elements = std.mem.splitScalar(u8, key, '.');
+        // `a.b.c` is three deep, and `propertyToValue` goes down that far.
+        if (std.mem.count(u8, key, ".") >= Ast.max_depth) return error.TooDeep;
         while (elements.next()) |element| {
             const entry = try current.children.getOrPut(gpa, element);
             if (!entry.found_existing) entry.value_ptr.* = .{};
@@ -898,6 +904,51 @@ test "include.properties" {
         .{ .path = "main.conf", .text = "include \"x.properties\"" },
         .{ .path = "x.properties", .text = "a = one \\\n  two" },
     }, error.UnsupportedInclude);
+    // java ⚠️ reads each bad byte as U+FFFD; a .conf file refuses them, so does this
+    try expectError(&.{
+        .{ .path = "main.conf", .text = "include \"x.properties\"" },
+        .{ .path = "x.properties", .text = "a = bad\xffbyte" },
+    }, error.InvalidUtf8);
+    try expectError(&.{
+        .{ .path = "main.conf", .text = "include \"x.properties\"" },
+        .{ .path = "x.properties", .text = "b = half\xed\xa0\xbdway" },
+    }, error.InvalidUtf8);
+}
+
+// java ⚠️ reads them · pyhocon – · spec – — an included .json or .properties
+// file is held to `Ast.max_depth` like a HOCON one, the error at the include.
+// (The JSON this is compared as goes no deeper than 256, std.json's limit.)
+test "include.json and properties nest no deeper than HOCON" {
+    try expectJson(&.{
+        .{ .path = "main.conf", .text = "include \"deep.json\"" },
+        .{ .path = "deep.json", .text = "{\"a\": " ++ "[" ** 200 ++ "]" ** 200 ++ "}" },
+    }, "{\"a\":" ++ "[" ** 200 ++ "]" ** 200 ++ "}");
+    try expectError(&.{
+        .{ .path = "main.conf", .text = "include \"deep.json\"" },
+        .{ .path = "deep.json", .text = "{\"a\": " ++ "[" ** 3000 ++ "]" ** 3000 ++ "}" },
+    }, error.TooDeep);
+    try expectError(&.{
+        .{ .path = "main.conf", .text = "include \"deep.properties\"" },
+        .{ .path = "deep.properties", .text = "a" ++ ".a" ** 3000 ++ " = tea" },
+    }, error.TooDeep);
+    // Only lists and objects count, as in HOCON: one object and 499 lists.
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+    _ = try loadFixtures(arena.allocator(), &.{
+        .{ .path = "main.conf", .text = "include \"deep.json\"" },
+        .{ .path = "deep.json", .text = "{\"a\": " ++ "[" ** 499 ++ "1" ++ "]" ** 499 ++ "}" },
+    }, .{});
+}
+
+// numerically-indexed-objects-to-arrays · java ✓ (it reads the .properties as
+// HOCON, same object) · pyhocon – · spec ✓ — what the conversion is for (spec
+// L1197): a properties file cannot write a list, `0`, `1` keys can, and next to
+// a list they are one.
+test "include.a properties file makes a list" {
+    try expectJson(&.{
+        .{ .path = "main.conf", .text = "include \"snacks.properties\"\nsnacks = [cake] ${snacks}" },
+        .{ .path = "snacks.properties", .text = "snacks.1 = crisps\nsnacks.0 = biscuits\nsnacks.10 = the last pie" },
+    }, "{\"snacks\":[\"cake\",\"biscuits\",\"crisps\",\"the last pie\"]}");
 }
 
 // include-substitution/001, 003–007, 009–011, 013, 015–017 · java ✓ except

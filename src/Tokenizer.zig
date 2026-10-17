@@ -32,9 +32,11 @@ pub const Token = struct {
 };
 
 /// Whether the `+` at `word[i]` is the sign of an exponent, `1e+5`: the word
-/// starts like a number, an `e` comes before the `+` and a digit after it.
+/// starts like a number and is nothing but number characters up to the `+`,
+/// an `e` comes right before it and a digit after it. `0x1e+5` is no number.
 pub fn isExponentSign(word: []const u8, i: usize) bool {
-    const in_number = std.ascii.isDigit(word[0]) or word[0] == '-';
+    const in_number = (std.ascii.isDigit(word[0]) or word[0] == '-') and
+        std.mem.indexOfNone(u8, word[0..i], "0123456789+-.eE") == null;
     const after_e = i > 0 and (word[i - 1] == 'e' or word[i - 1] == 'E');
     return in_number and after_e and i + 1 < word.len and std.ascii.isDigit(word[i + 1]);
 }
@@ -682,7 +684,8 @@ test "+= is one token, + alone is not" {
 // java ✓ · pyhocon ✓ · spec ✓ — `+` after the `e` of a number is the sign of
 // its exponent, as in JSON: 'a = 1e+5' -> {"a":100000}. Only there, and only
 // with a digit after it, so `1e+=2` is still the key `1e` and `+=`. java ⚠️
-// rejects that one.
+// rejects that one. Nor after a letter, which ends the number: `0x1e+5` and
+// `10.0bare+5` are java Parse errors too (pyhocon ⚠️ drops the `+`).
 test "+ in the exponent of a number belongs to the word" {
     try expectAll(&.{
         .ok("1e+5", "string(1e+5) eof"),
@@ -690,6 +693,9 @@ test "+ in the exponent of a number belongs to the word" {
         .ok("1e+=2", "string(1e) plus_assignment(+=) string(2) eof"),
         .ok("e+5", "string(e) invalid"),
         .ok("1e+", "string(1e) invalid"),
+        .ok("0x1e+5", "string(0x1e) invalid"),
+        .ok("1xe+5", "string(1xe) invalid"),
+        .ok("10.0bare+5", "string(10.0bare) invalid"),
     });
 }
 
