@@ -84,7 +84,7 @@ const PeakingTokenizer = struct {
 
 /// How deep blocks, lists and the elements of dotted keys may nest, in a file
 /// and in the tree its substitutions resolve to (so what is printed reads
-/// back), and how long a chain of substitutions may be (see `Value.Resolving`).
+/// back), and how long a chain of substitutions may be (see `Resolver.chain` in Value/Resolver.zig).
 /// Parsing, merging and resolving all recurse that deep, and the stack is not
 /// endless: past this it is `error.TooDeep`, not a crash. A debug build uses
 /// some 8 KiB of stack per level of a chain, and a thread gets 8 MiB. No config
@@ -1630,7 +1630,7 @@ test "substitution" {
 }
 
 // list-values-from-environment-variables · java ✓ · pyhocon ⚠️ · spec ✓ — `[]`
-// after the path asks for a list from the environment (Value.zig resolves it).
+// after the path asks for a list from the environment (Value/Resolver/env.zig resolves it).
 // Read off java 1.4.9, which prints it back unresolved:
 //
 //   'a = ${L[]}'    -> {"a":${L[]}}      'a = ${L []}'  -> {"a":${L[]}}

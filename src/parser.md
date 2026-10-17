@@ -11,9 +11,10 @@ running the oracle rather than by reading the spec.
 |---|---|---|
 | `Tokenizer.zig` | bytes → tokens | lexical: what is a word, a quote, a separator |
 | `Ast.zig` | tokens → tree | syntactic: what is a member, a value, a substitution |
-| `Value.zig` | tree → values | semantic, as far as it goes without the whole document: concatenation, merging, path splitting |
+| `Value/build.zig`, `Value/merge.zig` | tree → values | semantic, as far as it goes without the whole document: concatenation, merging, path splitting |
 | `Include.zig` | include node → object | find the file (path or http URL), read it in its format, hand back its object; `Value.fromNode` merges it in where the include stands |
-| *(not built)* evaluation | values → values | resolve substitutions, convert types |
+| `Value/Resolver.zig` | values → values | resolve substitutions against the whole document (`Resolver/stack.zig`: a key written again; `env.zig`, `keep.zig`: the environment) |
+| `Config.zig` | values → your type | convert types |
 
 The line between parser and evaluation: **an error belongs to the parser only if
 it can be seen without looking elsewhere in the tree.** `a = b = c` is a parse
@@ -286,7 +287,7 @@ a = [${b}, ${c}]  {"a":[${b},${c}]}
 
 ## The value graph
 
-`Value.zig` is where the tree stops being about syntax. Two stages, deliberately
+`Value.zig` and `Value/` are where the tree stops being about syntax. Two stages, deliberately
 separate, because a substitution resolves against the *finished* document:
 
 ```

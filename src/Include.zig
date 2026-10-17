@@ -1082,7 +1082,7 @@ fn expectWithEnv(files: []const Fixture, vars: []const [2][]const u8, want: []co
 //
 // An optional that vanished · java ⚠️ ({"s":{}}) · pyhocon ✓ · spec ✓ — it
 // leaves no field, so neither path is present and the variable is read, as
-// for a vanished field outside an include (see Value.zig, "env.a field that
+// for a vanished field outside an include (see Value/Resolver/env.zig, "env.a field that
 // vanished"). An earlier rule kept it the document's; that depended on the
 // order of the fields.
 test "include.env: a self-reference never reads the variable, a vanished field does" {
