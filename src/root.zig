@@ -10,7 +10,10 @@ test {
     _ = @import("Config.zig");
     _ = @import("Include.zig");
     _ = @import("stringify.zig");
-    _ = @import("units.zig");
+    _ = @import("units/parse.zig");
+    _ = @import("units/Duration.zig");
+    _ = @import("units/Period.zig");
+    _ = @import("units/Size.zig");
 }
 
 // Export functionality to users
@@ -29,9 +32,9 @@ pub const ParseFromValueError = config.ConvertError;
 pub const stringify = @import("stringify.zig").stringify;
 pub const stringifyAlloc = @import("stringify.zig").stringifyAlloc;
 pub const StringifyOptions = @import("stringify.zig").Options;
-pub const Duration = @import("units.zig").Duration;
-pub const Period = @import("units.zig").Period;
-pub const Size = @import("units.zig").Size;
+pub const Duration = @import("units/Duration.zig");
+pub const Period = @import("units/Period.zig");
+pub const Size = @import("units/Size.zig");
 
 // ---------------------------------------------------------------------------
 // Tests of the public surface: called the way a user calls it, through the

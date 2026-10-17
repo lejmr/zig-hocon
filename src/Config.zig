@@ -6,7 +6,9 @@ const Ast = @import("Ast.zig");
 const Tokenizer = @import("Tokenizer.zig").Tokenizer;
 const Include = @import("Include.zig");
 const Diagnostics = @import("Diagnostics.zig");
-const units = @import("units.zig");
+const Duration = @import("units/Duration.zig");
+const Period = @import("units/Period.zig");
+const Size = @import("units/Size.zig");
 
 pub const Config = struct {
     object: Value,
@@ -192,7 +194,7 @@ pub const Config = struct {
         // Not resolved yet: refuse loudly instead of guessing.
         if (value == .ref or value == .pending or value == .stack) return error.Unresolved;
         // Structs, but read from text in the units format: `10ms` is a Duration.
-        if (T == units.Duration or T == units.Period or T == units.Size) {
+        if (T == Duration or T == Period or T == Size) {
             return T.fromValue(value) catch |err| {
                 if (value == .scalar) failed.* = value.scalar.at();
                 return err;

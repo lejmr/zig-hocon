@@ -17,7 +17,9 @@ const number = @import("utils/number.zig");
 const unqoute = @import("utils/unqoute.zig");
 const whitespaceLen = @import("Tokenizer.zig").whitespaceLen;
 const isExponentSign = @import("Tokenizer.zig").isExponentSign;
-const units = @import("units.zig");
+const Duration = @import("units/Duration.zig");
+const Period = @import("units/Period.zig");
+const Size = @import("units/Size.zig");
 
 /// Nothing to set yet: it is here so a call reads like `std.json.Stringify.value`.
 pub const Options = struct {};
@@ -263,7 +265,7 @@ fn isFlat(value: anytype) bool {
 /// A struct that is one value in the units format, `90s`, `3mo`, `512MiB`: the
 /// largest unit it is a whole number of, so it reads back the same.
 fn isUnits(comptime T: type) bool {
-    return T == units.Duration or T == units.Period or T == units.Size;
+    return T == Duration or T == Period or T == Size;
 }
 
 /// Whether the block has anything in it, so an empty one is `{}` on one line.
@@ -599,14 +601,14 @@ test "stringify.null optionals" {
 // pyhocon has none of the three getters.
 test "stringify.durations, periods and sizes" {
     const T = struct {
-        timeout: units.Duration = .of(90, .s),
-        idle: units.Duration = .of(120, .min),
-        retention: units.Period = .of(3, .mo),
-        audit: units.Period = .of(2, .weeks),
-        cache: units.Size = .of(512, .MiB),
-        disk: units.Size = .of(10, .kB),
-        backoff: []const units.Duration = &.{ .of(1500, .ms), .of(1, .ns) },
-        grace: ?units.Duration = null,
+        timeout: Duration = .of(90, .s),
+        idle: Duration = .of(120, .min),
+        retention: Period = .of(3, .mo),
+        audit: Period = .of(2, .weeks),
+        cache: Size = .of(512, .MiB),
+        disk: Size = .of(10, .kB),
+        backoff: []const Duration = &.{ .of(1500, .ms), .of(1, .ns) },
+        grace: ?Duration = null,
     };
     try expectText(T{},
         \\timeout = 90s
