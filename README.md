@@ -251,7 +251,7 @@ checked by hand against the sentence; where the two disagree, the spec wins.
 | Java <sub>typesafe/config 1.4.9</sub> | 90% (399/445) | 99% (442/445) | 96% (428/445) |
 | Java main <sub>typesafe/config main@275f872, unreleased</sub> | 93% (412/445) | 96% (428/445) | 99% (442/445) |
 | pyhocon <sub>pyhocon 0.3.63</sub> | 70% (312/445) | 66% (295/445) | 68% (304/445) |
-| zig-hocon <sub>zig-hocon code@431c6ef</sub> | 99% (442/445) | 90% (399/445) | 93% (412/445) |
+| zig-hocon <sub>zig-hocon code@f9d16e2</sub> | 99% (442/445) | 90% (399/445) | 93% (412/445) |
 
 <!-- conformance:end -->
 

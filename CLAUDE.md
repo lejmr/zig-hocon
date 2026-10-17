@@ -16,7 +16,7 @@ Single-context: one `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agent
 
 ## Branches and agent worktrees
 
-- `main` is the public release line, a release is a tag (`v0.1.0`). `dev` is the integration branch and stays on this machine: work there is committed locally, never pushed, no PRs.
+- `main` is the public release line, a release is a tag (`v0.1.0`) that only the Release workflow makes (CONTRIBUTING.md, Releasing). Commits are conventional, and a user-visible `feat`/`fix` gets a CHANGELOG.md line. `dev` is the integration branch and stays on this machine: work there is committed locally, never pushed, no PRs.
 - Agents work in herdr worktrees on `agent/<issue>-…` branches and implement `src/` there too. Text sitting unsent in an agent's input is the maintainer's draft; act on what this session asks.
 - Branches stack: each one sits on the branch below it (`dev` ← #6 ← #5 ← …). The maintainer decides when anything is squashed into `dev`; after a squash, move the next branch with `git rebase --onto dev <old tip> <branch> --update-refs`.
 

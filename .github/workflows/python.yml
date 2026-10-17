@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
   pull_request:
+  # release.yml runs it first, and publishes the wheels it built and tested.
+  workflow_call:
 
 jobs:
   # Every wheel, cross-compiled on one machine, as a release would build them.
