@@ -15,15 +15,19 @@ ENV_PROCESS, ENV_NONE, ENV_MAP, ENV_KEEP = range(4)
 class Options(ctypes.Structure):
     """``hocon_options``."""
 
+    size: int
     env: int
     env_vars: "ctypes._Pointer[ctypes.c_char_p] | None"
     resolve: bool
     include_dir: bytes | None
+    http_timeout_ms: int
     _fields_ = [
+        ("size", ctypes.c_size_t),
         ("env", ctypes.c_int),
         ("env_vars", ctypes.POINTER(ctypes.c_char_p)),
         ("resolve", ctypes.c_bool),
         ("include_dir", ctypes.c_char_p),
+        ("http_timeout_ms", ctypes.c_uint32),
     ]
 
 

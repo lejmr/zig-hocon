@@ -7,8 +7,8 @@
  * filled-in error with `hocon_error_free`.
  *
  * A file or a string is read up to 64 MiB. An include names a file, found
- * next to the file that includes it, or an http(s) URL, which is fetched with
- * no timeout: a server that never answers holds the parse.
+ * next to the file that includes it, or an http(s) URL, which is fetched in
+ * `http_timeout_ms` or fails the parse with "IncludeTimeout".
  *
  * A path is text, as in a config file: `db.host`, `a."b.c"`; "" is the root.
  * The conversions are the ones `hocon.parseFromValue` makes in Zig: `"5"` is
@@ -18,6 +18,12 @@
  * Parsing, resolving and writing recurse once per level of nesting, up to
  * 500 levels: give the thread that calls in 4 MiB of stack (what a Debug
  * build needs at that depth), or a deep document can overflow it.
+ *
+ * An http(s) include is fetched on two threads of the library's own, which
+ * the parse joins before it returns. A parse sets SIGIO and SIGPIPE to a
+ * handler that does nothing, and leaves them so: SIGIO wakes the fetch when
+ * its time is up, and a write to a closed connection fails instead of
+ * ending the process.
  */
 #ifndef HOCON_H
 #define HOCON_H
@@ -71,6 +77,11 @@ enum {
 };
 
 typedef struct hocon_options {
+    /* sizeof(hocon_options). The library reads the fields that fit in it and
+     * takes the default for the rest, so a program built against an older
+     * header keeps working with a newer library. Less than a size_t is
+     * HOCON_ERR_OTHER. */
+    size_t size;
     int env; /* HOCON_ENV_* */
     const char *const *env_vars;
     /* false reads the document without resolving it: every `${…}` stays as
@@ -80,6 +91,9 @@ typedef struct hocon_options {
      * NULL makes an include an error. A file's includes are always found
      * next to the file, so `hocon_parse_file` does not read it. */
     const char *include_dir;
+    /* How long one fetch of an http(s) include may take, from connecting to
+     * the last byte, in milliseconds; 0 is 30 s. */
+    uint32_t http_timeout_ms;
 } hocon_options;
 
 /* Why a parse, or a call on a doc (`hocon_last_error`), failed. The strings

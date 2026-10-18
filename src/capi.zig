@@ -21,12 +21,15 @@ const Code = enum(c_int) { ok, parse, substitution, missing, wrong_type, io, bad
 /// `HOCON_ENV_…` of hocon.h. Any other number is an error, not a crash.
 const Env = enum(c_int) { process, none, map, keep, _ };
 
-/// `hocon_options`. The defaults are what NULL options mean.
+/// `hocon_options`. The defaults are what NULL options mean, and what a
+/// field past the caller's `size` is.
 const Options = extern struct {
+    size: usize = @sizeOf(Options),
     env: Env = .process,
     env_vars: ?[*:null]const ?[*:0]const u8 = null,
     resolve: bool = true,
     include_dir: ?[*:0]const u8 = null,
+    http_timeout_ms: u32 = 0,
 };
 
 /// `hocon_error`.
@@ -76,7 +79,7 @@ fn parse(path: ?[]const u8, text: []const u8, options: ?*const Options, err: ?*E
     };
     doc.* = .{ .arena = .init(gpa), .value = undefined, .files = .{} };
     var diag: hocon.Diagnostics = .{};
-    doc.value = load(doc, path, text, if (options) |o| o.* else .{}, &diag) catch |e| {
+    doc.value = load(doc, path, text, options, &diag) catch |e| {
         // The place is in the arena: copied out before the arena goes.
         fail(err, e, path, diag);
         doc.arena.deinit();
@@ -86,7 +89,8 @@ fn parse(path: ?[]const u8, text: []const u8, options: ?*const Options, err: ?*E
     return doc;
 }
 
-fn load(doc: *Doc, path: ?[]const u8, text: []const u8, options: Options, diag: *hocon.Diagnostics) !hocon.Value {
+fn load(doc: *Doc, path: ?[]const u8, text: []const u8, given: ?*const Options, diag: *hocon.Diagnostics) !hocon.Value {
+    const options = try optionsOf(given);
     const arena = doc.arena.allocator();
     var vars: Map = .init(arena);
     const env: hocon.Value.Env = switch (options.env) {
@@ -102,13 +106,21 @@ fn load(doc: *Doc, path: ?[]const u8, text: []const u8, options: Options, diag: 
         .keep => .keep,
         _ => return error.BadOptions,
     };
-    // An Io of its own for this parse: no threads, nothing shared with other
-    // parses, and the signal handlers of the program loading us stay its own.
-    // ponytail: with no threads an `http` include has no timeout (see
-    // Include.fetchWithTimeout); one std.Io.Threaded for all parses if that matters.
-    var threaded: std.Io.Threaded = .init_single_threaded;
+    // An Io of its own for this parse, with threads: an `http` include is
+    // fetched beside a sleep, and the first to end decides
+    // (Include.fetchWithTimeout). The threads start with the first fetch, and
+    // `deinit` joins them before the parse returns: none outlives the call, and
+    // nothing is shared to start once for the library. The fetch that lost is
+    // woken with SIGIO, so `init` sets SIGIO and SIGPIPE to a handler that does
+    // nothing. Those stay set: put back after each parse, two parses on two
+    // threads would put back each other's, and a SIGIO with no handler ends
+    // the process on Linux.
+    var threaded: std.Io.Threaded = .init(gpa, .{});
+    threaded.have_signal_handler = false;
+    defer threaded.deinit();
     const io = threaded.io();
-    const parse_options: hocon.ParseOptions = .{ .diagnostics = diag, .env = env, .resolve = options.resolve, .files = &doc.files };
+    var parse_options: hocon.ParseOptions = .{ .diagnostics = diag, .env = env, .resolve = options.resolve, .files = &doc.files };
+    if (options.http_timeout_ms > 0) parse_options.http_timeout = .fromMilliseconds(options.http_timeout_ms);
     // The files keep the path they were named by, and the caller's may go.
     if (path) |p| return hocon.parseFromFileLeaky(hocon.Value, arena, io, try arena.dupe(u8, p), parse_options);
 
@@ -117,6 +129,19 @@ fn load(doc: *Doc, path: ?[]const u8, text: []const u8, options: Options, diag: 
     const source = try arena.dupeZ(u8, text);
     const dir = options.include_dir orelse return hocon.parseFromSliceLeaky(hocon.Value, arena, source, parse_options);
     return hocon.parseFromSliceInDirLeaky(hocon.Value, arena, io, std.mem.span(dir), source, parse_options);
+}
+
+/// The caller's options: the fields its `size` holds, and the defaults for
+/// the rest, which a program built against an older hocon.h does not know of.
+fn optionsOf(given: ?*const Options) !Options {
+    var options: Options = .{};
+    const g = given orelse return options;
+    // No `size`: the fields set beside it would look read and not be.
+    if (g.size < @sizeOf(usize)) return error.BadOptions;
+    inline for (@typeInfo(Options).@"struct".fields) |f| {
+        if (@offsetOf(Options, f.name) + @sizeOf(f.type) <= g.size) @field(options, f.name) = @field(g, f.name);
+    }
+    return options;
 }
 
 /// The variables of the process we are loaded into, as they are now: a
@@ -787,6 +812,16 @@ test "capi.errors" {
     try testing.expectEqual(.other, hocon_get_int(null, "a", null));
     hocon_free(null);
     hocon_free_string(null);
+}
+
+// A field past the caller's `size` is not read: a program built against an
+// older hocon.h passes a smaller struct, and gets the defaults for what it
+// does not know of. No `size` at all is an error, not options ignored.
+test "capi.options size" {
+    const include = "include \"no-such-burrow.conf\"";
+    try expectRows(&.{.{ "json", "", include, "{}" }}, .{ .env = .none, .include_dir = "." });
+    try expectRows(&.{.{ "json", "", include, "parse IncludeNeedsFile" }}, .{ .size = @offsetOf(Options, "include_dir"), .env = .none, .include_dir = "." });
+    try expectRows(&.{.{ "json", "", include, "other BadOptions" }}, .{ .size = 0, .env = .none, .include_dir = "." });
 }
 
 // The file end to end, as a program reads it: includes next to the file,
