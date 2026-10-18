@@ -351,8 +351,18 @@ name = "hocon-bench-rust"
 version = "0.1.0"
 dependencies = [
  "hocon",
+ "hocon-parser",
  "hocon-rs",
  "serde_json",
+]
+
+[[package]]
+name = "hocon-parser"
+version = "1.14.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c31decd317cf31b637b8971d97aa188ea51e5b13a44bf4e0d4de5652fc7c7442"
+dependencies = [
+ "indexmap",
 ]
 
 [[package]]

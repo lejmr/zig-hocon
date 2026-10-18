@@ -2,11 +2,10 @@
 
     python3 e2e.py <out-dir> <file>...
 
-Times `hocon --json <file>`, the two Rust crates as a command, the typesafe/config Cli
-and the `pyhocon` tool from
-process start to exit, output to /dev/null — start-up, reading, parsing,
-printing JSON, everything a user waits for. Writes <out-dir>/e2e-{zig,java,py}.tsv
-(and e2e-hocon-rs, e2e-hocon) in the format table.py reads. Each cell is the median of runs until two seconds
+Times `hocon --json <file>`, the Rust crates as a command, the typesafe/config Cli
+and the `pyhocon` tool from process start to exit, output to /dev/null — start-up, reading, parsing,
+printing JSON, everything a user waits for. Writes <out-dir>/e2e-<name>.tsv
+per command in the format table.py reads. Each cell is the median of runs until two seconds
 have passed and at least five are in; a run over 30 s is kept alone. Sizes are
 meant to grow geometrically, so once the last two runs say the next one would
 take over two minutes, the rest are skipped for that command.
@@ -25,8 +24,9 @@ commands = {
     "zig": lambda f: ["zig-out/bin/hocon", "--json", f],
     "hocon-rs": lambda f: [rust, "hocon-rs", f],
     "hocon": lambda f: [rust, "hocon", f],
+    "rs.hocon": lambda f: [rust, "rs.hocon", f],
     "java": lambda f: [java, "-cp", "{}:{}/classes".format(jar, out), "Cli", f],
-    "py": lambda f: ["tools/oracle/venv/bin/pyhocon", "-i", f, "-f", "json"],
+    "pyhocon": lambda f: ["zig-out/bench-py/bin/pyhocon", "-i", f, "-f", "json"],
 }
 
 for name, cmd in commands.items():

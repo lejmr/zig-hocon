@@ -1,10 +1,10 @@
 //! In-process parse times, the Rust side of tools/bench/run.sh.
 //!
-//!   rust-bench <hocon-rs|hocon> <file>...
+//!   rust-bench <hocon-rs|hocon|rs.hocon> <file>...
 //!
 //! Prints `<file>\t<median ns>\t<runs>\t<first ns>` per file: the first run on
 //! its own, then runs until a second has passed and at least five are in. A
-//! first run over 30 s is reported alone rather than repeated. The JSON conversion is
+//! first run over 10 s is reported alone rather than repeated. The JSON conversion is
 //! not timed, only the crate's own parse and resolve.
 use std::time::Instant;
 
@@ -19,6 +19,9 @@ fn main() {
                 "hocon-rs" => {
                     std::hint::black_box(hocon_rs::Config::parse_str::<hocon_rs::Value>(&text, None).expect("parse"));
                 }
+                "rs.hocon" => {
+                    std::hint::black_box(rs_hocon::parse(&text).expect("parse"));
+                }
                 _ => {
                     let l = hocon::HoconLoader::new().strict().load_str(&text).expect("parse");
                     std::hint::black_box(l.hocon().expect("resolve"));
@@ -27,7 +30,7 @@ fn main() {
             start.elapsed().as_nanos()
         };
         let first = run();
-        if first > 30_000_000_000 {
+        if first > 10_000_000_000 {
             println!("{}\t{}\t1\t{}", path, first, first);
             continue;
         }

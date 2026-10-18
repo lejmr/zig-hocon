@@ -1,5 +1,6 @@
-# The two Rust HOCON crates, for tools/bench/run.sh. Same versions as the Rust
-# oracle on the oracle-corpus branch.
+# The Rust HOCON crates, for tools/bench/run.sh. hocon-rs and hocon: the same
+# versions as the Rust oracle on the oracle-corpus branch; rs-hocon is
+# o3co/rs.hocon.
 [package]
 name = "hocon-bench-rust"
 version = "0.1.0"
@@ -9,6 +10,7 @@ publish = false
 [dependencies]
 hocon-rs = "0.2"
 hocon = "0.9"
+rs-hocon = { package = "hocon-parser", version = "=1.14.2" }
 serde_json = "1"
 
 [profile.release]

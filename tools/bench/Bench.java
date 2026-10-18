@@ -5,7 +5,7 @@
 // Prints `<file>\t<median ns>\t<runs>\t<first ns>` per file. The first parse is
 // timed on its own, with the JIT still cold; then two seconds of warm-up, so the
 // parser is compiled before the median is taken over runs until a second has
-// passed and at least five are in.
+// passed and at least five are in. A first parse over 10 s is reported alone.
 import com.typesafe.config.ConfigFactory;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -21,6 +21,10 @@ public class Bench {
             long firstStart = System.nanoTime();
             sink += ConfigFactory.parseString(text).resolve().root().size();
             long first = System.nanoTime() - firstStart;
+            if (first > 10_000_000_000L) {
+                System.out.println(path + "\t" + first + "\t1\t" + first);
+                continue;
+            }
             long warmUntil = System.nanoTime() + 2_000_000_000L;
             while (System.nanoTime() < warmUntil) sink += ConfigFactory.parseString(text).resolve().root().size();
 
