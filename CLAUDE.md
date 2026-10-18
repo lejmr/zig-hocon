@@ -8,11 +8,17 @@ Issues live in GitHub Issues for lejmr/zig-hocon, managed via the `gh` CLI. See 
 
 Default five-role vocabulary: needs-triage, needs-info, ready-for-agent, ready-for-human, wontfix. See `docs/agents/triage-labels.md`.
 
-The maintainer writes all implementation (`src/`) by hand, so implementation issues get `ready-for-human`. Reserve `ready-for-agent` for tests, tooling (`tools/`, `conformance/`) and docs.
+Issues that are fully specified get `ready-for-agent`, whatever they touch; `ready-for-human` is for what needs the maintainer's decision first, `c/` and `python/` included.
 
-### Domain docs
+## c/ and python/ are what users build on
 
-Single-context: one `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+`c/hocon.h` and the `zig_hocon` package are contracts with people we never hear from: a C program compiled against the header, a service on pyhocon that switched its import. Keep every existing call working as it did:
+
+- `c/`: no change at all without talking it through with the maintainer first. The header's comments are the C documentation and say what the code does; `src/capi.zig`'s header test stays green.
+- `python/`: the package interface counts as much as the API: `pip install zig-hocon`, the module names, `python -m zig_hocon` and its flags, the Python versions and platforms the wheels cover, the metadata in `pyproject.toml`. Talk a change to any of it through with the maintainer first. Python keeps pyhocon's names and behaviour where it has them; a difference goes into `python/MIGRATING.md`.
+- Add, never rename or remove: a changed signature, struct layout, enum value or default breaks someone's build or behaviour without a word.
+- The tests in `c/tests/`, `python/tests/` and `python/examples/` are the users' side of the contract: they stay as they are and pass on every change. A red one means the change is wrong, never the test; only the maintainer edits them. New tests may be added.
+- `zig build test-python` stays at 100 % coverage, and a user-visible change gets a CHANGELOG.md line.
 
 ## Branches and agent worktrees
 
@@ -28,5 +34,5 @@ When asked to rebase an agent branch onto another one:
 2. Uncommitted agent work gets committed first — one commit per conformance suite section where it splits cleanly. `.idea/` and stray files like `test.conf` stay out.
 3. Resolve conflicts by keeping the lower branch's logic and porting the upper branch's feature onto it. Code the lower branch made obsolete goes; tests it made wrong are rewritten to the new behaviour, with the reason in a comment.
 4. Generated files (`conformance/reports/`, the `conformance:start` block in `README.md`, `conformance/report.html`) take the lower branch's version on conflict. Regenerate them by running `sh tools/hooks/pre-push` after committing; it measures HEAD and amends the results in.
-5. Done when: `zig build test` is green, `zig fmt --check src` is clean, `conformance/run.sh --spec` and `--java` are at least the lower branch's score, and every error the stack introduces has a caret test (once #5 is in the stack).
+5. Done when: `zig build test` is green, `zig fmt --check src` is clean, `conformance/run.sh --spec` and `--java` are at least the lower branch's score, and every error the stack introduces has a caret test.
 6. Move the agent's branch onto the result with `git -C <agent worktree> reset --keep <new tip>`, then remove the scratch worktree and the copy branch.
