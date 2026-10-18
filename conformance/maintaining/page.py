@@ -129,7 +129,7 @@ td.out:hover, td.out:focus { outline: 1px solid var(--accent); outline-offset: -
     <button class="mode" data-mode="java" aria-pressed="false">typesafe/config</button>
   </div>
 
-  <div class="scores" id="scores"></div>
+  <div class="scores" id="scores">__SCORES__</div>
 
   <section class="drop" id="drop">
     <label for="pick"><b>Add your own result</b></label>
@@ -320,8 +320,34 @@ render();
 """
 
 
+# The page is written already rendered in spec mode, so it reads without
+# JavaScript (a phone's file preview runs none); the script redraws it per mode.
+def _cell(v):
+    if v == "review":
+        return '<span class="tag review">open</span>'
+    return '<span class="tag pass">pass</span>' if v == "pass" else '<span class="tag fail">fail</span>'
+
+
 def _cells(row, impls):
-    return "".join('<td class="v" data-v=\'{}\'></td>'.format(json.dumps(row["v"][i])) for i in impls)
+    return "".join('<td class="v" data-v=\'{}\'>{}</td>'.format(json.dumps(row["v"][i]), _cell(row["v"][i]["spec"]))
+                   for i in impls)
+
+
+def _score(rows, impl):
+    return sum(r["v"][impl]["spec"] == "pass" for r in rows), len(rows)
+
+
+def _scores(impls, sections, versions):
+    rows = [r for s in sections for r in s["rows"]]
+    cards = []
+    for i in impls:
+        ok, n = _score(rows, i)
+        pct = round(100 * ok / n) if n else 0
+        cards.append('<div class="score"><div class="impl">{0}</div><div class="pct num">{1}%</div>'
+                     '<div class="of num">{2} of {3} rows</div><div class="of num">{4}</div>'
+                     '<div class="bar"><i style="width:{1}%"></i></div></div>'.format(
+                         esc.escape(i), pct, ok, n, esc.escape(versions[i])))
+    return "".join(cards)
 
 
 def build(impls, sections, split_rows, lede, versions, digest):
@@ -350,12 +376,15 @@ def build(impls, sections, split_rows, lede, versions, digest):
         rows.append("</tbody></table>")
         out.append('<details><summary><span class="name">{}</span>'
                    '<span class="note num">{} cases</span>'
-                   '<span class="tally num" data-tally="{}"></span></summary>'
+                   '<span class="tally num" data-tally="{}">{}</span></summary>'
                    '<div class="scroll">{}</div></details>'.format(
-                       esc.escape(sec["name"]), len(sec["rows"]), n, "".join(rows)))
+                       esc.escape(sec["name"]), len(sec["rows"]), n,
+                       " · ".join("{} {}/{}".format(esc.escape(i), *_score(sec["rows"], i)) for i in impls),
+                       "".join(rows)))
 
     total = sum(len(s["rows"]) for s in sections)
     return (PAGE.replace("__DATA__", json.dumps({"impls": impls, "sections": sections, "versions": versions, "digest": digest}))
+                .replace("__SCORES__", _scores(impls, sections, versions))
                 .replace("__SECTIONS__", "".join(out))
                 .replace("__SPLIT__", "".join(split))
                 .replace("__SPLITCOUNT__", str(len(split_rows)))
