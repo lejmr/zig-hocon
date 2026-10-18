@@ -213,7 +213,8 @@ b.step("check-config", "Check the config against Config").dependOn(&check.step);
 |---|---|---|
 | Java <sub>typesafe/config 1.4.9</sub> | 90% (399/445) | 99% (442/445) |
 | pyhocon <sub>pyhocon 0.3.63</sub> | 70% (312/445) | 66% (295/445) |
-| zig-hocon <sub>zig-hocon code@b508d21</sub> | 99% (442/445) | 90% (399/445) |
+| rs.hocon <sub>hocon-parser 1.14.2</sub> | 89% (395/445) | 86% (383/445) |
+| zig-hocon <sub>zig-hocon code@0083ac9</sub> | 99% (442/445) | 90% (399/445) |
 
 <!-- conformance:end -->
 
