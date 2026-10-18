@@ -198,6 +198,20 @@ pub fn build(b: *std.Build) void {
     );
     test_step.dependOn(&run_c_test.step);
 
+    // c/tests/timeout_test.c: an http include from a server that never answers
+    // fails in `http_timeout_ms`.
+    const c_timeout_test = b.addExecutable(.{
+        .name = "hocon-c-timeout-test",
+        .root_module = b.createModule(.{ .target = target, .optimize = optimize, .link_libc = true }),
+    });
+    c_timeout_test.root_module.addCSourceFile(.{ .file = b.path("c/tests/timeout_test.c"), .flags = &.{ "-std=c99", "-Wall", "-Wextra", "-Werror" } });
+    c_timeout_test.root_module.addIncludePath(b.path("c"));
+    c_timeout_test.root_module.linkLibrary(lib);
+    if (target.result.os.tag == .windows) c_timeout_test.root_module.linkSystemLibrary("ws2_32", .{});
+    const run_c_timeout_test = runCli(b, c_timeout_test);
+    run_c_timeout_test.expectStdOutEqual("IncludeTimeout in time\n");
+    test_step.dependOn(&run_c_timeout_test.step);
+
     // The real binary on a directory with nested includes: main.conf includes
     // sub/defaults.conf, which includes inner.conf from its own directory, and
     // main.conf's own port comes after the include and wins.

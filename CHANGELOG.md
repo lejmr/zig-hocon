@@ -2,6 +2,17 @@
 
 What changed for someone using zig-hocon: the Zig package, the `hocon` command line tool, libhocon for C and the `zig-hocon` Python package, which are released together under one version. The technical detail is in the commits each release links to.
 
+## [Unreleased]
+
+### Added
+
+- An http(s) include from C and Python gives up after 30 s, or the time you give: `http_timeout_ms` in `hocon_options`, `http_timeout=` (a `timedelta` or seconds) on `parse_file` and `parse_string`. It fails with `IncludeTimeout`; until now a server that never answered held the parse for ever.
+
+### Changed
+
+- `hocon_options` starts with `size_t size`, which you set to `sizeof(hocon_options)`: the library reads the fields that fit in it and takes the defaults for the rest, so a program built against this header keeps working with a later library that adds fields. Options filled in order, `{HOCON_ENV_MAP, vars, true, NULL}`, become `{sizeof(hocon_options), HOCON_ENV_MAP, vars, true, NULL, 0}`; a size of 0 is `HOCON_ERR_OTHER`. Rebuild against the new `hocon.h`.
+- A parse in libhocon sets SIGIO and SIGPIPE to a handler that does nothing, and leaves them so: it wakes its own fetch thread with SIGIO when the time is up.
+
 ## [0.4.0] - 2026-10-18
 
 HOCON from C and Python, on Linux, macOS and Windows.
