@@ -10,6 +10,10 @@ Default five-role vocabulary: needs-triage, needs-info, ready-for-agent, ready-f
 
 Issues that are fully specified get `ready-for-agent`, whatever they touch; `ready-for-human` is for what needs the maintainer's decision first, `c/` and `python/` included.
 
+## Writing docs
+
+In `.md` files a paragraph or a list item is one line, however long; the editor wraps it.
+
 ## c/ and python/ are what users build on
 
 `c/hocon.h` and the `zig_hocon` package are contracts with people we never hear from: a C program compiled against the header, a service on pyhocon that switched its import. Keep every existing call working as it did:
