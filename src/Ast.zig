@@ -1216,7 +1216,7 @@ test "include.may not begin a key path" {
 
 // Parked rather than commented out: `if (true) return error.SkipZigTest` leaves
 // the body compiling, so it cannot rot when something around it is renamed, and
-// `tools/zt` lists it as a todo instead of it silently vanishing from the run.
+// the test runner counts it as skipped instead of it silently vanishing from the run.
 //
 // The keyword commits — it is recognised from the first token where a member
 // begins, in `parseContainer`, rather than matched against the parts afterwards.
