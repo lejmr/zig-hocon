@@ -1,7 +1,7 @@
 {
   "suite": "hocon-conformance",
   "implementation": "rs.hocon",
-  "version": "hocon-parser 1.14.2",
+  "version": "hocon-parser 1.14.2 (Rust)",
   "mode": "spec",
   "command": "a cargo binary over the hocon-parser crate 1.14.2 (o3co/rs.hocon): hocon::parse_file, the tree as JSON",
   "ran_at": "2026-10-18T17:53:27Z",

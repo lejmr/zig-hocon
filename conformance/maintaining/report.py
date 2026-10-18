@@ -256,7 +256,8 @@ def main(argv):
         + ["| {} <sub>{}</sub> | {} | {} |".format(i, runs[i]["version"], score(i, "spec"),
                                                   " | ".join(score(i, m) for m in java_modes))
            for i in impls]
-        + ["", END])
+        + ["", "The table keeps the best parsers; the others measured, and why they are not in it: "
+               "[conformance/README.md](conformance/README.md#not-in-the-table).", "", END])
     text = README.read_text()
     if START not in text or END not in text:
         sys.exit("README.md has no {} … {} block to fill".format(START, END))

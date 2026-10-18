@@ -97,6 +97,16 @@ python3 conformance/maintaining/report.py          # re-render from reports/
 
 Drop your own result into `reports/` and the local report picks it up.
 
+## Not in the table
+
+The published table keeps the best parsers: every Python parser of its own above 70 % against the spec, and the best Rust one. These were measured too and left out:
+
+- **hocon-rs 0.2.0** (Rust, mikai233/hocon-rs): 84 % against the spec, behind rs.hocon.
+- **hocon 0.9.0** (Rust, mockersf/hocon.rs): 71 % with its strict loader, 58 % with the default one, which never fails; the repository is archived since 2023, and non-ASCII whitespace makes it panic.
+- **hocon_** (Rust, pepa65): a republished fork of hocon 0.9.0, not measured on its own.
+- **pyhocon-fix 0.0.4** (Python, 2018) and **dd-pyhocon 0.3.61** (Python, 2023): forks of pyhocon, 71 % and 70 %, within two cases of it; dd-pyhocon hangs on one merge-stack case.
+- Not parsers of their own: `hocon` 0.3.0, `hocon-validator`, `pytyped-hocon`, `pyhocon-dantic` and `dataconf` wrap pyhocon; `atomr` (Rust/PyO3) builds its `Config` from TOML or a dict and parses no HOCON; chris-martin/hocon-python (2015) is an unfinished port of typesafe/config.
+
 ## Reusing this
 
 BSD 3-Clause, like the rest of the repository. Vendor the directory, keep the licence, and tell us what broke — a case that is wrong about the spec is worth more to us as a bug report than a passing score is.
