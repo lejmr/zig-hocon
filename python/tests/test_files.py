@@ -162,7 +162,7 @@ def test_getter_errors_with_place(conf_dir):
     with pytest.raises(ConfigWrongTypeException) as e:
         prod.get_int("app.db.pool")
     assert str(e.value) == (
-        f"{conf_dir}/prod/../defaults.conf:7:33: InvalidCharacter at app.db.pool: expected i64\n"
+        f"{conf_dir / 'prod'}/../defaults.conf:7:33: InvalidCharacter at app.db.pool: expected i64\n"
         "  db { host = localhost, pool = four }\n"
         "                                ^"
     )

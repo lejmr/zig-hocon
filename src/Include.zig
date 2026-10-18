@@ -6,6 +6,7 @@
 //! substitutions wait for the finished document, so an included file sees keys
 //! that are defined after the include, in the including file.
 const std = @import("std");
+const builtin = @import("builtin");
 const Allocator = std.mem.Allocator;
 const Node = @import("Ast.zig").Node;
 const Ast = @import("Ast.zig");
@@ -89,7 +90,10 @@ pub fn load(gpa: Allocator, node: Node, ctx: Value.Context) values.Error!Value {
             // Beside the file it was written in: a path, or a URL on the same server.
             if (ctx.base_url) |base| break :blk .{ .remote = try resolveUrl(gpa, base, name) };
             if (std.fs.path.isAbsolute(name)) break :blk .{ .local = name };
-            break :blk .{ .local = try std.fs.path.join(gpa, &.{ ctx.dir, name }) };
+            // Joined with `/`, which Windows reads too: an error names the
+            // file as it was written, on every system.
+            if (ctx.dir.len == 0) break :blk .{ .local = name };
+            break :blk .{ .local = try std.fmt.allocPrint(gpa, "{s}/{s}", .{ ctx.dir, name }) };
         },
         // `file("…")` is not relative to the including file, but to wherever the
         // process is: the path is used as written.
@@ -161,7 +165,10 @@ fn urlTarget(gpa: Allocator, url: []const u8) values.Error!Target {
     // host other than localhost if that ever misleads someone.
     const uri = try std.Uri.parse(url);
     // `%20` in a URL is a space in the file name.
-    return .{ .local = try uri.path.toRawMaybeAlloc(gpa) };
+    const path = try uri.path.toRawMaybeAlloc(gpa);
+    // `file:///C:/x.conf` is `C:/x.conf` on Windows (RFC 8089).
+    if (builtin.os.tag == .windows and path.len >= 3 and path[0] == '/' and std.ascii.isAlphabetic(path[1]) and path[2] == ':') return .{ .local = path[1..] };
+    return .{ .local = path };
 }
 
 // ponytail: the name is used as written; a character a URL may not hold (a space) is
@@ -496,14 +503,18 @@ fn loadFixtures(arena: Allocator, files: []const Fixture, options: Config.ParseO
     var tmp = testing.tmpDir(.{});
     defer tmp.cleanup();
     const rel = try std.fmt.allocPrint(arena, ".zig-cache/tmp/{s}", .{tmp.sub_path});
-    const abs = try tmp.dir.realPathFileAlloc(testing.io, ".", arena);
+    // With `/`, so it can stand in a quoted string: `\` would be an escape there.
+    const abs = try std.mem.replaceOwned(u8, arena, try tmp.dir.realPathFileAlloc(testing.io, ".", arena), "\\", "/");
+    // The path of a `file:` URL starts with `/`, before a drive letter too.
+    const abs_url = if (abs[0] == '/') abs else try std.fmt.allocPrint(arena, "/{s}", .{abs});
     for (files) |f| {
         if (std.fs.path.dirname(f.path)) |sub| try tmp.dir.createDirPath(testing.io, sub);
-        const with_abs = try std.mem.replaceOwned(u8, arena, f.text, "{abs}", abs);
+        const with_url = try std.mem.replaceOwned(u8, arena, f.text, "{abs_url}", abs_url);
+        const with_abs = try std.mem.replaceOwned(u8, arena, with_url, "{abs}", abs);
         const text = try std.mem.replaceOwned(u8, arena, with_abs, "{rel}", rel);
         try tmp.dir.writeFile(testing.io, .{ .sub_path = f.path, .data = text });
     }
-    const main = try std.fs.path.join(arena, &.{ rel, files[0].path });
+    const main = try std.fmt.allocPrint(arena, "{s}/{s}", .{ rel, files[0].path });
     return Config.parseFromFileLeaky(Value, arena, testing.io, main, options);
 }
 
@@ -561,7 +572,7 @@ test "include.absolute and file() paths do not start at the including file" {
 // https are fetched (see "include.http"). pyhocon: `file:` is not understood.
 test "include.a file URL is a path" {
     try expectJson(&.{
-        .{ .path = "main.conf", .text = "include \"file:{abs}/x.conf\"\ninclude url(\"file://{abs}/y.conf\")\ninclude \"FILE://{abs}/z%20z.conf\"" },
+        .{ .path = "main.conf", .text = "include \"file:{abs_url}/x.conf\"\ninclude url(\"file://{abs_url}/y.conf\")\ninclude \"FILE://{abs_url}/z%20z.conf\"" },
         .{ .path = "x.conf", .text = "x = 1" },
         .{ .path = "y.conf", .text = "y = 2" },
         .{ .path = "z z.conf", .text = "z = 3" },

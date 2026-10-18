@@ -118,6 +118,11 @@ pub const Config = struct {
 
     /// The file at `path`, parsed. `keep` is what the diagnostics copy with.
     fn readSource(comptime T: type, allocator: Allocator, keep: Allocator, io: std.Io, path: []const u8, options: ParseOptions) !T {
+        // "" is the working directory to Windows, and no file anywhere.
+        if (path.len == 0) {
+            noPlace(options, error.FileNotFound);
+            return error.FileNotFound;
+        }
         // The text stays in the arena: the values point into it.
         const source = std.Io.Dir.cwd().readFileAllocOptions(io, path, allocator, .limited(Include.max_file_size), .of(u8), 0) catch |err| {
             noPlace(options, err);

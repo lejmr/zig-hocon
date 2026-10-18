@@ -90,5 +90,5 @@ def test_a_subtree_trims_what_the_library_trims():
 # platform's library, which is never there.
 def test_no_library(monkeypatch):
     monkeypatch.setattr(sys, "platform", "darwin" if sys.platform == "win32" else "win32")
-    with pytest.raises(ImportError, match=r"zig_hocon: cannot load .*hocon\.dll.*`zig build python` puts it there"):
+    with pytest.raises(ImportError, match=r"zig_hocon: cannot load .*(hocon\.dll|libhocon\.dylib).*`zig build python` puts it there"):
         _capi._load()

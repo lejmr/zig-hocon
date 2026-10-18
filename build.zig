@@ -587,6 +587,8 @@ pub fn build(b: *std.Build) void {
         .{ .schema = "nope.zig:Config", .err = "error: nope.zig: FileNotFound\n" },
         .{ .schema = "config.zig:Config", .cache = "/dev/null", .err = "error: --schema writes its cache in /dev/null: NotDir\n" },
     }) |row| {
+        // Windows has no /dev/null: there the cache is simply made.
+        if (row.cache.len != 0 and b.graph.host.result.os.tag == .windows) continue;
         const run_bad = runSchema(b, exe, home, row.schema);
         run_bad.addArg("loud.conf");
         run_bad.setEnvironmentVariable("XDG_CACHE_HOME", row.cache);

@@ -7,6 +7,11 @@
 
 #include "hocon.h"
 
+#ifdef _WIN32
+#include <fcntl.h>
+#include <io.h>
+#endif
+
 static const char *code_name(int code) {
     switch (code) {
     case HOCON_OK: return "HOCON_OK";
@@ -18,6 +23,10 @@ static const char *code_name(int code) {
 
 int main(int argc, char **argv) {
     if (argc != 3) return 2;
+#ifdef _WIN32
+    /* "\n" stays "\n": the build compares the output byte for byte. */
+    _setmode(_fileno(stdout), _O_BINARY);
+#endif
     const char *vars[] = {"BADGER_PORT=9090", NULL};
     hocon_options opts = {HOCON_ENV_MAP, vars, true, NULL};
     hocon_error err = {0};

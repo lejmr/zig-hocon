@@ -327,7 +327,14 @@ fn checkSchema(init: std.process.Init, schema: []const u8, env: Env, files: []co
     try argv.appendSlice(arena, &.{ "--", if (env == .process and zig_exe != null) try std.fmt.allocPrint(arena, "process={s}", .{zig_exe.?}) else @tagName(env) });
     try argv.appendSlice(arena, files);
     const err = std.process.replace(init.io, .{ .argv = argv.items });
-    std.process.fatal("--schema runs zig, from the PATH: {t}", .{err});
+    if (err != error.OperationUnsupported) std.process.fatal("--schema runs zig, from the PATH: {t}", .{err});
+    // Windows has no exec: zig runs as a child, and its exit code is ours.
+    var child = std.process.spawn(init.io, .{ .argv = argv.items }) catch |e| std.process.fatal("--schema runs zig, from the PATH: {t}", .{e});
+    const term = child.wait(init.io) catch |e| std.process.fatal("--schema runs zig, from the PATH: {t}", .{e});
+    std.process.exit(switch (term) {
+        .exited => |code| code,
+        else => 1,
+    });
 }
 
 /// `Config`, `config.App`: names joined by dots, each one Zig could declare.
