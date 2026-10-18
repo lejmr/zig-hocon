@@ -40,6 +40,10 @@ jobs:
           - { os: macos-latest, wheel: "*macosx*arm64.whl" }
           - { os: macos-15-intel, wheel: "*macosx*x86_64.whl" }
           - { os: windows-latest, wheel: "*win_amd64.whl" }
+          # Free-threaded: no GIL to hide a race between threads on one
+          # document. PyPy: ctypes, no CPython C API, so the same wheel works.
+          - { os: ubuntu-latest, python: "3.14t", wheel: "*manylinux*x86_64.whl" }
+          - { os: ubuntu-latest, python: "pypy3.11", wheel: "*manylinux*x86_64.whl" }
     runs-on: ${{ matrix.os }}
     defaults:
       run:

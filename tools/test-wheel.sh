@@ -14,12 +14,21 @@ trap 'rm -rf "$tmp"' EXIT
 uv venv -q --python "$version" "$tmp/venv"
 py=$tmp/venv/bin/python
 [ -x "$py" ] || py=$tmp/venv/Scripts/python.exe
-uv pip install -q --python "$py" "$wheel" pytest pydantic msgspec
+# The examples read into pydantic and msgspec, and msgspec has no build for
+# PyPy or a free-threaded Python: there only the package's tests run.
+case $version in
+    pypy* | *t) examples=no; uv pip install -q --python "$py" "$wheel" pytest ;;
+    *) examples=yes; uv pip install -q --python "$py" "$wheel" pytest pydantic msgspec ;;
+esac
 
 # From elsewhere, so nothing imports python/zig_hocon by accident.
 cd "$tmp"
 "$py" -c 'import sys, zig_hocon; print(sys.version.split()[0], zig_hocon.__file__); assert "site-packages" in zig_hocon.__file__'
 "$py" -m pytest -q -p no:cacheprovider "$root/python/tests"
+if [ $examples = no ]; then
+    echo "examples left out: no msgspec for Python $version"
+    exit 0
+fi
 # One run each: every example has its own models_pydantic.py.
 for example in "$root"/python/examples/*/; do
     "$py" -m pytest -q -p no:cacheprovider "$example"
