@@ -112,7 +112,7 @@ settings["db"]["host"]
   into a `timedelta` while it parses; here `as_dict()` has `"30s"`, and
   `get_duration` or the model converts it. With pydantic, a
   `BeforeValidator(zig_hocon.parse_duration)` on the field;
-  [examples/durations-and-sizes](../examples/durations-and-sizes) has it for
+  [examples/durations-and-sizes](examples/durations-and-sizes) has it for
   pydantic and msgspec.
 - **A concatenation is a string.** `a = ${?nope}42` is `"42"` by the spec;
   pyhocon gives the number `42`. A model that wants an int converts it.
@@ -146,5 +146,5 @@ for path in sys.argv[1:]:
 ```
 
 A duration shows as a difference by design: pyhocon has a `timedelta`,
-zig_hocon the text `"30s"`. The [examples](../examples) show how a model
+zig_hocon the text `"30s"`. The [examples](examples) show how a model
 reads it, with pydantic, msgspec and dataclasses.

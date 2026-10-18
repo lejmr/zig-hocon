@@ -171,7 +171,7 @@ for record in records:
     # the contested rows are worth keeping verbatim: a report wants to show what
     # each implementation actually did, not only whether it agreed
     if "java" in meta or "review" in meta:
-        outputs[rel] = "rejected" if status != "0" else out.strip()[:120]
+        outputs[rel] = "rejected" if status != "0" else out.strip()
     tally = sections.setdefault(name, {"total": 0, "passed": 0})
     tally["total"] += 1
     tally["passed"] += ok

@@ -21,6 +21,6 @@ cd "$tmp"
 "$py" -c 'import sys, zig_hocon; print(sys.version.split()[0], zig_hocon.__file__); assert "site-packages" in zig_hocon.__file__'
 "$py" -m pytest -q -p no:cacheprovider "$root/python/tests"
 # One run each: every example has its own models_pydantic.py.
-for example in "$root"/examples/*/; do
+for example in "$root"/python/examples/*/; do
     "$py" -m pytest -q -p no:cacheprovider "$example"
 done

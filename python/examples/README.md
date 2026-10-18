@@ -10,7 +10,7 @@ From a clone of the repository:
 
 ```sh
 pip install zig-hocon pydantic msgspec pytest
-cd examples/layered-service
+cd python/examples/layered-service
 pytest
 ```
 
@@ -54,4 +54,4 @@ Two things every example deals with:
   give the field a type of their own and convert it in a `dec_hook`.
 
 Coming from pyhocon, where `30s` is already a `timedelta`: the
-[migration guide](../python/MIGRATING.md) lists every difference.
+[migration guide](../MIGRATING.md) lists every difference.

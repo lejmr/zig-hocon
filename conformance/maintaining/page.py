@@ -109,6 +109,11 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--rule)
 .score.local { border-style: dashed; }
 .score .local-tag { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); }
 #dropmsg.bad { color: var(--fail); }
+td.out { cursor: default; }
+td.out:hover, td.out:focus { outline: 1px solid var(--accent); outline-offset: -1px; }
+.d-add { background: var(--pass-bg); color: var(--pass); border-radius: 3px; }
+.d-del { background: var(--fail-bg); color: var(--fail); border-radius: 3px; text-decoration: line-through; }
+.d-chg { background: var(--open-bg); color: var(--open); border-radius: 3px; }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 </style>
 
@@ -142,7 +147,8 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--rule)
       <span class="note">__SPLITCOUNT__ of __TOTAL__ rows. Everywhere else they ask the same question.</span>
     </div>
     <div class="scroll">__SPLIT__</div>
-    <p class="note" style="padding:0 10px 10px">Each column is what that implementation actually returns. The spec column is the bar being scored; Java's is, by definition, the other one.</p>
+    <p class="note" style="padding:0 10px 10px">Each column is what that implementation actually returns, keys in the spec's order. The spec column is the bar being scored; Java's is, by definition, the other one.
+    Hover over a result to compare it with the spec: <span class="d-add">green</span> is only in the result, <span class="d-del">red</span> only in the spec, <span class="d-chg">yellow</span> differs.</p>
   </section>
 
   <section>
@@ -247,6 +253,61 @@ document.getElementById("pick").addEventListener("change", e => {
   for (const f of e.target.files) f.text().then(t => adopt(t, f.name));
 });
 
+// The disagree table: every result is drawn in the spec's key order, so rows line
+// up by eye; hovering one marks how it differs from the spec, in both cells.
+const NONE = Symbol("none");
+const parse = s => { try { return JSON.parse(s); } catch (e) { return NONE; } };   // "rejected", "—"
+const isObj = v => v !== null && typeof v === "object" && !Array.isArray(v);
+const h = s => s.replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"})[c]);
+const mark = (cls, s) => cls ? `<span class="${cls}">${s}</span>` : s;
+// `v` drawn against its counterpart `o`; `only` is the class for what has no
+// counterpart (d-add on the result's side, d-del on the spec's); null draws plain
+function draw(v, o, only) {
+  if (isObj(v)) {
+    const ok = isObj(o), keys = Object.keys(v);
+    if (ok) keys.sort((a, b) => (a in o ? 0 : 1) - (b in o ? 0 : 1) ||
+                                (Object.keys(o).indexOf(a) - Object.keys(o).indexOf(b)));
+    if (!ok && o !== undefined && only) return mark("d-chg", h(JSON.stringify(v)));
+    return "{" + keys.map(k => {
+      const kv = h(JSON.stringify(k)) + ":";
+      if (ok && !(k in o)) return mark(only, kv + h(JSON.stringify(v[k])));
+      return kv + draw(v[k], ok ? o[k] : undefined, only);
+    }).join(",") + "}";
+  }
+  if (Array.isArray(v)) {
+    const ok = Array.isArray(o);
+    if (!ok && o !== undefined && only) return mark("d-chg", h(JSON.stringify(v)));
+    return "[" + v.map((x, i) => ok && i >= o.length ? mark(only, h(JSON.stringify(x)))
+                                                     : draw(x, ok ? o[i] : undefined, only)).join(",") + "]";
+  }
+  const same = o === undefined || JSON.stringify(v) === JSON.stringify(o);
+  return mark(same || !only ? "" : "d-chg", h(JSON.stringify(v)));
+}
+function cellHTML(raw, other, only) {
+  const v = parse(raw), o = other === undefined ? undefined : parse(other);
+  if (v === NONE) return mark(only && o !== undefined && raw !== other ? "d-chg" : "", h(raw));
+  if (o === NONE) return mark(only ? "d-chg" : "", h(JSON.stringify(v)));
+  return draw(v, o, only);
+}
+for (const spec of document.querySelectorAll("td.spec")) {
+  const specRaw = spec.dataset.j;
+  const plain = () => {
+    spec.innerHTML = parse(specRaw) === NONE ? "rejects" : cellHTML(specRaw);
+    for (const td of spec.parentElement.querySelectorAll("td.out")) td.innerHTML = cellHTML(td.dataset.j, specRaw, null);
+  };
+  plain();
+  for (const td of spec.parentElement.querySelectorAll("td.out")) {
+    const on = () => {
+      plain();
+      spec.innerHTML = parse(specRaw) === NONE ? mark(td.dataset.j === "rejected" ? "" : "d-chg", "rejects")
+                                               : cellHTML(specRaw, td.dataset.j, "d-del");
+      td.innerHTML = cellHTML(td.dataset.j, specRaw, "d-add");
+    };
+    td.addEventListener("mouseenter", on); td.addEventListener("focus", on);
+    td.addEventListener("mouseleave", plain); td.addEventListener("blur", plain);
+  }
+}
+
 for (const b of document.querySelectorAll("button.mode")) {
   b.addEventListener("click", () => {
     mode = b.dataset.mode;
@@ -269,11 +330,14 @@ def build(impls, sections, split_rows, lede, versions, digest):
     split = ['<table><thead><tr><th>input</th><th>the spec requires</th>{}</tr></thead>'
              '<tbody>'.format(head)]
     for r in split_rows:
-        got = "".join('<td class="mono">{}</td>'.format(esc.escape(r["got"][i])) for i in impls)
+        # data-j carries the raw output for the hover diff; the text is the fallback without JS
+        got = "".join('<td class="mono out" tabindex="0" data-j="{0}">{0}</td>'.format(esc.escape(r["got"][i]))
+                      for i in impls)
+        spec = r["spec_side"]
         split.append('<tr><td class="mono">{}<span class="tag kind">{}</span></td>'
-                     '<td class="mono">{}</td>{}</tr>'.format(
+                     '<td class="mono spec" data-j="{}">{}</td>{}</tr>'.format(
                          esc.escape(r["input"]), esc.escape(r["kind"]),
-                         esc.escape(r["spec_side"]), got))
+                         esc.escape(spec or "rejected"), esc.escape(spec or "rejects"), got))
     split.append("</tbody></table>")
 
     out = []

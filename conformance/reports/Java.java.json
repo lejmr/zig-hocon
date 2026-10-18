@@ -5,7 +5,7 @@
   "mode": "java",
   "java_version": "1.4.9",
   "command": "conformance/adapters/oracle.sh hocon-java",
-  "ran_at": "2026-10-08T05:29:08Z",
+  "ran_at": "2026-10-18T10:10:04Z",
   "suite_digest": "2fe52df92f49aea2",
   "total": 445,
   "passed": 442,

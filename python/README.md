@@ -232,7 +232,7 @@ All three give `settings.db.host == "db.example.org"` and
 `settings.timeout == timedelta(seconds=30)`, and fail with the model's own
 error, path included, on a value of the wrong type. A size works the same way
 through `zig_hocon.parse_bytes`. The
-[examples](https://github.com/lejmr/zig-hocon/tree/main/examples) have these
+[examples](https://github.com/lejmr/zig-hocon/tree/main/python/examples) have these
 as tests, with layered environments, errors and one-file deploys.
 
 ## Building from source

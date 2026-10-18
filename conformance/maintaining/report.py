@@ -187,7 +187,10 @@ def main(argv):
                 "input": suite.encode(case.open(newline="").read()) if not suite.is_dir_case(case)
                          else "{}/ (directory)".format(suite.name_of(case)),
                 "kind": meta["java"],
-                "spec_side": "rejects" if "error" in meta else "`" + json.dumps(meta["expect"]) + "`",
+                # None means the spec rejects the input; otherwise compact JSON,
+                # the same shape the implementations' outputs come in
+                "spec_side": None if "error" in meta else
+                             json.dumps(meta["expect"], separators=(",", ":"), ensure_ascii=False),
                 "got": {i: runs[i]["outputs"].get(key, "—") for i in impls},
             })
 
