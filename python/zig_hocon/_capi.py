@@ -1,5 +1,5 @@
 """libhocon through ctypes: the library next to this file, the structs and
-codes of include/hocon.h, and the types of its functions. Kept to hocon.h by
+codes of c/hocon.h, and the types of its functions. Kept to hocon.h by
 python/tests/test_capi.py."""
 
 import ctypes

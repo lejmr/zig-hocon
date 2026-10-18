@@ -92,7 +92,7 @@
       measures (`conformance/adapters/zig-hocon.sh`). `hocon get` prints one
       value, `hocon check` reads files and with `--schema` into a struct,
       `hocon diff` compares two by path.
-- [x] C API — `include/hocon.h` over `src/capi.zig`: a document behind an
+- [x] C API — `c/hocon.h` over `src/capi.zig`: a document behind an
       opaque handle, getters by path through the same conversions as Zig,
       JSON and HOCON out, every environment mode and `resolve = false`.
       Everything it hands out it frees itself.

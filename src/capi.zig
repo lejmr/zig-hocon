@@ -1,4 +1,4 @@
-//! The C API of `include/hocon.h`: what `zig build lib` builds into libhocon,
+//! The C API of `c/hocon.h`: what `zig build lib` builds into libhocon,
 //! and what the Python package calls through ctypes.
 //!
 //! Thin on purpose. Parsing, paths and conversions are the library's own; this
@@ -856,7 +856,7 @@ test "capi.too deep for JSON" {
     }
 }
 
-// include/hocon.h is written by hand, so nothing but this keeps it true: every
+// c/hocon.h is written by hand, so nothing but this keeps it true: every
 // function it declares is exported here with the same C types, every code and
 // every `HOCON_ENV_…` has the number the enums give it, and both structs have
 // the fields at the same places. A header that drifts fails the build.

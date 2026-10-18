@@ -8,7 +8,7 @@ on:
   workflow_call:
 
 jobs:
-  # The library, the CLI and the C API (tests/c through the C compiler) on each
+  # The library, the CLI and the C API (c/tests through the C compiler) on each
   # system a release ships for.
   test:
     strategy:

@@ -92,7 +92,7 @@ The same package has the other three:
 |---|---|
 | command line tool | `zig build -Doptimize=ReleaseSafe` in a checkout: `zig-out/bin/hocon` |
 | Python | `pip install zig-hocon`, see [python/README.md](python/README.md) |
-| C library | `zig build lib -Doptimize=ReleaseSafe`: `libhocon` and [`hocon.h`](include/hocon.h), whose comments are its documentation |
+| C library | `zig build lib -Doptimize=ReleaseSafe`: `libhocon` and [`hocon.h`](c/hocon.h), whose comments are its documentation |
 
 ## Use
 

@@ -42,7 +42,7 @@ pub fn build(b: *std.Build) void {
     const bench_step = b.step("bench", "Build the parse-speed runner used by tools/bench/run.sh");
     bench_step.dependOn(&b.addInstallArtifact(bench, .{}).step);
 
-    // libhocon: the C API of include/hocon.h (src/capi.zig), a shared library
+    // libhocon: the C API of c/hocon.h (src/capi.zig), a shared library
     // for any -Dtarget — libhocon.so, libhocon.dylib, hocon.dll — and the
     // header, installed with the rest; `zig build lib` builds them alone.
     const capi = b.createModule(.{
@@ -56,7 +56,7 @@ pub fn build(b: *std.Build) void {
     // Debug's UBSan handlers would be exported next to hocon_*, and could
     // clash with a host's own.
     lib.bundle_ubsan_rt = false;
-    lib.installHeader(b.path("include/hocon.h"), "hocon.h");
+    lib.installHeader(b.path("c/hocon.h"), "hocon.h");
     // On Windows hocon.exe and hocon.dll both have a hocon.pdb: the DLL's
     // goes to lib/, or one would overwrite the other in bin/.
     const install_lib = b.addInstallArtifact(lib, .{ .pdb_dir = if (lib.producesPdbFile()) .{ .override = .lib } else .default });
@@ -158,7 +158,7 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(&b.addRunArtifact(exe_tests).step);
 
     // The C API called from Zig with C's types (src/capi.zig's tests), with
-    // include/hocon.h translated to Zig, so a test holds the header to the code…
+    // c/hocon.h translated to Zig, so a test holds the header to the code…
     const capi_tests = b.createModule(.{
         .root_source_file = b.path("src/capi.zig"),
         .target = target,
@@ -166,24 +166,24 @@ pub fn build(b: *std.Build) void {
         .link_libc = true,
         .imports = &.{
             .{ .name = "hocon", .module = mod },
-            .{ .name = "hocon_h", .module = b.addTranslateC(.{ .root_source_file = b.path("include/hocon.h"), .target = target, .optimize = optimize }).createModule() },
+            .{ .name = "hocon_h", .module = b.addTranslateC(.{ .root_source_file = b.path("c/hocon.h"), .target = target, .optimize = optimize }).createModule() },
         },
     });
     test_step.dependOn(&b.addRunArtifact(b.addTest(.{ .root_module = capi_tests })).step);
 
-    // …and from C: tests/c/hocon_test.c, built by zig cc against the library,
+    // …and from C: c/tests/hocon_test.c, built by zig cc against the library,
     // run here with nothing in its environment but what it sets itself.
     const c_test = b.addExecutable(.{
         .name = "hocon-c-test",
         .root_module = b.createModule(.{ .target = target, .optimize = optimize, .link_libc = true }),
     });
-    c_test.root_module.addCSourceFile(.{ .file = b.path("tests/c/hocon_test.c"), .flags = &.{ "-std=c99", "-Wall", "-Wextra", "-Werror" } });
-    c_test.root_module.addIncludePath(b.path("include"));
+    c_test.root_module.addCSourceFile(.{ .file = b.path("c/tests/hocon_test.c"), .flags = &.{ "-std=c99", "-Wall", "-Wextra", "-Werror" } });
+    c_test.root_module.addIncludePath(b.path("c"));
     c_test.root_module.linkLibrary(lib);
     const run_c_test = runCli(b, c_test);
     run_c_test.setCwd(b.path("."));
-    run_c_test.addArgs(&.{ "tests/c/app.conf", "tests/c/broken.conf" });
-    for ([_][]const u8{ "app.conf", "defaults.conf", "broken.conf" }) |name| run_c_test.addFileInput(b.path(b.fmt("tests/c/{s}", .{name})));
+    run_c_test.addArgs(&.{ "c/tests/app.conf", "c/tests/broken.conf" });
+    for ([_][]const u8{ "app.conf", "defaults.conf", "broken.conf" }) |name| run_c_test.addFileInput(b.path(b.fmt("c/tests/{s}", .{name})));
     run_c_test.expectStdOutEqual(
         \\port = 443
         \\motto = the badger guards port 9090
@@ -192,7 +192,7 @@ pub fn build(b: *std.Build) void {
         \\retention = 0y 3mo 0d
         \\json = {"port":443,"timeout":"2.5s","cache":"512MiB","motto":"the badger guards port 9090","retention":"3mo"}
         \\pool = HOCON_ERR_MISSING
-        \\tests/c/broken.conf:2:11: UnsupportedConcatenation
+        \\c/tests/broken.conf:2:11: UnsupportedConcatenation
         \\port = 80 [1]
         \\
     );

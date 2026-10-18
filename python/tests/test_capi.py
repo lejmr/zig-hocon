@@ -1,5 +1,5 @@
 """What the package writes again by hand, held to where it comes from: the
-structs and functions of include/hocon.h, and the whitespace the library
+structs and functions of c/hocon.h, and the whitespace the library
 trims around a path. A copy that drifts reads past a struct or calls with a
 wrong argument, and nothing else would say so."""
 
@@ -13,7 +13,7 @@ import pytest
 
 from zig_hocon import ConfigException, ConfigFactory, _capi
 
-HEADER = (pathlib.Path(__file__).parents[2] / "include" / "hocon.h").read_text()
+HEADER = (pathlib.Path(__file__).parents[2] / "c" / "hocon.h").read_text()
 # Without its comments, which have `;` and `(` in them.
 CODE = re.sub(r"/\*.*?\*/", "", HEADER, flags=re.S)
 

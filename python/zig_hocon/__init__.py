@@ -2,7 +2,7 @@
 
 The parsing, the substitutions and every conversion are the Zig library's
 (libhocon, next to this file); this is a thin ctypes layer over its C API
-(include/hocon.h), shaped like pyhocon so moving over is a change of import::
+(c/hocon.h), shaped like pyhocon so moving over is a change of import::
 
     from zig_hocon import ConfigFactory
 
