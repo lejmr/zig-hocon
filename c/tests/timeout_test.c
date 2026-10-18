@@ -11,6 +11,8 @@
 #include "hocon.h"
 
 #ifdef _WIN32
+#include <fcntl.h>
+#include <io.h>
 #include <winsock2.h>
 typedef int socklen_t;
 static double now(void) { return GetTickCount64() / 1e3; }
@@ -28,6 +30,8 @@ static double now(void) {
 
 int main(void) {
 #ifdef _WIN32
+    /* "\n" stays "\n": the build compares the output byte for byte. */
+    _setmode(_fileno(stdout), _O_BINARY);
     WSADATA wsa;
     if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0) return 1;
 #endif

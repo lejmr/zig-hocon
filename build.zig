@@ -209,6 +209,10 @@ pub fn build(b: *std.Build) void {
     c_timeout_test.root_module.linkLibrary(lib);
     if (target.result.os.tag == .windows) c_timeout_test.root_module.linkSystemLibrary("ws2_32", .{});
     const run_c_timeout_test = runCli(b, c_timeout_test);
+    // Winsock fails to start (WSAEPROVIDERFAILEDINIT) without SystemRoot.
+    if (b.graph.host.result.os.tag == .windows) {
+        if (b.graph.environ_map.get("SystemRoot")) |root| run_c_timeout_test.setEnvironmentVariable("SystemRoot", root);
+    }
     run_c_timeout_test.expectStdOutEqual("IncludeTimeout in time\n");
     test_step.dependOn(&run_c_timeout_test.step);
 
