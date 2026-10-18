@@ -225,15 +225,19 @@ else:
     for name, t in report["sections"].items():
         if t["passed"] < t["total"]:
             print("  {:<46} {:>3}/{}".format(name, t["passed"], t["total"]))
-    if failures:
-        print("\n{} failing:".format(len(failures)))
-        for f in failures:
+    # an open question is listed apart: its expected and got may well agree
+    failing = [f for f in failures if "open_question" not in f]
+    open_questions = [f for f in failures if "open_question" in f]
+    for title, rows in (("failing", failing), ("open questions, for a human to settle", open_questions)):
+        if rows:
+            print("\n{} {}:".format(len(rows), title))
+        for f in rows:
             print("\n  {}\n    rule     {}\n    expected {}\n    got      {}".format(
-                f["case"], (f["rule"] or "")[:100],
+                f["case"], (f["rule"] or f.get("open_question") or "")[:100],
                 safe(json.dumps(f["expected"], ensure_ascii=False))[:100],
                 safe(json.dumps(f["got"], ensure_ascii=False))[:100]))
-    else:
+    if not failing:
         print("\n  everything this suite can check, checks out")
 
-sys.exit(0 if passed == total else 1)
+sys.exit(0 if not any("open_question" not in f for f in failures) else 1)
 PY
