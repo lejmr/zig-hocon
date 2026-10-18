@@ -749,6 +749,12 @@ fn runSchema(b: *std.Build, exe: *std.Build.Step.Compile, home: []const u8, sche
     run.setEnvironmentVariable("HOME", home);
     run.setEnvironmentVariable("XDG_CACHE_HOME", "");
     if (b.graph.global_cache_root.path) |global| run.setEnvironmentVariable("ZIG_GLOBAL_CACHE_DIR", global);
+    // A Windows process with none of these cannot start zig, nor zig its child.
+    if (b.graph.host.result.os.tag == .windows) {
+        for ([_][]const u8{ "SystemRoot", "windir", "TEMP", "TMP", "LOCALAPPDATA", "APPDATA", "USERPROFILE", "PATHEXT", "ComSpec" }) |name| {
+            if (b.graph.environ_map.get(name)) |value| run.setEnvironmentVariable(name, value);
+        }
+    }
     return run;
 }
 
