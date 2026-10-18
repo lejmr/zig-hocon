@@ -1,16 +1,13 @@
 # HOCON oracles
 
-Two reference implementations, same input and output format, so a disputed case
-can be answered by running it instead of arguing from the spec.
+Two reference implementations, same input and output format, so a disputed case can be answered by running it instead of arguing from the spec.
 
 ```sh
 printf 'a = b\na = the cat sat on the keyboard\n' | tools/oracle/hocon-java
 printf 'a = b\na = the cat sat on the keyboard\n' | tools/oracle/hocon-py
 ```
 
-Both scripts bootstrap themselves on first run: `hocon-java` downloads
-`config.jar` from Maven Central and compiles `Oracle.java`, `hocon-py` creates a
-venv and installs `pyhocon`. None of that is committed — see `.gitignore`.
+Both scripts bootstrap themselves on first run: `hocon-java` downloads `config.jar` from Maven Central and compiles `Oracle.java`, `hocon-py` creates a venv and installs `pyhocon`. None of that is committed — see `.gitignore`.
 
 ## Format
 
@@ -20,13 +17,9 @@ One test case per line on stdin, with `\n`, `\t`, `\"` escapes:
 a = b\nc = d
 ```
 
-One result line out: compact JSON, or `ERROR <Class>: <message>`. Substitutions
-are left unresolved unless the line is prefixed with `resolve:`.
+One result line out: compact JSON, or `ERROR <Class>: <message>`. Substitutions are left unresolved unless the line is prefixed with `resolve:`.
 
-`hocon-java` also has the typed getters of the units format: a line prefixed
-with `as:duration:`, `as:period:` or `as:bytes:` is resolved and its key `a`
-read with `getDuration` (printed in nanoseconds), `getPeriod` (`P1Y2M3D`) or
-`getBytes`. pyhocon has none of the three.
+`hocon-java` also has the typed getters of the units format: a line prefixed with `as:duration:`, `as:period:` or `as:bytes:` is resolved and its key `a` read with `getDuration` (printed in nanoseconds), `getPeriod` (`P1Y2M3D`) or `getBytes`. pyhocon has none of the three.
 
 ```sh
 printf 'as:duration:a = 1.5 s\nas:bytes:a = 512K\n' | tools/oracle/hocon-java
@@ -34,12 +27,9 @@ printf 'as:duration:a = 1.5 s\nas:bytes:a = 512K\n' | tools/oracle/hocon-java
 
 ## Which one is right
 
-**`hocon-java` is the authority.** It is Lightbend's `typesafe/config`, the
-implementation the HOCON spec was written against.
+**`hocon-java` is the authority.** It is Lightbend's `typesafe/config`, the implementation the HOCON spec was written against.
 
-`hocon-py` is here because pyhocon is what this project is meant to replace —
-useful for checking that we stay compatible with configs that work today, not
-for deciding what is correct. Confirmed divergences:
+`hocon-py` is here because pyhocon is what this project is meant to replace — useful for checking that we stay compatible with configs that work today, not for deciding what is correct. Confirmed divergences:
 
 | input | java | pyhocon | zig-Hocon (this repo) | what the spec says |
 |---|---|---|---|---|
@@ -58,15 +48,8 @@ for deciding what is correct. Confirmed divergences:
 | `a "b c" d = f` | `{"a b c d":"f"}` | error | ⚠️ `assign(concat(…), value(f))` — parts kept side by side, key not joined | **java.** A key is a path expression and adjacent elements concatenate exactly like a value. |
 | `Include "x.conf"` | error | includes the file | ✅ `UnexpectedToken` — matches java | **java.** The spec spells the keyword lowercase; pyhocon matches case-insensitively. |
 
-The zig-Hocon column is what the parser does *today*, produced by dumping the ast
-for each input — not what it is meant to do. ✅ means the behaviour is settled,
-⚠️ means it is a bug, and the rest is unimplemented or a deliberate leniency.
+The zig-Hocon column is what the parser does *today*, produced by dumping the ast for each input — not what it is meant to do. ✅ means the behaviour is settled, ⚠️ means it is a bug, and the rest is unimplemented or a deliberate leniency.
 
-The spec is written against java, so on every divergence found so far it backs
-java and pyhocon is simply wrong.
+The spec is written against java, so on every divergence found so far it backs java and pyhocon is simply wrong.
 
-That does not make java the target in every case. Where java is *stricter*, being
-lenient like pyhocon is the safer choice for migration — a config that parses
-today should keep parsing, and none of the leniencies above can produce a
-different value, only accept an input that could have been rejected. Where the
-two produce **different output** for the same input (the tab row), follow java.
+That does not make java the target in every case. Where java is *stricter*, being lenient like pyhocon is the safer choice for migration — a config that parses today should keep parsing, and none of the leniencies above can produce a different value, only accept an input that could have been rejected. Where the two produce **different output** for the same input (the tab row), follow java.

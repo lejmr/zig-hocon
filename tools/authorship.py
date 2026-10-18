@@ -76,10 +76,8 @@ def share(hand, by_ai):
 
 
 total = [sum(c[0] for c in counts.values()), sum(c[1] for c in counts.values())]
-print("How much of the code in `src/` is written by hand, the rest with AI,")
-print("counted with `git blame` over the lines that are not empty, by who wrote")
-print("the commit each line comes from; moved code stays its author's. The tests")
-print("are left out: most of them are written with AI.")
+# One line: a paragraph in a .md file is not wrapped.
+print("How much of the code in `src/` is written by hand, the rest with AI, counted with `git blame` over the lines that are not empty, by who wrote the commit each line comes from; moved code stays its author's. The tests are left out: most of them are written with AI.")
 print()
 print("| | share |")
 print("|---|---|")

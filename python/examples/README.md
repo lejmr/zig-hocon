@@ -1,8 +1,6 @@
 # Examples
 
-Each example is a set of `.conf` files and the same settings modelled three
-ways: a pydantic model, a msgspec Struct and a standard library `@dataclass`.
-Its test reads every config into every model and checks they agree.
+Each example is a set of `.conf` files and the same settings modelled three ways: a pydantic model, a msgspec Struct and a standard library `@dataclass`. Its test reads every config into every model and checks they agree.
 
 ## Run one
 
@@ -27,8 +25,7 @@ Run them one at a time: their model modules share names.
 
 ## The three models
 
-zig_hocon gives a dict (`as_dict()`) or JSON bytes (`to_json()`). The model
-library does the rest:
+zig_hocon gives a dict (`as_dict()`) or JSON bytes (`to_json()`). The model library does the rest:
 
 ```python
 conf = zig_hocon.ConfigFactory.parse_file("conf/prod/app.conf")
@@ -46,12 +43,7 @@ settings = msgspec.json.decode(conf.to_json(), type=models_dataclasses.Settings)
 
 Two things every example deals with:
 
-- **A variable is text.** `PORT=9443` arrives as `"9443"`. pydantic turns it
-  into an int by default; msgspec needs `strict=False`.
-- **JSON has no durations or sizes.** `timeout = 30s` arrives as `"30s"`.
-  pydantic converts it in a `BeforeValidator` with `zig_hocon.parse_duration`.
-  msgspec reads a `timedelta` only from ISO 8601 (`"PT30S"`), so its models
-  give the field a type of their own and convert it in a `dec_hook`.
+- **A variable is text.** `PORT=9443` arrives as `"9443"`. pydantic turns it into an int by default; msgspec needs `strict=False`.
+- **JSON has no durations or sizes.** `timeout = 30s` arrives as `"30s"`. pydantic converts it in a `BeforeValidator` with `zig_hocon.parse_duration`. msgspec reads a `timedelta` only from ISO 8601 (`"PT30S"`), so its models give the field a type of their own and convert it in a `dec_hook`.
 
-Coming from pyhocon, where `30s` is already a `timedelta`: the
-[migration guide](../MIGRATING.md) lists every difference.
+Coming from pyhocon, where `30s` is already a `timedelta`: the [migration guide](../MIGRATING.md) lists every difference.

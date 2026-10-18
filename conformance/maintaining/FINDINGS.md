@@ -2,12 +2,9 @@
 
 4 divergences · 30 defective cases · 66 uncovered sentences
 
-What the validation pass turned up and did **not** fix. The divergences it was
-confident about are already in the sidecars; everything below is work, not record.
+What the validation pass turned up and did **not** fix. The divergences it was confident about are already in the sidecars; everything below is work, not record.
 
-This pass ran *before* the tie-break rule in `PROCESS.md` was settled, so where a
-divergence says `expect` was left at java's value, the row is still unresolved —
-`fill-expected.py` now flags those with `review`.
+This pass ran *before* the tie-break rule in `PROCESS.md` was settled, so where a divergence says `expect` was left at java's value, the row is still unresolved — `fill-expected.py` now flags those with `review`.
 
 ## syntax-basics
 

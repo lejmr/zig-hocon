@@ -1,20 +1,12 @@
 # Migrating from pyhocon
 
-This guide moves a project from pyhocon to zig_hocon. For most code it is a
-change of imports: `ConfigFactory`, the typed getters and the exception names
-are the same. Code that uses the tree as a dict needs a few lines more, and a
-config with `include package(...)` needs a change. Steps 1 to 3 cover all of
-it, and the checklist at the end finds every place to look at.
+This guide moves a project from pyhocon to zig_hocon. For most code it is a change of imports: `ConfigFactory`, the typed getters and the exception names are the same. Code that uses the tree as a dict needs a few lines more, and a config with `include package(...)` needs a change. Steps 1 to 3 cover all of it, and the checklist at the end finds every place to look at.
 
 ## Why move
 
-- **Correct.** zig_hocon passes 442 of the 445 tests in the
-  [conformance suite](https://htmlpreview.github.io/?https://github.com/lejmr/zig-hocon/blob/main/conformance/report.html),
-  pyhocon 312.
-- **Fast.** A 10 MB config loads in 0.3 s. pyhocon takes 68 s, and 867 s
-  when the file has substitutions.
-- **No crash on a layered config.** A list from an included file, extended
-  with `+=`, stops pyhocon 0.3.63 with an `AttributeError`:
+- **Correct.** zig_hocon passes 442 of the 445 tests in the [conformance suite](https://htmlpreview.github.io/?https://github.com/lejmr/zig-hocon/blob/main/conformance/report.html), pyhocon 312.
+- **Fast.** A 10 MB config loads in 0.3 s. pyhocon takes 68 s, and 867 s when the file has substitutions.
+- **No crash on a layered config.** A list from an included file, extended with `+=`, stops pyhocon 0.3.63 with an `AttributeError`:
 
   ```hocon
   # defaults.conf
@@ -27,8 +19,7 @@ it, and the checklist at the end finds every place to look at.
   ```
 
   zig_hocon gives `["auth", "metrics"]`.
-- **No silent guesses.** pyhocon accepts input the spec rejects and changes
-  what you wrote. zig_hocon reports an error with its place:
+- **No silent guesses.** pyhocon accepts input the spec rejects and changes what you wrote. zig_hocon reports an error with its place:
 
   | input | pyhocon 0.3.63 | zig_hocon |
   |---|---|---|
@@ -38,9 +29,7 @@ it, and the checklist at the end finds every place to look at.
   | `,a = b` | `{"a": "b"}` | error at 1:1 |
   | `a = b<TAB>c` | `"b   c"`, the tab became spaces | `"b\tc"` |
 
-- **One exception to catch.** Every error is a `ConfigException`, with the
-  file, line and column. A syntax error in pyhocon is pyparsing's
-  `ParseSyntaxException`, which `except ConfigException` misses.
+- **One exception to catch.** Every error is a `ConfigException`, with the file, line and column. A syntax error in pyhocon is pyparsing's `ParseSyntaxException`, which `except ConfigException` misses.
 
 ## Step 1: imports
 
@@ -55,16 +44,11 @@ it, and the checklist at the end finds every place to look at.
 | `HOCONConverter.to_json(conf)` | `conf.to_json()` (bytes) |
 | `HOCONConverter.to_hocon(conf)` | `conf.to_hocon()` |
 
-The exception names are the same: `ConfigException`, `ConfigMissingException`
-(also a `KeyError`), `ConfigSubstitutionException`, `ConfigWrongTypeException`
-(also a `ValueError`), plus `ConfigParseException` for text that is not valid HOCON.
+The exception names are the same: `ConfigException`, `ConfigMissingException` (also a `KeyError`), `ConfigSubstitutionException`, `ConfigWrongTypeException` (also a `ValueError`), plus `ConfigParseException` for text that is not valid HOCON.
 
 ## Step 2: what needs code
 
-**The tree is not a dict.** pyhocon's `ConfigTree` is an `OrderedDict`, so
-`conf["db"]["host"]`, `"db" in conf`, `for key in conf`, `dict(conf)` and
-`json.dumps(conf)` work on it. Here the values stay in the library until a
-getter asks; take a dict where you need one:
+**The tree is not a dict.** pyhocon's `ConfigTree` is an `OrderedDict`, so `conf["db"]["host"]`, `"db" in conf`, `for key in conf`, `dict(conf)` and `json.dumps(conf)` work on it. Here the values stay in the library until a getter asks; take a dict where you need one:
 
 ```python
 settings = conf.as_dict()
@@ -85,22 +69,17 @@ settings["db"]["host"]
 | `unresolved_value=…` | `resolve=False` keeps every `${…}`, `env=KEEP` only the variables |
 | `include package("pkg:file.conf")` | not supported, see Step 3 |
 
-`parse_file` takes everything after the path by keyword, so
-`parse_file(path, "utf-8")` fails loudly instead of meaning something else.
+`parse_file` takes everything after the path by keyword, so `parse_file(path, "utf-8")` fails loudly instead of meaning something else.
 
 ## Step 3: configs that read differently
 
-- **`include package(...)` is not supported.** It is pyhocon's own extension,
-  not HOCON, and zig_hocon reports it as an error (`UnexpectedToken` where
-  `package` starts). Include the file by its
-  path instead, relative to the file that includes it:
+- **`include package(...)` is not supported.** It is pyhocon's own extension, not HOCON, and zig_hocon reports it as an error (`UnexpectedToken` where `package` starts). Include the file by its path instead, relative to the file that includes it:
 
   ```hocon
   include "defaults.conf"
   ```
 
-  For a file that ships inside an installed Python package, find it in
-  Python and parse it from there:
+  For a file that ships inside an installed Python package, find it in Python and parse it from there:
 
   ```python
   from importlib.resources import files
@@ -108,19 +87,11 @@ settings["db"]["host"]
   conf = ConfigFactory.parse_file(str(files("mypackage") / "defaults.conf"))
   ```
 
-- **Durations and sizes are text until something asks.** pyhocon turns `30s`
-  into a `timedelta` while it parses; here `as_dict()` has `"30s"`, and
-  `get_duration` or the model converts it. With pydantic, a
-  `BeforeValidator(zig_hocon.parse_duration)` on the field;
-  [examples/durations-and-sizes](examples/durations-and-sizes) has it for
-  pydantic and msgspec.
-- **A concatenation is a string.** `a = ${?nope}42` is `"42"` by the spec;
-  pyhocon gives the number `42`. A model that wants an int converts it.
-- **Strict syntax.** The inputs in the table under *No silent guesses* are
-  errors now. They are rare, and each error says where to look.
+- **Durations and sizes are text until something asks.** pyhocon turns `30s` into a `timedelta` while it parses; here `as_dict()` has `"30s"`, and `get_duration` or the model converts it. With pydantic, a `BeforeValidator(zig_hocon.parse_duration)` on the field; [examples/durations-and-sizes](examples/durations-and-sizes) has it for pydantic and msgspec.
+- **A concatenation is a string.** `a = ${?nope}42` is `"42"` by the spec; pyhocon gives the number `42`. A model that wants an int converts it.
+- **Strict syntax.** The inputs in the table under *No silent guesses* are errors now. They are rare, and each error says where to look.
 
-Everything else (variables, `+=`, includes, merging) reads the same, except
-where pyhocon breaks the spec; the conformance report lists those cases.
+Everything else (variables, `+=`, includes, merging) reads the same, except where pyhocon breaks the spec; the conformance report lists those cases.
 
 ## Checklist
 
@@ -130,8 +101,7 @@ Run this over the code that uses pyhocon; each hit is a row in Step 2 or 3:
 grep -rnE "pyhocon|include package|as_plain_ordered_dict|get_list|with_fallback|from_dict|parse_URL|HOCONConverter|\.put\(|\.pop\(|conf\[" .
 ```
 
-Then load each of your configs with both and compare. With both packages
-installed:
+Then load each of your configs with both and compare. With both packages installed:
 
 ```python
 import sys
@@ -145,6 +115,4 @@ for path in sys.argv[1:]:
     print("same" if old == new else "DIFFERENT", path)
 ```
 
-A duration shows as a difference by design: pyhocon has a `timedelta`,
-zig_hocon the text `"30s"`. The [examples](examples) show how a model
-reads it, with pydantic, msgspec and dataclasses.
+A duration shows as a difference by design: pyhocon has a `timedelta`, zig_hocon the text `"30s"`. The [examples](examples) show how a model reads it, with pydantic, msgspec and dataclasses.
