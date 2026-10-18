@@ -21,6 +21,7 @@ C_TYPES = {
     "int": ctypes.c_int,
     "bool": ctypes.c_bool,
     "size_t": ctypes.c_size_t,
+    "uint32_t": ctypes.c_uint32,
     "char *": ctypes.c_char_p,
     "const char *": ctypes.c_char_p,
     "const char *const *": ctypes.POINTER(ctypes.c_char_p),

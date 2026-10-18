@@ -64,6 +64,7 @@ conf = ConfigFactory.parse_file("app.conf", env={"DB_POOL": "8"}) # from a dict
 conf = ConfigFactory.parse_file("app.conf", env=None)             # no variables: pool stays 4
 conf = ConfigFactory.parse_file("app.conf", env=KEEP)             # ${?DB_POOL} kept, for later
 conf = ConfigFactory.parse_file("app.conf", resolve=False)        # every ${…} as written
+conf = ConfigFactory.parse_file("app.conf", http_timeout=5)       # an http(s) include waits 5 s, not 30
 conf = ConfigFactory.parse_string('include "app.conf"', basedir=".")  # text, includes from basedir
 
 conf.get_string("db.host")      # "db.example.org"

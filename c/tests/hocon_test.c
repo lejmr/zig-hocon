@@ -28,7 +28,7 @@ int main(int argc, char **argv) {
     _setmode(_fileno(stdout), _O_BINARY);
 #endif
     const char *vars[] = {"BADGER_PORT=9090", NULL};
-    hocon_options opts = {HOCON_ENV_MAP, vars, true, NULL};
+    hocon_options opts = {sizeof(hocon_options), HOCON_ENV_MAP, vars, true, NULL, 0};
     hocon_error err = {0};
 
     hocon_doc *doc = hocon_parse_file(argv[1], &opts, &err);
