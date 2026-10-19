@@ -1,15 +1,15 @@
 {
   "suite": "hocon-conformance",
   "implementation": "zig-hocon",
-  "version": "zig-hocon code@fad796a",
+  "version": "zig-hocon code@73b5fad",
   "mode": "java",
   "java_version": "1.4.9",
   "command": "conformance/adapters/zig-hocon.sh",
-  "ran_at": "2026-10-19T05:32:50Z",
-  "suite_digest": "2fe52df92f49aea2",
+  "ran_at": "2026-10-19T16:08:11Z",
+  "suite_digest": "cd4bdae3133b2042",
   "total": 445,
-  "passed": 399,
-  "percent": 89.7,
+  "passed": 401,
+  "percent": 90.1,
   "sections": {
     "array-and-object-concatenation": {
       "total": 19,
@@ -69,7 +69,7 @@
     },
     "key-value-separator": {
       "total": 6,
-      "passed": 5
+      "passed": 6
     },
     "list-values-from-environment-variables": {
       "total": 6,
@@ -105,7 +105,7 @@
     },
     "self-referential-examples": {
       "total": 26,
-      "passed": 23
+      "passed": 24
     },
     "self-referential-substitutions": {
       "total": 5,
@@ -340,7 +340,7 @@
     "key-value-separator/003-omitted-separator-unquoted-key.conf": "pass",
     "key-value-separator/004-value-on-the-line-after-the-separator.conf": "pass",
     "key-value-separator/005-separator-cannot-be-omitted-before-array.conf": "pass",
-    "key-value-separator/006-newline-between-key-and-brace.conf": "open",
+    "key-value-separator/006-newline-between-key-and-brace.conf": "pass",
     "list-values-from-environment-variables/001-list-from-indexed-variables.conf": "pass",
     "list-values-from-environment-variables/002-optional-list-with-no-elements-is-undefined.conf": "pass",
     "list-values-from-environment-variables/003-required-list-with-no-elements-is-error.conf": "pass",
@@ -436,7 +436,7 @@
     "self-referential-examples/011-optional-self-reference-in-concatenation-looks-back.conf": "pass",
     "self-referential-examples/012-mutual-non-self-cycle-is-unresolvable.conf": "pass",
     "self-referential-examples/013-multi-step-cycle-is-invalid.conf": "pass",
-    "self-referential-examples/014-order-dependent-resolution-must-agree-on-one-value.conf": "open",
+    "self-referential-examples/014-order-dependent-resolution-must-agree-on-one-value.conf": "pass",
     "self-referential-examples/015-list-hidden-by-substituted-object-is-never-evaluated.conf": "fail",
     "self-referential-examples/016-object-hidden-by-substituted-scalar-is-never-evaluated.conf": "pass",
     "self-referential-examples/017-object-hidden-by-substituted-concatenation-is-never-evaluated.conf": "pass",
@@ -617,7 +617,6 @@
     "include-substitution/011-optional-reference-falls-back-too/main.conf": "{\"common\":{\"x\":{},\"a\":0},\"x\":{\"y\":0}}",
     "include-substitution/014-unrelated-key-does-not-change-the-result/main.conf": "{\"common\":{\"x\":{},\"a\":0},\"x\":{\"y\":0},\"zzz\":{}}",
     "include-syntax/011-url-argument-must-be-a-url/main.conf": "rejected",
-    "key-value-separator/006-newline-between-key-and-brace.conf": "{\"foo\":{\"a\":1}}",
     "omit-root-braces/006-array-root-unaffected.conf": "[1,2,3]",
     "omit-root-braces/008-empty-array-root.conf": "[]",
     "omit-root-braces/009-comment-before-array-root.conf": "[1,2]",
@@ -625,7 +624,6 @@
     "paths-as-keys/008-include-cannot-begin-key.conf": "rejected",
     "plus-equals-field-separator/006-plus-equals-inside-a-list-element.conf": "{\"a\":[{\"b\":[1]}]}",
     "plus-equals-field-separator/008-plus-equals-with-an-object-containing-a-merge.conf": "{\"x\":{\"p\":1},\"l\":[{\"a\":{\"p\":1}}]}",
-    "self-referential-examples/014-order-dependent-resolution-must-agree-on-one-value.conf": "{\"a\":1,\"b\":1}",
     "self-referential-examples/015-list-hidden-by-substituted-object-is-never-evaluated.conf": "{\"wrapper\":{},\"replacement\":{}}",
     "self-referential-examples/021-hidden-list-does-not-depend-on-key-order.conf": "{\"w\":{\"x\":1},\"r\":{\"x\":1},\"zzz\":1}",
     "string-value-concatenation/010-object-then-scalar-drops-the-scalar.conf": "rejected",
@@ -1000,22 +998,6 @@
       "open_question": "the spec says only that the string inside url() is interpreted as a URL; it does not say whether a string that is not a URL is an error or an unresolvable, hence ignorable, resource. typesafe/config rejects it"
     },
     {
-      "case": "key-value-separator/006-newline-between-key-and-brace.conf",
-      "spec": "HOCON.md#key-value-separator",
-      "rule": "the separator may be omitted before {, and the spec does not say whether a newline may stand between the key and the brace; typesafe/config and pyhocon accept it, hocon-rs rejects it",
-      "expected": {
-        "foo": {
-          "a": 1
-        }
-      },
-      "got": {
-        "foo": {
-          "a": 1
-        }
-      },
-      "open_question": "the spec is silent on a newline between a key and its brace; implementations disagree"
-    },
-    {
       "case": "omit-root-braces/006-array-root-unaffected.conf",
       "spec": "HOCON.md#omit-root-braces",
       "rule": "the implicit {} wrap fires only when the file does not begin with a square bracket or curly brace, so a file starting with [ keeps its array root; the include section says so outright -- 'both JSON and HOCON allow arrays as root values in a document' (the reason an included file may not be one). typesafe/config has no array-rooted config at all and rejects the document as LIST rather than object.",
@@ -1074,20 +1056,6 @@
       "expected": "rejected",
       "got": "{\"x\":{\"p\":1},\"l\":[{\"a\":{\"p\":1}}]}",
       "java": "unsupported"
-    },
-    {
-      "case": "self-referential-examples/014-order-dependent-resolution-must-agree-on-one-value.conf",
-      "spec": "HOCON.md#examples-of-self-referential-substitutions",
-      "rule": "this case has undefined behavior depending on resolution order: implementations are allowed to set both a and b to 1, both to 2, or to error, but must set both to the same value because substitutions are memoized by instance, so a and b must never diverge (e.g. a=1,b=2 is not permitted)",
-      "expected": {
-        "a": 1,
-        "b": 1
-      },
-      "got": {
-        "a": 1,
-        "b": 1
-      },
-      "open_question": "the spec allows both fields to be 1, both 2, or an error (L875-877); only 'the same value' is required, which one expected tree cannot express. typesafe/config itself gives 1 or 2 depending on key order"
     },
     {
       "case": "self-referential-examples/015-list-hidden-by-substituted-object-is-never-evaluated.conf",

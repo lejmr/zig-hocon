@@ -141,22 +141,24 @@ for record in records:
         meta.update({k: since[k] for k in ("java_expect", "java_error") if k in since})
 
     # on a row where the spec and typesafe/config disagree, java mode scores
-    # against what typesafe/config does instead
+    # against what typesafe/config does instead. Where the spec allows more
+    # than one answer, any of `also_valid` passes too, "rejected" for an error
+    also = []
     if mode == "java" and "java_expect" in meta:
         want, rejects = meta["java_expect"], False
     elif mode == "java" and "java_error" in meta:
         want, rejects = None, True
     else:
-        want, rejects = meta.get("expect"), "error" in meta
+        want, rejects, also = meta.get("expect"), "error" in meta, meta.get("also_valid", [])
 
     if rejects:
         ok, got = status != "0", ("rejected" if status != "0" else out.strip())
     elif status != "0":
-        ok, got = False, "rejected (exit {})".format(status)
+        ok, got = "rejected" in also, "rejected (exit {})".format(status)
     else:
         try:
             got_value = json.loads(out)
-            ok, got = got_value == want, got_value
+            ok, got = got_value == want or got_value in also, got_value
         except json.JSONDecodeError:
             ok, got = False, out.strip()[:200]
 

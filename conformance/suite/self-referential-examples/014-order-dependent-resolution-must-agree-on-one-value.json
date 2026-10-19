@@ -4,11 +4,17 @@
     "examples-of-self-referential-substitutions.26",
     "examples-of-self-referential-substitutions.25"
   ],
-  "why": "this case has undefined behavior depending on resolution order: implementations are allowed to set both a and b to 1, both to 2, or to error, but must set both to the same value because substitutions are memoized by instance, so a and b must never diverge (e.g. a=1,b=2 is not permitted)",
+  "why": "the order a and b resolve in is undefined: both 1, both 2 or an error are all allowed, but a and b must agree (a=1,b=2 is not permitted)",
   "expect": {
     "a": 1,
     "b": 1
   },
   "resolve": true,
-  "review": "the spec allows both fields to be 1, both 2, or an error (L875-877); only 'the same value' is required, which one expected tree cannot express. typesafe/config itself gives 1 or 2 depending on key order"
+  "also_valid": [
+    {
+      "a": 2,
+      "b": 2
+    },
+    "rejected"
+  ]
 }

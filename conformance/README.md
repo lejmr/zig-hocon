@@ -81,6 +81,17 @@ A runner hands your adapter the path to `main.conf`; includes resolve beside it.
 
 A row where the reference implementation and the spec part ways carries `"java": "diverges" | "unsupported" | "lenient"` and, next to it, `"java_expect"` or `"java_error"` — what typesafe/config does with that same input. Those rows are the reason the suite exists; `maintaining/PROCESS.md` has the table of which kind means what.
 
+Where the spec allows more than one answer, `"also_valid"` lists the others, and an output matching `expect` or any of them passes. `"rejected"` in the list lets an error pass too:
+
+```json
+{
+  "spec": "HOCON.md#examples-of-self-referential-substitutions",
+  "why": "the order a and b resolve in is undefined: both 1, both 2 or an error are all allowed, but a and b must agree",
+  "expect": {"a": 1, "b": 1},
+  "also_valid": [{"a": 2, "b": 2}, "rejected"]
+}
+```
+
 A row carrying `"review"` is an open question for a human. It is neither a pass nor a failure. `--text` lists such rows apart from the failing ones, and they alone do not make `run.sh` exit 1.
 
 Two directories assert features the specification only permits: `include-file-formats` (other formats, basename probing: "implementations may support") and `substitution-fallback-to-environment` together with `list-values-from-environment-variables` ("implementations may search external sources"). An implementation without them is still conformant; it fails those rows knowingly, and `--only` can leave them out.
@@ -102,9 +113,9 @@ Drop your own result into `reports/` and the local report picks it up.
 The published table keeps the best parsers: every Python parser of its own above 70 % against the spec, and the best Rust one. These were measured too and left out:
 
 - **hocon-rs 0.2.0** (Rust, mikai233/hocon-rs): 84 % against the spec, behind rs.hocon.
-- **hocon 0.9.0** (Rust, mockersf/hocon.rs): 71 % with its strict loader, 58 % with the default one, which never fails; the repository is archived since 2023, and non-ASCII whitespace makes it panic.
+- **hocon 0.9.0** (Rust, mockersf/hocon.rs): 72 % with its strict loader, 58 % with the default one, which never fails; the repository is archived since 2023, and non-ASCII whitespace makes it panic.
 - **hocon_** (Rust, pepa65): a republished fork of hocon 0.9.0, not measured on its own.
-- **pyhocon-fix 0.0.4** (Python, 2018) and **dd-pyhocon 0.3.61** (Python, 2023): forks of pyhocon, 71 % and 70 %, within two cases of it; dd-pyhocon hangs on one merge-stack case.
+- **pyhocon-fix 0.0.4** (Python, 2018) and **dd-pyhocon 0.3.61** (Python, 2023): forks of pyhocon, both 71 %, within two cases of it; dd-pyhocon hangs on one merge-stack case.
 - Not parsers of their own: `hocon` 0.3.0, `hocon-validator`, `pytyped-hocon`, `pyhocon-dantic` and `dataconf` wrap pyhocon; `atomr` (Rust/PyO3) builds its `Config` from TOML or a dict and parses no HOCON; chris-martin/hocon-python (2015) is an unfinished port of typesafe/config.
 
 ## Reusing this
