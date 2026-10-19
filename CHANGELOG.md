@@ -2,7 +2,7 @@
 
 What changed for someone using zig-hocon: the Zig package, the `hocon` command line tool, libhocon for C and the `zig-hocon` Python package, which are released together under one version. The technical detail is in the commits each release links to.
 
-## [Unreleased]
+## [0.5.1] - 2026-10-19
 
 The conformance suite settles two of its three open questions: 444 of the 445 tests pass, up from 442. The last one, `url()` without a scheme, waits for the spec ([lightbend/config#887](https://github.com/lightbend/config/pull/887)).
 
