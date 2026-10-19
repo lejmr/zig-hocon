@@ -1,0 +1,41 @@
+# Once a week: has HOCON.md changed in lightbend/config since spec/HOCON.md,
+# the copy the suite is written against, was taken? If it has, an issue shows
+# the diff; one already open is left to say it. Refresh the copy with
+#   curl -o spec/HOCON.md https://raw.githubusercontent.com/lightbend/config/main/HOCON.md
+name: Spec watch
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compare spec/HOCON.md with upstream
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          curl -sfo upstream.md https://raw.githubusercontent.com/lightbend/config/main/HOCON.md
+          diff -u spec/HOCON.md upstream.md > spec.diff && exit 0
+          title="HOCON.md changed upstream"
+          open=$(gh issue list --state open --search "\"$title\" in:title" --json number -q length)
+          [ "$open" -gt 0 ] && exit 0
+          {
+            echo "lightbend/config changed HOCON.md since spec/HOCON.md was copied: [its commits](https://github.com/lightbend/config/commits/main/HOCON.md)."
+            echo
+            echo '```'
+            echo 'curl -o spec/HOCON.md https://raw.githubusercontent.com/lightbend/config/main/HOCON.md'
+            echo '```'
+            echo
+            echo '```diff'
+            head -c 60000 spec.diff
+            echo '```'
+          } > body.md
+          gh issue create --title "$title" --label needs-triage --body-file body.md
