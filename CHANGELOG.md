@@ -2,6 +2,12 @@
 
 What changed for someone using zig-hocon: the Zig package, the `hocon` command line tool, libhocon for C and the `zig-hocon` Python package, which are released together under one version. The technical detail is in the commits each release links to.
 
+## [Unreleased]
+
+### Changed
+
+- `include url("x.conf")`, a URL with no scheme, fails with `InvalidUrl` instead of `UnsupportedInclude`, which stays for a scheme zig-hocon cannot follow, such as `ftp:`. In C it is still `HOCON_ERR_PARSE`, in Python still a `ConfigParseException`; only the name changes.
+
 ## [0.5.0] - 2026-10-18
 
 A timeout for http(s) includes from C and Python.

@@ -23,10 +23,13 @@ pub const Error = error{
     IncludeNotFound,
     /// A file includes itself, directly or through others, or files nest more than 64 deep.
     IncludeCycle,
-    /// `classpath(…)`, `url(…)` with something that is not an http, https or file URL,
+    /// `classpath(…)`, `url(…)` with a scheme other than http, https or file,
     /// a `.properties` line with a backslash (escapes are not decoded), and an
     /// include with more than 255 keys above it (`Ref.scope_len` is a u8).
     UnsupportedInclude,
+    /// `url(…)` around something that is not an absolute URL, with no scheme:
+    /// `url("x.conf")` (RFC 3986, section 4.3).
+    InvalidUrl,
     /// More than 65536 files in one document: a ref keeps its file as a u16.
     TooManyFiles,
     /// The server answered with something other than success, not found or gone.
@@ -98,7 +101,7 @@ pub fn load(gpa: Allocator, node: Node, ctx: Value.Context) values.Error!Value {
         // `file("…")` is not relative to the including file, but to wherever the
         // process is: the path is used as written.
         .file => .{ .local = name },
-        .url => if (urlScheme(name) != null) try urlTarget(gpa, name) else return error.UnsupportedInclude,
+        .url => if (urlScheme(name) != null) try urlTarget(gpa, name) else return error.InvalidUrl,
         .classpath => return error.UnsupportedInclude,
     };
 
@@ -589,12 +592,18 @@ test "include.url() and classpath() refuse what they cannot follow" {
         "include url(\"ftp://example.org/x.conf\")",
         "include \"ftp://example.org/x.conf\"",
         "include classpath(\"x.conf\")",
-        "include url(\"x.conf\")",
         "include url(\"foo:x.conf\")",
         "include required(classpath(\"x.conf\"))",
     }) |source| {
         try testing.expectError(error.UnsupportedInclude, Config.parseFromSlice(Value, testing.allocator, source, .{}));
     }
+}
+
+// include-syntax/011 · java ✓ (rejects it) · pyhocon ✓ (rejects it) · spec – (open
+// review row): a url() is never relative, so without a scheme it is no URL at all.
+test "include.url() without a scheme is InvalidUrl" {
+    try testing.expectError(error.InvalidUrl, Config.parseFromSlice(Value, testing.allocator, "include url(\"x.conf\")", .{}));
+    try testing.expectError(error.InvalidUrl, Config.parseFromSlice(Value, testing.allocator, "include required(url(\"x.conf\"))", .{}));
 }
 
 // spec L1111–1116 · java ✓ · pyhocon ✓ for foo:bar.conf (both read it as a file
