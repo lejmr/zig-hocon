@@ -5,11 +5,11 @@
   "mode": "java",
   "java_version": "1.4.9",
   "command": "conformance/adapters/oracle.sh hocon-py",
-  "ran_at": "2026-10-18T10:09:06Z",
-  "suite_digest": "2fe52df92f49aea2",
+  "ran_at": "2026-10-19T05:41:23Z",
+  "suite_digest": "7647451c97c1d244",
   "total": 445,
-  "passed": 295,
-  "percent": 66.3,
+  "passed": 296,
+  "percent": 66.5,
   "sections": {
     "array-and-object-concatenation": {
       "total": 19,
@@ -69,7 +69,7 @@
     },
     "key-value-separator": {
       "total": 6,
-      "passed": 5
+      "passed": 6
     },
     "list-values-from-environment-variables": {
       "total": 6,
@@ -340,7 +340,7 @@
     "key-value-separator/003-omitted-separator-unquoted-key.conf": "pass",
     "key-value-separator/004-value-on-the-line-after-the-separator.conf": "pass",
     "key-value-separator/005-separator-cannot-be-omitted-before-array.conf": "pass",
-    "key-value-separator/006-newline-between-key-and-brace.conf": "open",
+    "key-value-separator/006-newline-between-key-and-brace.conf": "pass",
     "list-values-from-environment-variables/001-list-from-indexed-variables.conf": "fail",
     "list-values-from-environment-variables/002-optional-list-with-no-elements-is-undefined.conf": "pass",
     "list-values-from-environment-variables/003-required-list-with-no-elements-is-error.conf": "pass",
@@ -617,7 +617,6 @@
     "include-substitution/011-optional-reference-falls-back-too/main.conf": "{\"common\":{\"x\":{},\"a\":0},\"x\":{\"y\":0}}",
     "include-substitution/014-unrelated-key-does-not-change-the-result/main.conf": "{\"common\":{\"x\":{},\"a\":0},\"x\":{\"y\":0},\"zzz\":{}}",
     "include-syntax/011-url-argument-must-be-a-url/main.conf": "rejected",
-    "key-value-separator/006-newline-between-key-and-brace.conf": "{\"foo\":{\"a\":1}}",
     "omit-root-braces/006-array-root-unaffected.conf": "[1,2,3]",
     "omit-root-braces/008-empty-array-root.conf": "[]",
     "omit-root-braces/009-comment-before-array-root.conf": "[1,2]",
@@ -1531,22 +1530,6 @@
       "got": "{\"include\":42}"
     },
     {
-      "case": "key-value-separator/006-newline-between-key-and-brace.conf",
-      "spec": "HOCON.md#key-value-separator",
-      "rule": "the separator may be omitted before {, and the spec does not say whether a newline may stand between the key and the brace; typesafe/config and pyhocon accept it, hocon-rs rejects it",
-      "expected": {
-        "foo": {
-          "a": 1
-        }
-      },
-      "got": {
-        "foo": {
-          "a": 1
-        }
-      },
-      "open_question": "the spec is silent on a newline between a key and its brace; implementations disagree"
-    },
-    {
       "case": "list-values-from-environment-variables/001-list-from-indexed-variables.conf",
       "spec": "HOCON.md#list-values-from-environment-variables",
       "rule": "the [] suffix collects CONFORMANCE_LIST_0, CONFORMANCE_LIST_1, ... until an index is missing, into a list of strings",
@@ -2089,7 +2072,7 @@
         "a": "null bar"
       },
       "got": {
-        "a": "<pyhocon.config_tree.NoneValue object at 0x1022ee750>bar"
+        "a": "<pyhocon.config_tree.NoneValue object at 0x103ba6390>bar"
       }
     },
     {

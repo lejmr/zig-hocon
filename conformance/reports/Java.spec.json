@@ -4,11 +4,11 @@
   "version": "typesafe/config 1.4.9",
   "mode": "spec",
   "command": "conformance/adapters/oracle.sh hocon-java",
-  "ran_at": "2026-10-18T10:06:14Z",
-  "suite_digest": "2fe52df92f49aea2",
+  "ran_at": "2026-10-19T05:39:43Z",
+  "suite_digest": "7647451c97c1d244",
   "total": 445,
-  "passed": 399,
-  "percent": 89.7,
+  "passed": 400,
+  "percent": 89.9,
   "sections": {
     "array-and-object-concatenation": {
       "total": 19,
@@ -68,7 +68,7 @@
     },
     "key-value-separator": {
       "total": 6,
-      "passed": 5
+      "passed": 6
     },
     "list-values-from-environment-variables": {
       "total": 6,
@@ -339,7 +339,7 @@
     "key-value-separator/003-omitted-separator-unquoted-key.conf": "pass",
     "key-value-separator/004-value-on-the-line-after-the-separator.conf": "pass",
     "key-value-separator/005-separator-cannot-be-omitted-before-array.conf": "pass",
-    "key-value-separator/006-newline-between-key-and-brace.conf": "open",
+    "key-value-separator/006-newline-between-key-and-brace.conf": "pass",
     "list-values-from-environment-variables/001-list-from-indexed-variables.conf": "pass",
     "list-values-from-environment-variables/002-optional-list-with-no-elements-is-undefined.conf": "pass",
     "list-values-from-environment-variables/003-required-list-with-no-elements-is-error.conf": "pass",
@@ -616,7 +616,6 @@
     "include-substitution/011-optional-reference-falls-back-too/main.conf": "{\"common\":{\"x\":{}},\"x\":{\"y\":0}}",
     "include-substitution/014-unrelated-key-does-not-change-the-result/main.conf": "rejected",
     "include-syntax/011-url-argument-must-be-a-url/main.conf": "rejected",
-    "key-value-separator/006-newline-between-key-and-brace.conf": "{\"foo\":{\"a\":1}}",
     "omit-root-braces/006-array-root-unaffected.conf": "rejected",
     "omit-root-braces/008-empty-array-root.conf": "rejected",
     "omit-root-braces/009-comment-before-array-root.conf": "rejected",
@@ -1052,22 +1051,6 @@
       "expected": "rejected",
       "got": "rejected",
       "open_question": "the spec says only that the string inside url() is interpreted as a URL; it does not say whether a string that is not a URL is an error or an unresolvable, hence ignorable, resource. typesafe/config rejects it"
-    },
-    {
-      "case": "key-value-separator/006-newline-between-key-and-brace.conf",
-      "spec": "HOCON.md#key-value-separator",
-      "rule": "the separator may be omitted before {, and the spec does not say whether a newline may stand between the key and the brace; typesafe/config and pyhocon accept it, hocon-rs rejects it",
-      "expected": {
-        "foo": {
-          "a": 1
-        }
-      },
-      "got": {
-        "foo": {
-          "a": 1
-        }
-      },
-      "open_question": "the spec is silent on a newline between a key and its brace; implementations disagree"
     },
     {
       "case": "omit-root-braces/006-array-root-unaffected.conf",
