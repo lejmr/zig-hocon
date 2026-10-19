@@ -4,9 +4,23 @@ What changed for someone using zig-hocon: the Zig package, the `hocon` command l
 
 ## [Unreleased]
 
+The conformance suite settles two of its three open questions: 444 of the 445 tests pass, up from 442. The last one, `url()` without a scheme, waits for the spec ([lightbend/config#887](https://github.com/lightbend/config/pull/887)).
+
+### Added
+
+- `python/BENCHMARK.md`: every Python HOCON library measured against the spec and timed on 1 KB, 1 MB and 10 MB files, with the best Rust crate and typesafe/config beside them. zig-hocon is the fastest Python library, from 2× the next one at 1 KB to 17× at 10 MB.
+- The conformance report measures py.hocon, hocon2, pulse-pyhocon and rs.hocon beside typesafe/config and pyhocon; `conformance/README.md` lists the parsers left out and why.
+- A conformance case can accept more than one output, `also_valid` in its sidecar, where the spec allows several answers. The first is two fields that substitute each other: both 1, both 2 or an error.
+
 ### Changed
 
 - `include url("x.conf")`, a URL with no scheme, fails with `InvalidUrl` instead of `UnsupportedInclude`, which stays for a scheme zig-hocon cannot follow, such as `ftp:`. In C it is still `HOCON_ERR_PARSE`, in Python still a `ConfigParseException`; only the name changes.
+- A newline between a key and its `{` is an ordinary conformance case, no longer an open question: every parser in the report accepts it.
+
+### Fixed
+
+- `conformance/run.sh --text` lists open questions apart from failures. They showed as failing, with the expected and the actual output the same.
+- The conformance report page shows its scores and verdicts without JavaScript, so they show on a phone too.
 
 ## [0.5.0] - 2026-10-18
 
