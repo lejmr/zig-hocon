@@ -36,7 +36,7 @@ body {
   font: 400 15px/1.55 "IBM Plex Sans", system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
-.wrap { max-width: 1180px; margin: 0 auto; padding: 32px 24px 96px; display: flex; flex-direction: column; gap: 28px; }
+.wrap { padding: 32px 24px 96px; display: flex; flex-direction: column; gap: 28px; }
 h1 { font-size: 28px; font-weight: 600; margin: 0; letter-spacing: -.015em; text-wrap: balance; }
 .lede { color: var(--muted); max-width: 66ch; margin: 6px 0 0; }
 code, .mono { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: .88em; }
