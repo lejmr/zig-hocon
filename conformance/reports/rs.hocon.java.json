@@ -5,11 +5,11 @@
   "mode": "java",
   "java_version": "1.4.9",
   "command": "a cargo binary over the hocon-parser crate 1.14.2 (o3co/rs.hocon): hocon::parse_file, the tree as JSON",
-  "ran_at": "2026-10-19T05:38:57Z",
-  "suite_digest": "7647451c97c1d244",
+  "ran_at": "2026-10-19T05:58:57Z",
+  "suite_digest": "cd4bdae3133b2042",
   "total": 445,
-  "passed": 384,
-  "percent": 86.3,
+  "passed": 385,
+  "percent": 86.5,
   "sections": {
     "array-and-object-concatenation": {
       "total": 19,
@@ -105,7 +105,7 @@
     },
     "self-referential-examples": {
       "total": 26,
-      "passed": 24
+      "passed": 25
     },
     "self-referential-substitutions": {
       "total": 5,
@@ -436,7 +436,7 @@
     "self-referential-examples/011-optional-self-reference-in-concatenation-looks-back.conf": "pass",
     "self-referential-examples/012-mutual-non-self-cycle-is-unresolvable.conf": "pass",
     "self-referential-examples/013-multi-step-cycle-is-invalid.conf": "pass",
-    "self-referential-examples/014-order-dependent-resolution-must-agree-on-one-value.conf": "open",
+    "self-referential-examples/014-order-dependent-resolution-must-agree-on-one-value.conf": "pass",
     "self-referential-examples/015-list-hidden-by-substituted-object-is-never-evaluated.conf": "pass",
     "self-referential-examples/016-object-hidden-by-substituted-scalar-is-never-evaluated.conf": "pass",
     "self-referential-examples/017-object-hidden-by-substituted-concatenation-is-never-evaluated.conf": "pass",
@@ -624,7 +624,6 @@
     "paths-as-keys/008-include-cannot-begin-key.conf": "rejected",
     "plus-equals-field-separator/006-plus-equals-inside-a-list-element.conf": "{\"a\":[{\"b\":[1]}]}",
     "plus-equals-field-separator/008-plus-equals-with-an-object-containing-a-merge.conf": "{\"x\":{\"p\":1},\"l\":[{\"a\":{\"p\":1}}]}",
-    "self-referential-examples/014-order-dependent-resolution-must-agree-on-one-value.conf": "{\"a\":2,\"b\":2}",
     "self-referential-examples/015-list-hidden-by-substituted-object-is-never-evaluated.conf": "rejected",
     "self-referential-examples/021-hidden-list-does-not-depend-on-key-order.conf": "rejected",
     "string-value-concatenation/010-object-then-scalar-drops-the-scalar.conf": "rejected",
@@ -1221,20 +1220,6 @@
       "rule": "if the self-referential foo:${foo} comes before foo has any value, the reference is undefined, exactly as if it named a path not found in the document, so it is an error even though foo is given a value afterward",
       "expected": "rejected",
       "got": "{\"foo\":{\"a\":1}}"
-    },
-    {
-      "case": "self-referential-examples/014-order-dependent-resolution-must-agree-on-one-value.conf",
-      "spec": "HOCON.md#examples-of-self-referential-substitutions",
-      "rule": "this case has undefined behavior depending on resolution order: implementations are allowed to set both a and b to 1, both to 2, or to error, but must set both to the same value because substitutions are memoized by instance, so a and b must never diverge (e.g. a=1,b=2 is not permitted)",
-      "expected": {
-        "a": 1,
-        "b": 1
-      },
-      "got": {
-        "a": 2,
-        "b": 2
-      },
-      "open_question": "the spec allows both fields to be 1, both 2, or an error (L875-877); only 'the same value' is required, which one expected tree cannot express. typesafe/config itself gives 1 or 2 depending on key order"
     },
     {
       "case": "string-value-concatenation/010-object-then-scalar-drops-the-scalar.conf",

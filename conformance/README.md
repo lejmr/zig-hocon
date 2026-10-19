@@ -81,6 +81,17 @@ A runner hands your adapter the path to `main.conf`; includes resolve beside it.
 
 A row where the reference implementation and the spec part ways carries `"java": "diverges" | "unsupported" | "lenient"` and, next to it, `"java_expect"` or `"java_error"` — what typesafe/config does with that same input. Those rows are the reason the suite exists; `maintaining/PROCESS.md` has the table of which kind means what.
 
+Where the spec allows more than one answer, `"also_valid"` lists the others, and an output matching `expect` or any of them passes. `"rejected"` in the list lets an error pass too:
+
+```json
+{
+  "spec": "HOCON.md#examples-of-self-referential-substitutions",
+  "why": "the order a and b resolve in is undefined: both 1, both 2 or an error are all allowed, but a and b must agree",
+  "expect": {"a": 1, "b": 1},
+  "also_valid": [{"a": 2, "b": 2}, "rejected"]
+}
+```
+
 A row carrying `"review"` is an open question for a human. It is neither a pass nor a failure. `--text` lists such rows apart from the failing ones, and they alone do not make `run.sh` exit 1.
 
 Two directories assert features the specification only permits: `include-file-formats` (other formats, basename probing: "implementations may support") and `substitution-fallback-to-environment` together with `list-values-from-environment-variables` ("implementations may search external sources"). An implementation without them is still conformant; it fails those rows knowingly, and `--only` can leave them out.
