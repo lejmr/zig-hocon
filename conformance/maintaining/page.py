@@ -189,7 +189,7 @@ function render() {
   const all = DATA.sections.flatMap(s => s.rows);
   document.getElementById("scores").innerHTML = columns().map(impl => {
     const [ok, n] = score(all, impl);
-    const pct = n ? Math.round(100 * ok / n) : 0;
+    const pct = !n ? 0 : ok === n ? 100 : (100 * ok / n).toFixed(1);
     const local = LOCAL[impl];
     return `<div class="score${local ? " local" : ""}"><div class="impl">${impl}</div>
       <div class="pct num">${pct}%</div>
@@ -342,7 +342,7 @@ def _scores(impls, sections, versions):
     cards = []
     for i in impls:
         ok, n = _score(rows, i)
-        pct = round(100 * ok / n) if n else 0
+        pct = 0 if not n else 100 if ok == n else "{:.1f}".format(100 * ok / n)
         cards.append('<div class="score"><div class="impl">{0}</div><div class="pct num">{1}%</div>'
                      '<div class="of num">{2} of {3} rows</div><div class="of num">{4}</div>'
                      '<div class="bar"><i style="width:{1}%"></i></div></div>'.format(
