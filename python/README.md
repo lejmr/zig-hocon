@@ -36,12 +36,12 @@ The rest of this page reads these two files.
 
 ## Why zig-hocon
 
-- **Correct.** Passes 442 of the 445 tests in the [conformance suite](https://htmlpreview.github.io/?https://github.com/lejmr/zig-hocon/blob/main/conformance/report.html), one test for each sentence of the spec.\*
+- **Correct.** Passes 444 of the 445 tests in the [conformance suite](https://htmlpreview.github.io/?https://github.com/lejmr/zig-hocon/blob/main/conformance/report.html), one test for each sentence of the spec.\*
 - **Fast.** Orders of magnitude faster than what Python usually has.\*\*
 - **Clear errors.** File, line, column, and a caret under the mistake.
 - **No dependencies.** A thin ctypes layer over one bundled library.
 
-\* The other three are where the spec leaves room and implementations disagree.  
+\* The other one is `include url("x.conf")`: the spec does not say what a URL without a scheme does, and [lightbend/config#887](https://github.com/lightbend/config/pull/887) proposes the error zig-hocon gives.  
 \*\* A 6 KB config in 1 ms, a 10 MB one in 0.3 s, on an Apple M4 Pro.
 
 ## Install
