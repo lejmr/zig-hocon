@@ -217,7 +217,7 @@ b.step("check-config", "Check the config against Config").dependOn(&check.step);
 | py.hocon <sub>hocon-parser 1.14.2 (Python)</sub> | 89% (395/445) | 88% (392/445) |
 | pyhocon <sub>pyhocon 0.3.63</sub> | 70% (312/445) | 66% (295/445) |
 | rs.hocon <sub>hocon-parser 1.14.2 (Rust)</sub> | 89% (395/445) | 86% (383/445) |
-| zig-hocon <sub>zig-hocon code@0083ac9</sub> | 99% (442/445) | 90% (399/445) |
+| zig-hocon <sub>zig-hocon code@fad796a</sub> | 99% (442/445) | 90% (399/445) |
 
 The table keeps the best parsers; the others measured, and why they are not in it: [conformance/README.md](conformance/README.md#not-in-the-table).
 
