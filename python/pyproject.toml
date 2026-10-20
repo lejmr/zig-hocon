@@ -39,7 +39,7 @@ Conformance = "https://htmlpreview.github.io/?https://github.com/lejmr/zig-hocon
 Migrating = "https://github.com/lejmr/zig-hocon/blob/main/python/MIGRATING.md"
 
 [tool.setuptools]
-packages = ["zig_hocon"]
+packages = ["zig_hocon", "zig_hocon.pyhocon"]
 
 [tool.setuptools.package-data]
 # The library is put there by `zig build python`; py.typed says the package
