@@ -2,6 +2,12 @@
 
 What changed for someone using zig-hocon: the Zig package, the `hocon` command line tool, libhocon for C and the `zig-hocon` Python package, which are released together under one version. The technical detail is in the commits each release links to.
 
+## [Unreleased]
+
+### Added
+
+- Python: `zig_hocon.pyhocon`, pyhocon's API over zig-hocon, so moving over is a change of import. Its modules, names, arguments and output are pyhocon 0.3.63's: the tree an `OrderedDict` with `get`, `put`, `pop`, `with_fallback` and `get_list`, `ConfigFactory.parse_URL` and `from_dict`, `HOCONConverter`, and the command line as `python -m zig_hocon.pyhocon.tool`. A config still reads by the spec; pyhocon's own test suite passes 167 of 263 with the import swapped, and `python/MIGRATING.md` says what the rest are.
+
 ## [0.5.3] - 2026-10-26
 
 ### Changed
