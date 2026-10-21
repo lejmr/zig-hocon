@@ -1,6 +1,9 @@
 """pyhocon's ``ConfigFactory`` and ``ConfigParser``, with its arguments. The
 document is read by libhocon, as ``zig_hocon.ConfigFactory`` reads it, and
-handed over as a ConfigTree of Python's own values."""
+handed over as a ConfigTree of Python's own values.
+
+Changed from pyhocon's config_parser.py (Apache-2.0, LICENSE in this
+directory): its arguments and messages over libhocon's parser."""
 
 import codecs
 import contextlib

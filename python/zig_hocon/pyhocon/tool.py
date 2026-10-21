@@ -1,6 +1,9 @@
 """pyhocon's command line, ``python -m zig_hocon.pyhocon.tool``: a file, or
 stdin, as JSON, HOCON, YAML or a .properties file. zig-hocon's own is
-``python -m zig_hocon``."""
+``python -m zig_hocon``.
+
+Changed from pyhocon's tool.py (Apache-2.0, LICENSE in this directory):
+its options, over this module's converter."""
 
 import argparse
 import logging

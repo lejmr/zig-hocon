@@ -253,4 +253,4 @@ If you need a HOCON feature that is not there, open a pull request; a failing te
 
 ## License
 
-BSD 3-Clause, see [LICENSE](LICENSE).
+BSD 3-Clause, see [LICENSE](LICENSE). The Python module `zig_hocon.pyhocon` is changed in parts from [pyhocon](https://github.com/chimpler/pyhocon)'s code and those parts are under pyhocon's Apache License 2.0, in [python/zig_hocon/pyhocon/LICENSE](python/zig_hocon/pyhocon/LICENSE).

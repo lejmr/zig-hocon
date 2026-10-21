@@ -6,7 +6,11 @@ What changed for someone using zig-hocon: the Zig package, the `hocon` command l
 
 ### Added
 
-- Python: `zig_hocon.pyhocon`, pyhocon's API over zig-hocon, so moving over is a change of import. Its modules, names, arguments and output are pyhocon 0.3.63's: the tree an `OrderedDict` with `get`, `put`, `pop`, `with_fallback` and `get_list`, `ConfigFactory.parse_URL` and `from_dict`, `HOCONConverter`, and the command line as `python -m zig_hocon.pyhocon.tool`. `30s` is a `timedelta` (a `relativedelta` with python-dateutil), as in pyhocon. A config still reads by the spec; pyhocon's own test suite passes 263 of 308 with the import swapped, and `python/MIGRATING.md` says what the rest are.
+- Python: `zig_hocon.pyhocon`, pyhocon's API over zig-hocon, so moving over is a change of import. Its modules, names, arguments and output are pyhocon 0.3.63's: the tree an `OrderedDict` with `get`, `put`, `pop`, `with_fallback` and `get_list`, `ConfigFactory.parse_URL` and `from_dict`, `HOCONConverter`, and the command line as `python -m zig_hocon.pyhocon.tool`. `30s` is a `timedelta` (a `relativedelta` with python-dateutil), as in pyhocon. A config still reads by the spec; pyhocon's own test suite passes 263 of 308 with the import swapped, and `python/MIGRATING.md` says what the rest are. Parts of it are changed from pyhocon's code and stay under its Apache License 2.0, so the package's license is `BSD-3-Clause AND Apache-2.0`, with both texts in the wheel.
+
+### Fixed
+
+- Python: the wheels have `py.typed`, which `pip install python/` had and the release wheels did not, so a type checker reads the package's types.
 
 ### Fixed
 
