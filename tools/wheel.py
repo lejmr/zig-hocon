@@ -41,7 +41,7 @@ metadata = [
     f"Version: {version}",
     f"Summary: {project['description']}",
     f"License-Expression: {project['license']}",
-    "License-File: LICENSE",
+    *[f"License-File: {path}" for path in project["license-files"]],
     f"Requires-Python: {project['requires-python']}",
     *[f"Classifier: {c}" for c in project["classifiers"]],
     *[f"Project-URL: {k}, {v}" for k, v in project["urls"].items()],
@@ -54,15 +54,21 @@ wheel = ["Wheel-Version: 1.0", "Generator: zig-hocon tools/wheel.py", "Root-Is-P
 wheel += [f"Tag: py3-none-{tag}" for tag in platform.split(".")]
 
 files = []  # (path in the wheel, bytes, executable)
-package = os.path.join(python, name)
-for file in sorted(os.listdir(package)):
-    if file.endswith(".py") and not file.startswith("."):  # not an editor's .#lock.py
-        with open(os.path.join(package, file), "rb") as f:
-            files.append((f"{name}/{file}", f.read(), False))
+for dirpath, dirnames, filenames in os.walk(os.path.join(python, name)):
+    dirnames[:] = sorted(d for d in dirnames if d != "__pycache__")
+    for file in sorted(filenames):
+        # not an editor's .#lock.py; py.typed says the package has its types
+        if (file.endswith(".py") or file == "py.typed") and not file.startswith("."):
+            path = os.path.join(dirpath, file)
+            with open(path, "rb") as f:
+                files.append((os.path.relpath(path, python).replace(os.sep, "/"), f.read(), False))
 with open(library, "rb") as f:
     files.append((f"{name}/{lib_name}", f.read(), True))
-with open(os.path.join(root, "LICENSE"), "rb") as f:
-    files.append((f"{dist_info}/licenses/LICENSE", f.read(), False))
+# pyproject's license-files, the top one from the repository as python/ has
+# it only once `zig build python` has copied it
+for path in project["license-files"]:
+    with open(os.path.join(root if path == "LICENSE" else python, path), "rb") as f:
+        files.append((f"{dist_info}/licenses/{path}", f.read(), False))
 files.append((f"{dist_info}/METADATA", "\n".join(metadata).encode(), False))
 files.append((f"{dist_info}/WHEEL", ("\n".join(wheel) + "\n").encode(), False))
 

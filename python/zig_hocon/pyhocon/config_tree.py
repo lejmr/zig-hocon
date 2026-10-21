@@ -1,5 +1,8 @@
 """pyhocon's ``ConfigTree``: the document as an OrderedDict of Python's own
-values, read and changed by dotted paths, as pyhocon has it."""
+values, read and changed by dotted paths, as pyhocon has it.
+
+Changed from pyhocon's config_tree.py (Apache-2.0, LICENSE in this
+directory): its methods, their conversions and messages."""
 
 import datetime
 import json

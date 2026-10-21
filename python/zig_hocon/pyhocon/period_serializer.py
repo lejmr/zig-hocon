@@ -1,5 +1,8 @@
 """pyhocon's ``period_serializer``: a duration written out, as pyhocon's
-HOCONConverter writes it."""
+HOCONConverter writes it.
+
+Changed from pyhocon's period_serializer.py (Apache-2.0, LICENSE in this
+directory): typed."""
 
 import datetime
 from typing import Any

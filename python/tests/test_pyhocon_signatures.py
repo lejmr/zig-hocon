@@ -31,7 +31,6 @@ DIFFERS = {
     "ConfigQuotedString.*": _PARSER_OBJECT,
     "ConfigInclude.*": _PARSER_OBJECT,
     "ConfigList.__init__": "a plain list subclass, constructed as list is",
-    "ConfigTree.items": "OrderedDict's own, which pyhocon overrides for Python 2",
     "ConfigTree.resolve": "not there yet, MIGRATING.md",
     "ConfigParser.unresolve_substitutions_to_value": "pyhocon's STR_SUBSTITUTION, which is not supported, MIGRATING.md",
     "ConfigException.__init__": "zig_hocon's exceptions: (message, name, file, line, column, source_line), not (message, ex)",
@@ -85,14 +84,24 @@ def _param(case, module, name, member, why):
 
 def _signature(f):
     """The parameters of ``f``: name, kind and default, a class default by
-    its name (pyhocon's UndefinedKey is ours by name, not by identity)."""
+    its name (pyhocon's UndefinedKey is ours by name, not by identity). None
+    for a builtin that tells none: OrderedDict.items on CPython."""
+    try:
+        signature = inspect.signature(f)
+    except ValueError:
+        return None
     params = []
-    for p in inspect.signature(f).parameters.values():
+    for p in signature.parameters.values():
         default = p.default
         if default is not p.empty:
             default = default.__name__ if inspect.isclass(default) else repr(default)
         params.append((p.name, p.kind.name, default))
     return params
+
+
+def _builtin_base(module, name):
+    """The builtin base of our class ``name``, where a member comes from."""
+    return next(c for c in getattr(_ours(module), name).__mro__ if c.__module__ in ("builtins", "collections"))
 
 
 def _mro(cls):
@@ -110,5 +119,9 @@ def test_same_interface_as_pyhocon(module, name, member):
         assert set(_mro(theirs)) <= set(_mro(ours))
     elif callable(theirs):
         mine, pyhocons = _signature(ours), _signature(theirs)
+        if mine is None:
+            # OrderedDict's own, which pyhocon overrides for Python 2's sake
+            assert ours is getattr(_builtin_base(module, name), member, None)
+            return
         assert mine[: len(pyhocons)] == pyhocons
         assert all(default is not None for _, _, default in mine[len(pyhocons) :]), "a parameter pyhocon has not, with no default"
