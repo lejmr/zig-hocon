@@ -2,7 +2,6 @@
 values, read and changed by dotted paths, as pyhocon has it."""
 
 import datetime
-import importlib
 import json
 import re
 from collections import OrderedDict
@@ -14,6 +13,7 @@ from ..exceptions import (
     ConfigSubstitutionException,
     ConfigWrongTypeException,
 )
+from .period_serializer import is_timedelta_like
 
 if TYPE_CHECKING:
     from .config_parser import Path
@@ -82,56 +82,6 @@ def quoted(key: str) -> str:
     return f'"{key}"' if _HAS_SPECIAL(key) else key
 
 
-# pyhocon's durations: an unquoted `30s` or `10 weeks` is a timedelta, or a
-# dateutil relativedelta when dateutil is installed, which months and years
-# need. Milliseconds are always a timedelta.
-try:
-    relativedelta: Any = importlib.import_module("dateutil.relativedelta").relativedelta
-except ImportError:  # pragma: no cover - the tests have dateutil and patch it away
-    relativedelta = None
-
-_UNITS = {
-    "nanoseconds": ["ns", "nano", "nanos", "nanosecond", "nanoseconds"],
-    "microseconds": ["us", "micro", "micros", "microsecond", "microseconds"],
-    "milliseconds": ["ms", "milli", "millis", "millisecond", "milliseconds"],
-    "seconds": ["s", "second", "seconds"],
-    "minutes": ["m", "minute", "minutes"],
-    "hours": ["h", "hour", "hours"],
-    "weeks": ["w", "week", "weeks"],
-    "days": ["d", "day", "days"],
-}
-_DATEUTIL_UNITS = {"months": ["mo", "month", "months"], "years": ["y", "year", "years"]}
-
-
-def _duration_re(units: dict[str, list[str]]) -> "re.Pattern[str]":
-    # the longest spelling first: `ms` before `m`, `mo` before `m`
-    names = sorted((n for spellings in units.values() for n in spellings), key=len, reverse=True)
-    return re.compile(r"(\d+) *(" + "|".join(names) + ")")
-
-
-_DURATION = _duration_re(_UNITS)
-_DURATION_DATEUTIL = _duration_re(_UNITS | _DATEUTIL_UNITS)
-_UNIT_OF = {n: unit for unit, spellings in (_UNITS | _DATEUTIL_UNITS).items() for n in spellings}
-
-
-def duration(text: str) -> Any:
-    """``text`` as pyhocon reads a value: a duration when it is a whole
-    number and a unit, else ``text``.
-
-    ponytail: libhocon's JSON has no quotes left, so a quoted "30s" is a
-    duration too, where pyhocon keeps it text; hocon.h telling quoted from
-    unquoted would make it exact."""
-    m = (_DURATION if relativedelta is None else _DURATION_DATEUTIL).fullmatch(text)
-    if m is None:
-        return text
-    value, unit = int(m[1]), _UNIT_OF[m[2]]
-    if unit == "nanoseconds":
-        value, unit = value // 1000, "microseconds"
-    if unit == "milliseconds" or relativedelta is None:
-        return datetime.timedelta(**{unit: value})
-    return relativedelta(**{unit: value})
-
-
 def _duration_text(value: Any) -> str:
     """A duration as HOCON that reads back as the same one: milliseconds,
     or microseconds below them, for a timedelta; a relativedelta in months or
@@ -146,13 +96,9 @@ def _duration_text(value: Any) -> str:
     return f"{months} months" if months else f"{us} us"
 
 
-def is_duration(value: Any) -> bool:
-    return isinstance(value, datetime.timedelta) or relativedelta is not None and isinstance(value, relativedelta)
-
-
 def _json_value(value: Any) -> Any:
     """A duration in a tree, as HOCON text that reads back as it."""
-    if is_duration(value):
+    if is_timedelta_like(value):
         return _duration_text(value)
     raise TypeError(f"{type(value).__name__} is not a HOCON value")
 

@@ -45,11 +45,13 @@ from zig_hocon.pyhocon import ConfigFactory, ConfigTree, HOCONConverter
 from zig_hocon.pyhocon.exceptions import ConfigMissingException
 ```
 
-Everything of pyhocon's public API is there: `ConfigFactory.parse_file` (with `encoding` and `required`), `parse_string`, `parse_URL`, `from_dict`; the `ConfigTree` with `get`, the typed getters, `get_list`, `get_config`, `put`, `pop`, `with_fallback`, `merge_configs`, `as_plain_ordered_dict`, `conf["db.host"]` and `conf.db.host`; `ConfigParser.parse`, `resolve_substitutions` and `resolve_package_path`; `HOCONConverter` with its JSON, HOCON, YAML and .properties output to the character; and pyhocon's command line as `python -m zig_hocon.pyhocon.tool`. The exceptions are zig_hocon's, so one `except` catches either module's.
+Everything of pyhocon's public API is there: `ConfigFactory.parse_file` (with `encoding` and `required`), `parse_string`, `parse_URL`, `from_dict`; the `ConfigTree` with `get`, the typed getters, `get_list`, `get_config`, `put`, `pop`, `with_fallback`, `merge_configs`, `as_plain_ordered_dict`, `conf["db.host"]` and `conf.db.host`; `ConfigParser.parse`, `resolve_substitutions` and `resolve_package_path`; `HOCONConverter` with its JSON, HOCON, YAML and .properties output to the character; `period_parser` and `period_serializer`; and pyhocon's command line as `python -m zig_hocon.pyhocon.tool`. The exceptions are zig_hocon's, so one `except` catches either module's.
+
+Two tests hold it against the newest pyhocon on every change: [test_pyhocon_signatures.py](tests/test_pyhocon_signatures.py) has every public name of pyhocon's modules, with the same parameters, and [test_pyhocon_compat.py](tests/test_pyhocon_compat.py) reads documents with both and compares the values, their types and the converter's output. Each difference by design is in them with its reason.
 
 Values have pyhocon's types: `30s` is a `timedelta`, or with python-dateutil installed a `relativedelta`, as pyhocon makes it; months and years need dateutil there too. One difference: a quoted `"30s"` is a duration as well, where pyhocon keeps it text.
 
-The measure is pyhocon's own test suite with the import swapped: 218 of its 263 tests pass. Of the 45 that do not, 44 are a config that reads differently by the spec (Step 3) or the class of a syntax error:
+The measure is pyhocon's own test suite with the import swapped: 263 of its 308 tests pass. Of the 45 that do not, 44 are a config that reads differently by the spec (Step 3) or the class of a syntax error:
 
 | tests | what pyhocon does |
 |---|---|
