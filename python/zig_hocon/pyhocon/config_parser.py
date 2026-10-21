@@ -17,7 +17,7 @@ from typing import Any, Literal, TypeVar, cast, overload
 from .. import config_parser as _core
 from .. import config_tree as _core_tree
 from ..exceptions import ConfigException, ConfigParseException, ConfigSubstitutionException, ConfigWrongTypeException
-from .config_tree import ConfigList, ConfigTree, quoted
+from .config_tree import ConfigList, ConfigTree, duration, quoted
 
 __all__ = [
     "DEFAULT_SUBSTITUTION",
@@ -80,8 +80,17 @@ def _call(read: Callable[[], _T]) -> _T:
         raise err from None
 
 
+def _typed(value: Any) -> Any:
+    """A value from libhocon's JSON as pyhocon has it: ``30s`` a duration."""
+    if isinstance(value, str):
+        return duration(value)
+    if isinstance(value, list):
+        return [_typed(v) for v in value]
+    return value
+
+
 def _tree(pairs: list[tuple[str, Any]]) -> ConfigTree:
-    return ConfigTree((quoted(k), v) for k, v in pairs)
+    return ConfigTree((quoted(k), _typed(v)) for k, v in pairs)
 
 
 def _resolved(doc: _core_tree.ConfigTree) -> ConfigTree:
@@ -89,7 +98,7 @@ def _resolved(doc: _core_tree.ConfigTree) -> ConfigTree:
     if isinstance(value, list):
         # a document that is a list, as pyhocon gives it; typed as the
         # object a document nearly always is
-        return cast(ConfigTree, ConfigList(value))
+        return cast(ConfigTree, ConfigList(_typed(value)))
     value.root = True
     return cast(ConfigTree, value)
 

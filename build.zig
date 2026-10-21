@@ -79,10 +79,11 @@ pub fn build(b: *std.Build) void {
     // Every line and branch of the package runs, or it fails (`pragma: no
     // cover` for what no test can reach). `python -m zig_hocon` is left out:
     // test_main.py runs it as a process, as the conformance adapter does,
-    // where coverage does not follow.
+    // where coverage does not follow. dateutil is there for
+    // zig_hocon.pyhocon's months and years, as pyhocon has them with it.
     const python_version = b.option([]const u8, "python", "The Python test-python runs on (default 3.12)") orelse "3.12";
     const coverage_file = b.pathFromRoot(".zig-cache/python.coverage");
-    const pytest = b.addSystemCommand(&.{ "uv", "run", "--no-project", "--python", python_version, "--with", "pytest", "--with", "coverage", "python", "-m", "coverage", "run", "--branch", "--source=python/zig_hocon", "--omit=python/zig_hocon/__main__.py", "-m", "pytest", "-q", "python/tests" });
+    const pytest = b.addSystemCommand(&.{ "uv", "run", "--no-project", "--python", python_version, "--with", "pytest", "--with", "coverage", "--with", "python-dateutil", "python", "-m", "coverage", "run", "--branch", "--source=python/zig_hocon", "--omit=python/zig_hocon/__main__.py", "-m", "pytest", "-q", "python/tests" });
     pytest.setCwd(b.path("."));
     pytest.setEnvironmentVariable("PYTHONPATH", "python");
     pytest.setEnvironmentVariable("COVERAGE_FILE", coverage_file);
