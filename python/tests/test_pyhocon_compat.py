@@ -1,4 +1,4 @@
-"""zig_hocon.pyhocon against pyhocon 0.3.63 itself: each document read by
+"""zig_hocon.pyhocon against pyhocon itself, the newest release: each document read by
 both, the values and their types the same, and HOCONConverter's output to the
 character. Where they differ by design the case is an xfail that says why,
 strict, so a difference that goes away shows."""
