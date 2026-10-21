@@ -26,7 +26,7 @@ from zig_hocon.pyhocon import (
     HOCONConverter,
     UndefinedKey,
 )
-from zig_hocon.pyhocon import config_parser, config_tree, converter, exceptions, tool
+from zig_hocon.pyhocon import config_parser, config_tree, converter, exceptions, period_parser, period_serializer, tool
 from zig_hocon.pyhocon.config_parser import (
     MANDATORY_SUBSTITUTION,
     NO_SUBSTITUTION,
@@ -303,7 +303,7 @@ def test_durations(text, value):
 
 # pyhocon ✓: without dateutil a timedelta, and months and years are text
 def test_durations_without_dateutil(monkeypatch):
-    monkeypatch.setattr(config_tree, "relativedelta", None)
+    monkeypatch.setattr(period_parser, "relativedelta", None)
     c = conf("a = 30s\nb = 3mo\nc = [1 d]")
     assert c["a"] == datetime.timedelta(seconds=30) and type(c["a"]) is datetime.timedelta
     assert c["b"] == "3mo" and c["c"] == [datetime.timedelta(days=1)]
@@ -321,6 +321,18 @@ def test_durations_through_with_fallback():
     c.put("f", relativedelta(months=1, days=2))
     with pytest.raises(TypeError, match="is not one HOCON duration"):
         c.with_fallback(ConfigTree())
+
+
+# pyhocon ✓: period_parser and period_serializer, as pyhocon has them;
+# pyhocon ⚠️: parse_period of no duration is a ValueError, not pyparsing's
+def test_period_modules():
+    assert period_parser.period(3, "minutes") == relativedelta(minutes=3)
+    assert period_parser.period(5, "milliseconds") == datetime.timedelta(milliseconds=5)
+    assert period_parser.parse_period("10 weeks") == relativedelta(days=70)
+    with pytest.raises(ValueError, match="'owl' is not a duration"):
+        period_parser.parse_period("owl")
+    assert period_serializer.relative_delta_to_timedelta(relativedelta(hours=1, months=2)) == datetime.timedelta(hours=1)
+    assert period_serializer.is_timedelta_like(relativedelta(days=1)) and not period_serializer.is_timedelta_like(1)
 
 
 # pyhocon ✓: checked against pyhocon 0.3.63's output

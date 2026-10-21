@@ -1,39 +1,23 @@
 """pyhocon's ``HOCONConverter``: a ConfigTree as JSON, HOCON, YAML or a
 .properties file, in pyhocon's layout to the character."""
 
-import datetime
 import json
 import re
 import sys
 from typing import Any, ClassVar
 
 from .config_parser import ConfigFactory, Path
-from .config_tree import ConfigTree, is_duration
+from .config_tree import ConfigQuotedString, ConfigSubstitution, ConfigTree, ConfigValues, NoneValue
+from .period_serializer import is_timedelta_like, timedelta_to_hocon, timedelta_to_str
 
-__all__ = ["HOCONConverter"]
-
-
-def _ms(value: Any) -> str:
-    """A duration, as pyhocon writes it: milliseconds, a relativedelta's
-    months and years left out."""
-    if not isinstance(value, datetime.timedelta):
-        value = datetime.timedelta(days=value.days, hours=value.hours, minutes=value.minutes, seconds=value.seconds, microseconds=value.microseconds)
-    return str(int(value.total_seconds() * 1000))
-
-
-def _hocon_duration(value: Any) -> str:
-    if not isinstance(value, datetime.timedelta):  # a relativedelta
-        if value.hours > 0:
-            return f"{value.hours} hours"
-        if value.minutes > 0:
-            return f"{value.minutes} minutes"
-    if value.days > 0:
-        return f"{value.days} days"
-    if value.seconds > 0:
-        return f"{value.seconds} seconds"
-    if value.microseconds > 0:
-        return f"{value.microseconds} microseconds"
-    return "0 seconds"
+# with the names pyhocon's module has from where it imports them
+__all__ = [
+    "ConfigQuotedString",
+    "ConfigSubstitution",
+    "ConfigValues",
+    "HOCONConverter",
+    "NoneValue",
+]
 
 
 def _scalar(value: Any) -> str:
@@ -65,8 +49,8 @@ class HOCONConverter:
             if not config:
                 return "[]"
             return "[\n" + ",\n".join(f"{inner}{cls.to_json(item, compact, indent, level + 1)}" for item in config) + f"\n{pad}]"
-        if is_duration(config):
-            return _ms(config)
+        if is_timedelta_like(config):
+            return timedelta_to_str(config)
         if isinstance(config, str):
             return json.dumps(config, ensure_ascii=False)
         return _scalar(config)
@@ -98,8 +82,8 @@ class HOCONConverter:
             if "\n" in config and len(config) > 1:
                 return f'"""{config}"""'
             return '"' + cls._escape_string(config) + '"'
-        if is_duration(config):
-            return _hocon_duration(config)
+        if is_timedelta_like(config):
+            return timedelta_to_hocon(config)
         return _scalar(config)
 
     @classmethod
@@ -117,8 +101,8 @@ class HOCONConverter:
             if not items:
                 return "[]"
             return "\n" + "\n".join(f"{pad}- {cls.to_yaml(item, compact, indent, level + 1)}" for item in items)
-        if is_duration(config):
-            return _ms(config)
+        if is_timedelta_like(config):
+            return timedelta_to_str(config)
         if isinstance(config, str):
             lines = config.split("\n")
             if len(lines) == 1:
@@ -138,8 +122,8 @@ class HOCONConverter:
             lines = [cls.to_properties(item, compact, indent, keys + [str(i)]) for i, item in enumerate(config) if item is not None]
         elif config is None:
             lines = []
-        elif is_duration(config):
-            lines = [".".join(keys) + " = " + _ms(config)]
+        elif is_timedelta_like(config):
+            lines = [".".join(keys) + " = " + timedelta_to_str(config)]
         elif isinstance(config, str):
             escaped = config.replace("=", "\\=").replace("!", "\\!").replace("#", "\\#").replace("\n", "\\\n")
             lines = [".".join(keys) + " = " + escaped]

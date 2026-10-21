@@ -16,17 +16,26 @@ from typing import Any, Literal, TypeVar, cast, overload
 
 from .. import config_parser as _core
 from .. import config_tree as _core_tree
-from ..exceptions import ConfigException, ConfigParseException, ConfigSubstitutionException, ConfigWrongTypeException
-from .config_tree import ConfigList, ConfigTree, duration, quoted
+from ..exceptions import ConfigException, ConfigMissingException, ConfigParseException, ConfigSubstitutionException, ConfigWrongTypeException
+from .config_tree import ConfigInclude, ConfigList, ConfigQuotedString, ConfigSubstitution, ConfigTree, ConfigUnquotedString, ConfigValues, NoneValue, quoted
+from .period_parser import duration
 
+# with the names pyhocon's module has from where it imports them
 __all__ = [
     "DEFAULT_SUBSTITUTION",
     "MANDATORY_SUBSTITUTION",
     "NO_SUBSTITUTION",
     "STR_SUBSTITUTION",
     "ConfigFactory",
+    "ConfigInclude",
+    "ConfigMissingException",
     "ConfigParser",
+    "ConfigQuotedString",
+    "ConfigSubstitution",
     "ConfigSubstitutionException",
+    "ConfigUnquotedString",
+    "ConfigValues",
+    "NoneValue",
 ]
 
 logger = logging.getLogger(__name__)
