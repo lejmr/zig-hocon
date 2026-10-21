@@ -101,9 +101,19 @@ pub fn build(b: *std.Build) void {
     mypy.setEnvironmentVariable("PYTHONPATH", "python");
     mypy.has_side_effects = true;
     mypy.step.dependOn(&py_lib.step);
-    const test_python_step = b.step("test-python", "Run the Python package's tests with coverage, and type check (needs uv)");
+    // ruff and ty on the package, as python/pyproject.toml sets them; pinned,
+    // as a new ruff formats differently.
+    const ruff_check = b.addSystemCommand(&.{ "uv", "run", "--no-project", "--with", "ruff==0.17.1", "ruff", "check", "python" });
+    const ruff_format = b.addSystemCommand(&.{ "uv", "run", "--no-project", "--with", "ruff==0.17.1", "ruff", "format", "--check", "python" });
+    const ty = b.addSystemCommand(&.{ "uv", "run", "--no-project", "--with", "ty==0.0.90", "ty", "check", "--project", "python" });
+    const test_python_step = b.step("test-python", "Run the Python package's tests with coverage, lint and type check (needs uv)");
     test_python_step.dependOn(&coverage.step);
     test_python_step.dependOn(&mypy.step);
+    for ([_]*std.Build.Step.Run{ ruff_check, ruff_format, ty }) |run| {
+        run.setCwd(b.path("."));
+        run.has_side_effects = true;
+        test_python_step.dependOn(&run.step);
+    }
 
     // `zig build wheels`: a wheel for every platform into zig-out/wheels/,
     // each with libhocon cross-compiled for it, packed by tools/wheel.py.

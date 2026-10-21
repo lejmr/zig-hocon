@@ -49,3 +49,20 @@ zig_hocon = ["libhocon.so", "libhocon.dylib", "hocon.dll", "py.typed"]
 [tool.uv]
 # uv rebuilds when these change; the library is no file it would look at.
 cache-keys = [{ file = "pyproject.toml" }, { file = "setup.py" }, { file = "zig_hocon/*" }]
+
+[tool.ruff]
+line-length = 160
+target-version = "py310"
+# The tests and examples are the users' side and stay as they are written;
+# the docs line their comments up by hand.
+extend-exclude = ["tests", "examples", "*.md"]
+
+[tool.ruff.lint]
+# `int | float` says an int is welcome, where `float` alone reads as if not.
+ignore = ["PYI041"]
+
+[tool.ty.environment]
+python-version = "3.10"
+
+[tool.ty.src]
+include = ["zig_hocon"]

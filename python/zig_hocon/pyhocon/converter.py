@@ -5,7 +5,7 @@ import datetime
 import json
 import re
 import sys
-from typing import Any
+from typing import Any, ClassVar
 
 from .config_parser import ConfigFactory, Path
 from .config_tree import ConfigTree, is_duration
@@ -49,7 +49,7 @@ def _scalar(value: Any) -> str:
 class HOCONConverter:
     """Writes a ConfigTree out, as pyhocon's converter."""
 
-    _ESCAPES = {"\b": r"\b", "\t": r"\t", "\n": r"\n", "\f": r"\f", "\r": r"\r", '"': r"\"", "\\": r"\\"}
+    _ESCAPES: ClassVar[dict[str, str]] = {"\b": r"\b", "\t": r"\t", "\n": r"\n", "\f": r"\f", "\r": r"\r", '"': r"\"", "\\": r"\\"}
 
     @classmethod
     def to_json(cls, config: Any, compact: bool = False, indent: int = 2, level: int = 0) -> str:
@@ -159,7 +159,7 @@ class HOCONConverter:
             return cls.to_yaml(config, compact, indent)
         if output_format == "hocon":
             return cls.to_hocon(config, compact, indent)
-        raise Exception(f"Invalid format '{output_format}'. Format must be 'json', 'properties', 'yaml' or 'hocon'")
+        raise Exception(f"Invalid format '{output_format}'. Format must be 'json', 'properties', 'yaml' or 'hocon'")  # noqa: TRY002 - pyhocon raises a bare Exception
 
     @classmethod
     def convert_from_file(
