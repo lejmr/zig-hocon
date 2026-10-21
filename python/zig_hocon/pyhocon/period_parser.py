@@ -1,5 +1,8 @@
 """pyhocon's ``period_parser``: a duration from its text, ``30s`` or
-``10 weeks``, as pyhocon reads an unquoted value."""
+``10 weeks``, as pyhocon reads an unquoted value.
+
+Changed from pyhocon's period_parser.py (Apache-2.0, LICENSE in this
+directory): its units, read with a regular expression for pyparsing."""
 
 import datetime
 import importlib

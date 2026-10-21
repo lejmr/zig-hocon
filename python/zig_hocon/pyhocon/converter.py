@@ -1,5 +1,8 @@
 """pyhocon's ``HOCONConverter``: a ConfigTree as JSON, HOCON, YAML or a
-.properties file, in pyhocon's layout to the character."""
+.properties file, in pyhocon's layout to the character.
+
+Changed from pyhocon's converter.py (Apache-2.0, LICENSE in this
+directory): its writers, typed, over this module's ConfigTree."""
 
 import json
 import re

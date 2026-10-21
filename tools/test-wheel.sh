@@ -15,10 +15,11 @@ uv venv -q --python "$version" "$tmp/venv"
 py=$tmp/venv/bin/python
 [ -x "$py" ] || py=$tmp/venv/Scripts/python.exe
 # The examples read into pydantic and msgspec, and msgspec has no build for
-# PyPy or a free-threaded Python: there only the package's tests run.
+# PyPy or a free-threaded Python: there only the package's tests run. Those
+# hold zig_hocon.pyhocon against pyhocon, with dateutil for its months.
 case $version in
-    pypy* | *t) examples=no; uv pip install -q --python "$py" "$wheel" pytest ;;
-    *) examples=yes; uv pip install -q --python "$py" "$wheel" pytest pydantic msgspec ;;
+    pypy* | *t) examples=no; uv pip install -q --python "$py" "$wheel" pytest python-dateutil pyhocon ;;
+    *) examples=yes; uv pip install -q --python "$py" "$wheel" pytest python-dateutil pyhocon pydantic msgspec ;;
 esac
 
 # From elsewhere, so nothing imports python/zig_hocon by accident.
