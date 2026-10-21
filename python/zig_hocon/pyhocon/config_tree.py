@@ -264,13 +264,11 @@ class ConfigTree(OrderedDict[str, Any]):
         elif append and isinstance(before, list):
             node[last] = before + value
         elif append and before is not None:
-            raise ConfigWrongTypeException(
-                f"Cannot concatenate the list {key}: {value} to {before} of {type(before).__name__}", name="WrongType"
-            )
+            raise ConfigWrongTypeException(f"Cannot concatenate the list {key}: {value} to {before} of {type(before).__name__}", name="WrongType")
         else:
             node[last] = value
 
-    def get(self, key: str, default: Any = UndefinedKey) -> Any:
+    def get(self, key: str, default: Any = UndefinedKey) -> Any:  # ty: ignore[invalid-method-override] - a path, as pyhocon has it
         """The value at ``key``; ``default`` when there is none, else
         ConfigMissingException. A list is a copy."""
         return self._get(self.parse_key(key), default)
@@ -380,4 +378,3 @@ class ConfigTree(OrderedDict[str, Any]):
             return value
 
         return OrderedDict((key.strip('"'), plain(value)) for key, value in self.items())
-

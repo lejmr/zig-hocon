@@ -133,17 +133,13 @@ class ConfigFactory:
 
     @overload
     @classmethod
-    def parse_file(
-        cls, filename: Path, encoding: str = ..., required: Literal[True] = ..., resolve: bool = ..., unresolved_value: Any = ...
-    ) -> ConfigTree: ...
+    def parse_file(cls, filename: Path, encoding: str = ..., required: Literal[True] = ..., resolve: bool = ..., unresolved_value: Any = ...) -> ConfigTree: ...
     @overload
     @classmethod
     def parse_file(cls, filename: Path, encoding: str, required: bool, resolve: bool = ..., unresolved_value: Any = ...) -> ConfigTree | list[Any]: ...
     @overload
     @classmethod
-    def parse_file(
-        cls, filename: Path, encoding: str = ..., *, required: bool, resolve: bool = ..., unresolved_value: Any = ...
-    ) -> ConfigTree | list[Any]: ...
+    def parse_file(cls, filename: Path, encoding: str = ..., *, required: bool, resolve: bool = ..., unresolved_value: Any = ...) -> ConfigTree | list[Any]: ...
     @classmethod
     def parse_file(
         cls, filename: Path, encoding: str = "utf-8", required: bool = True, resolve: bool = True, unresolved_value: Any = DEFAULT_SUBSTITUTION
@@ -174,9 +170,7 @@ class ConfigFactory:
     def parse_URL(cls, url: str, timeout: float | None, resolve: bool, required: Literal[True], unresolved_value: Any = ...) -> ConfigTree: ...
     @overload
     @classmethod
-    def parse_URL(
-        cls, url: str, timeout: float | None = ..., resolve: bool = ..., *, required: Literal[True], unresolved_value: Any = ...
-    ) -> ConfigTree: ...
+    def parse_URL(cls, url: str, timeout: float | None = ..., resolve: bool = ..., *, required: Literal[True], unresolved_value: Any = ...) -> ConfigTree: ...
     @classmethod
     def parse_URL(
         cls, url: str, timeout: float | None = None, resolve: bool = True, required: bool = False, unresolved_value: Any = DEFAULT_SUBSTITUTION
@@ -196,9 +190,7 @@ class ConfigFactory:
         return _read(lambda r: _core.ConfigFactory.parse_string(content, resolve=r), resolve, unresolved_value)
 
     @classmethod
-    def parse_string(
-        cls, content: str, basedir: Path | None = None, resolve: bool = True, unresolved_value: Any = DEFAULT_SUBSTITUTION
-    ) -> ConfigTree:
+    def parse_string(cls, content: str, basedir: Path | None = None, resolve: bool = True, unresolved_value: Any = DEFAULT_SUBSTITUTION) -> ConfigTree:
         """HOCON text; an include in it is found in ``basedir``, by default
         the working directory, as pyhocon finds it."""
         where = os.getcwd() if basedir is None else basedir
