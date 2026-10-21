@@ -11,6 +11,7 @@ import sys
 from collections import OrderedDict
 
 import pytest
+from dateutil.relativedelta import relativedelta
 
 import zig_hocon.pyhocon as pyhocon
 from zig_hocon.pyhocon import (
@@ -266,10 +267,67 @@ def test_with_fallback_unresolved():
 def test_with_fallback_of_put_values():
     c = ConfigTree()
     c.put("wait", datetime.timedelta(seconds=2))
-    assert c.with_fallback(ConfigTree()).get("wait") == 2000
+    assert c.with_fallback(ConfigTree()).get("wait") == datetime.timedelta(seconds=2)
     c.put("owl", object())
     with pytest.raises(TypeError, match="object is not a HOCON value"):
         c.with_fallback(ConfigTree())
+
+
+# pyhocon ✓: a whole number and a unit is a duration, a relativedelta with
+# dateutil (milliseconds a timedelta), in objects and lists too
+@pytest.mark.parametrize(
+    "text, value",
+    [
+        ("30s", relativedelta(seconds=30)),
+        ("10 weeks", relativedelta(days=70)),
+        ("3m", relativedelta(minutes=3)),
+        ("3mo", relativedelta(months=3)),
+        ("2 year", relativedelta(years=2)),
+        ("1140000 ns", relativedelta(microseconds=1140)),
+        ("114 ms", datetime.timedelta(milliseconds=114)),
+        ("5  seconds", relativedelta(seconds=5)),
+        ("[4 h, 5 ms]", [relativedelta(hours=4), datetime.timedelta(milliseconds=5)]),
+        ("{ x = 2 h }", {"x": relativedelta(hours=2)}),
+        ("1.5 s", "1.5 s"),
+        ("-3 s", "-3 s"),
+        ("3 monthsx", "3 monthsx"),
+        # pyhocon ✗: it makes '0:00:00.005000foo' of it
+        ("5 ms foo", "5 ms foo"),
+        # pyhocon ✗: quoted is text there; libhocon's JSON has no quotes left
+        ('"30s"', relativedelta(seconds=30)),
+    ],
+)
+def test_durations(text, value):
+    assert conf("a = " + text)["a"] == value
+
+
+# pyhocon ✓: without dateutil a timedelta, and months and years are text
+def test_durations_without_dateutil(monkeypatch):
+    monkeypatch.setattr(config_tree, "relativedelta", None)
+    c = conf("a = 30s\nb = 3mo\nc = [1 d]")
+    assert c["a"] == datetime.timedelta(seconds=30) and type(c["a"]) is datetime.timedelta
+    assert c["b"] == "3mo" and c["c"] == [datetime.timedelta(days=1)]
+
+
+# pyhocon ✓: a duration stays one through with_fallback, as pyhocon merges
+# trees; a relativedelta of months and days is no one HOCON duration.
+# pyhocon ⚠️: a timedelta below a millisecond comes back a relativedelta
+def test_durations_through_with_fallback():
+    c = conf("a = 3mo\nb = 30s\nc = 114 ms\nd = 2 y")
+    c.put("e", datetime.timedelta(microseconds=7))
+    merged = c.with_fallback(ConfigTree())
+    assert merged == {"a": relativedelta(months=3), "b": relativedelta(seconds=30), "c": datetime.timedelta(milliseconds=114),
+                      "d": relativedelta(years=2), "e": relativedelta(microseconds=7)}
+    c.put("f", relativedelta(months=1, days=2))
+    with pytest.raises(TypeError, match="is not one HOCON duration"):
+        c.with_fallback(ConfigTree())
+
+
+# pyhocon ✓: checked against pyhocon 0.3.63's output
+def test_relativedeltas_converted():
+    c = conf("a = 7 h\nb = 3 m\nc = 12 d\nd = 3mo\ne = 112 micros")
+    assert HOCONConverter.to_hocon(c) == "a = 7 hours\nb = 3 minutes\nc = 12 days\nd = 0 seconds\ne = 112 microseconds"
+    assert HOCONConverter.to_json(c) == '{\n  "a": 25200000,\n  "b": 180000,\n  "c": 1036800000,\n  "d": 0,\n  "e": 0\n}'
 
 
 # pyhocon ⚠️: a value with a ${…} is no ConfigValues here; a document that

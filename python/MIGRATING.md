@@ -47,11 +47,12 @@ from zig_hocon.pyhocon.exceptions import ConfigMissingException
 
 Everything of pyhocon's public API is there: `ConfigFactory.parse_file` (with `encoding` and `required`), `parse_string`, `parse_URL`, `from_dict`; the `ConfigTree` with `get`, the typed getters, `get_list`, `get_config`, `put`, `pop`, `with_fallback`, `merge_configs`, `as_plain_ordered_dict`, `conf["db.host"]` and `conf.db.host`; `ConfigParser.parse`, `resolve_substitutions` and `resolve_package_path`; `HOCONConverter` with its JSON, HOCON, YAML and .properties output to the character; and pyhocon's command line as `python -m zig_hocon.pyhocon.tool`. The exceptions are zig_hocon's, so one `except` catches either module's.
 
-The measure is pyhocon's own test suite with the import swapped: 167 of its 263 tests pass. Of the 96 that do not, 95 are a config that reads differently by the spec (Step 3) or the class of a syntax error:
+Values have pyhocon's types: `30s` is a `timedelta`, or with python-dateutil installed a `relativedelta`, as pyhocon makes it; months and years need dateutil there too. One difference: a quoted `"30s"` is a duration as well, where pyhocon keeps it text.
+
+The measure is pyhocon's own test suite with the import swapped: 218 of its 263 tests pass. Of the 45 that do not, 44 are a config that reads differently by the spec (Step 3) or the class of a syntax error:
 
 | tests | what pyhocon does |
 |---|---|
-| 51 | turns `30s` into a `timedelta` while it parses |
 | 12 | raises pyparsing's exceptions for a syntax error; here it is a `ConfigParseException` |
 | 9 | flattens `x += [3, 4]` into `x`; by the spec it appends the list as one element |
 | 6 | reads `-Xmx1g` unquoted; the spec does not let an unquoted string start with `-` |
@@ -67,7 +68,7 @@ The one left is `ConfigTree.resolve()`, which is not there. Nor are a few things
 - **`unresolved_value`** takes `DEFAULT_SUBSTITUTION`, `MANDATORY_SUBSTITUTION` and `NO_SUBSTITUTION`; `STR_SUBSTITUTION` and a value of your own are a `NotImplementedError`.
 - **`parse_URL`** reads a document with no `include` in it: one is an error, as it has no directory to be found in.
 
-The whole document is in Python, as in pyhocon, so it is a little slower than `zig_hocon`, still far from pyhocon: a 5 KB config in 0.24 ms (pyhocon 29 ms), 10 MB in 0.32 s (pyhocon 68 s).
+The whole document is in Python, as in pyhocon, so it is a little slower than `zig_hocon`, still far from pyhocon: a 5 KB config in 0.3 ms (pyhocon 29 ms), 10 MB in 0.38 s (pyhocon 68 s), against 0.2 ms and 0.13 s for `zig_hocon`.
 
 ## Step 1: imports
 
@@ -125,7 +126,7 @@ settings["db"]["host"]
   conf = ConfigFactory.parse_file(str(files("mypackage") / "defaults.conf"))
   ```
 
-- **Durations and sizes are text until something asks.** pyhocon turns `30s` into a `timedelta` while it parses; here `as_dict()` has `"30s"`, and `get_duration` or the model converts it. With pydantic, a `BeforeValidator(zig_hocon.parse_duration)` on the field; [examples/durations-and-sizes](examples/durations-and-sizes) has it for pydantic and msgspec.
+- **Durations and sizes are text until something asks** (not in `zig_hocon.pyhocon`, which has pyhocon's `timedelta`). pyhocon turns `30s` into a `timedelta` while it parses; here `as_dict()` has `"30s"`, and `get_duration` or the model converts it. With pydantic, a `BeforeValidator(zig_hocon.parse_duration)` on the field; [examples/durations-and-sizes](examples/durations-and-sizes) has it for pydantic and msgspec.
 - **A concatenation is a string.** `a = ${?nope}42` is `"42"` by the spec; pyhocon gives the number `42`. A model that wants an int converts it.
 - **An `include url(…)` gives up after 30 s.** pyhocon waits as long as `socket.setdefaulttimeout` says, by default for ever. Here `http_timeout=` on `parse_file` and `parse_string` sets it, and a server that does not answer in time is a `ConfigParseException` named `IncludeTimeout`.
 - **`+=` appends one element.** `x += [3, 4]` after `x = [1, 2]` is `[1, 2, [3, 4]]`, as `x = ${?x} [[3, 4]]` is; pyhocon gives `[1, 2, 3, 4]`. To extend a list with another, `x = ${x} [3, 4]`.

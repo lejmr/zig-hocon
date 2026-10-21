@@ -8,17 +8,25 @@ import sys
 from typing import Any
 
 from .config_parser import ConfigFactory, Path
-from .config_tree import ConfigTree
+from .config_tree import ConfigTree, is_duration
 
 __all__ = ["HOCONConverter"]
 
 
-def _ms(value: datetime.timedelta) -> str:
-    """A timedelta put in a tree, as pyhocon writes it: milliseconds."""
+def _ms(value: Any) -> str:
+    """A duration, as pyhocon writes it: milliseconds, a relativedelta's
+    months and years left out."""
+    if not isinstance(value, datetime.timedelta):
+        value = datetime.timedelta(days=value.days, hours=value.hours, minutes=value.minutes, seconds=value.seconds, microseconds=value.microseconds)
     return str(int(value.total_seconds() * 1000))
 
 
-def _hocon_duration(value: datetime.timedelta) -> str:
+def _hocon_duration(value: Any) -> str:
+    if not isinstance(value, datetime.timedelta):  # a relativedelta
+        if value.hours > 0:
+            return f"{value.hours} hours"
+        if value.minutes > 0:
+            return f"{value.minutes} minutes"
     if value.days > 0:
         return f"{value.days} days"
     if value.seconds > 0:
@@ -57,7 +65,7 @@ class HOCONConverter:
             if not config:
                 return "[]"
             return "[\n" + ",\n".join(f"{inner}{cls.to_json(item, compact, indent, level + 1)}" for item in config) + f"\n{pad}]"
-        if isinstance(config, datetime.timedelta):
+        if is_duration(config):
             return _ms(config)
         if isinstance(config, str):
             return json.dumps(config, ensure_ascii=False)
@@ -90,7 +98,7 @@ class HOCONConverter:
             if "\n" in config and len(config) > 1:
                 return f'"""{config}"""'
             return '"' + cls._escape_string(config) + '"'
-        if isinstance(config, datetime.timedelta):
+        if is_duration(config):
             return _hocon_duration(config)
         return _scalar(config)
 
@@ -109,7 +117,7 @@ class HOCONConverter:
             if not items:
                 return "[]"
             return "\n" + "\n".join(f"{pad}- {cls.to_yaml(item, compact, indent, level + 1)}" for item in items)
-        if isinstance(config, datetime.timedelta):
+        if is_duration(config):
             return _ms(config)
         if isinstance(config, str):
             lines = config.split("\n")
@@ -130,7 +138,7 @@ class HOCONConverter:
             lines = [cls.to_properties(item, compact, indent, keys + [str(i)]) for i, item in enumerate(config) if item is not None]
         elif config is None:
             lines = []
-        elif isinstance(config, datetime.timedelta):
+        elif is_duration(config):
             lines = [".".join(keys) + " = " + _ms(config)]
         elif isinstance(config, str):
             escaped = config.replace("=", "\\=").replace("!", "\\!").replace("#", "\\#").replace("\n", "\\\n")

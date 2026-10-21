@@ -2,6 +2,7 @@
 values, read and changed by dotted paths, as pyhocon has it."""
 
 import datetime
+import importlib
 import json
 import re
 from collections import OrderedDict
@@ -81,10 +82,78 @@ def quoted(key: str) -> str:
     return f'"{key}"' if _HAS_SPECIAL(key) else key
 
 
-def _json_value(value: Any) -> Any:
-    """A timedelta put in a tree, as pyhocon writes it: milliseconds."""
+# pyhocon's durations: an unquoted `30s` or `10 weeks` is a timedelta, or a
+# dateutil relativedelta when dateutil is installed, which months and years
+# need. Milliseconds are always a timedelta.
+try:
+    relativedelta: Any = importlib.import_module("dateutil.relativedelta").relativedelta
+except ImportError:  # pragma: no cover - the tests have dateutil and patch it away
+    relativedelta = None
+
+_UNITS = {
+    "nanoseconds": ["ns", "nano", "nanos", "nanosecond", "nanoseconds"],
+    "microseconds": ["us", "micro", "micros", "microsecond", "microseconds"],
+    "milliseconds": ["ms", "milli", "millis", "millisecond", "milliseconds"],
+    "seconds": ["s", "second", "seconds"],
+    "minutes": ["m", "minute", "minutes"],
+    "hours": ["h", "hour", "hours"],
+    "weeks": ["w", "week", "weeks"],
+    "days": ["d", "day", "days"],
+}
+_DATEUTIL_UNITS = {"months": ["mo", "month", "months"], "years": ["y", "year", "years"]}
+
+
+def _duration_re(units: dict[str, list[str]]) -> "re.Pattern[str]":
+    # the longest spelling first: `ms` before `m`, `mo` before `m`
+    names = sorted((n for spellings in units.values() for n in spellings), key=len, reverse=True)
+    return re.compile(r"(\d+) *(" + "|".join(names) + ")")
+
+
+_DURATION = _duration_re(_UNITS)
+_DURATION_DATEUTIL = _duration_re(_UNITS | _DATEUTIL_UNITS)
+_UNIT_OF = {n: unit for unit, spellings in (_UNITS | _DATEUTIL_UNITS).items() for n in spellings}
+
+
+def duration(text: str) -> Any:
+    """``text`` as pyhocon reads a value: a duration when it is a whole
+    number and a unit, else ``text``.
+
+    ponytail: libhocon's JSON has no quotes left, so a quoted "30s" is a
+    duration too, where pyhocon keeps it text; hocon.h telling quoted from
+    unquoted would make it exact."""
+    m = (_DURATION if relativedelta is None else _DURATION_DATEUTIL).fullmatch(text)
+    if m is None:
+        return text
+    value, unit = int(m[1]), _UNIT_OF[m[2]]
+    if unit == "nanoseconds":
+        value, unit = value // 1000, "microseconds"
+    if unit == "milliseconds" or relativedelta is None:
+        return datetime.timedelta(**{unit: value})
+    return relativedelta(**{unit: value})
+
+
+def _duration_text(value: Any) -> str:
+    """A duration as HOCON that reads back as the same one: milliseconds,
+    or microseconds below them, for a timedelta; a relativedelta in months or
+    microseconds, the units it keeps."""
     if isinstance(value, datetime.timedelta):
-        return int(value.total_seconds() * 1000)
+        us = value // datetime.timedelta(microseconds=1)
+        return f"{us // 1000} ms" if us % 1000 == 0 else f"{us} us"
+    months = value.years * 12 + value.months
+    us = (((value.days * 24 + value.hours) * 60 + value.minutes) * 60 + value.seconds) * 1_000_000 + value.microseconds
+    if months and us:
+        raise TypeError(f"{value!r} is not one HOCON duration")
+    return f"{months} months" if months else f"{us} us"
+
+
+def is_duration(value: Any) -> bool:
+    return isinstance(value, datetime.timedelta) or relativedelta is not None and isinstance(value, relativedelta)
+
+
+def _json_value(value: Any) -> Any:
+    """A duration in a tree, as HOCON text that reads back as it."""
+    if is_duration(value):
+        return _duration_text(value)
     raise TypeError(f"{type(value).__name__} is not a HOCON value")
 
 
@@ -93,8 +162,8 @@ class ConfigTree(OrderedDict[str, Any]):
     and the getters take a path, ``db.host`` or ``a."b.c"``; ``conf.db.host``
     and ``conf["db.host"]`` are ``get`` too. A key with a path character in
     it is kept in quotes: ``"b.c"``. A value is a ConfigTree, a list, text,
-    a number, a bool or None; durations and sizes are the text they are
-    written as."""
+    a number, a bool or None, or a duration as pyhocon has it (``30s`` is
+    a timedelta); sizes are the text they are written as."""
 
     KEY_SEP = "."
 

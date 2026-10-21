@@ -6,7 +6,7 @@ What changed for someone using zig-hocon: the Zig package, the `hocon` command l
 
 ### Added
 
-- Python: `zig_hocon.pyhocon`, pyhocon's API over zig-hocon, so moving over is a change of import. Its modules, names, arguments and output are pyhocon 0.3.63's: the tree an `OrderedDict` with `get`, `put`, `pop`, `with_fallback` and `get_list`, `ConfigFactory.parse_URL` and `from_dict`, `HOCONConverter`, and the command line as `python -m zig_hocon.pyhocon.tool`. A config still reads by the spec; pyhocon's own test suite passes 167 of 263 with the import swapped, and `python/MIGRATING.md` says what the rest are.
+- Python: `zig_hocon.pyhocon`, pyhocon's API over zig-hocon, so moving over is a change of import. Its modules, names, arguments and output are pyhocon 0.3.63's: the tree an `OrderedDict` with `get`, `put`, `pop`, `with_fallback` and `get_list`, `ConfigFactory.parse_URL` and `from_dict`, `HOCONConverter`, and the command line as `python -m zig_hocon.pyhocon.tool`. `30s` is a `timedelta` (a `relativedelta` with python-dateutil), as in pyhocon. A config still reads by the spec; pyhocon's own test suite passes 218 of 263 with the import swapped, and `python/MIGRATING.md` says what the rest are.
 
 ## [0.5.1] - 2026-10-19
 
