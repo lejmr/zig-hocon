@@ -83,7 +83,9 @@ def _options(env: Env, resolve: bool, include_dir: Path | None = None, http_time
     return opts, entries
 
 
-def _parse(parse: Callable[..., int | None], args: Sequence[Any], env: Env, resolve: bool, include_dir: Path | None, http_timeout: Timeout, given: str | None) -> ConfigTree:
+def _parse(
+    parse: Callable[..., int | None], args: Sequence[Any], env: Env, resolve: bool, include_dir: Path | None, http_timeout: Timeout, given: str | None
+) -> ConfigTree:
     opts, _entries = _options(env, resolve, include_dir, http_timeout)
     err = _capi.Error()
     handle = parse(*args, ctypes.byref(opts), ctypes.byref(err))
@@ -120,7 +122,9 @@ class ConfigFactory:
         return _parse(lib.hocon_parse_file, [_capi.c_string(os.fsencode(path))], env, resolve, None, http_timeout, os.fsdecode(path))
 
     @staticmethod
-    def parse_string(content: str | bytes, *, basedir: Path | None = None, env: Env = os.environ, resolve: bool = True, http_timeout: Timeout = None) -> ConfigTree:
+    def parse_string(
+        content: str | bytes, *, basedir: Path | None = None, env: Env = os.environ, resolve: bool = True, http_timeout: Timeout = None
+    ) -> ConfigTree:
         """HOCON text; an include in it is found in ``basedir``, and without
         one is an error."""
         data = content.encode("utf-8", "surrogatepass") if isinstance(content, str) else bytes(content)
