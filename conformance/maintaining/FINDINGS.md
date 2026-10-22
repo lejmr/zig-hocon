@@ -4,6 +4,11 @@
 
 What the validation pass turned up and did **not** fix. The divergences it was confident about are already in the sidecars; everything below is work, not record.
 
+**Since then:** proofreading the suite against `spec/HOCON.md` found two rules no case pinned, both of them places where zig-hocon and pyhocon part ways. Both are covered now:
+
+- `unquoted-strings/025-digit-initial-invalid-number` — a value that begins with a digit but is not a valid number (`a = 1.2.3`, the shape of `127.0.0.1`) is an error: the initial number character and the number characters after it "must be parsed as a number value" (unquoted-strings.12, .13). pyhocon and typesafe/config read it as the string "1.2.3"; the row is `java: lenient`.
+- `plus-equals-field-separator/009-plus-equals-appends-list-as-one-element` — `a = [1, 2]` then `a += [3, 4]` is `[1, 2, [3, 4]]`: `a += b` becomes `a = ${?a} [b]`, so a list on the right is appended as one element. typesafe/config agrees; pyhocon splices it into `[1, 2, 3, 4]`.
+
 This pass ran *before* the tie-break rule in `PROCESS.md` was settled, so where a divergence says `expect` was left at java's value, the row is still unresolved — `fill-expected.py` now flags those with `review`.
 
 ## syntax-basics
@@ -75,7 +80,7 @@ The section maps to the spec faithfully: all seventeen cases quote sentences tha
 
 **Uncovered normative sentences**
 
-- "An unquoted string may not _begin_ with the digits 0-9" -- no case covers a digit-initial sequence whose number parse fails (e.g. `a = 1.2.3` or `a = 1x2`). 008 (`10.0bar`) only covers the case where the leading run IS a valid number. This is the digit-side twin of the hyphen divergence in 012 and is where java's number-parse fallback to unquoted text shows again; it is the most valuable uncovered sentence in the range.
+- "An unquoted string may not _begin_ with the digits 0-9" -- no case covers a digit-initial sequence whose number parse fails (e.g. `a = 1.2.3` or `a = 1x2`). 008 (`10.0bar`) only covers the case where the leading run IS a valid number. This is the digit-side twin of the hyphen divergence in 012 and is where java's number-parse fallback to unquoted text shows again; it is the most valuable uncovered sentence in the range. _(covered since by 025-digit-initial-invalid-number)_
 - "forbidden characters: ... or whitespace" -- whitespace is listed as a forbidden character, but no case pins that whitespace ends an unquoted string (the covered forbidden chars are only '@', '\\', '!', '#'). Hard to isolate because `a = foo bar` becomes a value concatenation, but the list member is currently untested here.
 - "its initial characters do not parse as `true`, `false`, `null`, or a number" -- only the `true` arm is exercised (006). No case starts a token with `false` or `null` (e.g. `a = nullfoo`, `a = falsefoo`).
 

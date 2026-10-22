@@ -16,7 +16,7 @@ observable parse behaviour.
 | 149 | Commas | `commas` | ✅ 13 cases |
 | 165 | Whitespace | `whitespace` | ✅ 13 cases |
 | 186 | Duplicate keys and object merging | `duplicate-keys-and-object-merging` | ✅ 28 cases |
-| 240 | Unquoted strings | `unquoted-strings` | ✅ 24 cases |
+| 240 | Unquoted strings | `unquoted-strings` | ✅ 25 cases |
 | 288 | Multi-line strings | `multi-line-strings` | ✅ 9 cases |
 | 304 | Value concatenation | `value-concatenation` | ✅ 2 cases |
 | 321 | String value concatenation | `string-value-concatenation` | ✅ 18 cases |
@@ -27,7 +27,7 @@ observable parse behaviour.
 | 521 | Paths as keys | `paths-as-keys` | ✅ 11 cases |
 | 574 | Substitutions | `substitutions` | ✅ 37 cases |
 | 653 | Self-referential substitutions | `self-referential-substitutions` | ✅ 5 cases |
-| 719 | The += field separator | `plus-equals-field-separator` | ✅ 8 cases |
+| 719 | The += field separator | `plus-equals-field-separator` | ✅ 9 cases |
 | 738 | Examples of self-referential substitutions | `self-referential-examples` | ✅ 26 cases |
 | 893 | List values from environment variables | `list-values-from-environment-variables` | ✅ 6 cases |
 | 921 | Include syntax | `include-syntax` | ✅ 15 cases |

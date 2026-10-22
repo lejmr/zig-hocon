@@ -211,13 +211,13 @@ b.step("check-config", "Check the config against Config").dependOn(&check.step);
 
 | implementation | against the spec | against typesafe/config 1.4.9 |
 |---|---|---|
-| Java <sub>typesafe/config 1.4.9</sub> | 90.1% (401/445) | 99.8% (444/445) |
-| hocon2 <sub>hocon2 0.6.3</sub> | 86.7% (386/445) | 80.7% (359/445) |
-| pulse-pyhocon <sub>pulse-pyhocon 0.2.1</sub> | 71.0% (316/445) | 68.5% (305/445) |
-| py.hocon <sub>hocon-parser 1.14.2 (Python)</sub> | 89.2% (397/445) | 88.5% (394/445) |
-| pyhocon <sub>pyhocon 0.3.63</sub> | 70.6% (314/445) | 66.7% (297/445) |
-| rs.hocon <sub>hocon-parser 1.14.2 (Rust)</sub> | 89.2% (397/445) | 86.5% (385/445) |
-| zig-hocon <sub>zig-hocon code@20663cc</sub> | 99.8% (444/445) | 90.1% (401/445) |
+| Java <sub>typesafe/config 1.4.9</sub> | 89.7% (401/447) | 99.3% (444/447) |
+| hocon2 <sub>hocon2 0.6.3</sub> | 86.4% (386/447) | 80.3% (359/447) |
+| pulse-pyhocon <sub>pulse-pyhocon 0.2.1</sub> | 70.7% (316/447) | 68.2% (305/447) |
+| py.hocon <sub>hocon-parser 1.14.2 (Python)</sub> | 88.8% (397/447) | 88.1% (394/447) |
+| pyhocon <sub>pyhocon 0.3.63</sub> | 70.2% (314/447) | 66.4% (297/447) |
+| rs.hocon <sub>hocon-parser 1.14.2 (Rust)</sub> | 88.8% (397/447) | 86.1% (385/447) |
+| zig-hocon <sub>zig-hocon code@d402862</sub> | 99.8% (446/447) | 89.9% (402/447) |
 
 The table keeps the best parsers; the others measured, and why they are not in it: [conformance/README.md](conformance/README.md#not-in-the-table).
 
