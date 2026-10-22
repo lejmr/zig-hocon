@@ -217,7 +217,7 @@ b.step("check-config", "Check the config against Config").dependOn(&check.step);
 | py.hocon <sub>hocon-parser 1.14.2 (Python)</sub> | 89.2% (397/445) | 88.5% (394/445) |
 | pyhocon <sub>pyhocon 0.3.63</sub> | 70.6% (314/445) | 66.7% (297/445) |
 | rs.hocon <sub>hocon-parser 1.14.2 (Rust)</sub> | 89.2% (397/445) | 86.5% (385/445) |
-| zig-hocon <sub>zig-hocon code@20663cc</sub> | 99.8% (444/445) | 90.1% (401/445) |
+| zig-hocon <sub>zig-hocon code@4f9323a</sub> | 99.8% (444/445) | 90.1% (401/445) |
 
 The table keeps the best parsers; the others measured, and why they are not in it: [conformance/README.md](conformance/README.md#not-in-the-table).
 
@@ -254,4 +254,4 @@ If you need a HOCON feature that is not there, open a pull request; a failing te
 
 ## License
 
-BSD 3-Clause, see [LICENSE](LICENSE).
+BSD 3-Clause, see [LICENSE](LICENSE). The Python module `zig_hocon.pyhocon` is changed in parts from [pyhocon](https://github.com/chimpler/pyhocon)'s code and those parts are under pyhocon's Apache License 2.0, in [python/zig_hocon/pyhocon/LICENSE](python/zig_hocon/pyhocon/LICENSE).

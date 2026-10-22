@@ -8,7 +8,9 @@ name = "zig-hocon"
 version = "0.5.1"
 description = "HOCON configuration for Python: the whole spec, fast, with pyhocon's API"
 readme = "README.md"
-license = "BSD-3-Clause"
+# zig_hocon.pyhocon is changed from pyhocon's code, which is Apache-2.0.
+license = "BSD-3-Clause AND Apache-2.0"
+license-files = ["LICENSE", "zig_hocon/pyhocon/LICENSE"]
 requires-python = ">=3.10"
 dependencies = []
 classifiers = [
@@ -39,7 +41,7 @@ Conformance = "https://htmlpreview.github.io/?https://github.com/lejmr/zig-hocon
 Migrating = "https://github.com/lejmr/zig-hocon/blob/main/python/MIGRATING.md"
 
 [tool.setuptools]
-packages = ["zig_hocon"]
+packages = ["zig_hocon", "zig_hocon.pyhocon"]
 
 [tool.setuptools.package-data]
 # The library is put there by `zig build python`; py.typed says the package
@@ -49,3 +51,20 @@ zig_hocon = ["libhocon.so", "libhocon.dylib", "hocon.dll", "py.typed"]
 [tool.uv]
 # uv rebuilds when these change; the library is no file it would look at.
 cache-keys = [{ file = "pyproject.toml" }, { file = "setup.py" }, { file = "zig_hocon/*" }]
+
+[tool.ruff]
+line-length = 160
+target-version = "py310"
+# The tests and examples are the users' side and stay as they are written;
+# the docs line their comments up by hand.
+extend-exclude = ["tests", "examples", "*.md"]
+
+[tool.ruff.lint]
+# `int | float` says an int is welcome, where `float` alone reads as if not.
+ignore = ["PYI041"]
+
+[tool.ty.environment]
+python-version = "3.10"
+
+[tool.ty.src]
+include = ["zig_hocon"]

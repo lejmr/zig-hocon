@@ -52,7 +52,7 @@ pip install zig-hocon
 
 One wheel per platform, for every Python from 3.10 on, free-threaded builds and PyPy included: macOS (arm64, x86_64), Linux (x86_64, aarch64; glibc 2.17+ and musl) and Windows (x86_64). The import name is `zig_hocon`. Anywhere else, build it from source (below).
 
-Beta: the API can still change before 1.0. BSD-3-Clause.
+Beta: the API can still change before 1.0. BSD-3-Clause; `zig_hocon.pyhocon` in parts Apache-2.0, from pyhocon.
 
 ## Use
 
@@ -107,12 +107,19 @@ Path("deploy.conf").write_text(ConfigFactory.parse_file("app.conf", env=KEEP).to
 
 ## Coming from pyhocon
 
-Change the import: `ConfigFactory`, the getters and the exception names are the same. What reads differently:
+**The short way** keeps every line of pyhocon code: `zig_hocon.pyhocon` is pyhocon's API, its modules, names and arguments, the tree an `OrderedDict` with `get`, `put`, `pop` and `with_fallback`, and `HOCONConverter`:
 
-- **The tree is not a dict.** `conf["db"]["host"]` and `json.dumps(conf)` fail; take `conf.as_dict()` first. `as_plain_ordered_dict()` is `as_dict()`.
-- **Fewer methods.** `get`, `get_list`, `with_fallback` and `put` are not there: a typed getter, an `include`, or the dict does the job.
-- **Durations stay text.** `30s` is `"30s"` in `as_dict()` until a getter or a model reads it.
-- **Strict syntax.** Input pyhocon quietly accepted, such as `a..b = 1` or `a = b:c`, is an error with its line and column.
+```python
+from zig_hocon.pyhocon import ConfigFactory   # was: from pyhocon import ConfigFactory
+```
+
+**The package's own API** has the same `ConfigFactory`, getters and exception names, without a tree in Python: `conf.as_dict()` when you need one, a typed getter or an `include` where pyhocon has `get`, `with_fallback` or `put`.
+
+Either way, a config reads by the spec, and in a few places pyhocon reads it otherwise:
+
+- **Durations are text in the package's own API.** `30s` is `"30s"` until a getter or a model reads it; `zig_hocon.pyhocon` makes it a `timedelta`, as pyhocon does.
+- **`+=` appends one element.** `x += [3, 4]` adds the list `[3, 4]` to `x`; `x = ${x} [3, 4]` extends it.
+- **Strict syntax.** Input pyhocon quietly accepted, such as `a..b = 1`, `a = b:c` or an unquoted `-Xmx1g`, is an error with its line and column.
 - **No `include package(...)`.** It is pyhocon's own; include by path.
 
 The [migration guide](https://github.com/lejmr/zig-hocon/blob/main/python/MIGRATING.md) has every difference, with what to write instead.
@@ -205,4 +212,4 @@ zig build test-python                     # the package's tests, with uv
 zig build wheels                          # a wheel for every platform, into zig-out/wheels/
 ```
 
-Needs Zig 0.16. Source, issues and the Zig and C libraries: [github.com/lejmr/zig-hocon](https://github.com/lejmr/zig-hocon). BSD-3-Clause.
+Needs Zig 0.16. Source, issues and the Zig and C libraries: [github.com/lejmr/zig-hocon](https://github.com/lejmr/zig-hocon). BSD-3-Clause; `zig_hocon.pyhocon` in parts Apache-2.0, from pyhocon.

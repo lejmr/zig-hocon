@@ -79,10 +79,13 @@ pub fn build(b: *std.Build) void {
     // Every line and branch of the package runs, or it fails (`pragma: no
     // cover` for what no test can reach). `python -m zig_hocon` is left out:
     // test_main.py runs it as a process, as the conformance adapter does,
-    // where coverage does not follow.
+    // where coverage does not follow. dateutil is there for
+    // zig_hocon.pyhocon's months and years, as pyhocon has them with it, and
+    // the newest pyhocon for test_pyhocon_compat.py and
+    // test_pyhocon_signatures.py to hold it against: its next release shows.
     const python_version = b.option([]const u8, "python", "The Python test-python runs on (default 3.12)") orelse "3.12";
     const coverage_file = b.pathFromRoot(".zig-cache/python.coverage");
-    const pytest = b.addSystemCommand(&.{ "uv", "run", "--no-project", "--python", python_version, "--with", "pytest", "--with", "coverage", "python", "-m", "coverage", "run", "--branch", "--source=python/zig_hocon", "--omit=python/zig_hocon/__main__.py", "-m", "pytest", "-q", "python/tests" });
+    const pytest = b.addSystemCommand(&.{ "uv", "run", "--no-project", "--python", python_version, "--with", "pytest", "--with", "coverage", "--with", "python-dateutil", "--with", "pyhocon", "python", "-m", "coverage", "run", "--branch", "--source=python/zig_hocon", "--omit=python/zig_hocon/__main__.py", "-m", "pytest", "-q", "python/tests" });
     pytest.setCwd(b.path("."));
     pytest.setEnvironmentVariable("PYTHONPATH", "python");
     pytest.setEnvironmentVariable("COVERAGE_FILE", coverage_file);
@@ -100,9 +103,19 @@ pub fn build(b: *std.Build) void {
     mypy.setEnvironmentVariable("PYTHONPATH", "python");
     mypy.has_side_effects = true;
     mypy.step.dependOn(&py_lib.step);
-    const test_python_step = b.step("test-python", "Run the Python package's tests with coverage, and type check (needs uv)");
+    // ruff and ty on the package, as python/pyproject.toml sets them; pinned,
+    // as a new ruff formats differently.
+    const ruff_check = b.addSystemCommand(&.{ "uv", "run", "--no-project", "--with", "ruff==0.17.1", "ruff", "check", "python" });
+    const ruff_format = b.addSystemCommand(&.{ "uv", "run", "--no-project", "--with", "ruff==0.17.1", "ruff", "format", "--check", "python" });
+    const ty = b.addSystemCommand(&.{ "uv", "run", "--no-project", "--with", "ty==0.0.90", "ty", "check", "--project", "python" });
+    const test_python_step = b.step("test-python", "Run the Python package's tests with coverage, lint and type check (needs uv)");
     test_python_step.dependOn(&coverage.step);
     test_python_step.dependOn(&mypy.step);
+    for ([_]*std.Build.Step.Run{ ruff_check, ruff_format, ty }) |run| {
+        run.setCwd(b.path("."));
+        run.has_side_effects = true;
+        test_python_step.dependOn(&run.step);
+    }
 
     // `zig build wheels`: a wheel for every platform into zig-out/wheels/,
     // each with libhocon cross-compiled for it, packed by tools/wheel.py.
