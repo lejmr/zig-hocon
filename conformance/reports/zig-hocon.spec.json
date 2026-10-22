@@ -1,13 +1,13 @@
 {
   "suite": "hocon-conformance",
   "implementation": "zig-hocon",
-  "version": "zig-hocon code@20663cc",
+  "version": "zig-hocon code@031f68c",
   "mode": "spec",
   "command": "conformance/adapters/zig-hocon.sh",
-  "ran_at": "2026-10-19T20:48:46Z",
-  "suite_digest": "cd4bdae3133b2042",
-  "total": 445,
-  "passed": 444,
+  "ran_at": "2026-10-22T19:44:19Z",
+  "suite_digest": "e05749cb283ceff4",
+  "total": 446,
+  "passed": 445,
   "percent": 99.8,
   "sections": {
     "array-and-object-concatenation": {
@@ -135,8 +135,8 @@
       "passed": 6
     },
     "unquoted-strings": {
-      "total": 24,
-      "passed": 24
+      "total": 25,
+      "passed": 25
     },
     "value-concatenation": {
       "total": 2,
@@ -578,6 +578,7 @@
     "unquoted-strings/022-digit-then-exponent-letter-illegal.conf": "pass",
     "unquoted-strings/023-unquoted-string-ends-at-end-of-file.conf": "pass",
     "unquoted-strings/024-escape-sequence-in-unquoted-string-illegal.conf": "pass",
+    "unquoted-strings/025-digit-initial-invalid-number.conf": "pass",
     "value-concatenation/001-simple-values-concatenate-to-string.conf": "pass",
     "value-concatenation/004-string-concatenation-allowed-in-field-keys.conf": "pass",
     "whitespace/001-nonbreaking-space-as-whitespace.conf": "pass",
@@ -638,7 +639,8 @@
     "unchanged-from-json/013-trailing-dot-before-exponent-illegal.conf": "rejected",
     "unchanged-from-json/014-negative-leading-zeros-illegal.conf": "rejected",
     "unquoted-strings/012-unquoted-cannot-start-with-hyphen.conf": "rejected",
-    "unquoted-strings/022-digit-then-exponent-letter-illegal.conf": "rejected"
+    "unquoted-strings/022-digit-then-exponent-letter-illegal.conf": "rejected",
+    "unquoted-strings/025-digit-initial-invalid-number.conf": "rejected"
   },
   "failures": [
     {

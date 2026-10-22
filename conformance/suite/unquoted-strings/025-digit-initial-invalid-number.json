@@ -1,0 +1,13 @@
+{
+  "spec": "HOCON.md#unquoted-strings",
+  "rule": [
+    "unquoted-strings.12",
+    "unquoted-strings.13"
+  ],
+  "why": "an unquoted string may not begin with the digits 0-9, and the initial number character plus any valid-in-JSON number characters that follow it must be parsed as a number value -- 1.2.3 is that run, and it is not a number, so the input is rejected rather than read as a string (the everyday shape is an address like 127.0.0.1); typesafe/config and pyhocon both fall back to the unquoted string \"1.2.3\"",
+  "error": "BadNumber",
+  "java": "lenient",
+  "java_expect": {
+    "a": "1.2.3"
+  }
+}

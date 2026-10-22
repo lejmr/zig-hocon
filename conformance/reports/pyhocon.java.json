@@ -5,11 +5,11 @@
   "mode": "java",
   "java_version": "1.4.9",
   "command": "conformance/adapters/oracle.sh hocon-py",
-  "ran_at": "2026-10-19T06:04:35Z",
-  "suite_digest": "cd4bdae3133b2042",
-  "total": 445,
-  "passed": 297,
-  "percent": 66.7,
+  "ran_at": "2026-10-22T19:40:53Z",
+  "suite_digest": "e05749cb283ceff4",
+  "total": 446,
+  "passed": 298,
+  "percent": 66.8,
   "sections": {
     "array-and-object-concatenation": {
       "total": 19,
@@ -136,8 +136,8 @@
       "passed": 5
     },
     "unquoted-strings": {
-      "total": 24,
-      "passed": 18
+      "total": 25,
+      "passed": 19
     },
     "value-concatenation": {
       "total": 2,
@@ -579,6 +579,7 @@
     "unquoted-strings/022-digit-then-exponent-letter-illegal.conf": "pass",
     "unquoted-strings/023-unquoted-string-ends-at-end-of-file.conf": "pass",
     "unquoted-strings/024-escape-sequence-in-unquoted-string-illegal.conf": "fail",
+    "unquoted-strings/025-digit-initial-invalid-number.conf": "pass",
     "value-concatenation/001-simple-values-concatenate-to-string.conf": "pass",
     "value-concatenation/004-string-concatenation-allowed-in-field-keys.conf": "pass",
     "whitespace/001-nonbreaking-space-as-whitespace.conf": "fail",
@@ -639,7 +640,8 @@
     "unchanged-from-json/013-trailing-dot-before-exponent-illegal.conf": "{\"a\":\"-1.e3\"}",
     "unchanged-from-json/014-negative-leading-zeros-illegal.conf": "{\"a\":-33}",
     "unquoted-strings/012-unquoted-cannot-start-with-hyphen.conf": "{\"a\":\"-foo\"}",
-    "unquoted-strings/022-digit-then-exponent-letter-illegal.conf": "{\"a\":\"1e\"}"
+    "unquoted-strings/022-digit-then-exponent-letter-illegal.conf": "{\"a\":\"1e\"}",
+    "unquoted-strings/025-digit-initial-invalid-number.conf": "{\"a\":\"1.2.3\"}"
   },
   "failures": [
     {
@@ -2057,7 +2059,7 @@
         "a": "null bar"
       },
       "got": {
-        "a": "<pyhocon.config_tree.NoneValue object at 0x103471910>bar"
+        "a": "<pyhocon.config_tree.NoneValue object at 0x102093790>bar"
       }
     },
     {

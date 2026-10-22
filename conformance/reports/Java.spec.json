@@ -4,11 +4,11 @@
   "version": "typesafe/config 1.4.9",
   "mode": "spec",
   "command": "conformance/adapters/oracle.sh hocon-java",
-  "ran_at": "2026-10-19T05:59:42Z",
-  "suite_digest": "cd4bdae3133b2042",
-  "total": 445,
+  "ran_at": "2026-10-22T19:42:16Z",
+  "suite_digest": "e05749cb283ceff4",
+  "total": 446,
   "passed": 401,
-  "percent": 90.1,
+  "percent": 89.9,
   "sections": {
     "array-and-object-concatenation": {
       "total": 19,
@@ -135,7 +135,7 @@
       "passed": 6
     },
     "unquoted-strings": {
-      "total": 24,
+      "total": 25,
       "passed": 22
     },
     "value-concatenation": {
@@ -578,6 +578,7 @@
     "unquoted-strings/022-digit-then-exponent-letter-illegal.conf": "fail",
     "unquoted-strings/023-unquoted-string-ends-at-end-of-file.conf": "pass",
     "unquoted-strings/024-escape-sequence-in-unquoted-string-illegal.conf": "pass",
+    "unquoted-strings/025-digit-initial-invalid-number.conf": "fail",
     "value-concatenation/001-simple-values-concatenate-to-string.conf": "pass",
     "value-concatenation/004-string-concatenation-allowed-in-field-keys.conf": "pass",
     "whitespace/001-nonbreaking-space-as-whitespace.conf": "pass",
@@ -638,7 +639,8 @@
     "unchanged-from-json/013-trailing-dot-before-exponent-illegal.conf": "{\"a\":-1000}",
     "unchanged-from-json/014-negative-leading-zeros-illegal.conf": "{\"a\":-33}",
     "unquoted-strings/012-unquoted-cannot-start-with-hyphen.conf": "{\"a\":\"-foo\"}",
-    "unquoted-strings/022-digit-then-exponent-letter-illegal.conf": "{\"a\":\"1e\"}"
+    "unquoted-strings/022-digit-then-exponent-letter-illegal.conf": "{\"a\":\"1e\"}",
+    "unquoted-strings/025-digit-initial-invalid-number.conf": "{\"a\":\"1.2.3\"}"
   },
   "failures": [
     {
@@ -1277,6 +1279,14 @@
       "rule": "1e begins with a digit, so the run of number characters 1e must be parsed as a number, and it is not one; typesafe/config falls back to the unquoted string \"1e\", the same leniency it shows for -foo",
       "expected": "rejected",
       "got": "{\"a\":\"1e\"}",
+      "java": "lenient"
+    },
+    {
+      "case": "unquoted-strings/025-digit-initial-invalid-number.conf",
+      "spec": "HOCON.md#unquoted-strings",
+      "rule": "an unquoted string may not begin with the digits 0-9, and the initial number character plus any valid-in-JSON number characters that follow it must be parsed as a number value -- 1.2.3 is that run, and it is not a number, so the input is rejected rather than read as a string (the everyday shape is an address like 127.0.0.1); typesafe/config and pyhocon both fall back to the unquoted string \"1.2.3\"",
+      "expected": "rejected",
+      "got": "{\"a\":\"1.2.3\"}",
       "java": "lenient"
     }
   ]

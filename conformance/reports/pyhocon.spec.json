@@ -4,11 +4,11 @@
   "version": "pyhocon 0.3.63",
   "mode": "spec",
   "command": "conformance/adapters/oracle.sh hocon-py",
-  "ran_at": "2026-10-19T06:02:11Z",
-  "suite_digest": "cd4bdae3133b2042",
-  "total": 445,
+  "ran_at": "2026-10-22T19:38:06Z",
+  "suite_digest": "e05749cb283ceff4",
+  "total": 446,
   "passed": 314,
-  "percent": 70.6,
+  "percent": 70.4,
   "sections": {
     "array-and-object-concatenation": {
       "total": 19,
@@ -135,7 +135,7 @@
       "passed": 5
     },
     "unquoted-strings": {
-      "total": 24,
+      "total": 25,
       "passed": 16
     },
     "value-concatenation": {
@@ -578,6 +578,7 @@
     "unquoted-strings/022-digit-then-exponent-letter-illegal.conf": "fail",
     "unquoted-strings/023-unquoted-string-ends-at-end-of-file.conf": "pass",
     "unquoted-strings/024-escape-sequence-in-unquoted-string-illegal.conf": "fail",
+    "unquoted-strings/025-digit-initial-invalid-number.conf": "fail",
     "value-concatenation/001-simple-values-concatenate-to-string.conf": "pass",
     "value-concatenation/004-string-concatenation-allowed-in-field-keys.conf": "pass",
     "whitespace/001-nonbreaking-space-as-whitespace.conf": "fail",
@@ -638,7 +639,8 @@
     "unchanged-from-json/013-trailing-dot-before-exponent-illegal.conf": "{\"a\":\"-1.e3\"}",
     "unchanged-from-json/014-negative-leading-zeros-illegal.conf": "{\"a\":-33}",
     "unquoted-strings/012-unquoted-cannot-start-with-hyphen.conf": "{\"a\":\"-foo\"}",
-    "unquoted-strings/022-digit-then-exponent-letter-illegal.conf": "{\"a\":\"1e\"}"
+    "unquoted-strings/022-digit-then-exponent-letter-illegal.conf": "{\"a\":\"1e\"}",
+    "unquoted-strings/025-digit-initial-invalid-number.conf": "{\"a\":\"1.2.3\"}"
   },
   "failures": [
     {
@@ -1796,7 +1798,7 @@
         "a": "null bar"
       },
       "got": {
-        "a": "<pyhocon.config_tree.NoneValue object at 0x100ff5910>bar"
+        "a": "<pyhocon.config_tree.NoneValue object at 0x1020af790>bar"
       }
     },
     {
@@ -2135,6 +2137,14 @@
       "rule": "unquoted strings support no escaping, so \\u00e9 is not decoded, and the backslash it needs is forbidden in an unquoted string; the quoted \"caf\\u00e9\" is how to write it",
       "expected": "rejected",
       "got": "{\"a\":\"caf\\\\u00e9\"}"
+    },
+    {
+      "case": "unquoted-strings/025-digit-initial-invalid-number.conf",
+      "spec": "HOCON.md#unquoted-strings",
+      "rule": "an unquoted string may not begin with the digits 0-9, and the initial number character plus any valid-in-JSON number characters that follow it must be parsed as a number value -- 1.2.3 is that run, and it is not a number, so the input is rejected rather than read as a string (the everyday shape is an address like 127.0.0.1); typesafe/config and pyhocon both fall back to the unquoted string \"1.2.3\"",
+      "expected": "rejected",
+      "got": "{\"a\":\"1.2.3\"}",
+      "java": "lenient"
     },
     {
       "case": "whitespace/001-nonbreaking-space-as-whitespace.conf",
