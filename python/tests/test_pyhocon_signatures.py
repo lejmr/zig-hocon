@@ -84,8 +84,10 @@ def _param(case, module, name, member, why):
 
 def _signature(f):
     """The parameters of ``f``: name, kind and default, a class default by
-    its name (pyhocon's UndefinedKey is ours by name, not by identity). None
-    for a builtin that tells none: OrderedDict.items on CPython."""
+    its name (pyhocon's UndefinedKey is ours by name, not by identity), and
+    ``self`` of any kind, as no one passes it by name: a builtin's is
+    positional-only. None for a builtin that tells none: OrderedDict.items
+    before CPython 3.13."""
     try:
         signature = inspect.signature(f)
     except ValueError:
@@ -95,7 +97,7 @@ def _signature(f):
         default = p.default
         if default is not p.empty:
             default = default.__name__ if inspect.isclass(default) else repr(default)
-        params.append((p.name, p.kind.name, default))
+        params.append((p.name, "POSITIONAL_OR_KEYWORD" if p.name == "self" else p.kind.name, default))
     return params
 
 
