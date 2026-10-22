@@ -215,7 +215,7 @@ b.step("check-config", "Check the config against Config").dependOn(&check.step);
 | hocon2 <sub>hocon2 0.6.3</sub> | 86.4% (386/447) | 80.3% (359/447) |
 | pulse-pyhocon <sub>pulse-pyhocon 0.2.1</sub> | 70.7% (316/447) | 68.2% (305/447) |
 | py.hocon <sub>hocon-parser 1.14.2 (Python)</sub> | 88.8% (397/447) | 88.1% (394/447) |
-| pyhocon <sub>pyhocon 0.3.63</sub> | 70.2% (314/447) | 66.4% (297/447) |
+| pyhocon <sub>pyhocon 0.3.63</sub> | 70.2% (314/447) | 66.7% (298/447) |
 | rs.hocon <sub>hocon-parser 1.14.2 (Rust)</sub> | 88.8% (397/447) | 86.1% (385/447) |
 | zig-hocon <sub>zig-hocon code@d402862</sub> | 99.8% (446/447) | 89.9% (402/447) |
 

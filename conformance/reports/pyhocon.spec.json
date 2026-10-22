@@ -4,11 +4,11 @@
   "version": "pyhocon 0.3.63",
   "mode": "spec",
   "command": "conformance/adapters/oracle.sh hocon-py",
-  "ran_at": "2026-10-19T06:02:11Z",
-  "suite_digest": "cd4bdae3133b2042",
-  "total": 445,
+  "ran_at": "2026-10-22T06:52:35Z",
+  "suite_digest": "ff0d1102dcf4cd90",
+  "total": 447,
   "passed": 314,
-  "percent": 70.6,
+  "percent": 70.2,
   "sections": {
     "array-and-object-concatenation": {
       "total": 19,
@@ -99,7 +99,7 @@
       "passed": 3
     },
     "plus-equals-field-separator": {
-      "total": 8,
+      "total": 9,
       "passed": 0
     },
     "self-referential-examples": {
@@ -135,7 +135,7 @@
       "passed": 5
     },
     "unquoted-strings": {
-      "total": 24,
+      "total": 25,
       "passed": 16
     },
     "value-concatenation": {
@@ -422,6 +422,7 @@
     "plus-equals-field-separator/006-plus-equals-inside-a-list-element.conf": "fail",
     "plus-equals-field-separator/007-plus-equals-under-a-dotted-key.conf": "fail",
     "plus-equals-field-separator/008-plus-equals-with-an-object-containing-a-merge.conf": "fail",
+    "plus-equals-field-separator/009-plus-equals-appends-list-as-one-element.conf": "fail",
     "self-referential-examples/001-isolated-self-reference-is-an-error.conf": "pass",
     "self-referential-examples/002-self-reference-resolves-to-earlier-merged-value.conf": "pass",
     "self-referential-examples/003-self-reference-before-any-value-is-undefined.conf": "pass",
@@ -578,6 +579,7 @@
     "unquoted-strings/022-digit-then-exponent-letter-illegal.conf": "fail",
     "unquoted-strings/023-unquoted-string-ends-at-end-of-file.conf": "pass",
     "unquoted-strings/024-escape-sequence-in-unquoted-string-illegal.conf": "fail",
+    "unquoted-strings/025-digit-initial-invalid-number.conf": "fail",
     "value-concatenation/001-simple-values-concatenate-to-string.conf": "pass",
     "value-concatenation/004-string-concatenation-allowed-in-field-keys.conf": "pass",
     "whitespace/001-nonbreaking-space-as-whitespace.conf": "fail",
@@ -638,7 +640,8 @@
     "unchanged-from-json/013-trailing-dot-before-exponent-illegal.conf": "{\"a\":\"-1.e3\"}",
     "unchanged-from-json/014-negative-leading-zeros-illegal.conf": "{\"a\":-33}",
     "unquoted-strings/012-unquoted-cannot-start-with-hyphen.conf": "{\"a\":\"-foo\"}",
-    "unquoted-strings/022-digit-then-exponent-letter-illegal.conf": "{\"a\":\"1e\"}"
+    "unquoted-strings/022-digit-then-exponent-letter-illegal.conf": "{\"a\":\"1e\"}",
+    "unquoted-strings/025-digit-initial-invalid-number.conf": "{\"a\":\"1.2.3\"}"
   },
   "failures": [
     {
@@ -1639,6 +1642,29 @@
       "java": "unsupported"
     },
     {
+      "case": "plus-equals-field-separator/009-plus-equals-appends-list-as-one-element.conf",
+      "spec": "HOCON.md#the--field-separator",
+      "rule": "a += b becomes a = ${?a} [b], so with b = [3, 4] the long form is a = ${?a} [[3, 4]]: += appends an element, and a list on the right is that one element, nested, not spliced in. pyhocon splices it, giving [1, 2, 3, 4]",
+      "expected": {
+        "a": [
+          1,
+          2,
+          [
+            3,
+            4
+          ]
+        ]
+      },
+      "got": {
+        "a": [
+          1,
+          2,
+          3,
+          4
+        ]
+      }
+    },
+    {
       "case": "self-referential-examples/016-object-hidden-by-substituted-scalar-is-never-evaluated.conf",
       "spec": "HOCON.md#examples-of-self-referential-substitutions",
       "rule": "${replacement} resolves to 42, a non-object, so the earlier object is hidden and never evaluated, as with the literal in 005 (typesafe/config 1.4.5 evaluated it)",
@@ -1796,7 +1822,7 @@
         "a": "null bar"
       },
       "got": {
-        "a": "<pyhocon.config_tree.NoneValue object at 0x100ff5910>bar"
+        "a": "<pyhocon.config_tree.NoneValue object at 0x7f5230875400>bar"
       }
     },
     {
@@ -2135,6 +2161,14 @@
       "rule": "unquoted strings support no escaping, so \\u00e9 is not decoded, and the backslash it needs is forbidden in an unquoted string; the quoted \"caf\\u00e9\" is how to write it",
       "expected": "rejected",
       "got": "{\"a\":\"caf\\\\u00e9\"}"
+    },
+    {
+      "case": "unquoted-strings/025-digit-initial-invalid-number.conf",
+      "spec": "HOCON.md#unquoted-strings",
+      "rule": "an unquoted string may not begin with the digits 0-9, and the initial number character plus any valid-in-JSON number characters that follow it must be parsed as a number value -- 1.2.3 is that run, and it is not a number, so the input is rejected rather than read as a string (the everyday shape is an address like 127.0.0.1); typesafe/config and pyhocon both fall back to the unquoted string \"1.2.3\"",
+      "expected": "rejected",
+      "got": "{\"a\":\"1.2.3\"}",
+      "java": "lenient"
     },
     {
       "case": "whitespace/001-nonbreaking-space-as-whitespace.conf",

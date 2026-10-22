@@ -5,10 +5,10 @@
   "mode": "java",
   "java_version": "1.4.9",
   "command": "conformance/adapters/oracle.sh hocon-py",
-  "ran_at": "2026-10-19T06:04:35Z",
-  "suite_digest": "cd4bdae3133b2042",
-  "total": 445,
-  "passed": 297,
+  "ran_at": "2026-10-22T06:54:59Z",
+  "suite_digest": "ff0d1102dcf4cd90",
+  "total": 447,
+  "passed": 298,
   "percent": 66.7,
   "sections": {
     "array-and-object-concatenation": {
@@ -100,7 +100,7 @@
       "passed": 3
     },
     "plus-equals-field-separator": {
-      "total": 8,
+      "total": 9,
       "passed": 0
     },
     "self-referential-examples": {
@@ -136,8 +136,8 @@
       "passed": 5
     },
     "unquoted-strings": {
-      "total": 24,
-      "passed": 18
+      "total": 25,
+      "passed": 19
     },
     "value-concatenation": {
       "total": 2,
@@ -423,6 +423,7 @@
     "plus-equals-field-separator/006-plus-equals-inside-a-list-element.conf": "fail",
     "plus-equals-field-separator/007-plus-equals-under-a-dotted-key.conf": "fail",
     "plus-equals-field-separator/008-plus-equals-with-an-object-containing-a-merge.conf": "fail",
+    "plus-equals-field-separator/009-plus-equals-appends-list-as-one-element.conf": "fail",
     "self-referential-examples/001-isolated-self-reference-is-an-error.conf": "pass",
     "self-referential-examples/002-self-reference-resolves-to-earlier-merged-value.conf": "pass",
     "self-referential-examples/003-self-reference-before-any-value-is-undefined.conf": "pass",
@@ -579,6 +580,7 @@
     "unquoted-strings/022-digit-then-exponent-letter-illegal.conf": "pass",
     "unquoted-strings/023-unquoted-string-ends-at-end-of-file.conf": "pass",
     "unquoted-strings/024-escape-sequence-in-unquoted-string-illegal.conf": "fail",
+    "unquoted-strings/025-digit-initial-invalid-number.conf": "pass",
     "value-concatenation/001-simple-values-concatenate-to-string.conf": "pass",
     "value-concatenation/004-string-concatenation-allowed-in-field-keys.conf": "pass",
     "whitespace/001-nonbreaking-space-as-whitespace.conf": "fail",
@@ -639,7 +641,8 @@
     "unchanged-from-json/013-trailing-dot-before-exponent-illegal.conf": "{\"a\":\"-1.e3\"}",
     "unchanged-from-json/014-negative-leading-zeros-illegal.conf": "{\"a\":-33}",
     "unquoted-strings/012-unquoted-cannot-start-with-hyphen.conf": "{\"a\":\"-foo\"}",
-    "unquoted-strings/022-digit-then-exponent-letter-illegal.conf": "{\"a\":\"1e\"}"
+    "unquoted-strings/022-digit-then-exponent-letter-illegal.conf": "{\"a\":\"1e\"}",
+    "unquoted-strings/025-digit-initial-invalid-number.conf": "{\"a\":\"1.2.3\"}"
   },
   "failures": [
     {
@@ -1884,6 +1887,29 @@
       "java": "unsupported"
     },
     {
+      "case": "plus-equals-field-separator/009-plus-equals-appends-list-as-one-element.conf",
+      "spec": "HOCON.md#the--field-separator",
+      "rule": "a += b becomes a = ${?a} [b], so with b = [3, 4] the long form is a = ${?a} [[3, 4]]: += appends an element, and a list on the right is that one element, nested, not spliced in. pyhocon splices it, giving [1, 2, 3, 4]",
+      "expected": {
+        "a": [
+          1,
+          2,
+          [
+            3,
+            4
+          ]
+        ]
+      },
+      "got": {
+        "a": [
+          1,
+          2,
+          3,
+          4
+        ]
+      }
+    },
+    {
       "case": "self-referential-examples/015-list-hidden-by-substituted-object-is-never-evaluated.conf",
       "spec": "HOCON.md#examples-of-self-referential-substitutions",
       "rule": "a list merges with nothing, so any later value hides it and it is never evaluated; that the hiding object arrives through ${replacement} changes nothing, since the substitution is required and so either resolves or fails on its own. typesafe/config evaluates the hidden list (lightbend/config#865)",
@@ -2057,7 +2083,7 @@
         "a": "null bar"
       },
       "got": {
-        "a": "<pyhocon.config_tree.NoneValue object at 0x103471910>bar"
+        "a": "<pyhocon.config_tree.NoneValue object at 0x7f9f71741400>bar"
       }
     },
     {
