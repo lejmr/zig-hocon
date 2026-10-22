@@ -5,11 +5,11 @@
   "mode": "java",
   "java_version": "1.4.9",
   "command": "conformance/adapters/oracle.sh hocon-py",
-  "ran_at": "2026-10-22T06:54:59Z",
-  "suite_digest": "ff0d1102dcf4cd90",
-  "total": 447,
+  "ran_at": "2026-10-22T19:40:53Z",
+  "suite_digest": "e05749cb283ceff4",
+  "total": 446,
   "passed": 298,
-  "percent": 66.7,
+  "percent": 66.8,
   "sections": {
     "array-and-object-concatenation": {
       "total": 19,
@@ -100,7 +100,7 @@
       "passed": 3
     },
     "plus-equals-field-separator": {
-      "total": 9,
+      "total": 8,
       "passed": 0
     },
     "self-referential-examples": {
@@ -423,7 +423,6 @@
     "plus-equals-field-separator/006-plus-equals-inside-a-list-element.conf": "fail",
     "plus-equals-field-separator/007-plus-equals-under-a-dotted-key.conf": "fail",
     "plus-equals-field-separator/008-plus-equals-with-an-object-containing-a-merge.conf": "fail",
-    "plus-equals-field-separator/009-plus-equals-appends-list-as-one-element.conf": "fail",
     "self-referential-examples/001-isolated-self-reference-is-an-error.conf": "pass",
     "self-referential-examples/002-self-reference-resolves-to-earlier-merged-value.conf": "pass",
     "self-referential-examples/003-self-reference-before-any-value-is-undefined.conf": "pass",
@@ -1887,29 +1886,6 @@
       "java": "unsupported"
     },
     {
-      "case": "plus-equals-field-separator/009-plus-equals-appends-list-as-one-element.conf",
-      "spec": "HOCON.md#the--field-separator",
-      "rule": "a += b becomes a = ${?a} [b], so with b = [3, 4] the long form is a = ${?a} [[3, 4]]: += appends an element, and a list on the right is that one element, nested, not spliced in. pyhocon splices it, giving [1, 2, 3, 4]",
-      "expected": {
-        "a": [
-          1,
-          2,
-          [
-            3,
-            4
-          ]
-        ]
-      },
-      "got": {
-        "a": [
-          1,
-          2,
-          3,
-          4
-        ]
-      }
-    },
-    {
       "case": "self-referential-examples/015-list-hidden-by-substituted-object-is-never-evaluated.conf",
       "spec": "HOCON.md#examples-of-self-referential-substitutions",
       "rule": "a list merges with nothing, so any later value hides it and it is never evaluated; that the hiding object arrives through ${replacement} changes nothing, since the substitution is required and so either resolves or fails on its own. typesafe/config evaluates the hidden list (lightbend/config#865)",
@@ -2083,7 +2059,7 @@
         "a": "null bar"
       },
       "got": {
-        "a": "<pyhocon.config_tree.NoneValue object at 0x7f9f71741400>bar"
+        "a": "<pyhocon.config_tree.NoneValue object at 0x102093790>bar"
       }
     },
     {

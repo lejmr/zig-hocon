@@ -1,14 +1,14 @@
 {
   "suite": "hocon-conformance",
   "implementation": "zig-hocon",
-  "version": "zig-hocon code@d402862",
+  "version": "zig-hocon code@031f68c",
   "mode": "java",
   "java_version": "1.4.9",
   "command": "conformance/adapters/zig-hocon.sh",
-  "ran_at": "2026-10-22T06:48:09Z",
-  "suite_digest": "ff0d1102dcf4cd90",
-  "total": 447,
-  "passed": 402,
+  "ran_at": "2026-10-22T19:44:29Z",
+  "suite_digest": "e05749cb283ceff4",
+  "total": 446,
+  "passed": 401,
   "percent": 89.9,
   "sections": {
     "array-and-object-concatenation": {
@@ -100,8 +100,8 @@
       "passed": 7
     },
     "plus-equals-field-separator": {
-      "total": 9,
-      "passed": 7
+      "total": 8,
+      "passed": 6
     },
     "self-referential-examples": {
       "total": 26,
@@ -423,7 +423,6 @@
     "plus-equals-field-separator/006-plus-equals-inside-a-list-element.conf": "fail",
     "plus-equals-field-separator/007-plus-equals-under-a-dotted-key.conf": "pass",
     "plus-equals-field-separator/008-plus-equals-with-an-object-containing-a-merge.conf": "fail",
-    "plus-equals-field-separator/009-plus-equals-appends-list-as-one-element.conf": "pass",
     "self-referential-examples/001-isolated-self-reference-is-an-error.conf": "pass",
     "self-referential-examples/002-self-reference-resolves-to-earlier-merged-value.conf": "pass",
     "self-referential-examples/003-self-reference-before-any-value-is-undefined.conf": "pass",

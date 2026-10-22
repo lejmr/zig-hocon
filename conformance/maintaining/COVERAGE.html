@@ -523,13 +523,13 @@ resolving an optional substitution (i.e. the `${?foo}` syntax).</mark>
 <mark class="ok" title="self-referential-substitutions.13 — self-referential-examples/004-optional-self-reference-disappears-silently.conf">If `${?foo}` refers to itself then it&#x27;s as if it referred to a
 nonexistent value.</mark></p>
 <h4>The `+=` field separator</h4>
-<p data-line="721"><mark class="ok" title="the--field-separator.1 — plus-equals-field-separator/001-plus-equals-desugars-to-optional-self-ref-array.conf">Fields may have `+=` as a separator rather than `:` or `=`.</mark> <mark class="ok" title="the--field-separator.2 — plus-equals-field-separator/005-plus-equals-in-nested-object-with-substitution.conf, plus-equals-field-separator/007-plus-equals-under-a-dotted-key.conf, plus-equals-field-separator/008-plus-equals-with-an-object-containing-a-merge.conf, plus-equals-field-separator/009-plus-equals-appends-list-as-one-element.conf, self-referential-examples/023-append-does-not-hide.conf">A
+<p data-line="721"><mark class="ok" title="the--field-separator.1 — plus-equals-field-separator/001-plus-equals-desugars-to-optional-self-ref-array.conf">Fields may have `+=` as a separator rather than `:` or `=`.</mark> <mark class="ok" title="the--field-separator.2 — plus-equals-field-separator/005-plus-equals-in-nested-object-with-substitution.conf, plus-equals-field-separator/007-plus-equals-under-a-dotted-key.conf, plus-equals-field-separator/008-plus-equals-with-an-object-containing-a-merge.conf, self-referential-examples/023-append-does-not-hide.conf">A
 field with `+=` transforms into a self-referential array
 concatenation, like this:</mark></p>
 <p data-line="725">    a += b</p>
 <p data-line="727">becomes:</p>
 <p data-line="729">    a = ${?a} [b]</p>
-<p data-line="731"><mark class="ok" title="the--field-separator.3 — plus-equals-field-separator/002-plus-equals-appends-to-existing-array.conf, plus-equals-field-separator/004-plus-equals-twice.conf, plus-equals-field-separator/009-plus-equals-appends-list-as-one-element.conf">`+=` appends an element to a previous array.</mark> <mark class="ok" title="the--field-separator.4 — plus-equals-field-separator/003-plus-equals-errors-on-non-array-previous-value.conf">If the previous value
+<p data-line="731"><mark class="ok" title="the--field-separator.3 — plus-equals-field-separator/002-plus-equals-appends-to-existing-array.conf, plus-equals-field-separator/004-plus-equals-twice.conf">`+=` appends an element to a previous array.</mark> <mark class="ok" title="the--field-separator.4 — plus-equals-field-separator/003-plus-equals-errors-on-non-array-previous-value.conf">If the previous value
 was not an array, an error will result just as it would in the
 long form `a = ${?a} [b]`.</mark> <mark class="ok" title="the--field-separator.5 — plus-equals-field-separator/001-plus-equals-desugars-to-optional-self-ref-array.conf, plus-equals-field-separator/006-plus-equals-inside-a-list-element.conf">Note that the previous value is
 optional (`${?a}` not `${a}`), which allows `a += b` to be the

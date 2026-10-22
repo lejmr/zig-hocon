@@ -4,11 +4,11 @@
   "version": "pyhocon 0.3.63",
   "mode": "spec",
   "command": "conformance/adapters/oracle.sh hocon-py",
-  "ran_at": "2026-10-22T06:52:35Z",
-  "suite_digest": "ff0d1102dcf4cd90",
-  "total": 447,
+  "ran_at": "2026-10-22T19:38:06Z",
+  "suite_digest": "e05749cb283ceff4",
+  "total": 446,
   "passed": 314,
-  "percent": 70.2,
+  "percent": 70.4,
   "sections": {
     "array-and-object-concatenation": {
       "total": 19,
@@ -99,7 +99,7 @@
       "passed": 3
     },
     "plus-equals-field-separator": {
-      "total": 9,
+      "total": 8,
       "passed": 0
     },
     "self-referential-examples": {
@@ -422,7 +422,6 @@
     "plus-equals-field-separator/006-plus-equals-inside-a-list-element.conf": "fail",
     "plus-equals-field-separator/007-plus-equals-under-a-dotted-key.conf": "fail",
     "plus-equals-field-separator/008-plus-equals-with-an-object-containing-a-merge.conf": "fail",
-    "plus-equals-field-separator/009-plus-equals-appends-list-as-one-element.conf": "fail",
     "self-referential-examples/001-isolated-self-reference-is-an-error.conf": "pass",
     "self-referential-examples/002-self-reference-resolves-to-earlier-merged-value.conf": "pass",
     "self-referential-examples/003-self-reference-before-any-value-is-undefined.conf": "pass",
@@ -1642,29 +1641,6 @@
       "java": "unsupported"
     },
     {
-      "case": "plus-equals-field-separator/009-plus-equals-appends-list-as-one-element.conf",
-      "spec": "HOCON.md#the--field-separator",
-      "rule": "a += b becomes a = ${?a} [b], so with b = [3, 4] the long form is a = ${?a} [[3, 4]]: += appends an element, and a list on the right is that one element, nested, not spliced in. pyhocon splices it, giving [1, 2, 3, 4]",
-      "expected": {
-        "a": [
-          1,
-          2,
-          [
-            3,
-            4
-          ]
-        ]
-      },
-      "got": {
-        "a": [
-          1,
-          2,
-          3,
-          4
-        ]
-      }
-    },
-    {
       "case": "self-referential-examples/016-object-hidden-by-substituted-scalar-is-never-evaluated.conf",
       "spec": "HOCON.md#examples-of-self-referential-substitutions",
       "rule": "${replacement} resolves to 42, a non-object, so the earlier object is hidden and never evaluated, as with the literal in 005 (typesafe/config 1.4.5 evaluated it)",
@@ -1822,7 +1798,7 @@
         "a": "null bar"
       },
       "got": {
-        "a": "<pyhocon.config_tree.NoneValue object at 0x7f5230875400>bar"
+        "a": "<pyhocon.config_tree.NoneValue object at 0x1020af790>bar"
       }
     },
     {
