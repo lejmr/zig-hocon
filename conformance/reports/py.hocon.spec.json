@@ -7,8 +7,8 @@
   "ran_at": "2026-10-19T05:59:21Z",
   "suite_digest": "cd4bdae3133b2042",
   "total": 445,
-  "passed": 397,
-  "percent": 89.2,
+  "passed": 398,
+  "percent": 89.4,
   "sections": {
     "array-and-object-concatenation": {
       "total": 19,
@@ -64,7 +64,7 @@
     },
     "include-syntax": {
       "total": 15,
-      "passed": 12
+      "passed": 13
     },
     "key-value-separator": {
       "total": 6,
@@ -329,7 +329,7 @@
     "include-syntax/008-file-argument-must-be-quoted/main.conf": "pass",
     "include-syntax/009-file-missing-close-parenthesis/main.conf": "fail",
     "include-syntax/010-required-missing-close-parenthesis/main.conf": "fail",
-    "include-syntax/011-url-argument-must-be-a-url/main.conf": "open",
+    "include-syntax/011-url-argument-must-be-a-url/main.conf": "pass",
     "include-syntax/013-newlines-between-include-and-name/main.conf": "pass",
     "include-syntax/014-whitespace-inside-parentheses/main.conf": "pass",
     "include-syntax/015-include-followed-by-separator-is-not-a-key.conf": "pass",
@@ -943,14 +943,6 @@
       "rule": "required(...) must be closed too",
       "expected": "rejected",
       "got": "{\"a\":1}"
-    },
-    {
-      "case": "include-syntax/011-url-argument-must-be-a-url/main.conf",
-      "spec": "HOCON.md#include-syntax",
-      "rule": "the string inside url() is interpreted as a URL, and x.conf has no scheme, so it is not one",
-      "expected": "rejected",
-      "got": "rejected",
-      "open_question": "the spec says only that the string inside url() is interpreted as a URL; it does not say whether a string that is not a URL is an error or an unresolvable, hence ignorable, resource. typesafe/config rejects it"
     },
     {
       "case": "omit-root-braces/003-missing-open-brace-with-close-brace-illegal.conf",

@@ -377,107 +377,108 @@ section rather than renumbering.
 | `include-semantics-locating-resources.6` | L1156 | The current working directory of the process parsing a file must NOT be used when interpreting included paths. |
 | `include-semantics-locating-resources.7` | L1179 | Note that at present, if `url()`/`file()`/`classpath()` are specified, the included items are NOT interpreted relative to the including items. |
 | `include-semantics-locating-resources.8` | L1181 | Relative-to-including-file paths only work with the heuristic `include "foo.conf"`. |
+| `include-semantics-locating-resources.9` | L1184 | The string inside `url()` is always an absolute URL, with a scheme ([RFC 3986, section 4.3](https://www.rfc-editor.org/rfc/rfc3986#section-4.3)); `url("foo.conf")` is an error, with or without `required()`. |
 
 ## [Conversion of numerically-indexed objects to arrays](../../spec/HOCON.md#conversion-of-numerically-indexed-objects-to-arrays)
 
 | rule | line | sentence |
 |---|---|---|
-| `conversion-of-numerically-indexed-objects-to-arrays.1` | L1187 | To provide some mechanism for this, implementations should support converting objects with numeric keys into arrays. |
-| `conversion-of-numerically-indexed-objects-to-arrays.2` | L1204 | the conversion should be done lazily when required to avoid a type error, NOT eagerly anytime an object has numeric keys. |
-| `conversion-of-numerically-indexed-objects-to-arrays.3` | L1210 | the conversion should be done in a concatenation when a list is expected and an object with numeric keys is found. |
-| `conversion-of-numerically-indexed-objects-to-arrays.4` | L1212 | the conversion should not occur if the object is empty or has no keys which parse as positive integers. |
-| `conversion-of-numerically-indexed-objects-to-arrays.5` | L1214 | the conversion should ignore any keys which do not parse as positive integers. |
-| `conversion-of-numerically-indexed-objects-to-arrays.6` | L1216 | the conversion should sort by the integer value of each key and then build the array; if the integer keys are "0" and "2" then the resulting array would have indices "0" and "1", i.e. missing indices in the object are eliminated. |
+| `conversion-of-numerically-indexed-objects-to-arrays.1` | L1191 | To provide some mechanism for this, implementations should support converting objects with numeric keys into arrays. |
+| `conversion-of-numerically-indexed-objects-to-arrays.2` | L1208 | the conversion should be done lazily when required to avoid a type error, NOT eagerly anytime an object has numeric keys. |
+| `conversion-of-numerically-indexed-objects-to-arrays.3` | L1214 | the conversion should be done in a concatenation when a list is expected and an object with numeric keys is found. |
+| `conversion-of-numerically-indexed-objects-to-arrays.4` | L1216 | the conversion should not occur if the object is empty or has no keys which parse as positive integers. |
+| `conversion-of-numerically-indexed-objects-to-arrays.5` | L1218 | the conversion should ignore any keys which do not parse as positive integers. |
+| `conversion-of-numerically-indexed-objects-to-arrays.6` | L1220 | the conversion should sort by the integer value of each key and then build the array; if the integer keys are "0" and "2" then the resulting array would have indices "0" and "1", i.e. missing indices in the object are eliminated. |
 
 ## [Units format](../../spec/HOCON.md#units-format)
 
 | rule | line | sentence |
 |---|---|---|
-| `units-format.1` | L1279 | if the value is a number, it is taken to be a number in the default unit. |
-| `units-format.2` | L1281 | if the value is a string, it is taken to be this sequence: optional whitespace, a number, optional whitespace, an optional unit name consisting only of letters (letters are the Unicode `L*` categories, Java `isLetter()`), optional whitespace |
-| `units-format.6` | L1286 | an optional unit name consisting only of letters (letters are the Unicode `L*` categories, Java `isLetter()`) |
-| `units-format.8` | L1290 | If a string value has no unit name, then it should be interpreted with the default unit, as if it were a number. |
-| `units-format.9` | L1290 | If a string value has a unit name, that name of course specifies the value's interpretation. |
+| `units-format.1` | L1283 | if the value is a number, it is taken to be a number in the default unit. |
+| `units-format.2` | L1285 | if the value is a string, it is taken to be this sequence: optional whitespace, a number, optional whitespace, an optional unit name consisting only of letters (letters are the Unicode `L*` categories, Java `isLetter()`), optional whitespace |
+| `units-format.6` | L1290 | an optional unit name consisting only of letters (letters are the Unicode `L*` categories, Java `isLetter()`) |
+| `units-format.8` | L1294 | If a string value has no unit name, then it should be interpreted with the default unit, as if it were a number. |
+| `units-format.9` | L1294 | If a string value has a unit name, that name of course specifies the value's interpretation. |
 
 ## [Duration format](../../spec/HOCON.md#duration-format)
 
 | rule | line | sentence |
 |---|---|---|
-| `duration-format.1` | L1300 | This can use the general "units format" described above; bare numbers are taken to be in milliseconds already, while strings are parsed as a number plus an optional unit string. |
-| `duration-format.2` | L1304 | The supported unit strings for duration are case-sensitive and must be lowercase. |
-| `duration-format.4` | L1307 | `ns`, `nano`, `nanos`, `nanosecond`, `nanoseconds` |
-| `duration-format.5` | L1308 | `us`, `micro`, `micros`, `microsecond`, `microseconds` |
-| `duration-format.6` | L1309 | `ms`, `milli`, `millis`, `millisecond`, `milliseconds` |
-| `duration-format.7` | L1310 | `s`, `second`, `seconds` |
-| `duration-format.8` | L1311 | `m`, `minute`, `minutes` |
-| `duration-format.9` | L1312 | `h`, `hour`, `hours` |
-| `duration-format.10` | L1313 | `d`, `day`, `days` |
+| `duration-format.1` | L1304 | This can use the general "units format" described above; bare numbers are taken to be in milliseconds already, while strings are parsed as a number plus an optional unit string. |
+| `duration-format.2` | L1308 | The supported unit strings for duration are case-sensitive and must be lowercase. |
+| `duration-format.4` | L1311 | `ns`, `nano`, `nanos`, `nanosecond`, `nanoseconds` |
+| `duration-format.5` | L1312 | `us`, `micro`, `micros`, `microsecond`, `microseconds` |
+| `duration-format.6` | L1313 | `ms`, `milli`, `millis`, `millisecond`, `milliseconds` |
+| `duration-format.7` | L1314 | `s`, `second`, `seconds` |
+| `duration-format.8` | L1315 | `m`, `minute`, `minutes` |
+| `duration-format.9` | L1316 | `h`, `hour`, `hours` |
+| `duration-format.10` | L1317 | `d`, `day`, `days` |
 
 ## [Period Format](../../spec/HOCON.md#period-format)
 
 | rule | line | sentence |
 |---|---|---|
-| `period-format.1` | L1320 | This can use the general "units format" described above; bare numbers are taken to be in days, while strings are parsed as a number plus an optional unit string. |
-| `period-format.2` | L1324 | The supported unit strings for period are case-sensitive and must be lowercase. |
-| `period-format.4` | L1327 | `d`, `day`, `days` |
-| `period-format.5` | L1328 | `w`, `week`, `weeks` |
-| `period-format.6` | L1329 | `m`, `mo`, `month`, `months` (note that if you are using `getTemporal()` which may return either a `java.time.Duration` or a `java.time.Period` you will want to use `mo` rather than `m` to prevent your unit being parsed as minutes) |
-| `period-format.7` | L1333 | `y`, `year`, `years` |
+| `period-format.1` | L1324 | This can use the general "units format" described above; bare numbers are taken to be in days, while strings are parsed as a number plus an optional unit string. |
+| `period-format.2` | L1328 | The supported unit strings for period are case-sensitive and must be lowercase. |
+| `period-format.4` | L1331 | `d`, `day`, `days` |
+| `period-format.5` | L1332 | `w`, `week`, `weeks` |
+| `period-format.6` | L1333 | `m`, `mo`, `month`, `months` (note that if you are using `getTemporal()` which may return either a `java.time.Duration` or a `java.time.Period` you will want to use `mo` rather than `m` to prevent your unit being parsed as minutes) |
+| `period-format.7` | L1337 | `y`, `year`, `years` |
 
 ## [Size in bytes format](../../spec/HOCON.md#size-in-bytes-format)
 
 | rule | line | sentence |
 |---|---|---|
-| `size-in-bytes-format.1` | L1340 | This can use the general "units format" described above; bare numbers are taken to be in bytes already, while strings are parsed as a number plus an optional unit string. |
-| `size-in-bytes-format.2` | L1344 | The one-letter unit strings may be uppercase (note: duration units are always lowercase, so this convention is specific to size units). |
-| `size-in-bytes-format.4` | L1361 | `B`, `b`, `byte`, `bytes` |
-| `size-in-bytes-format.6` | L1365 | `kB`, `kilobyte`, `kilobytes` |
-| `size-in-bytes-format.7` | L1366 | `MB`, `megabyte`, `megabytes` |
-| `size-in-bytes-format.8` | L1367 | `GB`, `gigabyte`, `gigabytes` |
-| `size-in-bytes-format.9` | L1368 | `TB`, `terabyte`, `terabytes` |
-| `size-in-bytes-format.10` | L1369 | `PB`, `petabyte`, `petabytes` |
-| `size-in-bytes-format.11` | L1370 | `EB`, `exabyte`, `exabytes` |
-| `size-in-bytes-format.12` | L1371 | `ZB`, `zettabyte`, `zettabytes` |
-| `size-in-bytes-format.13` | L1372 | `YB`, `yottabyte`, `yottabytes` |
-| `size-in-bytes-format.15` | L1376 | `K`, `k`, `Ki`, `KiB`, `kibibyte`, `kibibytes` |
-| `size-in-bytes-format.16` | L1377 | `M`, `m`, `Mi`, `MiB`, `mebibyte`, `mebibytes` |
-| `size-in-bytes-format.17` | L1378 | `G`, `g`, `Gi`, `GiB`, `gibibyte`, `gibibytes` |
-| `size-in-bytes-format.18` | L1379 | `T`, `t`, `Ti`, `TiB`, `tebibyte`, `tebibytes` |
-| `size-in-bytes-format.19` | L1380 | `P`, `p`, `Pi`, `PiB`, `pebibyte`, `pebibytes` |
-| `size-in-bytes-format.20` | L1381 | `E`, `e`, `Ei`, `EiB`, `exbibyte`, `exbibytes` |
-| `size-in-bytes-format.21` | L1382 | `Z`, `z`, `Zi`, `ZiB`, `zebibyte`, `zebibytes` |
-| `size-in-bytes-format.22` | L1383 | `Y`, `y`, `Yi`, `YiB`, `yobibyte`, `yobibytes` |
-| `size-in-bytes-format.23` | L1385 | It's very unclear which units the single-character abbreviations ("128K") should go with; some precedents such as `java -Xmx 2G` and the GNU tools such as `ls` map these to powers of two, so this spec copies that. |
+| `size-in-bytes-format.1` | L1344 | This can use the general "units format" described above; bare numbers are taken to be in bytes already, while strings are parsed as a number plus an optional unit string. |
+| `size-in-bytes-format.2` | L1348 | The one-letter unit strings may be uppercase (note: duration units are always lowercase, so this convention is specific to size units). |
+| `size-in-bytes-format.4` | L1365 | `B`, `b`, `byte`, `bytes` |
+| `size-in-bytes-format.6` | L1369 | `kB`, `kilobyte`, `kilobytes` |
+| `size-in-bytes-format.7` | L1370 | `MB`, `megabyte`, `megabytes` |
+| `size-in-bytes-format.8` | L1371 | `GB`, `gigabyte`, `gigabytes` |
+| `size-in-bytes-format.9` | L1372 | `TB`, `terabyte`, `terabytes` |
+| `size-in-bytes-format.10` | L1373 | `PB`, `petabyte`, `petabytes` |
+| `size-in-bytes-format.11` | L1374 | `EB`, `exabyte`, `exabytes` |
+| `size-in-bytes-format.12` | L1375 | `ZB`, `zettabyte`, `zettabytes` |
+| `size-in-bytes-format.13` | L1376 | `YB`, `yottabyte`, `yottabytes` |
+| `size-in-bytes-format.15` | L1380 | `K`, `k`, `Ki`, `KiB`, `kibibyte`, `kibibytes` |
+| `size-in-bytes-format.16` | L1381 | `M`, `m`, `Mi`, `MiB`, `mebibyte`, `mebibytes` |
+| `size-in-bytes-format.17` | L1382 | `G`, `g`, `Gi`, `GiB`, `gibibyte`, `gibibytes` |
+| `size-in-bytes-format.18` | L1383 | `T`, `t`, `Ti`, `TiB`, `tebibyte`, `tebibytes` |
+| `size-in-bytes-format.19` | L1384 | `P`, `p`, `Pi`, `PiB`, `pebibyte`, `pebibytes` |
+| `size-in-bytes-format.20` | L1385 | `E`, `e`, `Ei`, `EiB`, `exbibyte`, `exbibytes` |
+| `size-in-bytes-format.21` | L1386 | `Z`, `z`, `Zi`, `ZiB`, `zebibyte`, `zebibytes` |
+| `size-in-bytes-format.22` | L1387 | `Y`, `y`, `Yi`, `YiB`, `yobibyte`, `yobibytes` |
+| `size-in-bytes-format.23` | L1389 | It's very unclear which units the single-character abbreviations ("128K") should go with; some precedents such as `java -Xmx 2G` and the GNU tools such as `ls` map these to powers of two, so this spec copies that. |
 
 ## [Config object merging and file merging](../../spec/HOCON.md#config-object-merging-and-file-merging)
 
 | rule | line | sentence |
 |---|---|---|
-| `config-object-merging-and-file-merging.2` | L1406 | As with duplicate keys, an intermediate non-object value "hides" earlier object values. |
-| `config-object-merging-and-file-merging.3` | L1414 | The result would be `{ a : { x : 1 } }`. |
-| `config-object-merging-and-file-merging.4` | L1414 | The two objects are not merged because they are not "adjacent"; the merging is done in pairs, and when `42` is paired with `{ y : 2 }`, `42` simply wins and loses all information about what it overrode. |
-| `config-object-merging-and-file-merging.5` | L1425 | Now the result would be `{ a : { x : 1, y : 2 } }` because the two objects are adjacent. |
-| `config-object-merging-and-file-merging.6` | L1428 | This rule for merging objects loaded from different files is _exactly_ the same behavior as for merging duplicate fields in the same file. |
-| `config-object-merging-and-file-merging.7` | L1436 | The one place where it matters, though, is that it allows you to "clear" an object and start over by setting it to null and then setting it back to a new object. |
+| `config-object-merging-and-file-merging.2` | L1410 | As with duplicate keys, an intermediate non-object value "hides" earlier object values. |
+| `config-object-merging-and-file-merging.3` | L1418 | The result would be `{ a : { x : 1 } }`. |
+| `config-object-merging-and-file-merging.4` | L1418 | The two objects are not merged because they are not "adjacent"; the merging is done in pairs, and when `42` is paired with `{ y : 2 }`, `42` simply wins and loses all information about what it overrode. |
+| `config-object-merging-and-file-merging.5` | L1429 | Now the result would be `{ a : { x : 1, y : 2 } }` because the two objects are adjacent. |
+| `config-object-merging-and-file-merging.6` | L1432 | This rule for merging objects loaded from different files is _exactly_ the same behavior as for merging duplicate fields in the same file. |
+| `config-object-merging-and-file-merging.7` | L1440 | The one place where it matters, though, is that it allows you to "clear" an object and start over by setting it to null and then setting it back to a new object. |
 
 ## [Java properties mapping](../../spec/HOCON.md#java-properties-mapping)
 
 | rule | line | sentence |
 |---|---|---|
-| `java-properties-mapping.1` | L1447 | Java properties parse as a one-level map from string keys to string values. |
-| `java-properties-mapping.2` | L1471 | Values from properties files are _always_ strings, even if they could be parsed as some other type. |
-| `java-properties-mapping.3` | L1486 | The _object_ must always win in this case... the "object wins" rule throws out at most one value (the string) while "string wins" would throw out all values in the object. |
+| `java-properties-mapping.1` | L1451 | Java properties parse as a one-level map from string keys to string values. |
+| `java-properties-mapping.2` | L1475 | Values from properties files are _always_ strings, even if they could be parsed as some other type. |
+| `java-properties-mapping.3` | L1490 | The _object_ must always win in this case... the "object wins" rule throws out at most one value (the string) while "string wins" would throw out all values in the object. |
 
 ## [Substitution fallback to environment variables](../../spec/HOCON.md#substitution-fallback-to-environment-variables)
 
 | rule | line | sentence |
 |---|---|---|
-| `substitution-fallback-to-environment-variables.1` | L1536 | Recall that if a substitution is not present (not even set to `null`) within a configuration tree, implementations may search for it from external sources. |
-| `substitution-fallback-to-environment-variables.2` | L1538 | One such source could be environment variables. |
-| `substitution-fallback-to-environment-variables.3` | L1544 | (While on Windows getenv() is generally not case-sensitive, the lookup will be case-sensitive all the way until the env variable fallback lookup is reached). |
-| `substitution-fallback-to-environment-variables.4` | L1550 | An application can explicitly block looking up a substitution in the environment by setting a value in the configuration, with the same name as the environment variable. |
-| `substitution-fallback-to-environment-variables.5` | L1558 | env variables set to the empty string are kept as such (set to empty string, rather than undefined) |
-| `substitution-fallback-to-environment-variables.6` | L1563 | environment variables always become a string value, though if an app asks for another type automatic type conversion would kick in |
+| `substitution-fallback-to-environment-variables.1` | L1540 | Recall that if a substitution is not present (not even set to `null`) within a configuration tree, implementations may search for it from external sources. |
+| `substitution-fallback-to-environment-variables.2` | L1542 | One such source could be environment variables. |
+| `substitution-fallback-to-environment-variables.3` | L1548 | (While on Windows getenv() is generally not case-sensitive, the lookup will be case-sensitive all the way until the env variable fallback lookup is reached). |
+| `substitution-fallback-to-environment-variables.4` | L1554 | An application can explicitly block looking up a substitution in the environment by setting a value in the configuration, with the same name as the environment variable. |
+| `substitution-fallback-to-environment-variables.5` | L1562 | env variables set to the empty string are kept as such (set to empty string, rather than undefined) |
+| `substitution-fallback-to-environment-variables.6` | L1567 | environment variables always become a string value, though if an app asks for another type automatic type conversion would kick in |
 
 ## Out of scope
 

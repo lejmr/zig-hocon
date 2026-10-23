@@ -1,7 +1,9 @@
 {
   "spec": "HOCON.md#include-syntax",
-  "rule": "include-syntax.3",
-  "why": "the string inside url() is interpreted as a URL, and x.conf has no scheme, so it is not one",
-  "error": "Parse",
-  "review": "the spec says only that the string inside url() is interpreted as a URL; it does not say whether a string that is not a URL is an error or an unresolvable, hence ignorable, resource. typesafe/config rejects it"
+  "rule": [
+    "include-syntax.3",
+    "include-semantics-locating-resources.9"
+  ],
+  "why": "the string inside url() is always an absolute URL, with a scheme; x.conf has none, so it is an error, as lightbend/config#887 settled",
+  "error": "Parse"
 }
