@@ -48,15 +48,14 @@ The rest of this page reads these two files.
 
 ## Why zig-hocon
 
-- **Correct.** Passes all 446 tests in the [conformance suite](https://htmlpreview.github.io/?https://github.com/lejmr/zig-hocon/blob/main/conformance/report.html), one test for each sentence of the spec.\*
+- **Correct.** Passes all 446 tests in the [conformance suite](https://htmlpreview.github.io/?https://github.com/lejmr/zig-hocon/blob/main/conformance/report.html), one test for each sentence of the spec.
 - **Your schema is a Zig struct.** HOCON is only what sits on disk; the struct says what it holds, with defaults, optionals, enums, durations and sizes.
-- **Fast.** A 10 MB config in a quarter of a second.\*\*
+- **Fast.** A 10 MB config in a quarter of a second.\*
 - **Clear errors.** File, line, column and a caret, also for a value of the wrong type.
 - **One file to deploy.** Includes and overrides worked out ahead of time, the environment variables left for the server.
 - **No dependencies.** The standard library and nothing else.
 
-\* The last open question, `include url("x.conf")`, is settled in the spec by [lightbend/config#887](https://github.com/lightbend/config/pull/887): a URL without a scheme is an error, as zig-hocon has it.  
-\*\* Read and written out as JSON by the command line tool, on an Apple M4 Pro.
+\* Read and written out as JSON by the command line tool, on an Apple M4 Pro.
 
 ## Install
 
