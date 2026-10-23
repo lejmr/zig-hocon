@@ -62,7 +62,7 @@ The rest of this page reads these two files.
 Requires Zig 0.16.
 
 ```sh
-zig fetch --save https://github.com/lejmr/zig-hocon/archive/refs/tags/v0.5.1.tar.gz
+zig fetch --save https://github.com/lejmr/zig-hocon/archive/refs/tags/v0.5.2.tar.gz
 ```
 
 That records the dependency in `build.zig.zon`, pinned by its content hash. Then hand the module to your program in `build.zig`:
