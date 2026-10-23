@@ -599,8 +599,8 @@ test "include.url() and classpath() refuse what they cannot follow" {
     }
 }
 
-// include-syntax/011 · java ✓ (rejects it) · pyhocon ✓ (rejects it) · spec – (open
-// review row): a url() is never relative, so without a scheme it is no URL at all.
+// include-syntax/011 · java ✓ (rejects it) · pyhocon ✓ (rejects it) · spec ✓ (since
+// lightbend/config#887): a url() is always absolute, so without a scheme it is an error.
 test "include.url() without a scheme is InvalidUrl" {
     try testing.expectError(error.InvalidUrl, Config.parseFromSlice(Value, testing.allocator, "include url(\"x.conf\")", .{}));
     try testing.expectError(error.InvalidUrl, Config.parseFromSlice(Value, testing.allocator, "include required(url(\"x.conf\"))", .{}));

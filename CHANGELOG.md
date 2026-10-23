@@ -2,6 +2,14 @@
 
 What changed for someone using zig-hocon: the Zig package, the `hocon` command line tool, libhocon for C and the `zig-hocon` Python package, which are released together under one version. The technical detail is in the commits each release links to.
 
+## [Unreleased]
+
+The conformance suite has no open question left: the spec settles the last one, `url()` without a scheme, as an error ([lightbend/config#887](https://github.com/lightbend/config/pull/887)), and zig-hocon passes all 446 tests.
+
+### Added
+
+- A conformance case for a value that begins with a digit but is no number, `a = 1.2.3`: an error by the spec. `python/MIGRATING.md` says what it means for a pyhocon user: an IP address needs quotes.
+
 ## [0.5.1] - 2026-10-19
 
 The conformance suite settles two of its three open questions: 444 of the 445 tests pass, up from 442. The last one, `url()` without a scheme, waits for the spec ([lightbend/config#887](https://github.com/lightbend/config/pull/887)).

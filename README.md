@@ -48,14 +48,14 @@ The rest of this page reads these two files.
 
 ## Why zig-hocon
 
-- **Correct.** Passes 445 of the 446 tests in the [conformance suite](https://htmlpreview.github.io/?https://github.com/lejmr/zig-hocon/blob/main/conformance/report.html), one test for each sentence of the spec.\*
+- **Correct.** Passes all 446 tests in the [conformance suite](https://htmlpreview.github.io/?https://github.com/lejmr/zig-hocon/blob/main/conformance/report.html), one test for each sentence of the spec.\*
 - **Your schema is a Zig struct.** HOCON is only what sits on disk; the struct says what it holds, with defaults, optionals, enums, durations and sizes.
 - **Fast.** A 10 MB config in a quarter of a second.\*\*
 - **Clear errors.** File, line, column and a caret, also for a value of the wrong type.
 - **One file to deploy.** Includes and overrides worked out ahead of time, the environment variables left for the server.
 - **No dependencies.** The standard library and nothing else.
 
-\* The other one is `include url("x.conf")`: the spec does not say what a URL without a scheme does, and [lightbend/config#887](https://github.com/lightbend/config/pull/887) proposes the error zig-hocon gives.  
+\* The last open question, `include url("x.conf")`, is settled in the spec by [lightbend/config#887](https://github.com/lightbend/config/pull/887): a URL without a scheme is an error, as zig-hocon has it.  
 \*\* Read and written out as JSON by the command line tool, on an Apple M4 Pro.
 
 ## Install
@@ -211,13 +211,13 @@ b.step("check-config", "Check the config against Config").dependOn(&check.step);
 
 | implementation | against the spec | against typesafe/config 1.4.9 |
 |---|---|---|
-| Java <sub>typesafe/config 1.4.9</sub> | 89.9% (401/446) | 99.8% (445/446) |
-| hocon2 <sub>hocon2 0.6.3</sub> | 86.5% (386/446) | 80.5% (359/446) |
-| pulse-pyhocon <sub>pulse-pyhocon 0.2.1</sub> | 70.9% (316/446) | 68.4% (305/446) |
-| py.hocon <sub>hocon-parser 1.14.2 (Python)</sub> | 89.0% (397/446) | 88.3% (394/446) |
-| pyhocon <sub>pyhocon 0.3.63</sub> | 70.4% (314/446) | 66.8% (298/446) |
-| rs.hocon <sub>hocon-parser 1.14.2 (Rust)</sub> | 89.0% (397/446) | 86.3% (385/446) |
-| zig-hocon <sub>zig-hocon code@031f68c</sub> | 99.8% (445/446) | 89.9% (401/446) |
+| Java <sub>typesafe/config 1.4.9</sub> | 90.1% (402/446) | 100% (446/446) |
+| hocon2 <sub>hocon2 0.6.3</sub> | 86.8% (387/446) | 80.7% (360/446) |
+| pulse-pyhocon <sub>pulse-pyhocon 0.2.1</sub> | 71.1% (317/446) | 68.6% (306/446) |
+| py.hocon <sub>hocon-parser 1.14.2 (Python)</sub> | 89.2% (398/446) | 88.6% (395/446) |
+| pyhocon <sub>pyhocon 0.3.63</sub> | 70.6% (315/446) | 67.0% (299/446) |
+| rs.hocon <sub>hocon-parser 1.14.2 (Rust)</sub> | 89.2% (398/446) | 86.5% (386/446) |
+| zig-hocon <sub>zig-hocon code@96d9b8a</sub> | 100% (446/446) | 90.1% (402/446) |
 
 The table keeps the best parsers; the others measured, and why they are not in it: [conformance/README.md](conformance/README.md#not-in-the-table).
 

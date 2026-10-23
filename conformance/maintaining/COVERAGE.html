@@ -20,9 +20,9 @@ mark.ok { background: var(--ok); } mark.gap { background: var(--gap); }
 .note { color: var(--muted); font-size: 14px; }
 </style>
 <div class="legend">
-  <mark class="ok">272 rules with a case</mark> &nbsp;
+  <mark class="ok">273 rules with a case</mark> &nbsp;
   <mark class="gap">15 rules without one</mark> &nbsp;
-  unmarked text is not a rule — 287 rules in RULES.md. Hover a mark for the id and its cases.
+  unmarked text is not a rule — 288 rules in RULES.md. Hover a mark for the id and its cases.
 </div>
 
 <h1>HOCON (Human-Optimized Config Object Notation)</h1>
@@ -867,19 +867,22 @@ they do support them they should do so as described above.</p>
 specified, the included items are NOT interpreted relative to the
 including items.</mark> <mark class="gap" title="include-semantics-locating-resources.8 — no case">Relative-to-including-file paths only work with
 the heuristic `include &quot;foo.conf&quot;`.</mark> This may change in the future.</p>
+<p data-line="1184"><mark class="ok" title="include-semantics-locating-resources.9 — include-syntax/011-url-argument-must-be-a-url/main.conf">The string inside `url()` is always an absolute URL, with a scheme
+([RFC 3986, section 4.3](https://www.rfc-editor.org/rfc/rfc3986#section-4.3));
+`url(&quot;foo.conf&quot;)` is an error, with or without `required()`.</mark></p>
 <h3>Conversion of numerically-indexed objects to arrays</h3>
-<p data-line="1186">In some file formats and contexts, such as Java properties files,
+<p data-line="1190">In some file formats and contexts, such as Java properties files,
 there isn&#x27;t a good way to define arrays. <mark class="gap" title="conversion-of-numerically-indexed-objects-to-arrays.1 — no case">To provide some mechanism
 for this, implementations should support converting objects with
 numeric keys into arrays.</mark> For example, this object:</p>
-<p data-line="1191">    { &quot;0&quot; : &quot;a&quot;, &quot;1&quot; : &quot;b&quot; }</p>
-<p data-line="1193">could be treated as:</p>
-<p data-line="1195">    [ &quot;a&quot;, &quot;b&quot; ]</p>
-<p data-line="1197">This allows creating an array in a properties file like this:</p>
-<p data-line="1199">    foo.0 = &quot;a&quot;
+<p data-line="1195">    { &quot;0&quot; : &quot;a&quot;, &quot;1&quot; : &quot;b&quot; }</p>
+<p data-line="1197">could be treated as:</p>
+<p data-line="1199">    [ &quot;a&quot;, &quot;b&quot; ]</p>
+<p data-line="1201">This allows creating an array in a properties file like this:</p>
+<p data-line="1203">    foo.0 = &quot;a&quot;
     foo.1 = &quot;b&quot;</p>
-<p data-line="1202">The details:</p>
-<p data-line="1204"> - <mark class="ok" title="conversion-of-numerically-indexed-objects-to-arrays.2 — numerically-indexed-objects-to-arrays/001-object-with-numeric-keys-stays-object.conf">the conversion should be done lazily when required to avoid
+<p data-line="1206">The details:</p>
+<p data-line="1208"> - <mark class="ok" title="conversion-of-numerically-indexed-objects-to-arrays.2 — numerically-indexed-objects-to-arrays/001-object-with-numeric-keys-stays-object.conf">the conversion should be done lazily when required to avoid
    a type error, NOT eagerly anytime an object has numeric
    keys.</mark>
  - the conversion should be done when you would do an automatic
@@ -896,14 +899,14 @@ numeric keys into arrays.</mark> For example, this object:</p>
    &quot;2&quot; then the resulting array would have indices &quot;0&quot; and &quot;1&quot;,
    i.e. missing indices in the object are eliminated.</mark></p>
 <h2>MIME Type</h2>
-<p data-line="1223">Use &quot;application/hocon&quot; for Content-Type.</p>
+<p data-line="1227">Use &quot;application/hocon&quot; for Content-Type.</p>
 <h2>API Recommendations</h2>
-<p data-line="1227">Implementations of HOCON ideally follow certain conventions and
+<p data-line="1231">Implementations of HOCON ideally follow certain conventions and
 work in a predictable way.</p>
 <h3>Automatic type conversions</h3>
-<p data-line="1232">If an application asks for a value with a particular type, the
+<p data-line="1236">If an application asks for a value with a particular type, the
 implementation should attempt to convert types as follows:</p>
-<p data-line="1235"> - number to string: convert the number into a string
+<p data-line="1239"> - number to string: convert the number into a string
    representation that would be a valid number in JSON.
  - boolean to string: should become the string &quot;true&quot; or &quot;false&quot;
  - string to number: parse the number with the JSON rules
@@ -917,51 +920,51 @@ implementation should attempt to convert types as follows:</p>
    value, though there&#x27;s probably no reason an app would do this.
  - numerically-indexed object to array: see the section
    &quot;Conversion of numerically-indexed objects to arrays&quot; above</p>
-<p data-line="1250">The following type conversions should NOT be performed:</p>
-<p data-line="1252"> - null to anything: If the application asks for a specific type
+<p data-line="1254">The following type conversions should NOT be performed:</p>
+<p data-line="1256"> - null to anything: If the application asks for a specific type
    and finds null instead, that should usually result in an error.
  - object to anything
  - array to anything
  - anything to object
  - anything to array, with the exception of numerically-indexed
    object to array</p>
-<p data-line="1260">Converting objects and arrays to and from strings is tempting, but
+<p data-line="1264">Converting objects and arrays to and from strings is tempting, but
 in practical situations raises thorny issues of quoting and
 double-escaping.</p>
 <h3>Units format</h3>
-<p data-line="1266">Implementations may wish to support interpreting a value with some
+<p data-line="1270">Implementations may wish to support interpreting a value with some
 family of units, such as time units or memory size units: `10ms`
 or `512K`. HOCON does not have an extensible type system and there
 is no way to add a &quot;duration&quot; type. However, for example, if an
 application asks for milliseconds, the implementation can try to
 interpret a value as a milliseconds value.</p>
-<p data-line="1273">If an API supports this, for each family of units it should define
+<p data-line="1277">If an API supports this, for each family of units it should define
 a default unit in the family. For example, the family of duration
 units might default to milliseconds (see below for details on
 durations). The implementation should then interpret values as
 follows:</p>
-<p data-line="1279"> - <mark class="ok" title="units-format.1 — units-format/001-number-value-is-default-unit.conf">if the value is a number, it is taken to be a number in
+<p data-line="1283"> - <mark class="ok" title="units-format.1 — units-format/001-number-value-is-default-unit.conf">if the value is a number, it is taken to be a number in
    the default unit.</mark>
  - <mark class="ok" title="units-format.2 — units-format/004-whitespace-optional-around-number-and-unit.conf, units-format/006-unit-before-number-is-illegal.conf">if the value is a string, it is taken to be this sequence:</mark></p>
-<p data-line="1283">     - optional whitespace
+<p data-line="1287">     - optional whitespace
      - a number
      - optional whitespace
      - <mark class="ok" title="units-format.6 — units-format/005-unit-name-must-be-letters-only.conf">an optional unit name consisting only of letters (letters
        are the Unicode `L*` categories, Java `isLetter()`)</mark>
      - optional whitespace</p>
-<p data-line="1290">   <mark class="ok" title="units-format.8 — units-format/002-quoted-string-with-no-unit-uses-default-unit.conf">If a string value has no unit name, then it should be
+<p data-line="1294">   <mark class="ok" title="units-format.8 — units-format/002-quoted-string-with-no-unit-uses-default-unit.conf">If a string value has no unit name, then it should be
    interpreted with the default unit, as if it were a number.</mark> <mark class="ok" title="units-format.9 — units-format/003-string-with-unit-name-specifies-interpretation.conf">If a
    string value has a unit name, that name of course specifies the
    value&#x27;s interpretation.</mark></p>
 <h3>Duration format</h3>
-<p data-line="1297">Implementations may wish to support a `getMilliseconds()` (and
+<p data-line="1301">Implementations may wish to support a `getMilliseconds()` (and
 similar for other time units).</p>
-<p data-line="1300"><mark class="ok" title="duration-format.1 — duration-format/001-bare-number-is-milliseconds.conf">This can use the general &quot;units format&quot; described above; bare
+<p data-line="1304"><mark class="ok" title="duration-format.1 — duration-format/001-bare-number-is-milliseconds.conf">This can use the general &quot;units format&quot; described above; bare
 numbers are taken to be in milliseconds already, while strings are
 parsed as a number plus an optional unit string.</mark></p>
-<p data-line="1304"><mark class="ok" title="duration-format.2 — duration-format/002-uppercase-unit-is-illegal.conf">The supported unit strings for duration are case-sensitive and
+<p data-line="1308"><mark class="ok" title="duration-format.2 — duration-format/002-uppercase-unit-is-illegal.conf">The supported unit strings for duration are case-sensitive and
 must be lowercase.</mark> Exactly these strings are supported:</p>
-<p data-line="1307"> - <mark class="ok" title="duration-format.4 — duration-format/003-nanoseconds-spellings.conf">`ns`, `nano`, `nanos`, `nanosecond`, `nanoseconds`</mark>
+<p data-line="1311"> - <mark class="ok" title="duration-format.4 — duration-format/003-nanoseconds-spellings.conf">`ns`, `nano`, `nanos`, `nanosecond`, `nanoseconds`</mark>
  - <mark class="ok" title="duration-format.5 — duration-format/004-microseconds-spellings.conf">`us`, `micro`, `micros`, `microsecond`, `microseconds`</mark>
  - <mark class="ok" title="duration-format.6 — duration-format/005-milliseconds-spellings.conf">`ms`, `milli`, `millis`, `millisecond`, `milliseconds`</mark>
  - <mark class="ok" title="duration-format.7 — duration-format/006-seconds-spellings.conf">`s`, `second`, `seconds`</mark>
@@ -969,14 +972,14 @@ must be lowercase.</mark> Exactly these strings are supported:</p>
  - <mark class="ok" title="duration-format.9 — duration-format/008-hours-spellings.conf">`h`, `hour`, `hours`</mark>
  - <mark class="ok" title="duration-format.10 — duration-format/009-days-spellings.conf">`d`, `day`, `days`</mark></p>
 <h3>Period Format</h3>
-<p data-line="1317">Similar to the `getDuration()` method, there is a `getPeriod()` method 
+<p data-line="1321">Similar to the `getDuration()` method, there is a `getPeriod()` method 
 available for getting time units as a `java.time.Period`. </p>
-<p data-line="1320"><mark class="ok" title="period-format.1 — period-format/001-bare-number-is-days.conf">This can use the general &quot;units format&quot; described above; bare
+<p data-line="1324"><mark class="ok" title="period-format.1 — period-format/001-bare-number-is-days.conf">This can use the general &quot;units format&quot; described above; bare
 numbers are taken to be in days, while strings are
 parsed as a number plus an optional unit string.</mark></p>
-<p data-line="1324"><mark class="ok" title="period-format.2 — period-format/002-uppercase-unit-is-illegal.conf">The supported unit strings for period are case-sensitive and
+<p data-line="1328"><mark class="ok" title="period-format.2 — period-format/002-uppercase-unit-is-illegal.conf">The supported unit strings for period are case-sensitive and
 must be lowercase.</mark> Exactly these strings are supported:</p>
-<p data-line="1327"> - <mark class="ok" title="period-format.4 — period-format/003-days-spellings.conf">`d`, `day`, `days`</mark>
+<p data-line="1331"> - <mark class="ok" title="period-format.4 — period-format/003-days-spellings.conf">`d`, `day`, `days`</mark>
  - <mark class="ok" title="period-format.5 — period-format/004-weeks-spellings.conf">`w`, `week`, `weeks`</mark>
  - <mark class="ok" title="period-format.6 — period-format/005-months-spellings.conf, period-format/007-month-m-ambiguous-with-duration-minutes.conf">`m`, `mo`, `month`, `months` (note that if you are using `getTemporal()`
  which may return either a `java.time.Duration` or a `java.time.Period`
@@ -984,15 +987,15 @@ must be lowercase.</mark> Exactly these strings are supported:</p>
  parsed as minutes)</mark>
  - <mark class="ok" title="period-format.7 — period-format/006-years-spellings.conf">`y`, `year`, `years`</mark></p>
 <h3>Size in bytes format</h3>
-<p data-line="1337">Implementations may wish to support a `getBytes()` returning a
+<p data-line="1341">Implementations may wish to support a `getBytes()` returning a
 size in bytes.</p>
-<p data-line="1340"><mark class="ok" title="size-in-bytes-format.1 — size-in-bytes-format/001-bare-number-is-bytes.conf">This can use the general &quot;units format&quot; described above; bare
+<p data-line="1344"><mark class="ok" title="size-in-bytes-format.1 — size-in-bytes-format/001-bare-number-is-bytes.conf">This can use the general &quot;units format&quot; described above; bare
 numbers are taken to be in bytes already, while strings are
 parsed as a number plus an optional unit string.</mark></p>
-<p data-line="1344"><mark class="ok" title="size-in-bytes-format.2 — size-in-bytes-format/004-powers-of-two-suffixes.conf">The one-letter unit strings may be uppercase (note: duration units
+<p data-line="1348"><mark class="ok" title="size-in-bytes-format.2 — size-in-bytes-format/004-powers-of-two-suffixes.conf">The one-letter unit strings may be uppercase (note: duration units
 are always lowercase, so this convention is specific to size
 units).</mark></p>
-<p data-line="1348">There is an unfortunate nightmare with size-in-bytes units, that
+<p data-line="1352">There is an unfortunate nightmare with size-in-bytes units, that
 they may be in powers or two or powers of ten. The approach
 defined by standards bodies appears to differ from common usage,
 such that following the standard leads to people being confused.
@@ -1002,10 +1005,10 @@ and apps do all kinds of different things.  See
 https://en.wikipedia.org/wiki/Binary_prefix#Deviation_between_powers_of_1024_and_powers_of_1000
 for examples. It appears impossible to sort this out without
 causing confusion for someone sometime.</p>
-<p data-line="1359">For single bytes, exactly these strings are supported:</p>
-<p data-line="1361"> - <mark class="ok" title="size-in-bytes-format.4 — size-in-bytes-format/002-single-byte-spellings.conf">`B`, `b`, `byte`, `bytes`</mark></p>
-<p data-line="1363">For powers of ten, exactly these strings are supported:</p>
-<p data-line="1365"> - <mark class="ok" title="size-in-bytes-format.6 — size-in-bytes-format/003-powers-of-ten-suffixes.conf">`kB`, `kilobyte`, `kilobytes`</mark>
+<p data-line="1363">For single bytes, exactly these strings are supported:</p>
+<p data-line="1365"> - <mark class="ok" title="size-in-bytes-format.4 — size-in-bytes-format/002-single-byte-spellings.conf">`B`, `b`, `byte`, `bytes`</mark></p>
+<p data-line="1367">For powers of ten, exactly these strings are supported:</p>
+<p data-line="1369"> - <mark class="ok" title="size-in-bytes-format.6 — size-in-bytes-format/003-powers-of-ten-suffixes.conf">`kB`, `kilobyte`, `kilobytes`</mark>
  - <mark class="ok" title="size-in-bytes-format.7 — size-in-bytes-format/003-powers-of-ten-suffixes.conf">`MB`, `megabyte`, `megabytes`</mark>
  - <mark class="ok" title="size-in-bytes-format.8 — size-in-bytes-format/003-powers-of-ten-suffixes.conf">`GB`, `gigabyte`, `gigabytes`</mark>
  - <mark class="ok" title="size-in-bytes-format.9 — size-in-bytes-format/003-powers-of-ten-suffixes.conf">`TB`, `terabyte`, `terabytes`</mark>
@@ -1013,8 +1016,8 @@ causing confusion for someone sometime.</p>
  - <mark class="ok" title="size-in-bytes-format.11 — size-in-bytes-format/003-powers-of-ten-suffixes.conf">`EB`, `exabyte`, `exabytes`</mark>
  - <mark class="ok" title="size-in-bytes-format.12 — size-in-bytes-format/003-powers-of-ten-suffixes.conf">`ZB`, `zettabyte`, `zettabytes`</mark>
  - <mark class="ok" title="size-in-bytes-format.13 — size-in-bytes-format/003-powers-of-ten-suffixes.conf">`YB`, `yottabyte`, `yottabytes`</mark></p>
-<p data-line="1374">For powers of two, exactly these strings are supported:</p>
-<p data-line="1376"> - <mark class="ok" title="size-in-bytes-format.15 — size-in-bytes-format/004-powers-of-two-suffixes.conf">`K`, `k`, `Ki`, `KiB`, `kibibyte`, `kibibytes`</mark>
+<p data-line="1378">For powers of two, exactly these strings are supported:</p>
+<p data-line="1380"> - <mark class="ok" title="size-in-bytes-format.15 — size-in-bytes-format/004-powers-of-two-suffixes.conf">`K`, `k`, `Ki`, `KiB`, `kibibyte`, `kibibytes`</mark>
  - <mark class="ok" title="size-in-bytes-format.16 — size-in-bytes-format/004-powers-of-two-suffixes.conf">`M`, `m`, `Mi`, `MiB`, `mebibyte`, `mebibytes`</mark>
  - <mark class="ok" title="size-in-bytes-format.17 — size-in-bytes-format/004-powers-of-two-suffixes.conf">`G`, `g`, `Gi`, `GiB`, `gibibyte`, `gibibytes`</mark>
  - <mark class="ok" title="size-in-bytes-format.18 — size-in-bytes-format/004-powers-of-two-suffixes.conf">`T`, `t`, `Ti`, `TiB`, `tebibyte`, `tebibytes`</mark>
@@ -1022,97 +1025,97 @@ causing confusion for someone sometime.</p>
  - <mark class="ok" title="size-in-bytes-format.20 — size-in-bytes-format/004-powers-of-two-suffixes.conf">`E`, `e`, `Ei`, `EiB`, `exbibyte`, `exbibytes`</mark>
  - <mark class="ok" title="size-in-bytes-format.21 — size-in-bytes-format/004-powers-of-two-suffixes.conf">`Z`, `z`, `Zi`, `ZiB`, `zebibyte`, `zebibytes`</mark>
  - <mark class="ok" title="size-in-bytes-format.22 — size-in-bytes-format/004-powers-of-two-suffixes.conf">`Y`, `y`, `Yi`, `YiB`, `yobibyte`, `yobibytes`</mark></p>
-<p data-line="1385"><mark class="ok" title="size-in-bytes-format.23 — size-in-bytes-format/019-single-letter-abbreviation-means-powers-of-two.conf">It&#x27;s very unclear which units the single-character abbreviations
+<p data-line="1389"><mark class="ok" title="size-in-bytes-format.23 — size-in-bytes-format/019-single-letter-abbreviation-means-powers-of-two.conf">It&#x27;s very unclear which units the single-character abbreviations
 (&quot;128K&quot;) should go with; some precedents such as `java -Xmx 2G`
 and the GNU tools such as `ls` map these to powers of two, so this
 spec copies that.</mark> You can certainly find examples of mapping these
 to powers of ten, though. If you don&#x27;t like ambiguity, don&#x27;t use
 the single-letter abbreviations.</p>
-<p data-line="1392">Note: any value in zetta/zebi or yotta/yobi will overflow a 64-bit
+<p data-line="1396">Note: any value in zetta/zebi or yotta/yobi will overflow a 64-bit
 integer, and of course large-enough values in any of the units may
 overflow. Most real-world APIs and apps will not support byte
 counts that overflow a 64-bit integer. The huge units are provided
 just to be complete but probably aren&#x27;t useful in practice. At
 least not in 2014.</p>
 <h3>Config object merging and file merging</h3>
-<p data-line="1401">It may be useful to offer a method to merge two objects. If such a
+<p data-line="1405">It may be useful to offer a method to merge two objects. If such a
 method is provided, it should work as if the two objects were
 duplicate values for the same key in the same file. (See the
 section earlier on duplicate key handling.)</p>
-<p data-line="1406"><mark class="ok" title="config-object-merging-and-file-merging.2 — config-and-file-merging/003-non-object-between-files-hides-earlier-object/main.conf">As with duplicate keys, an intermediate non-object value &quot;hides&quot;
+<p data-line="1410"><mark class="ok" title="config-object-merging-and-file-merging.2 — config-and-file-merging/003-non-object-between-files-hides-earlier-object/main.conf">As with duplicate keys, an intermediate non-object value &quot;hides&quot;
 earlier object values.</mark> So say you merge three objects in this
 order:</p>
-<p data-line="1410"> - `{ a : { x : 1 } }`  (first priority)
+<p data-line="1414"> - `{ a : { x : 1 } }`  (first priority)
  - `{ a : 42 }` (fallback)
  - `{ a : { y : 2 } }` (another fallback)</p>
-<p data-line="1414"><mark class="ok" title="config-object-merging-and-file-merging.3 — config-and-file-merging/003-non-object-between-files-hides-earlier-object/main.conf">The result would be `{ a : { x : 1 } }`.</mark> <mark class="ok" title="config-object-merging-and-file-merging.4 — config-and-file-merging/003-non-object-between-files-hides-earlier-object/main.conf">The two objects are not
+<p data-line="1418"><mark class="ok" title="config-object-merging-and-file-merging.3 — config-and-file-merging/003-non-object-between-files-hides-earlier-object/main.conf">The result would be `{ a : { x : 1 } }`.</mark> <mark class="ok" title="config-object-merging-and-file-merging.4 — config-and-file-merging/003-non-object-between-files-hides-earlier-object/main.conf">The two objects are not
 merged because they are not &quot;adjacent&quot;; the merging is done in
 pairs, and when `42` is paired with `{ y : 2 }`, `42` simply wins
 and loses all information about what it overrode.</mark></p>
-<p data-line="1419">But if you re-ordered like this:</p>
-<p data-line="1421"> - `{ a : { x : 1 } }`  (first priority)
+<p data-line="1423">But if you re-ordered like this:</p>
+<p data-line="1425"> - `{ a : { x : 1 } }`  (first priority)
  - `{ a : { y : 2 } }` (fallback)
  - `{ a : 42 }` (another fallback)</p>
-<p data-line="1425"><mark class="ok" title="config-object-merging-and-file-merging.5 — config-and-file-merging/004-adjacent-objects-across-files-merge/main.conf">Now the result would be `{ a : { x : 1, y : 2 } }` because the two
+<p data-line="1429"><mark class="ok" title="config-object-merging-and-file-merging.5 — config-and-file-merging/004-adjacent-objects-across-files-merge/main.conf">Now the result would be `{ a : { x : 1, y : 2 } }` because the two
 objects are adjacent.</mark></p>
-<p data-line="1428"><mark class="ok" title="config-object-merging-and-file-merging.6 — config-and-file-merging/002-file-merge-is-recursive-and-later-file-wins/main.conf">This rule for merging objects loaded from different files is
+<p data-line="1432"><mark class="ok" title="config-object-merging-and-file-merging.6 — config-and-file-merging/002-file-merge-is-recursive-and-later-file-wins/main.conf">This rule for merging objects loaded from different files is
 _exactly_ the same behavior as for merging duplicate fields in the
 same file.</mark> All merging works the same way.</p>
-<p data-line="1432">Needless to say, normally it&#x27;s well-defined whether a config
+<p data-line="1436">Needless to say, normally it&#x27;s well-defined whether a config
 setting is supposed to be a number or an object. This kind of
 weird pathology where the two are mixed should not be happening.</p>
-<p data-line="1436"><mark class="ok" title="config-object-merging-and-file-merging.7 — config-and-file-merging/005-null-clears-included-object/main.conf">The one place where it matters, though, is that it allows you to
+<p data-line="1440"><mark class="ok" title="config-object-merging-and-file-merging.7 — config-and-file-merging/005-null-clears-included-object/main.conf">The one place where it matters, though, is that it allows you to
 &quot;clear&quot; an object and start over by setting it to null and then
 setting it back to a new object.</mark> So this behavior gives people a
 way to get rid of default fallback values they don&#x27;t want.</p>
 <h3>Java properties mapping</h3>
-<p data-line="1443">It may be useful to merge Java properties data with data loaded
+<p data-line="1447">It may be useful to merge Java properties data with data loaded
 from JSON or HOCON. See the Java properties spec here:
 https://docs.oracle.com/javase/8/docs/api/java/util/Properties.html#load-java.io.Reader-</p>
-<p data-line="1447"><mark class="ok" title="java-properties-mapping.1 — include-file-formats/007-properties-extension-means-properties-syntax/main.conf">Java properties parse as a one-level map from string keys to
+<p data-line="1451"><mark class="ok" title="java-properties-mapping.1 — include-file-formats/007-properties-extension-means-properties-syntax/main.conf">Java properties parse as a one-level map from string keys to
 string values.</mark></p>
-<p data-line="1450">To convert to HOCON, first split each key on the `.` character,
+<p data-line="1454">To convert to HOCON, first split each key on the `.` character,
 keeping any empty strings (including leading and trailing empty
 strings). Note that this is _very different_ from parsing a path
 expression.</p>
-<p data-line="1455">The key split on `.` is a series of path elements. So the
+<p data-line="1459">The key split on `.` is a series of path elements. So the
 properties key with just `.` is a path with two elements, both of
 them an empty string. `a.` is a path with two elements, `a` and
 empty string.  (Java&#x27;s `String.split()` does NOT do what you want
 for this.)</p>
-<p data-line="1461">It is impossible to represent a key with a `.` in it in a
+<p data-line="1465">It is impossible to represent a key with a `.` in it in a
 properties file.  If a JSON/HOCON key has a `.` in it, which is
 possible if the key is quoted, then there is no way to refer to it
 as a Java property. It is not recommended to name HOCON keys with
 a `.` in them, since it would be confusing at best in any case.</p>
-<p data-line="1467">Once you have a path for each value, construct a tree of
+<p data-line="1471">Once you have a path for each value, construct a tree of
 JSON-style objects with the string value of each property located
 at that value&#x27;s path.</p>
-<p data-line="1471"><mark class="ok" title="java-properties-mapping.2 — include-file-formats/003-basename-with-only-properties/main.conf">Values from properties files are _always_ strings, even if they
+<p data-line="1475"><mark class="ok" title="java-properties-mapping.2 — include-file-formats/003-basename-with-only-properties/main.conf">Values from properties files are _always_ strings, even if they
 could be parsed as some other type.</mark> Implementations should do type
 conversion if an app asks for an integer, as described in an
 earlier section.</p>
-<p data-line="1476">When Java loads a properties file, unfortunately it does not
+<p data-line="1480">When Java loads a properties file, unfortunately it does not
 preserve the order of the file. As a result, there is an
 intractable case where a single key needs to refer to both a
 parent object and a string value. For example, say the Java
 properties file has:</p>
-<p data-line="1482">    a=hello
+<p data-line="1486">    a=hello
     a.b=world</p>
-<p data-line="1485">In this case, `a` needs to be both an object and a string value.
+<p data-line="1489">In this case, `a` needs to be both an object and a string value.
 <mark class="ok" title="java-properties-mapping.3 — include-file-formats/008-properties-keys-are-paths/main.conf">The _object_ must always win in this case... the &quot;object wins&quot;
 rule throws out at most one value (the string) while &quot;string wins&quot;
 would throw out all values in the object.</mark> Unfortunately, when
 properties files are mapped to the JSON structure, there is no way
 to access these strings that conflict with objects.</p>
-<p data-line="1492">The usual rule in HOCON would be that the later assignment in the
+<p data-line="1496">The usual rule in HOCON would be that the later assignment in the
 file wins, rather than &quot;object wins&quot;; but implementing that for
 Java properties would require implementing a custom Java
 properties parser, which is surely not worth it and wouldn&#x27;t help
 with system properties anyway.</p>
 <h3>Conventional configuration files for JVM apps</h3>
-<p data-line="1500">By convention, JVM apps have two parts to their configuration:</p>
-<p data-line="1502"> - the _reference_ config is made up of all resources named
+<p data-line="1504">By convention, JVM apps have two parts to their configuration:</p>
+<p data-line="1506"> - the _reference_ config is made up of all resources named
    `reference.conf` on the classpath, merged in the order they
    are returned by `ClassLoader.getResources()`; also, system
    property overrides are applied.
@@ -1126,38 +1129,38 @@ with system properties anyway.</p>
    to go with the code in that jar.
  - a single JVM may have multiple application configs if
    it has multiple modules or contexts of some kind.</p>
-<p data-line="1517">The reference config for a given class loader should be merged and
+<p data-line="1521">The reference config for a given class loader should be merged and
 resolved first, and may be shared among all application configs in
 that class loader. Substitutions in the reference config are not
 affected by any application configs, because the reference config
 should be resolved by itself.</p>
-<p data-line="1523">The application config should then be loaded, have the reference
+<p data-line="1527">The application config should then be loaded, have the reference
 config added as a fallback, and have substitutions resolved. This
 means the application config can refer to the reference config in
 its substitutions.</p>
 <h3>Conventional override by system properties</h3>
-<p data-line="1530">For an application&#x27;s config, Java system properties _override_
+<p data-line="1534">For an application&#x27;s config, Java system properties _override_
 settings found in the configuration file. This supports specifying
 config options on the command line.</p>
 <h3>Substitution fallback to environment variables</h3>
-<p data-line="1536"><mark class="ok" title="substitution-fallback-to-environment-variables.1 — substitution-fallback-to-environment/002-required-substitution-resolved-from-env.conf, substitution-fallback-to-environment/003-config-value-wins-over-env.conf">Recall that if a substitution is not present (not even set to
+<p data-line="1540"><mark class="ok" title="substitution-fallback-to-environment-variables.1 — substitution-fallback-to-environment/002-required-substitution-resolved-from-env.conf, substitution-fallback-to-environment/003-config-value-wins-over-env.conf">Recall that if a substitution is not present (not even set to
 `null`) within a configuration tree, implementations may search
 for it from external sources.</mark> <mark class="ok" title="substitution-fallback-to-environment-variables.2 — substitution-fallback-to-environment/001-env-fallback-for-undefined-path.conf">One such source could be environment
 variables.</mark></p>
-<p data-line="1541">It&#x27;s recommended that HOCON keys always use lowercase, because
+<p data-line="1545">It&#x27;s recommended that HOCON keys always use lowercase, because
 environment variables generally are capitalized. This avoids
 naming collisions between environment variables and configuration
 properties. <mark class="ok" title="substitution-fallback-to-environment-variables.3 — substitution-fallback-to-environment/005-config-lookup-is-case-sensitive.conf">(While on Windows getenv() is generally not
 case-sensitive, the lookup will be case-sensitive all the way
 until the env variable fallback lookup is reached).</mark></p>
-<p data-line="1548">See also the notes below on Windows and case sensitivity.</p>
-<p data-line="1550"><mark class="ok" title="substitution-fallback-to-environment-variables.4 — substitution-fallback-to-environment/004-null-in-config-blocks-env-lookup.conf">An application can explicitly block looking up a substitution in
+<p data-line="1552">See also the notes below on Windows and case sensitivity.</p>
+<p data-line="1554"><mark class="ok" title="substitution-fallback-to-environment-variables.4 — substitution-fallback-to-environment/004-null-in-config-blocks-env-lookup.conf">An application can explicitly block looking up a substitution in
 the environment by setting a value in the configuration, with the
 same name as the environment variable.</mark> You could set `HOME : null`
 in your root object to avoid expanding `${HOME}` from the
 environment, for example.</p>
-<p data-line="1556">Environment variables are interpreted as follows:</p>
-<p data-line="1558"> - <mark class="ok" title="substitution-fallback-to-environment-variables.5 — substitution-fallback-to-environment/006-empty-env-var-is-empty-string.conf, substitution-fallback-to-environment/007-empty-env-var-creates-optional-field.conf">env variables set to the empty string are kept as such (set to
+<p data-line="1560">Environment variables are interpreted as follows:</p>
+<p data-line="1562"> - <mark class="ok" title="substitution-fallback-to-environment-variables.5 — substitution-fallback-to-environment/006-empty-env-var-is-empty-string.conf, substitution-fallback-to-environment/007-empty-env-var-creates-optional-field.conf">env variables set to the empty string are kept as such (set to
    empty string, rather than undefined)</mark>
  - System.getenv throws SecurityException: treated as not present
  - encoding is handled by Java (System.getenv already returns
@@ -1166,16 +1169,16 @@ environment, for example.</p>
    if an app asks for another type automatic type conversion
    would kick in</mark></p>
 <h3>hyphen-separated vs. camelCase</h3>
-<p data-line="1569">Config keys are encouraged to be `hyphen-separated` rather than
+<p data-line="1573">Config keys are encouraged to be `hyphen-separated` rather than
 `camelCase`.</p>
 <h2>Note on Java properties similarity</h2>
-<p data-line="1574">You can write a HOCON file that looks much like a Java properties
+<p data-line="1578">You can write a HOCON file that looks much like a Java properties
 file, and many valid Java properties files will also parse as
 HOCON.</p>
-<p data-line="1578">However, HOCON is not a Java properties superset and the corner
+<p data-line="1582">However, HOCON is not a Java properties superset and the corner
 cases work like JSON, not like properties.</p>
-<p data-line="1581">Differences include but are probably not limited to:</p>
-<p data-line="1583"> - certain characters that can be unquoted in properties files
+<p data-line="1585">Differences include but are probably not limited to:</p>
+<p data-line="1587"> - certain characters that can be unquoted in properties files
    have to be placed in JSON-style double-quoted strings in HOCON
  - unquoted strings in HOCON do not support escape sequences
  - unquoted strings in HOCON do not preserve trailing whitespace
@@ -1190,13 +1193,13 @@ cases work like JSON, not like properties.</p>
    occur as the first character on the line
  - HOCON interprets `${}` as a substitution</p>
 <h2>Note on Windows and case sensitivity of environment variables</h2>
-<p data-line="1600">HOCON&#x27;s lookup of environment variable values is always case-sensitive, but
+<p data-line="1604">HOCON&#x27;s lookup of environment variable values is always case-sensitive, but
 Linux and Windows differ in their handling of case.</p>
-<p data-line="1603">Linux allows one to define multiple environment variables with the same
+<p data-line="1607">Linux allows one to define multiple environment variables with the same
 name but with different case; so both &quot;PATH&quot; and &quot;Path&quot; may be defined
 simultaneously. HOCON&#x27;s access to these environment variables on Linux
 is straightforward; ie just make sure you define all your vars with the required case.</p>
-<p data-line="1608">Windows is more confusing. Windows environment variables names may contain a
+<p data-line="1612">Windows is more confusing. Windows environment variables names may contain a
 mix of upper and lowercase characters, eg &quot;Path&quot;, however Windows does not
 allow one to define multiple instances of the same name but differing in case.
 Whilst accessing env vars in Windows is case-insensitive, accessing env vars in
@@ -1209,15 +1212,15 @@ simply redefine the var with an uppercase name.
 The only way to ensure that your environment variables have the desired case
 is to first undefine all the env vars that you will depend on then redefine
 them with the required case.</p>
-<p data-line="1622">For example, the ambient environment might have this definition ...</p>
+<p data-line="1626">For example, the ambient environment might have this definition ...</p>
 <pre>set Path=A;B;C</pre>
-<p data-line="1627">.. we just don&#x27;t know. But if the HOCON needs &quot;PATH&quot;, then the start script must
+<p data-line="1631">.. we just don&#x27;t know. But if the HOCON needs &quot;PATH&quot;, then the start script must
 take a precautionary approach and enforce the necessary case as follows ...</p>
 <pre>set OLDPATH=%PATH%
 set PATH=
 set PATH=%OLDPATH%
 
 %JAVA_HOME%/bin/java ....</pre>
-<p data-line="1638">You cannot know what ambient environment variables might exist in the ambient environment
+<p data-line="1642">You cannot know what ambient environment variables might exist in the ambient environment
 when your program is invoked, nor what case those definitions might have.
 Therefore the only safe thing to do is redefine all the vars you rely on as shown above.</p>

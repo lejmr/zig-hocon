@@ -5,11 +5,11 @@
   "mode": "java",
   "java_version": "1.4.9",
   "command": "conformance/adapters/oracle.sh hocon-java",
-  "ran_at": "2026-10-22T19:43:12Z",
-  "suite_digest": "e05749cb283ceff4",
+  "ran_at": "2026-10-23T16:05:50Z",
+  "suite_digest": "a8fe29692ae3406d",
   "total": 446,
-  "passed": 445,
-  "percent": 99.8,
+  "passed": 446,
+  "percent": 100.0,
   "sections": {
     "array-and-object-concatenation": {
       "total": 19,
@@ -65,7 +65,7 @@
     },
     "include-syntax": {
       "total": 15,
-      "passed": 14
+      "passed": 15
     },
     "key-value-separator": {
       "total": 6,
@@ -330,7 +330,7 @@
     "include-syntax/008-file-argument-must-be-quoted/main.conf": "pass",
     "include-syntax/009-file-missing-close-parenthesis/main.conf": "pass",
     "include-syntax/010-required-missing-close-parenthesis/main.conf": "pass",
-    "include-syntax/011-url-argument-must-be-a-url/main.conf": "open",
+    "include-syntax/011-url-argument-must-be-a-url/main.conf": "pass",
     "include-syntax/013-newlines-between-include-and-name/main.conf": "pass",
     "include-syntax/014-whitespace-inside-parentheses/main.conf": "pass",
     "include-syntax/015-include-followed-by-separator-is-not-a-key.conf": "pass",
@@ -617,7 +617,6 @@
     "include-substitution/009-undefined-optional-at-fixed-up-path-falls-back/main.conf": "rejected",
     "include-substitution/011-optional-reference-falls-back-too/main.conf": "{\"common\":{\"x\":{}},\"x\":{\"y\":0}}",
     "include-substitution/014-unrelated-key-does-not-change-the-result/main.conf": "rejected",
-    "include-syntax/011-url-argument-must-be-a-url/main.conf": "rejected",
     "omit-root-braces/006-array-root-unaffected.conf": "rejected",
     "omit-root-braces/008-empty-array-root.conf": "rejected",
     "omit-root-braces/009-comment-before-array-root.conf": "rejected",
@@ -643,14 +642,5 @@
     "unquoted-strings/022-digit-then-exponent-letter-illegal.conf": "{\"a\":\"1e\"}",
     "unquoted-strings/025-digit-initial-invalid-number.conf": "{\"a\":\"1.2.3\"}"
   },
-  "failures": [
-    {
-      "case": "include-syntax/011-url-argument-must-be-a-url/main.conf",
-      "spec": "HOCON.md#include-syntax",
-      "rule": "the string inside url() is interpreted as a URL, and x.conf has no scheme, so it is not one",
-      "expected": "rejected",
-      "got": "rejected",
-      "open_question": "the spec says only that the string inside url() is interpreted as a URL; it does not say whether a string that is not a URL is an error or an unresolvable, hence ignorable, resource. typesafe/config rejects it"
-    }
-  ]
+  "failures": []
 }

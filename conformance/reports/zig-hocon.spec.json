@@ -1,14 +1,14 @@
 {
   "suite": "hocon-conformance",
   "implementation": "zig-hocon",
-  "version": "zig-hocon code@031f68c",
+  "version": "zig-hocon code@96d9b8a",
   "mode": "spec",
   "command": "conformance/adapters/zig-hocon.sh",
-  "ran_at": "2026-10-22T19:44:19Z",
-  "suite_digest": "e05749cb283ceff4",
+  "ran_at": "2026-10-23T16:08:49Z",
+  "suite_digest": "a8fe29692ae3406d",
   "total": 446,
-  "passed": 445,
-  "percent": 99.8,
+  "passed": 446,
+  "percent": 100.0,
   "sections": {
     "array-and-object-concatenation": {
       "total": 19,
@@ -64,7 +64,7 @@
     },
     "include-syntax": {
       "total": 15,
-      "passed": 14
+      "passed": 15
     },
     "key-value-separator": {
       "total": 6,
@@ -329,7 +329,7 @@
     "include-syntax/008-file-argument-must-be-quoted/main.conf": "pass",
     "include-syntax/009-file-missing-close-parenthesis/main.conf": "pass",
     "include-syntax/010-required-missing-close-parenthesis/main.conf": "pass",
-    "include-syntax/011-url-argument-must-be-a-url/main.conf": "open",
+    "include-syntax/011-url-argument-must-be-a-url/main.conf": "pass",
     "include-syntax/013-newlines-between-include-and-name/main.conf": "pass",
     "include-syntax/014-whitespace-inside-parentheses/main.conf": "pass",
     "include-syntax/015-include-followed-by-separator-is-not-a-key.conf": "pass",
@@ -616,7 +616,6 @@
     "include-substitution/009-undefined-optional-at-fixed-up-path-falls-back/main.conf": "{\"common\":{\"x\":{},\"a\":0},\"x\":{\"y\":0}}",
     "include-substitution/011-optional-reference-falls-back-too/main.conf": "{\"common\":{\"x\":{},\"a\":0},\"x\":{\"y\":0}}",
     "include-substitution/014-unrelated-key-does-not-change-the-result/main.conf": "{\"common\":{\"x\":{},\"a\":0},\"x\":{\"y\":0},\"zzz\":{}}",
-    "include-syntax/011-url-argument-must-be-a-url/main.conf": "rejected",
     "omit-root-braces/006-array-root-unaffected.conf": "[1,2,3]",
     "omit-root-braces/008-empty-array-root.conf": "[]",
     "omit-root-braces/009-comment-before-array-root.conf": "[1,2]",
@@ -642,14 +641,5 @@
     "unquoted-strings/022-digit-then-exponent-letter-illegal.conf": "rejected",
     "unquoted-strings/025-digit-initial-invalid-number.conf": "rejected"
   },
-  "failures": [
-    {
-      "case": "include-syntax/011-url-argument-must-be-a-url/main.conf",
-      "spec": "HOCON.md#include-syntax",
-      "rule": "the string inside url() is interpreted as a URL, and x.conf has no scheme, so it is not one",
-      "expected": "rejected",
-      "got": "rejected",
-      "open_question": "the spec says only that the string inside url() is interpreted as a URL; it does not say whether a string that is not a URL is an error or an unresolvable, hence ignorable, resource. typesafe/config rejects it"
-    }
-  ]
+  "failures": []
 }
