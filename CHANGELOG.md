@@ -23,6 +23,7 @@ What changed for someone using zig-hocon: the Zig package, the `hocon` command l
 - `a = null` then `a { … }` clears what `a` held before also when the file is included or the object merges with an earlier one: `a { x = 1 }` and then `include "over.conf"` with those two lines give `{a: {…}}` without `x`, as typesafe/config has it; the `x` was kept. Four new conformance cases, all 496 pass.
 - An optional substitution on a cycle finds nothing also when the cycle runs on through other fields: `v { x = ${?r} }` with `r = ${v}` gives `v = {}` and `r = {}`, as typesafe/config has it; it was a SubstitutionCycle.
 - A substitution path through an alias resolves only what it reaches: `a = ${p}` with `p = { r = ${a.q} }` reads `p.q`, as typesafe/config does; it was a SubstitutionCycle.
+- `a = ${p}`, `p = 1`, `p = ${a}x` resolves to `a = 1`, `p = "1x"` in any order of the lines, as typesafe/config has it: the cycle breaks where `p` can look back. With `a` first it was a SubstitutionCycle.
 
 ## [0.5.2] - 2026-10-23
 

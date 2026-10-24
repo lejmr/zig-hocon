@@ -541,3 +541,14 @@ test "resolve.a path through an alias needs only what it reaches" {
     try expectResolved("p { q = 1, r = ${a.q} }\na = ${b}\nb = ${p}", "{\"p\":{\"q\":1,\"r\":1},\"a\":{\"q\":1,\"r\":1},\"b\":{\"q\":1,\"r\":1}}");
     try expectResolveError("a = ${b}\nb = ${a}\nc = ${a.q}", error.SubstitutionCycle);
 }
+// self-referential-examples/035, 037 · java ✓ · pyhocon ⚠️ (a = "1x", which the
+// suite takes too) · spec ✓ — a ref that comes round to a field with nothing
+// below it, through one that has: the cycle breaks at the one with a value
+// below, and the first is resolved anew inside its look-back and keeps that
+// value, whichever field is resolved first. Through two fields the same.
+test "resolve.a cycle through an alias breaks where there is a value below" {
+    try expectResolved("p = 1\na = ${p}\np = ${a}x", "{\"p\":\"1x\",\"a\":1}");
+    try expectResolved("a = ${p}\np = 1\np = ${a}x", "{\"a\":1,\"p\":\"1x\"}");
+    try expectResolved("a = ${p}y\np = 1\np = ${a}x", "{\"a\":\"1y\",\"p\":\"1yx\"}");
+    try expectResolved("a = ${b}\nb = ${p}\np = 1\np = ${a}x", "{\"a\":1,\"b\":1,\"p\":\"1x\"}");
+}
