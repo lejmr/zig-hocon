@@ -2,6 +2,12 @@
 
 What changed for someone using zig-hocon: the Zig package, the `hocon` command line tool, libhocon for C and the `zig-hocon` Python package, which are released together under one version. The technical detail is in the commits each release links to.
 
+## [Unreleased]
+
+### Fixed
+
+- A field that refers to itself with nothing before it reads the environment variable of its own name, as the spec has it: `HOME : ${HOME}` is the variable `HOME`, where it was `Unresolved`, and `HOME : ${?HOME}` creates the field instead of dropping it, as pyhocon does. A value set earlier still wins, and `HOME += x` with `HOME` set is now an error: `+=` is `HOME = ${?HOME} [x]`, text and a list. Two new conformance cases pin it.
+
 ## [0.5.2] - 2026-10-23
 
 The conformance suite has no open question left: the spec settles the last one, `url()` without a scheme, as an error ([lightbend/config#887](https://github.com/lightbend/config/pull/887)), and zig-hocon passes all 446 tests.

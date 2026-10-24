@@ -1,0 +1,17 @@
+{
+  "spec": "HOCON.md#substitution-fallback-to-environment-variables",
+  "rule": [
+    "self-referential-substitutions.13",
+    "substitution-fallback-to-environment-variables.1"
+  ],
+  "why": "if ${?foo} refers to itself \"it's as if it referred to a nonexistent value\", and a value not present in the configuration is searched for in the environment, so the field is created from the variable instead of disappearing",
+  "env": {
+    "CONFORMANCE_HOME": "/from/env"
+  },
+  "expect": {
+    "CONFORMANCE_HOME": "/from/env"
+  },
+  "java": "diverges",
+  "java_expect": {},
+  "resolve": true
+}

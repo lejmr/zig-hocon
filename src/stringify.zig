@@ -773,8 +773,7 @@ test "stringify.a concatenation is written part by part" {
 // only at the root is the path as written alone. A self-reference is the layers
 // below it, over the path as written, a `+=` too. Each compacted file reads
 // back as the original does with none of the variables and with those `some`
-// sets. Row 10 is a known loss: it reads a variable `a` the original never
-// does, and differs once one is set.
+// sets.
 test "stringify.a kept ref from an include inside a block keeps its fallback" {
     const rows = [_]struct { inner: []const u8, root: []const u8, want: []const u8 }{
         // The scoped `x.y` waits for an optional: without it, the root's `x.y`.
@@ -792,12 +791,12 @@ test "stringify.a kept ref from an include inside a block keeps its fallback" {
         .{ .inner = "url = ${host}", .root = "host = ${HOST}", .want = "common {\n  url = ${host}\n}\nhost = ${HOST}\n" },
         .{ .inner = "a += 1", .root = "a = ${?L[]}\na += 0", .want = "common {\n  a = ${?a}[1]\n}\na = ${?L[]}\na += 0\n" },
         // A self-reference finds the layers below it, and only when they
-        // find nothing the path as written: that goes under them. Not in the
-        // document, the self-reference is gone, never a variable.
+        // find nothing the path as written: that goes under them, and after
+        // it the variable, in the document or not.
         .{ .inner = "a = ${?FOO}\na = ${a}", .root = "a = 7", .want = "common {\n  a = ${a}\n  a = ${?FOO}\n}\na = 7\n" },
         .{ .inner = "a = ${?nope}\na = ${?a}", .root = "a = ${?FOO}", .want = "common {\n  a = ${?a}\n  a = ${?nope}\n}\na = ${?FOO}\n" },
-        .{ .inner = "path = ${?EXTRA}\npath = ${path}", .root = "", .want = "common {\n  path = ${?EXTRA}\n  path = ${common.path}\n}\n" },
-        .{ .inner = "J = ${?E}\nJ = ${?J}", .root = "", .want = "common {\n  J = ${?E}\n  J = ${?common.J}\n}\n" },
+        .{ .inner = "path = ${?EXTRA}\npath = ${path}", .root = "", .want = "common {\n  path = ${path}\n  path = ${?EXTRA}\n}\n" },
+        .{ .inner = "J = ${?E}\nJ = ${?J}", .root = "", .want = "common {\n  J = ${?J}\n  J = ${?E}\n}\n" },
         // The root's `a` reads `common.a` back: the fallback under the
         // layers is not followed while compacting, so no cycle.
         .{ .inner = "a = ${?FOO}\na = ${a}", .root = "a = ${?common.a}", .want = "common {\n  a = ${a}\n  a = ${?FOO}\n}\na = ${?common.a}\n" },

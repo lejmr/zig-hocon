@@ -61,23 +61,6 @@ pub fn stacked(gpa: std.mem.Allocator, under: ?Value, top: Value) Error!Value {
     return .{ .stack = try std.mem.concat(gpa, Value, &.{ below, above }) };
 }
 
-// `.keep` only: whether `path` may be in the document, looked at without
-// resolving anything. A key missing from an object, or text or a list
-// where the path goes on, is not; a value that waits may hold it.
-pub fn inDocument(root: *const Value, path: []const Key) bool {
-    var current = root.*;
-    for (path) |key| {
-        if (waits(current)) return true;
-        if (current != .object) return false;
-        var next: ?Value = null;
-        for (current.object) |m| {
-            if (std.mem.eql(u8, m.key.value, key.value)) next = m.value;
-        }
-        current = next orelse return false;
-    }
-    return true;
-}
-
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -141,8 +124,8 @@ fn expectAllKept(cases: []const table.Case) !void {
 // waits too, as `${a}`: the key is there to be found again, and copying
 // `${?PORT}` would make the required `b` optional. A field whose top waits
 // keeps what is below it — `port = 8080` then `port = ${?PORT}` is the usual
-// way to give a variable a default. A self-reference and `+=` look only
-// below, never at the environment, so they never wait on their own.
+// way to give a variable a default. A self-reference and `+=` with nothing
+// below read the variable named like them, so they wait as written.
 test "keep.what waits for the environment stays" {
     try expectAllKept(&.{
         .ok("port = ${?PORT}", "{port: ${?PORT}}"),
@@ -165,8 +148,9 @@ test "keep.what waits for the environment stays" {
         .ok("o { p = 1 }\no = ${?O}", "{o: stack({p: 1}, ${?O})}"),
         .ok("o { p = 1 }\no = ${?O}\no { q = 2 }", "{o: stack({p: 1}, ${?O}, {q: 2})}"),
         .ok("l = [1]\nl += ${?X}", "{l: [1, ${?X}]}"),
-        .ok("l += 1", "{l: [1]}"),
-        .ok("gone = ${?gone}", "{}"),
+        .ok("l += 1", "{l: ${?l}[1]}"),
+        .ok("gone = ${?gone}", "{gone: ${?gone}}"),
+        .ok("a = ${a}", "{a: ${a}}"),
         // what the document alone decides fails now, as ever, also across a
         // part that waits: a list stays a list, text stays text
         .ok("a = [1] x", "UnsupportedConcatenation"),
@@ -176,7 +160,6 @@ test "keep.what waits for the environment stays" {
         .ok("a = [1] ${?X} [2]", "{a: [1]${?X}[2]}"),
         .ok("a = ${?X} [1]", "{a: ${?X}[1]}"),
         .ok("a = x ${?X} y", "{a: \"x \"${?X}\" y\"}"),
-        .ok("a = ${a}", "Unresolved"),
     });
 }
 // The point of keeping: resolving the kept tree later, with whatever

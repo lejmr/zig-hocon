@@ -47,7 +47,7 @@ observable parse behaviour.
 | 1441 | Java properties mapping | — | — JVM-specific |
 | 1498 | Conventional configuration files for JVM apps | — | — JVM-specific |
 | 1528 | Conventional override by system properties | — | — JVM-specific |
-| 1534 | Substitution fallback to environment variables | `substitution-fallback-to-environment` | ✅ 8 cases |
+| 1534 | Substitution fallback to environment variables | `substitution-fallback-to-environment` | ✅ 10 cases |
 | 1567 | hyphen-separated vs. camelCase | — | — naming advice |
 | 1572 | Note on Java properties similarity | — | — |
 | 1598 | Note on Windows and case sensitivity | — | — |

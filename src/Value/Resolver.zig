@@ -22,7 +22,6 @@ const waits = keep.waits;
 const waitsInList = keep.waitsInList;
 const mayVanish = keep.mayVanish;
 const stacked = keep.stacked;
-const inDocument = keep.inDocument;
 
 // For the tests.
 const testing = std.testing;
@@ -107,8 +106,8 @@ const Found = union(enum) {
     // Not in the document: no such key, or an optional that found
     // nothing and so made no field.
     absent,
-    // A field that refers to itself and sees nothing below: it is in the
-    // document, so never a variable.
+    // An optional that hit a cycle: the field is in the document, so
+    // never a variable.
     gone,
     // `.keep` only: on the way is a value that waits, so where the path
     // ends is known later.
@@ -234,7 +233,7 @@ pub noinline fn resolveRef(state: *Resolver, r: Ref, on_top: bool) Error!?Value 
         const scoped = found;
         path = r.path[r.scope_len..];
         found = try state.follow(r, path);
-        // A self-reference is in the document: no variable for it.
+        // A cycle is in the document: no variable for it.
         if (found == .absent and scoped == .gone) found = .gone;
     }
     // `.keep`: what waits is looked up later the way it went now:
@@ -253,19 +252,16 @@ pub noinline fn resolveRef(state: *Resolver, r: Ref, on_top: bool) Error!?Value 
             if (!mayVanish(val)) later.ref = r.from(path);
             // A self-reference, on top of its field or a `+=`, found the
             // layers below it, and falls back to the path as written only
-            // once they find nothing: that goes under them. With no such
-            // path in the document it is gone there, never a variable, as
-            // the scoped path alone is.
+            // once they find nothing: that goes under them, and after it
+            // the variable, as for any path not in the document.
             const self_ref = later.ref.scope_len > 0 and (on_top or r.flags.append);
             const field = if (self_ref) &state.fields.items[state.fields.items.len - 1] else null;
             if (field != null and field.?.merged != null and std.meta.eql(field.?.merged.?, val)) {
                 const written = r.path[r.scope_len..];
-                if (inDocument(state.root, written)) {
-                    const under = try stacked(gpa, .{ .ref = r.from(written) }, val);
-                    // On top, it is just those layers.
-                    if (on_top) return under;
-                    field.?.merged = under;
-                }
+                const under = try stacked(gpa, .{ .ref = r.from(written) }, val);
+                // On top, it is just those layers.
+                if (on_top) return under;
+                field.?.merged = under;
                 later.ref = r.from(r.path);
             }
             return later;
@@ -330,7 +326,12 @@ fn lookup(state: *Resolver, ref: Ref, path: []const Key) Error!union(enum) { abs
     const gpa = state.gpa;
     var current = state.root;
     for (path) |key| {
-        current = try state.seen(current, ref) orelse return .gone;
+        // A field that refers to itself sees the layers below it. With
+        // nothing there it is as if the path were not in the document
+        // (spec L767), so it reads the variable; a cycle on the way is gone.
+        const before = state.cycles;
+        current = try state.seen(current, ref) orelse
+            return if (state.cycles > before) .gone else .absent;
         if (current.* == .ref or current.* == .pending or current.* == .stack) {
             const cycles = state.cycles;
             const val = try state.resolveTarget(current, ref) orelse
@@ -347,7 +348,9 @@ fn lookup(state: *Resolver, ref: Ref, path: []const Key) Error!union(enum) { abs
         }
         current = members.value_ptr.get(key.value) orelse return .absent;
     }
-    const place = try state.seen(current, ref) orelse return .gone;
+    const before = state.cycles;
+    const place = try state.seen(current, ref) orelse
+        return if (state.cycles > before) .gone else .absent;
     return .{ .place = place };
 }
 
