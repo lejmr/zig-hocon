@@ -1,0 +1,17 @@
+{
+  "spec": "HOCON.md#substitution-fallback-to-environment-variables",
+  "rule": [
+    "examples-of-self-referential-substitutions.6",
+    "substitution-fallback-to-environment-variables.1"
+  ],
+  "why": "a self-reference with no earlier value is undefined \"exactly as if the substitution referenced a path not found in the document\", and such a path is searched for in the environment, so the field reads the variable of its own name; typesafe/config reports a cycle, which the spec rules out (\"undefined\" rather than \"intractable cycle\")",
+  "env": {
+    "CONFORMANCE_HOME": "/from/env"
+  },
+  "expect": {
+    "CONFORMANCE_HOME": "/from/env"
+  },
+  "java": "unsupported",
+  "java_error": "UnresolvedSubstitution",
+  "resolve": true
+}

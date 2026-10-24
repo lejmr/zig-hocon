@@ -520,7 +520,7 @@ describing the cycle. Then generate an error if you return to that
 marker value during resolution.</p>
 <p data-line="714"><mark class="ok" title="self-referential-substitutions.12 — self-referential-examples/025-optional-two-field-cycle-is-undefined.conf">Cycles should be treated the same as a missing value when
 resolving an optional substitution (i.e. the `${?foo}` syntax).</mark>
-<mark class="ok" title="self-referential-substitutions.13 — self-referential-examples/004-optional-self-reference-disappears-silently.conf">If `${?foo}` refers to itself then it&#x27;s as if it referred to a
+<mark class="ok" title="self-referential-substitutions.13 — self-referential-examples/004-optional-self-reference-disappears-silently.conf, substitution-fallback-to-environment/010-optional-self-reference-reads-env.conf">If `${?foo}` refers to itself then it&#x27;s as if it referred to a
 nonexistent value.</mark></p>
 <h4>The `+=` field separator</h4>
 <p data-line="721"><mark class="ok" title="the--field-separator.1 — plus-equals-field-separator/001-plus-equals-desugars-to-optional-self-ref-array.conf">Fields may have `+=` as a separator rather than `:` or `=`.</mark> <mark class="ok" title="the--field-separator.2 — plus-equals-field-separator/005-plus-equals-in-nested-object-with-substitution.conf, plus-equals-field-separator/007-plus-equals-under-a-dotted-key.conf, plus-equals-field-separator/008-plus-equals-with-an-object-containing-a-merge.conf, plus-equals-field-separator/009-appends-through-object-concatenation.conf, plus-equals-field-separator/010-appends-through-chained-object-concatenations.conf, plus-equals-field-separator/011-appends-deep-inside-object-concatenation.conf, plus-equals-field-separator/012-appends-to-a-list-defined-in-object-concatenation.conf, self-referential-examples/023-append-does-not-hide.conf">A
@@ -552,7 +552,7 @@ field.</mark></p>
 <p data-line="761">    foo : ${foo}</p>
 <p data-line="763">and then second:</p>
 <p data-line="765">    foo : { a : 1 }</p>
-<p data-line="767"><mark class="ok" title="examples-of-self-referential-substitutions.6 — self-referential-examples/003-self-reference-before-any-value-is-undefined.conf">Here the `${foo}` self-reference comes before `foo` has a value,
+<p data-line="767"><mark class="ok" title="examples-of-self-referential-substitutions.6 — self-referential-examples/003-self-reference-before-any-value-is-undefined.conf, substitution-fallback-to-environment/009-self-reference-reads-env.conf">Here the `${foo}` self-reference comes before `foo` has a value,
 so it is undefined, exactly as if the substitution referenced a
 path not found in the document.</mark></p>
 <p data-line="771"><mark class="ok" title="examples-of-self-referential-substitutions.7 — self-referential-examples/004-optional-self-reference-disappears-silently.conf">Because `foo : ${foo}` conceptually looks to previous definitions
@@ -1143,7 +1143,7 @@ its substitutions.</p>
 settings found in the configuration file. This supports specifying
 config options on the command line.</p>
 <h3>Substitution fallback to environment variables</h3>
-<p data-line="1540"><mark class="ok" title="substitution-fallback-to-environment-variables.1 — substitution-fallback-to-environment/002-required-substitution-resolved-from-env.conf, substitution-fallback-to-environment/003-config-value-wins-over-env.conf">Recall that if a substitution is not present (not even set to
+<p data-line="1540"><mark class="ok" title="substitution-fallback-to-environment-variables.1 — substitution-fallback-to-environment/002-required-substitution-resolved-from-env.conf, substitution-fallback-to-environment/003-config-value-wins-over-env.conf, substitution-fallback-to-environment/009-self-reference-reads-env.conf, substitution-fallback-to-environment/010-optional-self-reference-reads-env.conf">Recall that if a substitution is not present (not even set to
 `null`) within a configuration tree, implementations may search
 for it from external sources.</mark> <mark class="ok" title="substitution-fallback-to-environment-variables.2 — substitution-fallback-to-environment/001-env-fallback-for-undefined-path.conf">One such source could be environment
 variables.</mark></p>

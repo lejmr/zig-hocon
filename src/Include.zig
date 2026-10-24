@@ -1096,20 +1096,23 @@ fn expectWithEnv(files: []const Fixture, vars: []const [2][]const u8, want: []co
     try testing.expectEqualStrings(want, try std.json.Stringify.valueAlloc(gpa, later, .{}));
 }
 
-// java ✓ · pyhocon – · spec ✓ — `+=` on a new key refers to itself and finds
-// nothing below: that is the document's answer, and the variable named like
-// the key is never read.
+// java ⚠️ ([1]) · pyhocon – · spec ✓ — `+=` on a new key refers to itself and
+// finds nothing below, at `s.l` nor at `l`: a path not in the document (spec
+// L767), so it reads the variable `l`, text that does not join a list. It
+// was `[1]` until the suite's 009 and 010; unset, it still is.
 //
 // An optional that vanished · java ⚠️ ({"s":{}}) · pyhocon ✓ · spec ✓ — it
 // leaves no field, so neither path is present and the variable is read, as
 // for a vanished field outside an include (see Value/Resolver/env.zig, "env.a field that
 // vanished"). An earlier rule kept it the document's; that depended on the
 // order of the fields.
-test "include.env: a self-reference never reads the variable, a vanished field does" {
-    try expectWithEnv(&.{
+test "include.env: a self-reference with nothing below reads the variable, a vanished field too" {
+    const plus: []const Fixture = &.{
         .{ .path = "main.conf", .text = "s { include \"inc.conf\" }" },
         .{ .path = "inc.conf", .text = "l += 1" },
-    }, &.{.{ "l", "the wombat is not a list" }}, "{\"s\":{\"l\":[1]}}");
+    };
+    try expectWithEnv(plus, &.{.{ "l", "the wombat is not a list" }}, "UnsupportedConcatenation");
+    try expectWithEnv(plus, &.{}, "{\"s\":{\"l\":[1]}}");
     for ([_][:0]const u8{ "x = ${?NOPE}\ny = ${?x}", "y = ${?x}\nx = ${?NOPE}" }) |inc| try expectWithEnv(&.{
         .{ .path = "main.conf", .text = "s { include \"inc.conf\" }" },
         .{ .path = "inc.conf", .text = inc },
