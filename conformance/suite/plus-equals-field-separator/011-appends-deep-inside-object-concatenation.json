@@ -1,0 +1,52 @@
+{
+  "spec": "HOCON.md#the--field-separator",
+  "rule": [
+    "the--field-separator.2",
+    "array-and-object-concatenation.6",
+    "examples-of-self-referential-substitutions.3"
+  ],
+  "why": "the += is three objects down, top.a.b.c = ${?top.a.b.c} [2], and the merge reaches it: the self-reference looks back at x.a.b.c; typesafe/config drops it",
+  "expect": {
+    "x": {
+      "a": {
+        "b": {
+          "c": [
+            1
+          ]
+        }
+      }
+    },
+    "top": {
+      "a": {
+        "b": {
+          "c": [
+            1,
+            2
+          ]
+        }
+      }
+    }
+  },
+  "java": "diverges",
+  "java_expect": {
+    "x": {
+      "a": {
+        "b": {
+          "c": [
+            1
+          ]
+        }
+      }
+    },
+    "top": {
+      "a": {
+        "b": {
+          "c": [
+            2
+          ]
+        }
+      }
+    }
+  },
+  "resolve": true
+}

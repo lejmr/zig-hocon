@@ -1,13 +1,13 @@
 {
   "suite": "hocon-conformance",
   "implementation": "zig-hocon",
-  "version": "zig-hocon code@96d9b8a",
+  "version": "zig-hocon code@5b9031b",
   "mode": "spec",
   "command": "conformance/adapters/zig-hocon.sh",
-  "ran_at": "2026-10-23T16:08:49Z",
-  "suite_digest": "a8fe29692ae3406d",
-  "total": 446,
-  "passed": 446,
+  "ran_at": "2026-10-24T07:43:01Z",
+  "suite_digest": "34d5b6ef5070df01",
+  "total": 457,
+  "passed": 457,
   "percent": 100.0,
   "sections": {
     "array-and-object-concatenation": {
@@ -99,12 +99,12 @@
       "passed": 7
     },
     "plus-equals-field-separator": {
-      "total": 8,
-      "passed": 8
+      "total": 12,
+      "passed": 12
     },
     "self-referential-examples": {
-      "total": 26,
-      "passed": 26
+      "total": 33,
+      "passed": 33
     },
     "self-referential-substitutions": {
       "total": 5,
@@ -422,6 +422,10 @@
     "plus-equals-field-separator/006-plus-equals-inside-a-list-element.conf": "pass",
     "plus-equals-field-separator/007-plus-equals-under-a-dotted-key.conf": "pass",
     "plus-equals-field-separator/008-plus-equals-with-an-object-containing-a-merge.conf": "pass",
+    "plus-equals-field-separator/009-appends-through-object-concatenation.conf": "pass",
+    "plus-equals-field-separator/010-appends-through-chained-object-concatenations.conf": "pass",
+    "plus-equals-field-separator/011-appends-deep-inside-object-concatenation.conf": "pass",
+    "plus-equals-field-separator/012-appends-to-a-list-defined-in-object-concatenation.conf": "pass",
     "self-referential-examples/001-isolated-self-reference-is-an-error.conf": "pass",
     "self-referential-examples/002-self-reference-resolves-to-earlier-merged-value.conf": "pass",
     "self-referential-examples/003-self-reference-before-any-value-is-undefined.conf": "pass",
@@ -448,6 +452,13 @@
     "self-referential-examples/024-substitution-target-is-fetched-lazily.conf": "pass",
     "self-referential-examples/025-optional-two-field-cycle-is-undefined.conf": "pass",
     "self-referential-examples/026-memoized-by-instance-not-by-path.conf": "pass",
+    "self-referential-examples/027-self-reference-inside-object-concatenation.conf": "pass",
+    "self-referential-examples/028-self-reference-through-two-concatenated-substitutions.conf": "pass",
+    "self-referential-examples/029-concatenated-object-refers-to-its-mixin.conf": "pass",
+    "self-referential-examples/030-concatenated-object-sees-its-own-field.conf": "pass",
+    "self-referential-examples/031-field-hidden-by-a-substituted-object.conf": "pass",
+    "self-referential-examples/032-field-hidden-inside-object-concatenation.conf": "pass",
+    "self-referential-examples/033-object-below-a-substitution-looks-forward.conf": "pass",
     "self-referential-substitutions/001-path-builds-on-older-value.conf": "pass",
     "self-referential-substitutions/002-self-referential-concatenation.conf": "pass",
     "self-referential-substitutions/003-object-containing-self-reference-is-not-self-referential.conf": "pass",
@@ -623,8 +634,17 @@
     "paths-as-keys/008-include-cannot-begin-key.conf": "rejected",
     "plus-equals-field-separator/006-plus-equals-inside-a-list-element.conf": "{\"a\":[{\"b\":[1]}]}",
     "plus-equals-field-separator/008-plus-equals-with-an-object-containing-a-merge.conf": "{\"x\":{\"p\":1},\"l\":[{\"a\":{\"p\":1}}]}",
+    "plus-equals-field-separator/009-appends-through-object-concatenation.conf": "{\"x\":{\"arr\":[\"one\"]},\"top\":{\"arr\":[\"one\",\"four\"]}}",
+    "plus-equals-field-separator/010-appends-through-chained-object-concatenations.conf": "{\"x\":{\"l\":[1]},\"y\":{\"l\":[1,2]},\"z\":{\"l\":[1,2,3]}}",
+    "plus-equals-field-separator/011-appends-deep-inside-object-concatenation.conf": "{\"x\":{\"a\":{\"b\":{\"c\":[1]}}},\"top\":{\"a\":{\"b\":{\"c\":[1,2]}}}}",
+    "plus-equals-field-separator/012-appends-to-a-list-defined-in-object-concatenation.conf": "{\"x\":{},\"y\":{\"l\":[1,2,3]}}",
     "self-referential-examples/015-list-hidden-by-substituted-object-is-never-evaluated.conf": "{\"wrapper\":{},\"replacement\":{}}",
     "self-referential-examples/021-hidden-list-does-not-depend-on-key-order.conf": "{\"w\":{\"x\":1},\"r\":{\"x\":1},\"zzz\":1}",
+    "self-referential-examples/027-self-reference-inside-object-concatenation.conf": "{\"d\":{\"x\":[0]},\"c\":{\"x\":[0,1,2]}}",
+    "self-referential-examples/028-self-reference-through-two-concatenated-substitutions.conf": "{\"d\":{\"x\":[0]},\"e\":{\"z\":5},\"c\":{\"x\":[0,1],\"z\":5,\"w\":5}}",
+    "self-referential-examples/029-concatenated-object-refers-to-its-mixin.conf": "{\"mixin\":{\"hello\":\"world\"},\"a\":{\"hello\":\"world\",\"y\":\"world\"}}",
+    "self-referential-examples/030-concatenated-object-sees-its-own-field.conf": "{\"x\":{\"n\":1},\"top\":{\"n\":2,\"seen\":2}}",
+    "self-referential-examples/032-field-hidden-inside-object-concatenation.conf": "{\"base\":{},\"child\":{\"foo\":\"x\"}}",
     "string-value-concatenation/010-object-then-scalar-drops-the-scalar.conf": "rejected",
     "string-value-concatenation/011-array-then-scalar-drops-the-scalar.conf": "rejected",
     "string-value-concatenation/014-array-then-unquoted-text-without-space.conf": "rejected",

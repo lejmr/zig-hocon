@@ -1,0 +1,29 @@
+{
+  "spec": "HOCON.md#examples-of-self-referential-substitutions",
+  "rule": [
+    "array-and-object-concatenation.6",
+    "examples-of-self-referential-substitutions.3"
+  ],
+  "why": "three objects merged in one value, the last overriding both: ${c.x} looks back at what ${d} ${e} gives c.x, and ${e.z} is an ordinary forward reference; typesafe/config reports a cycle",
+  "expect": {
+    "d": {
+      "x": [
+        0
+      ]
+    },
+    "e": {
+      "z": 5
+    },
+    "c": {
+      "x": [
+        0,
+        1
+      ],
+      "z": 5,
+      "w": 5
+    }
+  },
+  "java": "unsupported",
+  "java_error": "UnresolvedSubstitution",
+  "resolve": true
+}

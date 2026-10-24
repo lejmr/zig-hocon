@@ -1,0 +1,18 @@
+{
+  "spec": "HOCON.md#examples-of-self-referential-substitutions",
+  "rule": [
+    "examples-of-self-referential-substitutions.16",
+    "examples-of-self-referential-substitutions.17"
+  ],
+  "why": "${bar.foo} is not self-referential, so it looks forward at the final bar.foo, which the object ${r} gives on top: 43, as when the later bar is written out",
+  "expect": {
+    "bar": {
+      "foo": 43,
+      "baz": 43
+    },
+    "r": {
+      "foo": 43
+    }
+  },
+  "resolve": true
+}
