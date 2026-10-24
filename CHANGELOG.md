@@ -4,6 +4,10 @@ What changed for someone using zig-hocon: the Zig package, the `hocon` command l
 
 ## [Unreleased]
 
+### Added
+
+- Twelve conformance cases from bug reports in lightbend/config and ekrich/sconfig where the spec has the answer: typesafe/config fails inside `${a} { … }`, turns integers past 2^63 into strings and accepts `\u+041`; pyhocon loses `+=` across an include and the text of a substituted number. zig-hocon passes all 469.
+
 ### Fixed
 
 - An object after a substitution, `top = ${x} { … }`, is a merge, the same as `top = ${x}` and `top { … }` written as two fields. A `+=` inside it appends to the list `${x}` gives (`top = ${x} { arr += four }` was `[four]`, is `[one, four]`), a self-reference looks back at it, and `${top.n}` inside it sees the merged object instead of reporting a cycle. Eight new conformance cases pin it.
