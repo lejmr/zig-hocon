@@ -139,7 +139,8 @@ def write_case(d, files):
 # ---------------------------------------------------------------- generator
 
 # A small key pool so fields collide: duplicates, merges, self-references.
-KEYS = ["a", "a", "a", "b", "b", "c", "x", "y", '"a"', '"a.b"', '"q r"', "FZ_S", "FZ_N"]
+KEYS = ["a", "a", "a", "b", "b", "c", "x", "y", '"a"', '"a.b"', '"q r"', "FZ_S", "FZ_N",
+        "0", "1", '"0"', "true", "null", "10", "a-b", '""', "include1"]
 ENV_PATHS = ["FZ_S", "FZ_N", "FZ_E", "FZ_D", "FZ_Q", "FZ_MISSING"]
 SCALARS = [
     "1", "2", "10", "-3", "1.5", "1e3", "0", "100", "3.0",
@@ -147,6 +148,8 @@ SCALARS = [
     "foo", "bar", "hello world", "foo.bar", "/usr/x", "a-b",
     '"q"', '"a b"', '""', '" sp "', '"1"', '"${a}"', '"true"', '"""tri"""', '"""x"y"""',
     "10 s", "5ms", "512K", "1 day", "5EB", "1ex", "10.0bar", "truefoo", "nullx", "1 2", "3.5 MB",
+    '"""\nline\n"""', '"""a""""', '"\\n\\t"', '"\\u0041"', "{ 0 = x, 1 = y }", '{ "1" = b, "0" = a }',
+    "1.0", "-0", "1E2", "0.5e-1", "include", "a\tb", "a\u00a0b", "x //c", "x #c", "1 . 2",
 ]
 # ponytail: inputs the suite already records as java-lenient (01, -foo, 1.2.3,
 # 1., -.33, 1e, UUIDs) are left out, or they drown every other divergence
@@ -227,7 +230,7 @@ class Gen:
             else:
                 parts.append(self.atom(depth + 1, here))
         # no empty gap between two literals: 1 then 0 would be the number 01
-        gaps = [r.choice([" ", " ", "  "] + ([""] if "sub" in (x[0], y[0]) else []))
+        gaps = [r.choice([" ", " ", "  ", "\t", "\u00a0"] + ([""] if "sub" in (x[0], y[0]) else []))
                 for x, y in zip(parts, parts[1:])]
         return ("cat", parts, gaps)
 

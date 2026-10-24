@@ -38,12 +38,14 @@ suite = fuzz.suite
 class Java:
     """One JVM per worker, asked one case at a time."""
 
-    def __init__(self):
+    def __init__(self, version="1.4.9"):
         self.p = None
+        self.version = version
 
     def start(self):
         self.p = subprocess.Popen([fuzz.JAVA], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                                  env=fuzz.environ(), text=True, encoding="utf-8", errors="replace", bufsize=1)
+                                  env=dict(fuzz.environ(), HOCON_JAVA_VERSION=self.version),
+                                  text=True, encoding="utf-8", errors="replace", bufsize=1)
 
     def ask(self, path):
         if self.p is None or self.p.poll() is not None:
@@ -60,6 +62,7 @@ class Java:
 
 
 JAVA = Java()
+JAVA_MAIN = Java("main")
 
 
 def outcome(o):
@@ -218,6 +221,12 @@ def triage_one(f):
     sig = signature(z, j)
     if kind == "diff" and fuzz.same(z, j):
         return None
+    pre = known_rule({"kind": kind, "files": files, "zig": z, "java": j})
+    if pre:
+        # ponytail: a known divergence is not shrunk, and whatever else the
+        # same input hides is left to another case to find
+        return {"finding": f["id"], "kind": kind, "files": files, "zig": z, "java": j, "signature": list(sig),
+                "features": sorted(features(files)), "known": pre, "shrunk": False}
     known = is_known(files, z, j)
 
     def keep(trial):
@@ -226,12 +235,17 @@ def triage_one(f):
             return False
         if kind == "diff" and fuzz.same(tz, tj):
             return False
-        return known is not None or is_known(trial, tz, tj) is None
+        if known is not None:
+            return True
+        return is_known(trial, tz, tj) is None and known_rule({"kind": kind, "files": trial, "zig": tz, "java": tj}) is None
 
     small = shrink(files, keep)
     z, j = evaluate(small)
+    d = pathlib.Path(tempfile.mkdtemp(prefix="hocon-main-"))
+    fuzz.write_case(d, small)
+    jm = JAVA_MAIN.ask(d / "main.conf")
     return {"finding": f["id"], "kind": kind if z[0] not in ("crash", "hang") else "zig-" + z[0],
-            "files": small, "zig": z, "java": j, "signature": list(sig),
+            "files": small, "zig": z, "java": j, "java_main": jm, "signature": list(sig),
             "features": sorted(features(small)), "known": is_known(small, z, j)}
 
 
@@ -281,6 +295,31 @@ KNOWN_RULES = [
 ]
 
 
+# Families this campaign found, not (yet) in the suite: labelled so a later
+# round sorts into them instead of reopening them. See .scratch/fuzz/report.md.
+FAMILY_RULES = [
+    ("F1 a comma after the root object", lambda x, t: _ok(t, "zig") and _j(t, "Parse") and re.search(r"\}\s*,\s*$", x)),
+    ("F2 key {...} followed by a concatenation", lambda x, t: _ok(t, "zig") and _j(t, "Parse")
+     and re.search(r"^[^=:\n\[]*?[\w\"]\s*\{[^\n]*\}[ \t]*(\{|\$\{)", x, re.M)),
+    ("F2b += inside the value of +=", lambda x, t: _ok(t, "zig") and _j(t, "Parse") and re.search(r"\+=\s*\{[^}]*\+=", x)),
+    ("F5 cycle, or a look back / an undefined optional", lambda x, t: _z(t, "SubstitutionCycle", "Unresolved") and _ok(t, "java")),
+    ("F9 number next to an undefined optional (substitutions/039)", lambda x, t: _ok(t, "zig") and _ok(t, "java")
+     and re.search(r"\d\$\{\?|\$\{\?[^}]*\}-?\d", x)),
+    ("F6 include merged as a whole object", lambda x, t: len(t["files"]) > 1 and _ok(t, "zig") and _ok(t, "java")),
+    ("F7 += or a merge after a non-object", lambda x, t: _ok(t, "zig") and _ok(t, "java")),
+]
+
+
+def family(t):
+    if t["kind"] != "diff":
+        return None
+    x = "\n".join(t["files"].values())
+    for name, test in FAMILY_RULES:
+        if test(x, t):
+            return name
+    return None
+
+
 def known_rule(t):
     if t["kind"] == "roundtrip-java":
         # java has no list root and turns integers past 64 bits into strings
@@ -290,6 +329,8 @@ def known_rule(t):
         return None
     if t["kind"] != "diff":
         return None
+    if t.get("java_main") and fuzz.same(t["zig"], t["java_main"]):
+        return "fixed in typesafe/config main"
     x = "\n".join(t["files"].values())
     for name, test in KNOWN_RULES:
         if test(x, t):
@@ -360,12 +401,14 @@ def write_buckets(done, out):
     buckets = {}
     for t in done:
         t["known"] = known_rule(t) or t.get("known")
+        t["family"] = None if t["known"] else family(t)
         buckets.setdefault(bucket_key(t), []).append(t)
     report = []
     for key, ts in sorted(buckets.items(), key=lambda kv: -len(kv[1])):
         ts.sort(key=lambda t: sum(len(v) for v in t["files"].values()))
         smallest = ts[0]
         report.append({"bucket": key, "count": len(ts), "known": sorted({t["known"] for t in ts if t["known"]}),
+                       "family": sorted({t["family"] for t in ts if t.get("family")}),
                        "covering": covering(smallest), "smallest": smallest,
                        "others": [t["files"] for t in ts[1:4]]})
     out.write_text(json.dumps(report, indent=1, ensure_ascii=False))
