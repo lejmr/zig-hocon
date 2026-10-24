@@ -1,0 +1,20 @@
+{
+  "spec": "HOCON.md#examples-of-self-referential-substitutions",
+  "rule": [
+    "examples-of-self-referential-substitutions.13",
+    "examples-of-self-referential-substitutions.16",
+    "substitutions.11"
+  ],
+  "why": "p's last value is an object, so it is not self-referential and ${a.q} looks forward: a is the merged p, and only its q is needed, which is 1. The same principle as 029, through an alias; there is no cycle to report",
+  "expect": {
+    "p": {
+      "q": 1,
+      "r": 1
+    },
+    "a": {
+      "q": 1,
+      "r": 1
+    }
+  },
+  "resolve": true
+}

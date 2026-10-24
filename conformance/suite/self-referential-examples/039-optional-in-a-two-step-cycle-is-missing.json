@@ -1,0 +1,13 @@
+{
+  "spec": "HOCON.md#examples-of-self-referential-substitutions",
+  "rule": [
+    "self-referential-substitutions.12",
+    "substitutions.15"
+  ],
+  "why": "r needs v, v.x needs r: a cycle, and a cycle is a missing value for an optional substitution, so v.x is not created. v and r are both {}",
+  "expect": {
+    "v": {},
+    "r": {}
+  },
+  "resolve": true
+}
