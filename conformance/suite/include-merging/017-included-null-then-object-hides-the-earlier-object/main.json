@@ -1,0 +1,13 @@
+{
+  "spec": "HOCON.md#include-semantics-merging",
+  "rule": [
+    "include-semantics-merging.5",
+    "config-object-merging-and-file-merging.7"
+  ],
+  "why": "an included key merges exactly as a duplicate key in one file would, so over.conf's a = null cuts a off from the a { x = 1 } above it, and its a { z = 3 } starts afresh: {a: {z: 3}}; pyhocon keeps x",
+  "expect": {
+    "a": {
+      "z": 3
+    }
+  }
+}
