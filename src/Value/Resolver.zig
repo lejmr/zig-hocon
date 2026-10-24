@@ -58,6 +58,11 @@ kept: std.AutoHashMapUnmanaged(*Value, void) = .empty,
 // SubstitutionCycle) and so found nothing. A field that vanished
 // because of one is in the document: never a variable.
 cycles: usize = 0,
+// Optionals being followed, each as how many places were being visited when
+// it began: a cycle closed past one runs through it (`resolveOptional`).
+optionals: std.ArrayList(usize) = .empty,
+// The one of `optionals` a cycle is unwinding to.
+breaking: ?usize = null,
 // Where a path that is not in the document is looked up.
 env: Env,
 // Where the error points; written once, where the error starts.
@@ -95,6 +100,7 @@ fn deinit(state: *Resolver) void {
     const gpa = state.gpa;
     state.visiting.deinit(gpa);
     state.fields.deinit(gpa);
+    state.optionals.deinit(gpa);
     state.kept.deinit(gpa);
     var it = state.index.valueIterator();
     while (it.next()) |members| members.deinit(gpa);
@@ -220,7 +226,33 @@ pub noinline fn resolvePending(state: *Resolver, parts: []const Part) Error!?Val
 // A ref's value: at its path, scope first, then in the environment.
 // Null for an optional that found nothing. `on_top`: it is the top layer
 // of the field being resolved, the last one in `state.fields`.
-pub noinline fn resolveRef(state: *Resolver, r: Ref, on_top: bool) Error!?Value {
+pub fn resolveRef(state: *Resolver, r: Ref, on_top: bool) Error!?Value {
+    if (r.flags.optional) return state.resolveOptional(r, on_top);
+    return state.followRef(r, on_top);
+}
+
+// A cycle closed while an optional is followed runs through it, and a cycle
+// is a missing value for an optional (spec L714): so it finds nothing, even
+// when a ref further on is the one that came round. `v { x = ${?r} }`,
+// `r = ${v}` is `v = {}` whichever field is resolved first.
+noinline fn resolveOptional(state: *Resolver, r: Ref, on_top: bool) Error!?Value {
+    const mark = state.optionals.items.len;
+    try state.optionals.append(state.gpa, state.visiting.items.len);
+    defer state.optionals.shrinkRetainingCapacity(mark);
+    const fields = state.fields.items.len;
+    const err_pos = state.err_pos.*;
+    return state.followRef(r, on_top) catch |err| {
+        if (err != error.SubstitutionCycle or state.breaking != mark) return err;
+        state.breaking = null;
+        state.err_pos.* = err_pos;
+        // The fields it was in the middle of are not any more.
+        state.fields.shrinkRetainingCapacity(fields);
+        state.cycles += 1;
+        return null;
+    };
+}
+
+noinline fn followRef(state: *Resolver, r: Ref, on_top: bool) Error!?Value {
     const gpa = state.gpa;
     const outer = state.followed;
     state.followed = r.at();
@@ -303,12 +335,15 @@ fn follow(state: *Resolver, ref: Ref, path: []const Key) Error!Found {
 // finds nothing there instead (spec L714): `a = [${?a}]` is `[]`.
 fn resolveTarget(state: *Resolver, target: *Value, ref: Ref) Error!?Value {
     const gpa = state.gpa;
-    for (state.visiting.items) |place| {
+    for (state.visiting.items, 0..) |place, i| {
         if (place == target) {
             if (ref.flags.optional) {
                 state.cycles += 1;
                 return null;
             }
+            // An optional that began after the target did is on the cycle.
+            const last = state.optionals.items.len;
+            if (last > 0 and state.optionals.items[last - 1] > i) state.breaking = last - 1;
             state.err_pos.* = ref.at();
             return Error.SubstitutionCycle;
         }
@@ -466,4 +501,13 @@ test "resolve.a missing target is an error" {
 test "resolve.a cycle is an error" {
     try expectResolveError("a = ${b}\nb = ${a}", error.SubstitutionCycle);
     try expectResolveError("a { b = ${a} }", error.SubstitutionCycle);
+}
+// self-referential-examples/039 · java ✓ · pyhocon ✗ (overflows its stack) ·
+// spec ✓ — `resolveOptional`: an optional on a cycle finds nothing, also when a
+// required ref further on is the one that comes round, in either order. A cycle
+// with no optional on it stays an error, an optional before it or not.
+test "resolve.an optional on a cycle breaks it" {
+    try expectResolved("v { x = ${?r} }\nr = ${v}", "{\"v\":{},\"r\":{}}");
+    try expectResolved("r = ${v}\nv { x = ${?r} }", "{\"r\":{},\"v\":{}}");
+    try expectResolveError("a = ${?b}\nb = ${c}\nc = ${b}", error.SubstitutionCycle);
 }
