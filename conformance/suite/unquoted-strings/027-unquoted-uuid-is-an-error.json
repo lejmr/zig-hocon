@@ -1,0 +1,13 @@
+{
+  "spec": "HOCON.md#unquoted-strings",
+  "rule": [
+    "unquoted-strings.12",
+    "unquoted-strings.13"
+  ],
+  "why": "a UUID starts with a digit, so its run 92806961-7548-48 must be a number, and it is not; quoted it is a string. typesafe/config and pyhocon read the unquoted string (lightbend/config#480)",
+  "error": "BadNumber",
+  "java": "lenient",
+  "java_expect": {
+    "id": "92806961-7548-48f0-943c-8fb861bb642f"
+  }
+}

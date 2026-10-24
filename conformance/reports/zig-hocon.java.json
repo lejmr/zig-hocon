@@ -5,11 +5,11 @@
   "mode": "java",
   "java_version": "1.4.9",
   "command": "conformance/adapters/zig-hocon.sh",
-  "ran_at": "2026-10-24T07:52:45Z",
-  "suite_digest": "1762fcc881cbda49",
-  "total": 469,
-  "passed": 410,
-  "percent": 87.4,
+  "ran_at": "2026-10-24T07:56:06Z",
+  "suite_digest": "b96a5612ee3983ff",
+  "total": 471,
+  "passed": 412,
+  "percent": 87.5,
   "sections": {
     "array-and-object-concatenation": {
       "total": 22,
@@ -136,8 +136,8 @@
       "passed": 6
     },
     "unquoted-strings": {
-      "total": 25,
-      "passed": 22
+      "total": 27,
+      "passed": 24
     },
     "value-concatenation": {
       "total": 2,
@@ -603,6 +603,8 @@
     "unquoted-strings/023-unquoted-string-ends-at-end-of-file.conf": "pass",
     "unquoted-strings/024-escape-sequence-in-unquoted-string-illegal.conf": "pass",
     "unquoted-strings/025-digit-initial-invalid-number.conf": "fail",
+    "unquoted-strings/026-invalid-number-run-before-text.conf": "pass",
+    "unquoted-strings/027-unquoted-uuid-is-an-error.conf": "pass",
     "value-concatenation/001-simple-values-concatenate-to-string.conf": "pass",
     "value-concatenation/004-string-concatenation-allowed-in-field-keys.conf": "pass",
     "whitespace/001-nonbreaking-space-as-whitespace.conf": "pass",
@@ -678,7 +680,9 @@
     "unchanged-from-json/030-unicode-escape-with-non-ascii-digits-is-invalid.conf": "rejected",
     "unquoted-strings/012-unquoted-cannot-start-with-hyphen.conf": "rejected",
     "unquoted-strings/022-digit-then-exponent-letter-illegal.conf": "rejected",
-    "unquoted-strings/025-digit-initial-invalid-number.conf": "rejected"
+    "unquoted-strings/025-digit-initial-invalid-number.conf": "rejected",
+    "unquoted-strings/026-invalid-number-run-before-text.conf": "{\"a\":\"1.2.3x\"}",
+    "unquoted-strings/027-unquoted-uuid-is-an-error.conf": "{\"id\":\"92806961-7548-48f0-943c-8fb861bb642f\"}"
   },
   "failures": [
     {
