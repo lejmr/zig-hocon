@@ -1475,6 +1475,25 @@ test "diagnostics.UnexpectedToken where a member begins" {
     });
 }
 
+// A comma after a braced root: the root is no field and no element, so the
+// one trailing comma does not apply to it (commas/015–016).
+// java ✓ (Document has trailing tokens, same line) · pyhocon ✗ accepts
+// both · spec ✓
+test "diagnostics.UnexpectedToken at a comma after the root" {
+    try expectCarets(&.{
+        \\{a = 1},
+        \\       ^ UnexpectedToken
+        ,
+        \\[1, 2],
+        \\      ^ UnexpectedToken
+        ,
+        \\{a = 1}
+        \\,
+        \\^ UnexpectedToken
+        ,
+    });
+}
+
 // Inside a value: a substitution path that is not text — at the part that is
 // not —, a `${` that is never closed, junk around `include`.
 // java ✓ (line 1 on every row, and it names the `[` too) · pyhocon ⚠️ errors,

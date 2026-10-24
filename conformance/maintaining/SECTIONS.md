@@ -13,7 +13,7 @@ observable parse behaviour.
 | 123 | Comments | `comments` | ✅ 15 cases |
 | 128 | Omit root braces | `omit-root-braces` | ✅ 14 cases |
 | 141 | Key-value separator | `key-value-separator` | ✅ 8 cases |
-| 149 | Commas | `commas` | ✅ 13 cases |
+| 149 | Commas | `commas` | ✅ 15 cases |
 | 165 | Whitespace | `whitespace` | ✅ 13 cases |
 | 186 | Duplicate keys and object merging | `duplicate-keys-and-object-merging` | ✅ 29 cases |
 | 240 | Unquoted strings | `unquoted-strings` | ✅ 32 cases |

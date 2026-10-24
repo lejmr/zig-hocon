@@ -4,11 +4,11 @@
   "version": "pyhocon 0.3.63",
   "mode": "spec",
   "command": "conformance/adapters/oracle.sh hocon-py",
-  "ran_at": "2026-10-25T19:07:12Z",
-  "suite_digest": "c506f6677517fbfc",
-  "total": 490,
+  "ran_at": "2026-10-25T19:56:35Z",
+  "suite_digest": "24820168cf5464fb",
+  "total": 492,
   "passed": 341,
-  "percent": 69.6,
+  "percent": 69.3,
   "sections": {
     "array-and-object-concatenation": {
       "total": 22,
@@ -19,7 +19,7 @@
       "passed": 7
     },
     "commas": {
-      "total": 13,
+      "total": 15,
       "passed": 6
     },
     "comments": {
@@ -190,6 +190,8 @@
     "commas/012-leading-comma-at-implicit-root-illegal.conf": "fail",
     "commas/013-double-trailing-comma-in-object-illegal.conf": "fail",
     "commas/014-leading-comma-in-object-illegal.conf": "fail",
+    "commas/015-comma-after-root-object-illegal.conf": "fail",
+    "commas/016-comma-after-root-array-illegal.conf": "fail",
     "comments/001-hash-comment.conf": "pass",
     "comments/002-double-slash-comment.conf": "pass",
     "comments/003-whole-line-comment.conf": "pass",
@@ -774,6 +776,20 @@
       "rule": "the array comma rules apply to object fields: an initial comma is invalid",
       "expected": "rejected",
       "got": "{\"a\":{\"b\":1}}"
+    },
+    {
+      "case": "commas/015-comma-after-root-object-illegal.conf",
+      "spec": "HOCON.md#commas",
+      "rule": "a single comma may follow the last field of an object or the last element of an array, and the root object is neither: the file begins with a brace, so nothing wraps it, and the comma is a token after the document; pyhocon accepts it",
+      "expected": "rejected",
+      "got": "{\"a\":1}"
+    },
+    {
+      "case": "commas/016-comma-after-root-array-illegal.conf",
+      "spec": "HOCON.md#commas",
+      "rule": "the same after a root array: the comma follows the document, not an element inside it",
+      "expected": "rejected",
+      "got": "[1,2]"
     },
     {
       "case": "concatenation-whitespace-and-substitutions/005-nonbreaking-space-between-list-substitutions-is-ignored.conf",
@@ -2224,7 +2240,7 @@
         "a": "null bar"
       },
       "got": {
-        "a": "<pyhocon.config_tree.NoneValue object at 0x1050f1390>bar"
+        "a": "<pyhocon.config_tree.NoneValue object at 0x11121d210>bar"
       }
     },
     {

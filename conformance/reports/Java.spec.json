@@ -4,11 +4,11 @@
   "version": "typesafe/config 1.4.9",
   "mode": "spec",
   "command": "conformance/adapters/oracle.sh hocon-java",
-  "ran_at": "2026-10-25T19:03:19Z",
-  "suite_digest": "c506f6677517fbfc",
-  "total": 490,
-  "passed": 425,
-  "percent": 86.7,
+  "ran_at": "2026-10-25T19:52:32Z",
+  "suite_digest": "24820168cf5464fb",
+  "total": 492,
+  "passed": 427,
+  "percent": 86.8,
   "sections": {
     "array-and-object-concatenation": {
       "total": 22,
@@ -19,8 +19,8 @@
       "passed": 7
     },
     "commas": {
-      "total": 13,
-      "passed": 13
+      "total": 15,
+      "passed": 15
     },
     "comments": {
       "total": 15,
@@ -190,6 +190,8 @@
     "commas/012-leading-comma-at-implicit-root-illegal.conf": "pass",
     "commas/013-double-trailing-comma-in-object-illegal.conf": "pass",
     "commas/014-leading-comma-in-object-illegal.conf": "pass",
+    "commas/015-comma-after-root-object-illegal.conf": "pass",
+    "commas/016-comma-after-root-array-illegal.conf": "pass",
     "comments/001-hash-comment.conf": "pass",
     "comments/002-double-slash-comment.conf": "pass",
     "comments/003-whole-line-comment.conf": "pass",
