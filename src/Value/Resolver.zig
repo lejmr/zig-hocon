@@ -354,19 +354,23 @@ fn resolveTarget(state: *Resolver, target: *Value, ref: Ref) Error!?Value {
     return try state.resolveField(target);
 }
 
+// Where a path ends: as `Found`, with the place instead of its value.
+const Place = union(enum) { absent, gone, waits, place: *Value };
+
 // Walks the path from root, a ref on the way has to be resolved first.
 // A key missing, or text where the path goes on, is `absent`: `${x.y}`
 // with `x = 1` has no `x.y` in the document.
-fn lookup(state: *Resolver, ref: Ref, path: []const Key) Error!union(enum) { absent, gone, waits, place: *Value } {
+fn lookup(state: *Resolver, ref: Ref, path: []const Key) Error!Place {
     const gpa = state.gpa;
     var current = state.root;
-    for (path) |key| {
+    for (path, 0..) |key, k| {
         // A field that refers to itself sees the layers below it. With
         // nothing there it is as if the path were not in the document
         // (spec L767), so it reads the variable; a cycle on the way is gone.
         const before = state.cycles;
         current = try state.seen(current, ref) orelse
             return if (state.cycles > before) .gone else .absent;
+        if (try state.throughAlias(ref, current, path[k..])) |found| return found;
         if (current.* == .ref or current.* == .pending or current.* == .stack) {
             const cycles = state.cycles;
             const val = try state.resolveTarget(current, ref) orelse
@@ -387,6 +391,23 @@ fn lookup(state: *Resolver, ref: Ref, path: []const Key) Error!union(enum) { abs
     const place = try state.seen(current, ref) orelse
         return if (state.cycles > before) .gone else .absent;
     return .{ .place = place };
+}
+
+// `a = ${p}` on the way, with `rest` of the path after it: `a.q` is `p.q`,
+// so only p.q is resolved, not all of p, which may itself need `a.q`
+// (`p = { r = ${a.q} }`): the path looks forward and no further than it
+// goes (spec L815). Null where the path goes on through `a` as it is: an
+// optional, a `+=`, a ref from an included file or one kept for later.
+fn throughAlias(state: *Resolver, ref: Ref, place: *Value, rest: []const Key) Error!?Place {
+    if (place.* != .ref or state.env == .keep) return null;
+    const alias = place.ref;
+    if (alias.flags.optional or alias.flags.append or alias.scope_len > 0) return null;
+    // Resolving it already, it is a cycle, which `resolveTarget` says.
+    for (state.visiting.items) |p| if (p == place) return null;
+    const gpa = state.gpa;
+    try state.visiting.append(gpa, place);
+    defer _ = state.visiting.pop();
+    return try state.lookup(ref, try std.mem.concat(gpa, Key, &.{ alias.path, rest }));
 }
 
 // A new place holding `value`, resolved already, for a path to find.
@@ -510,4 +531,13 @@ test "resolve.an optional on a cycle breaks it" {
     try expectResolved("v { x = ${?r} }\nr = ${v}", "{\"v\":{},\"r\":{}}");
     try expectResolved("r = ${v}\nv { x = ${?r} }", "{\"r\":{},\"v\":{}}");
     try expectResolveError("a = ${?b}\nb = ${c}\nc = ${b}", error.SubstitutionCycle);
+}
+// self-referential-examples/038 · java ✓ · pyhocon ✗ (WrongType) · spec ✓ —
+// `throughAlias`: a path through `a = ${p}` goes on in p, so `${a.q}` inside p
+// needs only p.q and there is no cycle. One through two aliases that lead
+// back to each other still is one.
+test "resolve.a path through an alias needs only what it reaches" {
+    try expectResolved("p = { q = 1 }\na = ${p}\np = { r = ${a.q} }", "{\"p\":{\"q\":1,\"r\":1},\"a\":{\"q\":1,\"r\":1}}");
+    try expectResolved("p { q = 1, r = ${a.q} }\na = ${b}\nb = ${p}", "{\"p\":{\"q\":1,\"r\":1},\"a\":{\"q\":1,\"r\":1},\"b\":{\"q\":1,\"r\":1}}");
+    try expectResolveError("a = ${b}\nb = ${a}\nc = ${a.q}", error.SubstitutionCycle);
 }
