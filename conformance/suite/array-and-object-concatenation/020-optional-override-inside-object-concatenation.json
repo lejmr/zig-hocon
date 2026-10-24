@@ -1,0 +1,17 @@
+{
+  "spec": "HOCON.md#array-and-object-concatenation",
+  "rule": [
+    "array-and-object-concatenation.6",
+    "substitutions.16"
+  ],
+  "why": "inside each ${a} { ... } the undefined ${?missing} leaves the c before it, and the later b merges over the earlier one: c is 2; typesafe/config fails with an internal error (lightbend/config#647, #725, #754)",
+  "expect": {
+    "a": {},
+    "b": {
+      "c": 2
+    }
+  },
+  "java": "unsupported",
+  "java_error": "BugOrBroken",
+  "resolve": true
+}

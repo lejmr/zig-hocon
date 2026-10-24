@@ -1,0 +1,22 @@
+{
+  "spec": "HOCON.md#array-and-object-concatenation",
+  "rule": [
+    "array-and-object-concatenation.6",
+    "duplicate-keys-and-object-merging.1"
+  ],
+  "why": "the later c, an object, overrides the string before it inside the object merged onto ${a}; typesafe/config fails with an internal error (lightbend/config#356)",
+  "expect": {
+    "t": {
+      "x": 1
+    },
+    "a": {},
+    "b": {
+      "c": {
+        "x": 1
+      }
+    }
+  },
+  "java": "unsupported",
+  "java_error": "BugOrBroken",
+  "resolve": true
+}
