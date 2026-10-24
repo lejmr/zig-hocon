@@ -20,6 +20,7 @@ What changed for someone using zig-hocon: the Zig package, the `hocon` command l
 - A field that refers to itself with nothing before it reads the environment variable of its own name, as the spec has it: `HOME : ${HOME}` is the variable `HOME`, where it was `Unresolved`, and `HOME : ${?HOME}` creates the field instead of dropping it, as pyhocon does. A value set earlier still wins, and `HOME += x` with `HOME` set is now an error: `+=` is `HOME = ${?HOME} [x]`, text and a list. Two new conformance cases, all 478 pass.
 - A NUL byte inside a file is a character, as the spec has it, no longer the end of the file. In a comment it dropped everything below without a word: `a = 1 # note<NUL>`, then `b = 2`, read as `{a: 1}`, and a file saved as UTF-16 without a byte order mark read as `{}`, where it is now an error. In unquoted and triple-quoted text the NUL is kept (`a = x<NUL>y` was an error); in a quoted string it is an error, as any control character is. Four new conformance cases, all 482 pass.
 - A comma after a braced root, `{ a = 1 },` or `[1, 2],`, is an error now, as the spec and typesafe/config have it; it was accepted. Two new conformance cases, all 492 pass.
+- `a = null` then `a { … }` clears what `a` held before also when the file is included or the object merges with an earlier one: `a { x = 1 }` and then `include "over.conf"` with those two lines give `{a: {…}}` without `x`, as typesafe/config has it; the `x` was kept.
 
 ## [0.5.2] - 2026-10-23
 

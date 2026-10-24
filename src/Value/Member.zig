@@ -20,6 +20,11 @@ const Member = @This();
 
 key: Key,
 value: Value,
+/// The key was set to an object over a non-object (`a = null`, `a { z = 3 }`),
+/// so its value lost all it overrode (spec L1418), and merged onto an earlier
+/// value of the key, from a file it is included into or an object it merges
+/// with, it replaces that too.
+hides: bool = false,
 
 /// From an `.assignment` or an `.append`: `children[0]` is the key,
 /// `children[1]` the value.
