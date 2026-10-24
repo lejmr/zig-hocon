@@ -1,0 +1,12 @@
+{
+  "spec": "HOCON.md#unchanged-from-json",
+  "rule": [
+    "unchanged-from-json.2"
+  ],
+  "why": "a JSON \\u escape is exactly four hex digits, and + is not one; typesafe/config reads +041 as hex 41, A (lightbend/config#884, ekrich/sconfig#623)",
+  "error": "InvalidEscape",
+  "java": "lenient",
+  "java_expect": {
+    "a": "A"
+  }
+}

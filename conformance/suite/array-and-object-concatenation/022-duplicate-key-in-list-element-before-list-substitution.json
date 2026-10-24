@@ -1,0 +1,22 @@
+{
+  "spec": "HOCON.md#array-and-object-concatenation",
+  "rule": [
+    "array-and-object-concatenation.2",
+    "substitutions.16"
+  ],
+  "why": "${tail} is a list, so it concatenates with the list before it, whose object keeps foo = 1 under the undefined ${?bar}; typesafe/config fails with an internal error (lightbend/config#751)",
+  "expect": {
+    "tail": [
+      2
+    ],
+    "front": [
+      {
+        "foo": 1
+      },
+      2
+    ]
+  },
+  "java": "unsupported",
+  "java_error": "BugOrBroken",
+  "resolve": true
+}

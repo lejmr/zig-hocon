@@ -1,0 +1,20 @@
+{
+  "spec": "HOCON.md#the--field-separator",
+  "rule": [
+    "the--field-separator.3",
+    "examples-of-self-referential-substitutions.11"
+  ],
+  "why": "c.x += 1 looks back at c.x, which ${d} gives, and the second += at the first: [1, 2], and d is left as it was (lightbend/config#177)",
+  "expect": {
+    "d": {
+      "x": []
+    },
+    "c": {
+      "x": [
+        1,
+        2
+      ]
+    }
+  },
+  "resolve": true
+}

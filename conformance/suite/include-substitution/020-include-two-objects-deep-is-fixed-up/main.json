@@ -1,0 +1,16 @@
+{
+  "spec": "HOCON.md#include-semantics-substitution",
+  "rule": [
+    "include-semantics-substitution.4"
+  ],
+  "why": "included at a.nested, the file's ${x} is fixed up to ${a.nested.x}, two objects deep in one file (lightbend/config#136)",
+  "expect": {
+    "a": {
+      "nested": {
+        "x": 10,
+        "y": 10
+      }
+    }
+  },
+  "resolve": true
+}
