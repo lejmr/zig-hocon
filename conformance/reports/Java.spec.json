@@ -4,11 +4,11 @@
   "version": "typesafe/config 1.4.9",
   "mode": "spec",
   "command": "conformance/adapters/oracle.sh hocon-java",
-  "ran_at": "2026-10-23T16:02:42Z",
-  "suite_digest": "a8fe29692ae3406d",
-  "total": 446,
+  "ran_at": "2026-10-24T10:22:12Z",
+  "suite_digest": "6dce710b7ced4a65",
+  "total": 448,
   "passed": 402,
-  "percent": 90.1,
+  "percent": 89.7,
   "sections": {
     "array-and-object-concatenation": {
       "total": 19,
@@ -119,7 +119,7 @@
       "passed": 13
     },
     "substitution-fallback-to-environment": {
-      "total": 8,
+      "total": 10,
       "passed": 8
     },
     "substitutions": {
@@ -484,6 +484,8 @@
     "substitution-fallback-to-environment/006-empty-env-var-is-empty-string.conf": "pass",
     "substitution-fallback-to-environment/007-empty-env-var-creates-optional-field.conf": "pass",
     "substitution-fallback-to-environment/008-env-vars-always-become-strings.conf": "pass",
+    "substitution-fallback-to-environment/009-self-reference-reads-env.conf": "fail",
+    "substitution-fallback-to-environment/010-optional-self-reference-reads-env.conf": "fail",
     "substitutions/001-basic-substitution.conf": "pass",
     "substitutions/002-optional-substitution-syntax.conf": "pass",
     "substitutions/003-optional-substitution-whitespace-illegal.conf": "pass",
@@ -630,6 +632,8 @@
     "string-value-concatenation/014-array-then-unquoted-text-without-space.conf": "{\"x\":[1]}",
     "string-value-concatenation/015-object-then-unquoted-text-without-space.conf": "{\"x\":{\"a\":1}}",
     "string-value-concatenation/016-text-between-arrays-is-not-dropped.conf": "{\"x\":[1,2]}",
+    "substitution-fallback-to-environment/009-self-reference-reads-env.conf": "rejected",
+    "substitution-fallback-to-environment/010-optional-self-reference-reads-env.conf": "{}",
     "substitutions/039-undefined-optional-with-number-is-a-string.conf": "{\"a\":42}",
     "unchanged-from-json/009-number-leading-zero-illegal.conf": "{\"a\":1}",
     "unchanged-from-json/010-negative-number-without-integer-part-illegal.conf": "{\"a\":-0.33}",
@@ -1195,6 +1199,26 @@
       "expected": "rejected",
       "got": "{\"x\":[1,2]}",
       "java": "lenient"
+    },
+    {
+      "case": "substitution-fallback-to-environment/009-self-reference-reads-env.conf",
+      "spec": "HOCON.md#substitution-fallback-to-environment-variables",
+      "rule": "a self-reference with no earlier value is undefined \"exactly as if the substitution referenced a path not found in the document\", and such a path is searched for in the environment, so the field reads the variable of its own name; typesafe/config reports a cycle, which the spec rules out (\"undefined\" rather than \"intractable cycle\")",
+      "expected": {
+        "CONFORMANCE_HOME": "/from/env"
+      },
+      "got": "rejected (exit 1)",
+      "java": "unsupported"
+    },
+    {
+      "case": "substitution-fallback-to-environment/010-optional-self-reference-reads-env.conf",
+      "spec": "HOCON.md#substitution-fallback-to-environment-variables",
+      "rule": "if ${?foo} refers to itself \"it's as if it referred to a nonexistent value\", and a value not present in the configuration is searched for in the environment, so the field is created from the variable instead of disappearing",
+      "expected": {
+        "CONFORMANCE_HOME": "/from/env"
+      },
+      "got": {},
+      "java": "diverges"
     },
     {
       "case": "substitutions/039-undefined-optional-with-number-is-a-string.conf",

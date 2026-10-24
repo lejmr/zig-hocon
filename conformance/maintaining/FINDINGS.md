@@ -4,9 +4,10 @@
 
 What the validation pass turned up and did **not** fix. The divergences it was confident about are already in the sidecars; everything below is work, not record.
 
-**Since then:** proofreading the suite against `spec/HOCON.md` found a rule no case pinned, where zig-hocon and pyhocon part ways. It is covered now:
+**Since then:** proofreading the suite against `spec/HOCON.md` found rules no case pinned. They are covered now:
 
 - `unquoted-strings/025-digit-initial-invalid-number` — a value that begins with a digit but is not a valid number (`a = 1.2.3`, the shape of `127.0.0.1`) is an error: the initial number character and the number characters after it "must be parsed as a number value" (unquoted-strings.12, .13). pyhocon and typesafe/config read it as the string "1.2.3"; the row is `java: lenient`.
+- `substitution-fallback-to-environment/009`–`010` — a self-reference with nothing below it, `HOME : ${HOME}` or `${?HOME}`, reads the environment variable of its own name: it is undefined "exactly as if the substitution referenced a path not found in the document" (examples-of-self-referential-substitutions.6, self-referential-substitutions.13), and such a path is searched for in the environment (substitution-fallback-to-environment-variables.1). The spec's author said as much in lightbend/config#652; pyhocon does it since chimpler/pyhocon#213. typesafe/config reports a cycle for `${HOME}`, which .7 rules out, and drops the field for `${?HOME}`; zig-hocon took the field to be in the document and read nothing.
 
 This pass ran *before* the tie-break rule in `PROCESS.md` was settled, so where a divergence says `expect` was left at java's value, the row is still unresolved — `fill-expected.py` now flags those with `review`.
 

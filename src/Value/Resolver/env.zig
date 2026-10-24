@@ -130,14 +130,22 @@ test "env.the variable is named like the path" {
         .ok("b = ${\"x.y\"}", "{\"b\":\"the dotted one\"}"),
     });
 }
-// java ✓ · pyhocon ⚠️ · spec ✓ — a field that refers to itself, `+=`
-// included, sees what was below it, never a variable named like it: the
-// field is in the document. pyhocon reads `gone` from the environment in
-// both rows.
-test "env.a self-reference never reads the variable" {
+// java ⚠️ · pyhocon ✓ (`+=` ⚠️) · spec ✓ — a field that refers to itself,
+// `+=` included, sees what was below it. With nothing there it is "exactly as
+// if the substitution referenced a path not found in the document" (spec
+// L767), so it reads the variable named like it (lightbend/config#652). This
+// test said the opposite until the suite's 009 and 010: the field was taken
+// to be in the document. `gone += 1` is `gone = ${?gone} [1]`, text and a
+// list, which do not join. Java never reads the variable here: a cycle error,
+// `{}` and `[1]`; pyhocon joins `+=` as text.
+test "env.a self-reference with nothing below reads the variable" {
     try expectAllFromEnv(&.{
-        .ok("gone = ${?gone}", "{}"),
-        .ok("gone += 1", "{\"gone\":[1]}"),
+        .ok("gone = ${gone}", "{\"gone\":\"the environment\"}"),
+        .ok("gone = ${?gone}", "{\"gone\":\"the environment\"}"),
+        .ok("gone = ${gone}/x", "{\"gone\":\"the environment/x\"}"),
+        .ok("gone = 1\ngone = ${gone}", "{\"gone\":1}"),
+        .ok("gone = null\ngone = ${?gone}", "{\"gone\":null}"),
+        .ok("gone += 1", "UnsupportedConcatenation"),
     });
 }
 // java ⚠️ · pyhocon ✓ (one row ⚠️) · spec ✓ — an optional that found nothing
