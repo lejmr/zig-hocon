@@ -48,7 +48,7 @@ The rest of this page reads these two files.
 
 ## Why zig-hocon
 
-- **Correct.** Passes all 469 tests in the [conformance suite](https://htmlpreview.github.io/?https://github.com/lejmr/zig-hocon/blob/main/conformance/report.html), one test for each sentence of the spec.
+- **Correct.** Passes all 471 tests in the [conformance suite](https://htmlpreview.github.io/?https://github.com/lejmr/zig-hocon/blob/main/conformance/report.html), one test for each sentence of the spec.
 - **Your schema is a Zig struct.** HOCON is only what sits on disk; the struct says what it holds, with defaults, optionals, enums, durations and sizes.
 - **Fast.** A 10 MB config in a quarter of a second.\*
 - **Clear errors.** File, line, column and a caret, also for a value of the wrong type.
@@ -216,7 +216,7 @@ b.step("check-config", "Check the config against Config").dependOn(&check.step);
 | py.hocon <sub>hocon-parser 1.14.2 (Python)</sub> | 84.5% (398/471) | 83.9% (395/471) |
 | pyhocon <sub>pyhocon 0.3.63</sub> | 68.8% (324/471) | 64.3% (303/471) |
 | rs.hocon <sub>hocon-parser 1.14.2 (Rust)</sub> | 84.5% (398/471) | 82.0% (386/471) |
-| zig-hocon <sub>zig-hocon code@d844ec9</sub> | 99.6% (469/471) | 87.5% (412/471) |
+| zig-hocon <sub>zig-hocon code@ac9d572</sub> | 100% (471/471) | 87.0% (410/471) |
 
 The table keeps the best parsers; the others measured, and why they are not in it: [conformance/README.md](conformance/README.md#not-in-the-table).
 

@@ -1,14 +1,14 @@
 {
   "suite": "hocon-conformance",
   "implementation": "zig-hocon",
-  "version": "zig-hocon code@d844ec9",
+  "version": "zig-hocon code@ac9d572",
   "mode": "spec",
   "command": "conformance/adapters/zig-hocon.sh",
-  "ran_at": "2026-10-24T07:56:06Z",
+  "ran_at": "2026-10-24T08:04:29Z",
   "suite_digest": "b96a5612ee3983ff",
   "total": 471,
-  "passed": 469,
-  "percent": 99.6,
+  "passed": 471,
+  "percent": 100.0,
   "sections": {
     "array-and-object-concatenation": {
       "total": 22,
@@ -136,7 +136,7 @@
     },
     "unquoted-strings": {
       "total": 27,
-      "passed": 25
+      "passed": 27
     },
     "value-concatenation": {
       "total": 2,
@@ -602,8 +602,8 @@
     "unquoted-strings/023-unquoted-string-ends-at-end-of-file.conf": "pass",
     "unquoted-strings/024-escape-sequence-in-unquoted-string-illegal.conf": "pass",
     "unquoted-strings/025-digit-initial-invalid-number.conf": "pass",
-    "unquoted-strings/026-invalid-number-run-before-text.conf": "fail",
-    "unquoted-strings/027-unquoted-uuid-is-an-error.conf": "fail",
+    "unquoted-strings/026-invalid-number-run-before-text.conf": "pass",
+    "unquoted-strings/027-unquoted-uuid-is-an-error.conf": "pass",
     "value-concatenation/001-simple-values-concatenate-to-string.conf": "pass",
     "value-concatenation/004-string-concatenation-allowed-in-field-keys.conf": "pass",
     "whitespace/001-nonbreaking-space-as-whitespace.conf": "pass",
@@ -680,25 +680,8 @@
     "unquoted-strings/012-unquoted-cannot-start-with-hyphen.conf": "rejected",
     "unquoted-strings/022-digit-then-exponent-letter-illegal.conf": "rejected",
     "unquoted-strings/025-digit-initial-invalid-number.conf": "rejected",
-    "unquoted-strings/026-invalid-number-run-before-text.conf": "{\"a\":\"1.2.3x\"}",
-    "unquoted-strings/027-unquoted-uuid-is-an-error.conf": "{\"id\":\"92806961-7548-48f0-943c-8fb861bb642f\"}"
+    "unquoted-strings/026-invalid-number-run-before-text.conf": "rejected",
+    "unquoted-strings/027-unquoted-uuid-is-an-error.conf": "rejected"
   },
-  "failures": [
-    {
-      "case": "unquoted-strings/026-invalid-number-run-before-text.conf",
-      "spec": "HOCON.md#unquoted-strings",
-      "rule": "the run of number characters 1.2.3 must be parsed as a number, and text after it does not change that: it is not one, so the input is rejected; typesafe/config and pyhocon read the string \"1.2.3x\"",
-      "expected": "rejected",
-      "got": "{\"a\":\"1.2.3x\"}",
-      "java": "lenient"
-    },
-    {
-      "case": "unquoted-strings/027-unquoted-uuid-is-an-error.conf",
-      "spec": "HOCON.md#unquoted-strings",
-      "rule": "a UUID starts with a digit, so its run 92806961-7548-48 must be a number, and it is not; quoted it is a string. typesafe/config and pyhocon read the unquoted string (lightbend/config#480)",
-      "expected": "rejected",
-      "got": "{\"id\":\"92806961-7548-48f0-943c-8fb861bb642f\"}",
-      "java": "lenient"
-    }
-  ]
+  "failures": []
 }
