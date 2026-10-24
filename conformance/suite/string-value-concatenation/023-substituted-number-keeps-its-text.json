@@ -1,0 +1,15 @@
+{
+  "spec": "HOCON.md#string-value-concatenation",
+  "rule": [
+    "string-value-concatenation.10",
+    "string-value-concatenation.11"
+  ],
+  "why": "a substitution in a string concatenation becomes text the way a number written there does, as written: 1e5 and 1.50, not 100000.0 and 1.5",
+  "expect": {
+    "a": 100000.0,
+    "b": "1e5 x",
+    "c": 1.5,
+    "d": "1.50 x"
+  },
+  "resolve": true
+}

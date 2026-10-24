@@ -1,0 +1,11 @@
+{
+  "spec": "HOCON.md#substitutions",
+  "rule": [
+    "substitutions.15"
+  ],
+  "why": "the undefined optional creates no field foo, but the path section.foo still made the object section, which stays empty (lightbend/config#615)",
+  "expect": {
+    "section": {}
+  },
+  "resolve": true
+}

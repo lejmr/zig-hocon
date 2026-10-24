@@ -1,0 +1,17 @@
+{
+  "spec": "HOCON.md#include-semantics-merging",
+  "rule": [
+    "include-semantics-merging.4",
+    "the--field-separator.3"
+  ],
+  "why": "the included keys stand where the include is, so its two += come first and the file's two append after them (lightbend/config#426)",
+  "expect": {
+    "list": [
+      1,
+      2,
+      99,
+      100
+    ]
+  },
+  "resolve": true
+}

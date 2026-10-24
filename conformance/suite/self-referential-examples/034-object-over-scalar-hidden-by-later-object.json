@@ -1,0 +1,13 @@
+{
+  "spec": "HOCON.md#examples-of-self-referential-substitutions",
+  "rule": [
+    "examples-of-self-referential-substitutions.8"
+  ],
+  "why": "the two objects merge and the later bar, a string, hides ${override-me}, which is never evaluated; the string under them is simply overridden (lightbend/config#599)",
+  "expect": {
+    "foo": {
+      "bar": "bar"
+    }
+  },
+  "resolve": true
+}

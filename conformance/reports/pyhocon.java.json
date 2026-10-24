@@ -5,14 +5,14 @@
   "mode": "java",
   "java_version": "1.4.9",
   "command": "conformance/adapters/oracle.sh hocon-py",
-  "ran_at": "2026-10-24T07:40:43Z",
-  "suite_digest": "34d5b6ef5070df01",
-  "total": 457,
-  "passed": 300,
-  "percent": 65.6,
+  "ran_at": "2026-10-24T07:51:58Z",
+  "suite_digest": "1762fcc881cbda49",
+  "total": 469,
+  "passed": 301,
+  "percent": 64.2,
   "sections": {
     "array-and-object-concatenation": {
-      "total": 19,
+      "total": 22,
       "passed": 17
     },
     "arrays-without-commas-or-newlines": {
@@ -52,7 +52,7 @@
       "passed": 4
     },
     "include-merging": {
-      "total": 15,
+      "total": 16,
       "passed": 14
     },
     "include-missing-and-required": {
@@ -60,7 +60,7 @@
       "passed": 6
     },
     "include-substitution": {
-      "total": 19,
+      "total": 20,
       "passed": 9
     },
     "include-syntax": {
@@ -100,11 +100,11 @@
       "passed": 3
     },
     "plus-equals-field-separator": {
-      "total": 12,
+      "total": 13,
       "passed": 0
     },
     "self-referential-examples": {
-      "total": 33,
+      "total": 34,
       "passed": 21
     },
     "self-referential-substitutions": {
@@ -116,7 +116,7 @@
       "passed": 4
     },
     "string-value-concatenation": {
-      "total": 18,
+      "total": 19,
       "passed": 10
     },
     "substitution-fallback-to-environment": {
@@ -124,11 +124,11 @@
       "passed": 7
     },
     "substitutions": {
-      "total": 37,
-      "passed": 29
+      "total": 38,
+      "passed": 30
     },
     "unchanged-from-json": {
-      "total": 27,
+      "total": 30,
       "passed": 17
     },
     "units-format": {
@@ -168,6 +168,9 @@
     "array-and-object-concatenation/017-newline-between-arrays-in-field-value-prevents-concatenation.conf": "pass",
     "array-and-object-concatenation/018-object-with-inner-merge-concatenated-with-substitution.conf": "fail",
     "array-and-object-concatenation/019-self-referential-object-concatenation-with-inner-merge.conf": "fail",
+    "array-and-object-concatenation/020-optional-override-inside-object-concatenation.conf": "fail",
+    "array-and-object-concatenation/021-substitution-over-duplicate-key-inside-object-concatenation.conf": "fail",
+    "array-and-object-concatenation/022-duplicate-key-in-list-element-before-list-substitution.conf": "fail",
     "arrays-without-commas-or-newlines/001-newlines-instead-of-commas.conf": "pass",
     "arrays-without-commas-or-newlines/002-whitespace-instead-of-comma-concatenates-into-one-element.conf": "pass",
     "arrays-without-commas-or-newlines/003-newline-separates-two-arrays-into-elements.conf": "pass",
@@ -295,6 +298,7 @@
     "include-merging/013-included-merge-stack-over-earlier-substitution/main.conf": "pass",
     "include-merging/014-included-merge-stack-over-earlier-scalar/main.conf": "pass",
     "include-merging/015-included-object-on-top-of-substitution-over-earlier-substitution/main.conf": "pass",
+    "include-merging/016-plus-equals-across-include-keeps-order/main.conf": "fail",
     "include-missing-and-required/001-missing-include-ignored/main.conf": "pass",
     "include-missing-and-required/002-missing-include-is-empty-object/main.conf": "pass",
     "include-missing-and-required/003-missing-file-include-ignored/main.conf": "pass",
@@ -320,6 +324,7 @@
     "include-substitution/017-substitution-inside-a-list-is-fixed-up/main.conf": "pass",
     "include-substitution/018-substitution-in-a-merge-stack-is-fixed-up/main.conf": "fail",
     "include-substitution/019-null-at-fixed-up-path-is-found/main.conf": "fail",
+    "include-substitution/020-include-two-objects-deep-is-fixed-up/main.conf": "fail",
     "include-syntax/001-include-later-in-key-is-literal.conf": "pass",
     "include-syntax/002-include-as-object-value-is-string.conf": "pass",
     "include-syntax/003-include-as-array-element-is-string.conf": "pass",
@@ -427,6 +432,7 @@
     "plus-equals-field-separator/010-appends-through-chained-object-concatenations.conf": "fail",
     "plus-equals-field-separator/011-appends-deep-inside-object-concatenation.conf": "fail",
     "plus-equals-field-separator/012-appends-to-a-list-defined-in-object-concatenation.conf": "fail",
+    "plus-equals-field-separator/013-appends-after-a-substituted-object.conf": "fail",
     "self-referential-examples/001-isolated-self-reference-is-an-error.conf": "pass",
     "self-referential-examples/002-self-reference-resolves-to-earlier-merged-value.conf": "pass",
     "self-referential-examples/003-self-reference-before-any-value-is-undefined.conf": "pass",
@@ -460,6 +466,7 @@
     "self-referential-examples/031-field-hidden-by-a-substituted-object.conf": "pass",
     "self-referential-examples/032-field-hidden-inside-object-concatenation.conf": "fail",
     "self-referential-examples/033-object-below-a-substitution-looks-forward.conf": "fail",
+    "self-referential-examples/034-object-over-scalar-hidden-by-later-object.conf": "fail",
     "self-referential-substitutions/001-path-builds-on-older-value.conf": "pass",
     "self-referential-substitutions/002-self-referential-concatenation.conf": "pass",
     "self-referential-substitutions/003-object-containing-self-reference-is-not-self-referential.conf": "pass",
@@ -488,6 +495,7 @@
     "string-value-concatenation/020-64-bit-number-kept-as-written.conf": "pass",
     "string-value-concatenation/021-false-becomes-string-in-concatenation.conf": "fail",
     "string-value-concatenation/022-quoted-and-unquoted-strings-concatenate.conf": "pass",
+    "string-value-concatenation/023-substituted-number-keeps-its-text.conf": "fail",
     "substitution-fallback-to-environment/001-env-fallback-for-undefined-path.conf": "pass",
     "substitution-fallback-to-environment/002-required-substitution-resolved-from-env.conf": "pass",
     "substitution-fallback-to-environment/003-config-value-wins-over-env.conf": "pass",
@@ -533,6 +541,7 @@
     "substitutions/038-whitespace-after-question-mark.conf": "fail",
     "substitutions/039-undefined-optional-with-number-is-a-string.conf": "pass",
     "substitutions/040-null-blocks-environment-lookup.conf": "fail",
+    "substitutions/041-undefined-optional-under-a-path-leaves-the-object.conf": "pass",
     "unchanged-from-json/001-quoted-string-json-format.conf": "fail",
     "unchanged-from-json/002-string-value-type.conf": "pass",
     "unchanged-from-json/003-number-value-type.conf": "pass",
@@ -560,6 +569,9 @@
     "unchanged-from-json/025-nan-is-not-a-number.conf": "pass",
     "unchanged-from-json/026-surrogate-pair-escape.conf": "fail",
     "unchanged-from-json/027-unpaired-surrogate-escape-is-kept.conf": "fail",
+    "unchanged-from-json/028-integer-beyond-64-bits-is-a-number.conf": "fail",
+    "unchanged-from-json/029-unicode-escape-with-a-sign-is-invalid.conf": "fail",
+    "unchanged-from-json/030-unicode-escape-with-non-ascii-digits-is-invalid.conf": "fail",
     "units-format/001-number-value-is-default-unit.conf": "pass",
     "units-format/002-quoted-string-with-no-unit-uses-default-unit.conf": "pass",
     "units-format/003-string-with-unit-name-specifies-interpretation.conf": "fail",
@@ -610,6 +622,9 @@
   "outputs": {
     "array-and-object-concatenation/018-object-with-inner-merge-concatenated-with-substitution.conf": "{\"x\":{\"p\":1},\"n\":{\"a\":{\"p\":1},\"q\":2},\"y\":{\"q\":2}}",
     "array-and-object-concatenation/019-self-referential-object-concatenation-with-inner-merge.conf": "{\"a\":{\"q\":1,\"p\":{\"r\":2}},\"x\":{\"r\":2}}",
+    "array-and-object-concatenation/020-optional-override-inside-object-concatenation.conf": "{\"a\":{},\"b\":{\"c\":null}}",
+    "array-and-object-concatenation/021-substitution-over-duplicate-key-inside-object-concatenation.conf": "{\"t\":{\"x\":1},\"a\":{},\"b\":{\"c\":{\"x\":1}}}",
+    "array-and-object-concatenation/022-duplicate-key-in-list-element-before-list-substitution.conf": "{\"tail\":[2],\"front\":[{\"foo\":1},2]}",
     "concatenation-whitespace-and-substitutions/007-zero-width-space-between-list-substitutions-is-error.conf": "rejected",
     "concatenation-whitespace-and-substitutions/009-undefined-optional-then-list-is-the-list.conf": "{\"x\":[1],\"a\":[1]}",
     "duplicate-keys-and-object-merging/010-null-in-referenced-key-history-does-not-block-merge.conf": "{\"v\":{\"x\":1},\"r\":{\"x\":1},\"a\":{\"helper\":0,\"x\":1}}",
@@ -658,6 +673,9 @@
     "unchanged-from-json/012-number-with-trailing-dot-illegal.conf": "{\"a\":\"1.\"}",
     "unchanged-from-json/013-trailing-dot-before-exponent-illegal.conf": "{\"a\":\"-1.e3\"}",
     "unchanged-from-json/014-negative-leading-zeros-illegal.conf": "{\"a\":-33}",
+    "unchanged-from-json/028-integer-beyond-64-bits-is-a-number.conf": "{\"a\":9223372036854775808,\"b\":-9223372036854775809,\"c\":123456789012345678901234567890}",
+    "unchanged-from-json/029-unicode-escape-with-a-sign-is-invalid.conf": "{\"a\":\"\\\\u+041\"}",
+    "unchanged-from-json/030-unicode-escape-with-non-ascii-digits-is-invalid.conf": "{\"a\":\"\\\\u\\u00d9\\u00a0\\u00d9\\u00a0\\u00d9\\u00a4\\u00d9\\u00a1\"}",
     "unquoted-strings/012-unquoted-cannot-start-with-hyphen.conf": "{\"a\":\"-foo\"}",
     "unquoted-strings/022-digit-then-exponent-letter-illegal.conf": "{\"a\":\"1e\"}",
     "unquoted-strings/025-digit-initial-invalid-number.conf": "{\"a\":\"1.2.3\"}"
@@ -677,6 +695,30 @@
       "rule": "${a} in a's own value refers to the earlier a, an object, so the concatenation merges {p: ...} with {q: 1}; the inner p is itself a merge of an object and a substitution. typesafe/config fails with an internal error (BugOrBroken) when the merge inside a concatenation piece resolves, as in 018",
       "expected": "rejected",
       "got": "{\"a\":{\"q\":1,\"p\":{\"r\":2}},\"x\":{\"r\":2}}",
+      "java": "unsupported"
+    },
+    {
+      "case": "array-and-object-concatenation/020-optional-override-inside-object-concatenation.conf",
+      "spec": "HOCON.md#array-and-object-concatenation",
+      "rule": "inside each ${a} { ... } the undefined ${?missing} leaves the c before it, and the later b merges over the earlier one: c is 2; typesafe/config fails with an internal error (lightbend/config#647, #725, #754)",
+      "expected": "rejected",
+      "got": "{\"a\":{},\"b\":{\"c\":null}}",
+      "java": "unsupported"
+    },
+    {
+      "case": "array-and-object-concatenation/021-substitution-over-duplicate-key-inside-object-concatenation.conf",
+      "spec": "HOCON.md#array-and-object-concatenation",
+      "rule": "the later c, an object, overrides the string before it inside the object merged onto ${a}; typesafe/config fails with an internal error (lightbend/config#356)",
+      "expected": "rejected",
+      "got": "{\"t\":{\"x\":1},\"a\":{},\"b\":{\"c\":{\"x\":1}}}",
+      "java": "unsupported"
+    },
+    {
+      "case": "array-and-object-concatenation/022-duplicate-key-in-list-element-before-list-substitution.conf",
+      "spec": "HOCON.md#array-and-object-concatenation",
+      "rule": "${tail} is a list, so it concatenates with the list before it, whose object keeps foo = 1 under the undefined ${?bar}; typesafe/config fails with an internal error (lightbend/config#751)",
+      "expected": "rejected",
+      "got": "{\"tail\":[2],\"front\":[{\"foo\":1},2]}",
       "java": "unsupported"
     },
     {
@@ -1363,6 +1405,22 @@
       "java": "unsupported"
     },
     {
+      "case": "include-merging/016-plus-equals-across-include-keeps-order/main.conf",
+      "spec": "HOCON.md#include-semantics-merging",
+      "rule": "the included keys stand where the include is, so its two += come first and the file's two append after them (lightbend/config#426)",
+      "expected": {
+        "list": [
+          1,
+          2,
+          99,
+          100
+        ]
+      },
+      "got": {
+        "list": 100
+      }
+    },
+    {
       "case": "include-substitution/001-substitution-relativized-to-include-scope/main.conf",
       "spec": "HOCON.md#include-semantics-substitution",
       "rule": "a substitution in an included file must be fixed up to be relative to the app's configuration root, so ${x} in a file included at key a becomes ${a.x}",
@@ -1524,6 +1582,20 @@
           "x": null
         }
       }
+    },
+    {
+      "case": "include-substitution/020-include-two-objects-deep-is-fixed-up/main.conf",
+      "spec": "HOCON.md#include-semantics-substitution",
+      "rule": "included at a.nested, the file's ${x} is fixed up to ${a.nested.x}, two objects deep in one file (lightbend/config#136)",
+      "expected": {
+        "a": {
+          "nested": {
+            "x": 10,
+            "y": 10
+          }
+        }
+      },
+      "got": "rejected (exit 1)"
     },
     {
       "case": "include-syntax/013-newlines-between-include-and-name/main.conf",
@@ -2025,6 +2097,30 @@
       "java": "diverges"
     },
     {
+      "case": "plus-equals-field-separator/013-appends-after-a-substituted-object.conf",
+      "spec": "HOCON.md#the--field-separator",
+      "rule": "c.x += 1 looks back at c.x, which ${d} gives, and the second += at the first: [1, 2], and d is left as it was (lightbend/config#177)",
+      "expected": {
+        "d": {
+          "x": []
+        },
+        "c": {
+          "x": [
+            1,
+            2
+          ]
+        }
+      },
+      "got": {
+        "d": {
+          "x": []
+        },
+        "c": {
+          "x": 2
+        }
+      }
+    },
+    {
       "case": "self-referential-examples/015-list-hidden-by-substituted-object-is-never-evaluated.conf",
       "spec": "HOCON.md#examples-of-self-referential-substitutions",
       "rule": "a list merges with nothing, so any later value hides it and it is never evaluated; that the hiding object arrives through ${replacement} changes nothing, since the substitution is required and so either resolves or fails on its own. typesafe/config evaluates the hidden list (lightbend/config#865)",
@@ -2128,6 +2224,17 @@
         }
       },
       "got": "rejected (exit 142)"
+    },
+    {
+      "case": "self-referential-examples/034-object-over-scalar-hidden-by-later-object.conf",
+      "spec": "HOCON.md#examples-of-self-referential-substitutions",
+      "rule": "the two objects merge and the later bar, a string, hides ${override-me}, which is never evaluated; the string under them is simply overridden (lightbend/config#599)",
+      "expected": {
+        "foo": {
+          "bar": "bar"
+        }
+      },
+      "got": "rejected (exit 1)"
     },
     {
       "case": "size-in-bytes-format/004-powers-of-two-suffixes.conf",
@@ -2253,7 +2360,7 @@
         "a": "null bar"
       },
       "got": {
-        "a": "<pyhocon.config_tree.NoneValue object at 0x1011c8950>bar"
+        "a": "<pyhocon.config_tree.NoneValue object at 0x10377f010>bar"
       }
     },
     {
@@ -2327,6 +2434,23 @@
       },
       "got": {
         "a": "Falsefoo"
+      }
+    },
+    {
+      "case": "string-value-concatenation/023-substituted-number-keeps-its-text.conf",
+      "spec": "HOCON.md#string-value-concatenation",
+      "rule": "a substitution in a string concatenation becomes text the way a number written there does, as written: 1e5 and 1.50, not 100000.0 and 1.5",
+      "expected": {
+        "a": 100000.0,
+        "b": "1e5 x",
+        "c": 1.5,
+        "d": "1.50 x"
+      },
+      "got": {
+        "a": 100000.0,
+        "b": "100000.0 x",
+        "c": 1.5,
+        "d": "1.5 x"
       }
     },
     {
@@ -2541,6 +2665,46 @@
       "got": {
         "a": "\\ud83d"
       }
+    },
+    {
+      "case": "unchanged-from-json/028-integer-beyond-64-bits-is-a-number.conf",
+      "spec": "HOCON.md#unchanged-from-json",
+      "rule": "number formats match JSON, which has no size limit, so an integer past 2^63 is still a number; typesafe/config makes it a string (lightbend/config#801, ekrich/sconfig#631)",
+      "expected": {
+        "a": "9223372036854775808",
+        "b": "-9223372036854775809",
+        "c": "123456789012345678901234567890"
+      },
+      "got": {
+        "a": 9223372036854775808,
+        "b": -9223372036854775809,
+        "c": 123456789012345678901234567890
+      },
+      "java": "diverges"
+    },
+    {
+      "case": "unchanged-from-json/029-unicode-escape-with-a-sign-is-invalid.conf",
+      "spec": "HOCON.md#unchanged-from-json",
+      "rule": "a JSON \\u escape is exactly four hex digits, and + is not one; typesafe/config reads +041 as hex 41, A (lightbend/config#884, ekrich/sconfig#623)",
+      "expected": {
+        "a": "A"
+      },
+      "got": {
+        "a": "\\u+041"
+      },
+      "java": "lenient"
+    },
+    {
+      "case": "unchanged-from-json/030-unicode-escape-with-non-ascii-digits-is-invalid.conf",
+      "spec": "HOCON.md#unchanged-from-json",
+      "rule": "a JSON \\u escape is four ASCII hex digits; Arabic-Indic digits are not, though typesafe/config parses them as 0041, A (lightbend/config#884, ekrich/sconfig#623)",
+      "expected": {
+        "a": "A"
+      },
+      "got": {
+        "a": "\\uÙ Ù Ù¤Ù¡"
+      },
+      "java": "lenient"
     },
     {
       "case": "units-format/003-string-with-unit-name-specifies-interpretation.conf",
