@@ -102,6 +102,7 @@ pub fn resolveStack(state: *Resolver, place: *Value, layers: []const Value) Erro
         .ref, .pending => {
             // A list next to an object: a list, which hides what is below.
             if (!looksBack(top)) return try state.resolveValue(top);
+            if (try resolveObjectAfterRef(state, place, top, below)) |val| return val;
             try state.fields.append(gpa, .{ .place = place, .below = below });
             const val = if (top == .ref) try state.resolveRef(top.ref, true) else try state.resolveValue(top);
             const field = state.fields.pop().?;
@@ -135,9 +136,33 @@ pub fn resolveStack(state: *Resolver, place: *Value, layers: []const Value) Erro
 
 // An object layer of a field: merged onto the layers below, then resolved.
 pub noinline fn resolveObjectLayer(state: *Resolver, place: *Value, top: Value, below: []const Value) Error!?Value {
+    const under = if (mergeable(below)) try state.resolveStack(place, below) else null;
+    return try objectOnto(state, place, top, below, under);
+}
+
+// `${x} { … }`: the object merges onto what the parts in front of it give
+// (spec L398), the same as if it were written as a field of its own over
+// them. So it is resolved as that layer, and a self-reference in it looks
+// back at them, a path into it sees the merged object. Null when they give
+// a list or text, or `.keep` leaves them waiting: then it is a
+// concatenation, joined in `resolvePending` once the object is resolved.
+noinline fn resolveObjectAfterRef(state: *Resolver, place: *Value, top: Value, below: []const Value) Error!?Value {
+    const gpa = state.gpa;
+    if (top != .pending) return null;
+    const parts = top.pending;
+    const object = parts[parts.len - 1].value;
+    if (object != .object) return null;
+    const front: Value = if (parts.len == 2) parts[0].value else .{ .pending = parts[0 .. parts.len - 1] };
+    const layers = try std.mem.concat(gpa, Value, &.{ below, &.{front} });
+    const under = try state.resolveStack(place, layers);
+    if (under) |u| if (u != .object or waits(u)) return null;
+    return try objectOnto(state, place, object, layers, under);
+}
+
+// An object layer over what the layers below it resolved to, `under`.
+fn objectOnto(state: *Resolver, place: *Value, top: Value, below: []const Value, under: ?Value) Error!?Value {
     const gpa = state.gpa;
     var merged = top;
-    const under = if (mergeable(below)) try state.resolveStack(place, below) else null;
     if (under) |u| if (u == .object) {
         merged = u;
         try merged.update(gpa, top);
@@ -452,6 +477,25 @@ test "resolve.an object layer looks forward" {
     try expectAllResolved(&.{
         .ok("a = ${b}\na = { x = 2, y = ${a.x} }\nb = { x = 1 }", "{\"a\":{\"x\":2,\"y\":2},\"b\":{\"x\":1}}"),
         .ok("a = ${b}\na = { y = ${a.x} }\nb = { x = 1 }", "{\"a\":{\"x\":1,\"y\":1},\"b\":{\"x\":1}}"),
+    });
+}
+// plus-equals-field-separator/009–012, self-referential-examples/027–030 ·
+// java ⚠️ on the first four rows: `[four]` (lightbend/config#608) and a cycle
+// for the rest (#586, #728) · pyhocon ⚠️ `" four"` on the first, WrongType on
+// the list · spec ✓ — an object after a substitution merges onto what it
+// gives (spec L398), the same as two fields: a self-reference in it looks back
+// at that, a path into it sees the merged object, and the lot merges onto what
+// the key held before. Next to a list it is still a list.
+test "resolve.an object after a substitution is a layer over it" {
+    try expectAllResolved(&.{
+        .ok("x { arr = [one] }\ntop : ${x} { arr += four }", "{\"x\":{\"arr\":[\"one\"]},\"top\":{\"arr\":[\"one\",\"four\"]}}"),
+        .ok("d { x = [0] }\nc : ${d} { x : ${c.x} [1, 2] }", "{\"d\":{\"x\":[0]},\"c\":{\"x\":[0,1,2]}}"),
+        .ok("mixin { hello = world }\na = ${mixin} { y = ${a.hello} }", "{\"mixin\":{\"hello\":\"world\"},\"a\":{\"hello\":\"world\",\"y\":\"world\"}}"),
+        .ok("x { n = 1 }\ntop = ${x} { n = 2, seen = ${top.n} }", "{\"x\":{\"n\":1},\"top\":{\"n\":2,\"seen\":2}}"),
+        .ok("a = { q = 1 }\nx = { p = 2 }\na = ${x} { r = ${a.q} }", "{\"a\":{\"q\":1,\"p\":2,\"r\":1},\"x\":{\"p\":2}}"),
+        .ok("a = { q = 1 }\na = ${a} { c = ${a.q} }", "{\"a\":{\"q\":1,\"c\":1}}"),
+        .ok("a = ${?nope} { c = 1 }", "{\"a\":{\"c\":1}}"),
+        .ok("x = [1]\na = ${x} { \"0\" : y }", "{\"x\":[1],\"a\":[1,\"y\"]}"),
     });
 }
 // java ✓ (⚠️ refuses the last two) · pyhocon ⚠️ · spec ✓ — `a += b` is
