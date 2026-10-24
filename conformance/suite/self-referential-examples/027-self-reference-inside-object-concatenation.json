@@ -1,0 +1,25 @@
+{
+  "spec": "HOCON.md#examples-of-self-referential-substitutions",
+  "rule": [
+    "array-and-object-concatenation.6",
+    "examples-of-self-referential-substitutions.3"
+  ],
+  "why": "c.x is self-referential, and ${d} { ... } merges the object over d, so ${c.x} looks back at the overridden d.x, as with c : ${d} and c { x : ${c.x} [1, 2] } written as two fields; typesafe/config reports a cycle",
+  "expect": {
+    "d": {
+      "x": [
+        0
+      ]
+    },
+    "c": {
+      "x": [
+        0,
+        1,
+        2
+      ]
+    }
+  },
+  "java": "unsupported",
+  "java_error": "UnresolvedSubstitution",
+  "resolve": true
+}

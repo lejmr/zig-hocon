@@ -4,11 +4,11 @@
   "version": "pyhocon 0.3.63",
   "mode": "spec",
   "command": "conformance/adapters/oracle.sh hocon-py",
-  "ran_at": "2026-10-23T16:05:06Z",
-  "suite_digest": "a8fe29692ae3406d",
-  "total": 446,
-  "passed": 315,
-  "percent": 70.6,
+  "ran_at": "2026-10-24T06:25:13Z",
+  "suite_digest": "b80d17e86b169bad",
+  "total": 454,
+  "passed": 318,
+  "percent": 70.0,
   "sections": {
     "array-and-object-concatenation": {
       "total": 19,
@@ -99,12 +99,12 @@
       "passed": 3
     },
     "plus-equals-field-separator": {
-      "total": 8,
+      "total": 12,
       "passed": 0
     },
     "self-referential-examples": {
-      "total": 26,
-      "passed": 22
+      "total": 30,
+      "passed": 25
     },
     "self-referential-substitutions": {
       "total": 5,
@@ -422,6 +422,10 @@
     "plus-equals-field-separator/006-plus-equals-inside-a-list-element.conf": "fail",
     "plus-equals-field-separator/007-plus-equals-under-a-dotted-key.conf": "fail",
     "plus-equals-field-separator/008-plus-equals-with-an-object-containing-a-merge.conf": "fail",
+    "plus-equals-field-separator/009-appends-through-object-concatenation.conf": "fail",
+    "plus-equals-field-separator/010-appends-through-chained-object-concatenations.conf": "fail",
+    "plus-equals-field-separator/011-appends-deep-inside-object-concatenation.conf": "fail",
+    "plus-equals-field-separator/012-appends-to-a-list-defined-in-object-concatenation.conf": "fail",
     "self-referential-examples/001-isolated-self-reference-is-an-error.conf": "pass",
     "self-referential-examples/002-self-reference-resolves-to-earlier-merged-value.conf": "pass",
     "self-referential-examples/003-self-reference-before-any-value-is-undefined.conf": "pass",
@@ -448,6 +452,10 @@
     "self-referential-examples/024-substitution-target-is-fetched-lazily.conf": "pass",
     "self-referential-examples/025-optional-two-field-cycle-is-undefined.conf": "fail",
     "self-referential-examples/026-memoized-by-instance-not-by-path.conf": "pass",
+    "self-referential-examples/027-self-reference-inside-object-concatenation.conf": "pass",
+    "self-referential-examples/028-self-reference-through-two-concatenated-substitutions.conf": "fail",
+    "self-referential-examples/029-concatenated-object-refers-to-its-mixin.conf": "pass",
+    "self-referential-examples/030-concatenated-object-sees-its-own-field.conf": "pass",
     "self-referential-substitutions/001-path-builds-on-older-value.conf": "pass",
     "self-referential-substitutions/002-self-referential-concatenation.conf": "pass",
     "self-referential-substitutions/003-object-containing-self-reference-is-not-self-referential.conf": "pass",
@@ -623,8 +631,16 @@
     "paths-as-keys/008-include-cannot-begin-key.conf": "{\"include\":{\"foo\":42}}",
     "plus-equals-field-separator/006-plus-equals-inside-a-list-element.conf": "{\"a\":[{\"b\":1}]}",
     "plus-equals-field-separator/008-plus-equals-with-an-object-containing-a-merge.conf": "{\"x\":{\"p\":1},\"l\":{\"a\":{\"p\":1}}}",
+    "plus-equals-field-separator/009-appends-through-object-concatenation.conf": "{\"x\":{\"arr\":[\"one\"]},\"top\":{\"arr\":\" four\"}}",
+    "plus-equals-field-separator/010-appends-through-chained-object-concatenations.conf": "{\"x\":{\"l\":[1]},\"y\":{\"l\":2},\"z\":{\"l\":3}}",
+    "plus-equals-field-separator/011-appends-deep-inside-object-concatenation.conf": "{\"x\":{\"a\":{\"b\":{\"c\":[1]}}},\"top\":{\"a\":{\"b\":{\"c\":2}}}}",
+    "plus-equals-field-separator/012-appends-to-a-list-defined-in-object-concatenation.conf": "{\"x\":{},\"y\":{\"l\":3}}",
     "self-referential-examples/015-list-hidden-by-substituted-object-is-never-evaluated.conf": "{\"wrapper\":{},\"replacement\":{}}",
     "self-referential-examples/021-hidden-list-does-not-depend-on-key-order.conf": "{\"w\":{\"x\":1},\"r\":{\"x\":1},\"zzz\":1}",
+    "self-referential-examples/027-self-reference-inside-object-concatenation.conf": "{\"d\":{\"x\":[0]},\"c\":{\"x\":[0,1,2]}}",
+    "self-referential-examples/028-self-reference-through-two-concatenated-substitutions.conf": "{\"d\":{\"x\":[0]},\"e\":{\"z\":5},\"c\":{\"x\":[0,1,1],\"z\":5,\"w\":5}}",
+    "self-referential-examples/029-concatenated-object-refers-to-its-mixin.conf": "{\"mixin\":{\"hello\":\"world\"},\"a\":{\"hello\":\"world\",\"y\":\"world\"}}",
+    "self-referential-examples/030-concatenated-object-sees-its-own-field.conf": "{\"x\":{\"n\":1},\"top\":{\"n\":2,\"seen\":2}}",
     "string-value-concatenation/010-object-then-scalar-drops-the-scalar.conf": "rejected",
     "string-value-concatenation/011-array-then-scalar-drops-the-scalar.conf": "rejected",
     "string-value-concatenation/014-array-then-unquoted-text-without-space.conf": "rejected",
@@ -1632,6 +1648,141 @@
       "java": "unsupported"
     },
     {
+      "case": "plus-equals-field-separator/009-appends-through-object-concatenation.conf",
+      "spec": "HOCON.md#the--field-separator",
+      "rule": "top.arr += four is top.arr = ${?top.arr} [four], and ${x} { ... } is a merge, so the self-reference looks back at the overridden x.arr, as it does with top : ${x} and top { arr += four } written as two fields; typesafe/config drops the inherited element (lightbend/config#608, fix proposed in #882)",
+      "expected": {
+        "x": {
+          "arr": [
+            "one"
+          ]
+        },
+        "top": {
+          "arr": [
+            "one",
+            "four"
+          ]
+        }
+      },
+      "got": {
+        "x": {
+          "arr": [
+            "one"
+          ]
+        },
+        "top": {
+          "arr": " four"
+        }
+      },
+      "java": "diverges"
+    },
+    {
+      "case": "plus-equals-field-separator/010-appends-through-chained-object-concatenations.conf",
+      "spec": "HOCON.md#the--field-separator",
+      "rule": "each += looks back through its own concatenation, so y.l appends to x.l and z.l to the resolved y.l; typesafe/config keeps only the last element at each step",
+      "expected": {
+        "x": {
+          "l": [
+            1
+          ]
+        },
+        "y": {
+          "l": [
+            1,
+            2
+          ]
+        },
+        "z": {
+          "l": [
+            1,
+            2,
+            3
+          ]
+        }
+      },
+      "got": {
+        "x": {
+          "l": [
+            1
+          ]
+        },
+        "y": {
+          "l": 2
+        },
+        "z": {
+          "l": 3
+        }
+      },
+      "java": "diverges"
+    },
+    {
+      "case": "plus-equals-field-separator/011-appends-deep-inside-object-concatenation.conf",
+      "spec": "HOCON.md#the--field-separator",
+      "rule": "the += is three objects down, top.a.b.c = ${?top.a.b.c} [2], and the merge reaches it: the self-reference looks back at x.a.b.c; typesafe/config drops it",
+      "expected": {
+        "x": {
+          "a": {
+            "b": {
+              "c": [
+                1
+              ]
+            }
+          }
+        },
+        "top": {
+          "a": {
+            "b": {
+              "c": [
+                1,
+                2
+              ]
+            }
+          }
+        }
+      },
+      "got": {
+        "x": {
+          "a": {
+            "b": {
+              "c": [
+                1
+              ]
+            }
+          }
+        },
+        "top": {
+          "a": {
+            "b": {
+              "c": 2
+            }
+          }
+        }
+      },
+      "java": "diverges"
+    },
+    {
+      "case": "plus-equals-field-separator/012-appends-to-a-list-defined-in-object-concatenation.conf",
+      "spec": "HOCON.md#the--field-separator",
+      "rule": "y.l += 3 overrides the y.l that the earlier concatenation defines, so its self-reference looks back at [1, 2]; typesafe/config yields [3] (lightbend/config#375)",
+      "expected": {
+        "x": {},
+        "y": {
+          "l": [
+            1,
+            2,
+            3
+          ]
+        }
+      },
+      "got": {
+        "x": {},
+        "y": {
+          "l": 3
+        }
+      },
+      "java": "diverges"
+    },
+    {
       "case": "self-referential-examples/016-object-hidden-by-substituted-scalar-is-never-evaluated.conf",
       "spec": "HOCON.md#examples-of-self-referential-substitutions",
       "rule": "${replacement} resolves to 42, a non-object, so the earlier object is hidden and never evaluated, as with the literal in 005 (typesafe/config 1.4.5 evaluated it)",
@@ -1664,6 +1815,49 @@
       "rule": "a genuine cycle is an error for required substitutions; with the optional syntax it is a missing value, so neither field is created",
       "expected": {},
       "got": "rejected (exit 1)"
+    },
+    {
+      "case": "self-referential-examples/028-self-reference-through-two-concatenated-substitutions.conf",
+      "spec": "HOCON.md#examples-of-self-referential-substitutions",
+      "rule": "three objects merged in one value, the last overriding both: ${c.x} looks back at what ${d} ${e} gives c.x, and ${e.z} is an ordinary forward reference; typesafe/config reports a cycle",
+      "expected": {
+        "d": {
+          "x": [
+            0
+          ]
+        },
+        "e": {
+          "z": 5
+        },
+        "c": {
+          "x": [
+            0,
+            1
+          ],
+          "z": 5,
+          "w": 5
+        }
+      },
+      "got": {
+        "d": {
+          "x": [
+            0
+          ]
+        },
+        "e": {
+          "z": 5
+        },
+        "c": {
+          "x": [
+            0,
+            1,
+            1
+          ],
+          "z": 5,
+          "w": 5
+        }
+      },
+      "java": "unsupported"
     },
     {
       "case": "size-in-bytes-format/004-powers-of-two-suffixes.conf",
@@ -1789,7 +1983,7 @@
         "a": "null bar"
       },
       "got": {
-        "a": "<pyhocon.config_tree.NoneValue object at 0x1052b82d0>bar"
+        "a": "<pyhocon.config_tree.NoneValue object at 0x105190b90>bar"
       }
     },
     {

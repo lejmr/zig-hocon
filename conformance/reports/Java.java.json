@@ -5,10 +5,10 @@
   "mode": "java",
   "java_version": "1.4.9",
   "command": "conformance/adapters/oracle.sh hocon-java",
-  "ran_at": "2026-10-23T16:05:50Z",
-  "suite_digest": "a8fe29692ae3406d",
-  "total": 446,
-  "passed": 446,
+  "ran_at": "2026-10-24T06:20:49Z",
+  "suite_digest": "b80d17e86b169bad",
+  "total": 454,
+  "passed": 454,
   "percent": 100.0,
   "sections": {
     "array-and-object-concatenation": {
@@ -100,12 +100,12 @@
       "passed": 7
     },
     "plus-equals-field-separator": {
-      "total": 8,
-      "passed": 8
+      "total": 12,
+      "passed": 12
     },
     "self-referential-examples": {
-      "total": 26,
-      "passed": 26
+      "total": 30,
+      "passed": 30
     },
     "self-referential-substitutions": {
       "total": 5,
@@ -423,6 +423,10 @@
     "plus-equals-field-separator/006-plus-equals-inside-a-list-element.conf": "pass",
     "plus-equals-field-separator/007-plus-equals-under-a-dotted-key.conf": "pass",
     "plus-equals-field-separator/008-plus-equals-with-an-object-containing-a-merge.conf": "pass",
+    "plus-equals-field-separator/009-appends-through-object-concatenation.conf": "pass",
+    "plus-equals-field-separator/010-appends-through-chained-object-concatenations.conf": "pass",
+    "plus-equals-field-separator/011-appends-deep-inside-object-concatenation.conf": "pass",
+    "plus-equals-field-separator/012-appends-to-a-list-defined-in-object-concatenation.conf": "pass",
     "self-referential-examples/001-isolated-self-reference-is-an-error.conf": "pass",
     "self-referential-examples/002-self-reference-resolves-to-earlier-merged-value.conf": "pass",
     "self-referential-examples/003-self-reference-before-any-value-is-undefined.conf": "pass",
@@ -449,6 +453,10 @@
     "self-referential-examples/024-substitution-target-is-fetched-lazily.conf": "pass",
     "self-referential-examples/025-optional-two-field-cycle-is-undefined.conf": "pass",
     "self-referential-examples/026-memoized-by-instance-not-by-path.conf": "pass",
+    "self-referential-examples/027-self-reference-inside-object-concatenation.conf": "pass",
+    "self-referential-examples/028-self-reference-through-two-concatenated-substitutions.conf": "pass",
+    "self-referential-examples/029-concatenated-object-refers-to-its-mixin.conf": "pass",
+    "self-referential-examples/030-concatenated-object-sees-its-own-field.conf": "pass",
     "self-referential-substitutions/001-path-builds-on-older-value.conf": "pass",
     "self-referential-substitutions/002-self-referential-concatenation.conf": "pass",
     "self-referential-substitutions/003-object-containing-self-reference-is-not-self-referential.conf": "pass",
@@ -624,8 +632,16 @@
     "paths-as-keys/008-include-cannot-begin-key.conf": "{\"include\":{\"foo\":42}}",
     "plus-equals-field-separator/006-plus-equals-inside-a-list-element.conf": "rejected",
     "plus-equals-field-separator/008-plus-equals-with-an-object-containing-a-merge.conf": "rejected",
+    "plus-equals-field-separator/009-appends-through-object-concatenation.conf": "{\"top\":{\"arr\":[\"four\"]},\"x\":{\"arr\":[\"one\"]}}",
+    "plus-equals-field-separator/010-appends-through-chained-object-concatenations.conf": "{\"x\":{\"l\":[1]},\"y\":{\"l\":[2]},\"z\":{\"l\":[3]}}",
+    "plus-equals-field-separator/011-appends-deep-inside-object-concatenation.conf": "{\"top\":{\"a\":{\"b\":{\"c\":[2]}}},\"x\":{\"a\":{\"b\":{\"c\":[1]}}}}",
+    "plus-equals-field-separator/012-appends-to-a-list-defined-in-object-concatenation.conf": "{\"x\":{},\"y\":{\"l\":[3]}}",
     "self-referential-examples/015-list-hidden-by-substituted-object-is-never-evaluated.conf": "rejected",
     "self-referential-examples/021-hidden-list-does-not-depend-on-key-order.conf": "rejected",
+    "self-referential-examples/027-self-reference-inside-object-concatenation.conf": "rejected",
+    "self-referential-examples/028-self-reference-through-two-concatenated-substitutions.conf": "rejected",
+    "self-referential-examples/029-concatenated-object-refers-to-its-mixin.conf": "rejected",
+    "self-referential-examples/030-concatenated-object-sees-its-own-field.conf": "rejected",
     "string-value-concatenation/010-object-then-scalar-drops-the-scalar.conf": "{\"a\":{\"b\":1}}",
     "string-value-concatenation/011-array-then-scalar-drops-the-scalar.conf": "{\"a\":[1,2]}",
     "string-value-concatenation/014-array-then-unquoted-text-without-space.conf": "{\"x\":[1]}",

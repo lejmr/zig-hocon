@@ -1,0 +1,28 @@
+{
+  "spec": "HOCON.md#the--field-separator",
+  "rule": [
+    "the--field-separator.2",
+    "examples-of-self-referential-substitutions.3"
+  ],
+  "why": "y.l += 3 overrides the y.l that the earlier concatenation defines, so its self-reference looks back at [1, 2]; typesafe/config yields [3] (lightbend/config#375)",
+  "expect": {
+    "x": {},
+    "y": {
+      "l": [
+        1,
+        2,
+        3
+      ]
+    }
+  },
+  "java": "diverges",
+  "java_expect": {
+    "x": {},
+    "y": {
+      "l": [
+        3
+      ]
+    }
+  },
+  "resolve": true
+}

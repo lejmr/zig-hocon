@@ -4,9 +4,10 @@
 
 What the validation pass turned up and did **not** fix. The divergences it was confident about are already in the sidecars; everything below is work, not record.
 
-**Since then:** proofreading the suite against `spec/HOCON.md` found a rule no case pinned, where zig-hocon and pyhocon part ways. It is covered now:
+**Since then:** proofreading the suite against `spec/HOCON.md` found rules no case pinned. They are covered now:
 
 - `unquoted-strings/025-digit-initial-invalid-number` — a value that begins with a digit but is not a valid number (`a = 1.2.3`, the shape of `127.0.0.1`) is an error: the initial number character and the number characters after it "must be parsed as a number value" (unquoted-strings.12, .13). pyhocon and typesafe/config read it as the string "1.2.3"; the row is `java: lenient`.
+- `plus-equals-field-separator/009`–`012`, `self-referential-examples/027`–`030` — an object concatenated over a substitution, `top : ${x} { ... }`, is a merge (array-and-object-concatenation.6), the same as `top : ${x}` and `top { ... }` written as two fields. So a self-reference inside it, `+=` or the long form, looks back at the field the substitution gives (examples-of-self-referential-substitutions.3), and any other reference to `top.…` inside looks forward and sees the merged object (.14, .16). typesafe/config drops the inherited element of a `+=` (lightbend/config#375, #608; a fix is proposed in #882) and reports the rest as cycles (#586, #728); zig-hocon got the two-field form right and the one-value form wrong.
 
 This pass ran *before* the tie-break rule in `PROCESS.md` was settled, so where a divergence says `expect` was left at java's value, the row is still unresolved — `fill-expected.py` now flags those with `review`.
 

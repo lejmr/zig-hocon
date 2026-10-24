@@ -1,0 +1,21 @@
+{
+  "spec": "HOCON.md#examples-of-self-referential-substitutions",
+  "rule": [
+    "array-and-object-concatenation.6",
+    "examples-of-self-referential-substitutions.14",
+    "examples-of-self-referential-substitutions.16"
+  ],
+  "why": "${top.n} is not self-referential, so it looks forward, including at the field being defined: the merged top.n, 2, not x's 1; typesafe/config reports a cycle",
+  "expect": {
+    "x": {
+      "n": 1
+    },
+    "top": {
+      "n": 2,
+      "seen": 2
+    }
+  },
+  "java": "unsupported",
+  "java_error": "UnresolvedSubstitution",
+  "resolve": true
+}
