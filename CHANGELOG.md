@@ -2,6 +2,13 @@
 
 What changed for someone using zig-hocon: the Zig package, the `hocon` command line tool, libhocon for C and the `zig-hocon` Python package, which are released together under one version. The technical detail is in the commits each release links to.
 
+## [Unreleased]
+
+### Fixed
+
+- An object after a substitution, `top = ${x} { … }`, is a merge, the same as `top = ${x}` and `top { … }` written as two fields. A `+=` inside it appends to the list `${x}` gives (`top = ${x} { arr += four }` was `[four]`, is `[one, four]`), a self-reference looks back at it, and `${top.n}` inside it sees the merged object instead of reporting a cycle. Eight new conformance cases pin it.
+- Layers of a key are merged before they are resolved, as the spec has it: in `p : { a : ${y} }`, `p : ${x}` with `x.a` set, `${y}` is hidden and no longer evaluated (it was an error), and a reference in the earlier object sees the final value. Three more conformance cases, all 457 pass.
+
 ## [0.5.2] - 2026-10-23
 
 The conformance suite has no open question left: the spec settles the last one, `url()` without a scheme, as an error ([lightbend/config#887](https://github.com/lightbend/config/pull/887)), and zig-hocon passes all 446 tests.

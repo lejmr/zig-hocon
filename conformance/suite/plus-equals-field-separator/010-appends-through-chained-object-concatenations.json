@@ -1,0 +1,48 @@
+{
+  "spec": "HOCON.md#the--field-separator",
+  "rule": [
+    "the--field-separator.2",
+    "array-and-object-concatenation.6",
+    "examples-of-self-referential-substitutions.3"
+  ],
+  "why": "each += looks back through its own concatenation, so y.l appends to x.l and z.l to the resolved y.l; typesafe/config keeps only the last element at each step",
+  "expect": {
+    "x": {
+      "l": [
+        1
+      ]
+    },
+    "y": {
+      "l": [
+        1,
+        2
+      ]
+    },
+    "z": {
+      "l": [
+        1,
+        2,
+        3
+      ]
+    }
+  },
+  "java": "diverges",
+  "java_expect": {
+    "x": {
+      "l": [
+        1
+      ]
+    },
+    "y": {
+      "l": [
+        2
+      ]
+    },
+    "z": {
+      "l": [
+        3
+      ]
+    }
+  },
+  "resolve": true
+}

@@ -1,0 +1,36 @@
+{
+  "spec": "HOCON.md#the--field-separator",
+  "rule": [
+    "the--field-separator.2",
+    "array-and-object-concatenation.6",
+    "examples-of-self-referential-substitutions.3"
+  ],
+  "why": "top.arr += four is top.arr = ${?top.arr} [four], and ${x} { ... } is a merge, so the self-reference looks back at the overridden x.arr, as it does with top : ${x} and top { arr += four } written as two fields; typesafe/config drops the inherited element (lightbend/config#608, fix proposed in #882)",
+  "expect": {
+    "x": {
+      "arr": [
+        "one"
+      ]
+    },
+    "top": {
+      "arr": [
+        "one",
+        "four"
+      ]
+    }
+  },
+  "java": "diverges",
+  "java_expect": {
+    "x": {
+      "arr": [
+        "one"
+      ]
+    },
+    "top": {
+      "arr": [
+        "four"
+      ]
+    }
+  },
+  "resolve": true
+}

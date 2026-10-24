@@ -285,7 +285,7 @@ substitution from the start of a second array or object or
 substitution, the two values are concatenated.</mark> <mark class="ok" title="array-and-object-concatenation.4 — array-and-object-concatenation/013-newlines-within-value-still-allow-concatenation.conf">Newlines may occur
 _within_ the array or object, but not _between_ them.</mark> <mark class="ok" title="array-and-object-concatenation.5 — array-and-object-concatenation/006-newline-between-values-prevents-concatenation.conf, array-and-object-concatenation/017-newline-between-arrays-in-field-value-prevents-concatenation.conf">Newlines
 _between_ prevent concatenation.</mark></p>
-<p data-line="398"><mark class="ok" title="array-and-object-concatenation.6 — array-and-object-concatenation/007-object-concatenation-merges-and-second-overrides.conf">For objects, &quot;concatenation&quot; means &quot;merging&quot;, so the second object
+<p data-line="398"><mark class="ok" title="array-and-object-concatenation.6 — array-and-object-concatenation/007-object-concatenation-merges-and-second-overrides.conf, plus-equals-field-separator/009-appends-through-object-concatenation.conf, plus-equals-field-separator/010-appends-through-chained-object-concatenations.conf, plus-equals-field-separator/011-appends-deep-inside-object-concatenation.conf, self-referential-examples/027-self-reference-inside-object-concatenation.conf, self-referential-examples/028-self-reference-through-two-concatenated-substitutions.conf, self-referential-examples/029-concatenated-object-refers-to-its-mixin.conf, self-referential-examples/030-concatenated-object-sees-its-own-field.conf, self-referential-examples/032-field-hidden-inside-object-concatenation.conf">For objects, &quot;concatenation&quot; means &quot;merging&quot;, so the second object
 overrides the first.</mark></p>
 <p data-line="401"><mark class="ok" title="array-and-object-concatenation.7 — array-and-object-concatenation/008-array-cannot-be-field-key.conf, array-and-object-concatenation/009-object-cannot-be-field-key.conf">Arrays and objects cannot be field keys, whether concatenation is
 involved or not.</mark></p>
@@ -523,7 +523,7 @@ resolving an optional substitution (i.e. the `${?foo}` syntax).</mark>
 <mark class="ok" title="self-referential-substitutions.13 — self-referential-examples/004-optional-self-reference-disappears-silently.conf">If `${?foo}` refers to itself then it&#x27;s as if it referred to a
 nonexistent value.</mark></p>
 <h4>The `+=` field separator</h4>
-<p data-line="721"><mark class="ok" title="the--field-separator.1 — plus-equals-field-separator/001-plus-equals-desugars-to-optional-self-ref-array.conf">Fields may have `+=` as a separator rather than `:` or `=`.</mark> <mark class="ok" title="the--field-separator.2 — plus-equals-field-separator/005-plus-equals-in-nested-object-with-substitution.conf, plus-equals-field-separator/007-plus-equals-under-a-dotted-key.conf, plus-equals-field-separator/008-plus-equals-with-an-object-containing-a-merge.conf, self-referential-examples/023-append-does-not-hide.conf">A
+<p data-line="721"><mark class="ok" title="the--field-separator.1 — plus-equals-field-separator/001-plus-equals-desugars-to-optional-self-ref-array.conf">Fields may have `+=` as a separator rather than `:` or `=`.</mark> <mark class="ok" title="the--field-separator.2 — plus-equals-field-separator/005-plus-equals-in-nested-object-with-substitution.conf, plus-equals-field-separator/007-plus-equals-under-a-dotted-key.conf, plus-equals-field-separator/008-plus-equals-with-an-object-containing-a-merge.conf, plus-equals-field-separator/009-appends-through-object-concatenation.conf, plus-equals-field-separator/010-appends-through-chained-object-concatenations.conf, plus-equals-field-separator/011-appends-deep-inside-object-concatenation.conf, plus-equals-field-separator/012-appends-to-a-list-defined-in-object-concatenation.conf, self-referential-examples/023-append-does-not-hide.conf">A
 field with `+=` transforms into a self-referential array
 concatenation, like this:</mark></p>
 <p data-line="725">    a += b</p>
@@ -541,7 +541,7 @@ is an error because the substitution cannot be resolved:</mark></p>
 <p data-line="743">    foo : ${foo} // an error</p>
 <p data-line="745"><mark class="ok" title="examples-of-self-referential-substitutions.2 — self-referential-examples/002-self-reference-resolves-to-earlier-merged-value.conf">When `foo : ${foo}` is merged with an earlier value for `foo`,
 however, the substitution can be resolved to that earlier value.</mark>
-<mark class="ok" title="examples-of-self-referential-substitutions.3 — self-referential-examples/002-self-reference-resolves-to-earlier-merged-value.conf">When merging two objects, the self-reference in the overriding
+<mark class="ok" title="examples-of-self-referential-substitutions.3 — plus-equals-field-separator/009-appends-through-object-concatenation.conf, plus-equals-field-separator/010-appends-through-chained-object-concatenations.conf, plus-equals-field-separator/011-appends-deep-inside-object-concatenation.conf, plus-equals-field-separator/012-appends-to-a-list-defined-in-object-concatenation.conf, self-referential-examples/002-self-reference-resolves-to-earlier-merged-value.conf, self-referential-examples/027-self-reference-inside-object-concatenation.conf, self-referential-examples/028-self-reference-through-two-concatenated-substitutions.conf">When merging two objects, the self-reference in the overriding
 field refers to the overridden field.</mark> Say you have:</p>
 <p data-line="750">    foo : { a : 1 }</p>
 <p data-line="752">and then:</p>
@@ -560,7 +560,7 @@ of `foo` for a value, the error should be treated as &quot;undefined&quot;
 rather than &quot;intractable cycle&quot;; as a result, the optional
 substitution syntax `${?foo}` does not create a cycle:</mark></p>
 <p data-line="776">    foo : ${?foo} // this field just disappears silently</p>
-<p data-line="778"><mark class="ok" title="examples-of-self-referential-substitutions.8 — self-referential-examples/015-list-hidden-by-substituted-object-is-never-evaluated.conf, self-referential-examples/016-object-hidden-by-substituted-scalar-is-never-evaluated.conf, self-referential-examples/017-object-hidden-by-substituted-concatenation-is-never-evaluated.conf, self-referential-examples/018-object-merged-with-substituted-object-is-evaluated.conf, self-referential-examples/019-list-hidden-by-literal-scalar-is-never-evaluated.conf, self-referential-examples/020-object-hidden-by-literal-list-is-never-evaluated.conf, self-referential-examples/021-hidden-list-does-not-depend-on-key-order.conf">If a substitution is hidden by a value that could not be merged
+<p data-line="778"><mark class="ok" title="examples-of-self-referential-substitutions.8 — self-referential-examples/015-list-hidden-by-substituted-object-is-never-evaluated.conf, self-referential-examples/016-object-hidden-by-substituted-scalar-is-never-evaluated.conf, self-referential-examples/017-object-hidden-by-substituted-concatenation-is-never-evaluated.conf, self-referential-examples/018-object-merged-with-substituted-object-is-evaluated.conf, self-referential-examples/019-list-hidden-by-literal-scalar-is-never-evaluated.conf, self-referential-examples/020-object-hidden-by-literal-list-is-never-evaluated.conf, self-referential-examples/021-hidden-list-does-not-depend-on-key-order.conf, self-referential-examples/031-field-hidden-by-a-substituted-object.conf, self-referential-examples/032-field-hidden-inside-object-concatenation.conf">If a substitution is hidden by a value that could not be merged
 with it (by a non-object value) then it is never evaluated and no
 error will be reported.</mark> So for example:</p>
 <p data-line="782">    foo : ${does-not-exist}
@@ -581,7 +581,7 @@ substitution or value concatenation as its value. <mark class="ok" title="exampl
 an object or array value, for example, then it is not
 self-referential even if there is a reference to the field itself
 inside that object or array.</mark></p>
-<p data-line="806"><mark class="ok" title="examples-of-self-referential-substitutions.14 — self-referential-examples/008-object-may-refer-to-sibling-path-within-itself.conf">Implementations must be careful to allow objects to refer to paths
+<p data-line="806"><mark class="ok" title="examples-of-self-referential-substitutions.14 — self-referential-examples/008-object-may-refer-to-sibling-path-within-itself.conf, self-referential-examples/029-concatenated-object-refers-to-its-mixin.conf, self-referential-examples/030-concatenated-object-sees-its-own-field.conf">Implementations must be careful to allow objects to refer to paths
 within themselves, for example:</mark></p>
 <p data-line="809">    bar : { foo : 42,
             baz : ${bar.foo}
@@ -590,9 +590,9 @@ within themselves, for example:</mark></p>
 part of resolving the substitution `${bar.foo}`, there would be a
 cycle. <mark class="ok" title="examples-of-self-referential-substitutions.15 — self-referential-examples/024-substitution-target-is-fetched-lazily.conf">The implementation must only resolve the `foo` field in
 `bar`, rather than recursing the entire `bar` object.</mark></p>
-<p data-line="818"><mark class="ok" title="examples-of-self-referential-substitutions.16 — self-referential-examples/009-non-cycling-reference-looks-forward-across-merge.conf">Because there is no inherent cycle here, the substitution must
+<p data-line="818"><mark class="ok" title="examples-of-self-referential-substitutions.16 — self-referential-examples/009-non-cycling-reference-looks-forward-across-merge.conf, self-referential-examples/029-concatenated-object-refers-to-its-mixin.conf, self-referential-examples/030-concatenated-object-sees-its-own-field.conf, self-referential-examples/033-object-below-a-substitution-looks-forward.conf">Because there is no inherent cycle here, the substitution must
 &quot;look forward&quot; (including looking at the field currently being
-defined).</mark> <mark class="ok" title="examples-of-self-referential-substitutions.17 — self-referential-examples/009-non-cycling-reference-looks-forward-across-merge.conf">To make this clearer, `bar.baz` would be `43` in:</mark></p>
+defined).</mark> <mark class="ok" title="examples-of-self-referential-substitutions.17 — self-referential-examples/009-non-cycling-reference-looks-forward-across-merge.conf, self-referential-examples/033-object-below-a-substitution-looks-forward.conf">To make this clearer, `bar.baz` would be `43` in:</mark></p>
 <p data-line="822">    bar : { foo : 42,
             baz : ${bar.foo}
           }

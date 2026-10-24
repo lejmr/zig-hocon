@@ -1,0 +1,21 @@
+{
+  "spec": "HOCON.md#examples-of-self-referential-substitutions",
+  "rule": [
+    "array-and-object-concatenation.6",
+    "examples-of-self-referential-substitutions.14",
+    "examples-of-self-referential-substitutions.16"
+  ],
+  "why": "an object with a substitution inside it is not self-referential, so ${a.hello} looks forward and finds the field the merged ${mixin} gives a; typesafe/config reports a cycle (lightbend/config#586)",
+  "expect": {
+    "mixin": {
+      "hello": "world"
+    },
+    "a": {
+      "hello": "world",
+      "y": "world"
+    }
+  },
+  "java": "unsupported",
+  "java_error": "UnresolvedSubstitution",
+  "resolve": true
+}

@@ -1,0 +1,16 @@
+{
+  "spec": "HOCON.md#examples-of-self-referential-substitutions",
+  "rule": [
+    "examples-of-self-referential-substitutions.8"
+  ],
+  "why": "the object ${x} gives merges onto the earlier p, and its a = 42 hides the earlier a, a non-object over a substitution, so ${y} is never evaluated (lightbend/config#838)",
+  "expect": {
+    "p": {
+      "a": 42
+    },
+    "x": {
+      "a": 42
+    }
+  },
+  "resolve": true
+}
