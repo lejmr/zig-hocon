@@ -1,0 +1,23 @@
+{
+  "spec": "HOCON.md#array-and-object-concatenation",
+  "rule": [
+    "array-and-object-concatenation.2",
+    "the--field-separator.3"
+  ],
+  "why": "${x} resolves to {k: [a]}, so p is {k: [a]} {k += b}, which every implementation resolves to k = [a, b]; with the substitution in place all of them give [b]",
+  "expect": {
+    "x": {
+      "k": [
+        "a"
+      ]
+    },
+    "p": {
+      "k": [
+        "a",
+        "b"
+      ]
+    }
+  },
+  "review": "is a substitution required to behave exactly like its value inside an object concatenation (ekrich/sconfig#611)? Under the spec's 'possible implementation' p is self-referential and k's lookup skips ${x}, giving [b]",
+  "resolve": true
+}

@@ -1,0 +1,23 @@
+{
+  "spec": "HOCON.md#the--field-separator",
+  "rule": [
+    "the--field-separator.2",
+    "the--field-separator.3",
+    "the--field-separator.5"
+  ],
+  "why": "each b += n appends to the previous b in the same object, as x { b += 1, b += 2 } gives [1, 2] outside a list; the first += has no previous value and starts the array. typesafe/config refuses += inside a list (see 006)",
+  "expect": {
+    "a": [
+      {
+        "b": [
+          1,
+          2,
+          3
+        ]
+      }
+    ]
+  },
+  "java": "unsupported",
+  "java_error": "Parse",
+  "resolve": true
+}

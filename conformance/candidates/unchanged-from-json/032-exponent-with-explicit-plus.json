@@ -1,0 +1,8 @@
+{
+  "spec": "HOCON.md#unchanged-from-json",
+  "rule": "unchanged-from-json.4",
+  "why": "JSON allows a + sign after the exponent marker (lightbend TestUtils validJson [ 10e+3 ])",
+  "expect": {
+    "a": 10000
+  }
+}

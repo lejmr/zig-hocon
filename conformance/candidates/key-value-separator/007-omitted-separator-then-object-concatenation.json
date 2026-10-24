@@ -1,0 +1,15 @@
+{
+  "spec": "HOCON.md#key-value-separator",
+  "rule": [
+    "key-value-separator.2",
+    "array-and-object-concatenation.6"
+  ],
+  "why": "a key followed by { may omit the separator, which makes this common_modules : {} {perl: 1}, an object concatenation of {} and {perl: 1}. typesafe/config only reads one object after an omitted separator and rejects the second brace (pyhocon tests/test_config_parser.py expects {perl: 1})",
+  "expect": {
+    "common_modules": {
+      "perl": 1
+    }
+  },
+  "java": "unsupported",
+  "java_error": "Parse"
+}

@@ -1,0 +1,16 @@
+{
+  "spec": "HOCON.md#note-arrays-without-commas-or-newlines",
+  "rule": [
+    "note-arrays-without-commas-or-newlines.2",
+    "array-and-object-concatenation.6"
+  ],
+  "why": "non-newline whitespace between two objects in an array concatenates them into one merged element rather than separating two elements -- the trap in lightbend/config#814, which the spec requires",
+  "expect": {
+    "a": [
+      {
+        "b": 1,
+        "c": 2
+      }
+    ]
+  }
+}

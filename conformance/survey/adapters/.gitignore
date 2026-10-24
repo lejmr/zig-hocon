@@ -1,0 +1,14 @@
+# build artifacts, produced in place (see README.md)
+go-adapters/bin
+rust-adapters/target
+ts-adapters/node_modules
+py-adapters/venv*
+ruby-adapters/.gems
+ruby-adapters/Gemfile.lock
+dotnet/bin
+dotnet/obj
+dotnet/out
+cpp/cpp-hocon-adapter
+lightbend-main/classes
+*.class
+*.jar

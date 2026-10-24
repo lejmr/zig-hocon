@@ -1,0 +1,287 @@
+{
+  "suite": "hocon-conformance",
+  "implementation": "ruby-hocon.sh",
+  "version": "ruby hocon 1.4.0",
+  "mode": "spec",
+  "command": "/workspace/conformance-adapters/bin/ruby-hocon.sh",
+  "ran_at": "2026-10-24T06:54:08Z",
+  "suite_digest": "8f46f63d8a14f34d",
+  "total": 19,
+  "passed": 6,
+  "percent": 31.6,
+  "sections": {
+    "array-and-object-concatenation": {
+      "total": 3,
+      "passed": 0
+    },
+    "arrays-without-commas-or-newlines": {
+      "total": 1,
+      "passed": 1
+    },
+    "key-value-separator": {
+      "total": 1,
+      "passed": 0
+    },
+    "plus-equals-field-separator": {
+      "total": 2,
+      "passed": 0
+    },
+    "self-referential-examples": {
+      "total": 3,
+      "passed": 1
+    },
+    "self-referential-substitutions": {
+      "total": 2,
+      "passed": 0
+    },
+    "unchanged-from-json": {
+      "total": 5,
+      "passed": 3
+    },
+    "unquoted-strings": {
+      "total": 2,
+      "passed": 1
+    }
+  },
+  "cases": {
+    "array-and-object-concatenation/020-array-with-inner-merge-concatenated-with-substitution.conf": "fail",
+    "array-and-object-concatenation/021-plus-equals-in-object-concatenated-with-substituted-object.conf": "open",
+    "array-and-object-concatenation/022-sibling-reference-in-object-concatenated-with-substitution.conf": "open",
+    "arrays-without-commas-or-newlines/008-objects-on-one-line-in-an-array-merge.conf": "pass",
+    "key-value-separator/007-omitted-separator-then-object-concatenation.conf": "fail",
+    "plus-equals-field-separator/010-plus-equals-inside-object-concatenated-with-substitution.conf": "fail",
+    "plus-equals-field-separator/011-repeated-plus-equals-inside-a-list-element.conf": "fail",
+    "self-referential-examples/027-substitution-in-merge-hidden-by-substituted-scalar.conf": "fail",
+    "self-referential-examples/028-cycle-through-a-merged-object-is-broken-by-looking-back.conf": "pass",
+    "self-referential-examples/029-field-in-object-concatenated-with-substitution-hidden-by-later-scalar.conf": "fail",
+    "self-referential-substitutions/007-self-reference-inside-object-concatenated-with-substitution.conf": "fail",
+    "self-referential-substitutions/008-self-referential-array-concatenation-in-object-merged-with-substitution.conf": "fail",
+    "unchanged-from-json/028-integer-beyond-64-bits-is-a-number.conf": "pass",
+    "unchanged-from-json/029-float-beyond-long-range-keeps-its-value.conf": "pass",
+    "unchanged-from-json/030-unicode-escape-with-a-sign-is-illegal.conf": "fail",
+    "unchanged-from-json/031-unicode-escape-with-non-ascii-digits-is-illegal.conf": "fail",
+    "unchanged-from-json/032-exponent-with-explicit-plus.conf": "pass",
+    "unquoted-strings/026-hyphen-right-after-a-substitution.conf": "open",
+    "unquoted-strings/027-parentheses-are-allowed.conf": "pass"
+  },
+  "outputs": {
+    "array-and-object-concatenation/020-array-with-inner-merge-concatenated-with-substitution.conf": "rejected",
+    "array-and-object-concatenation/021-plus-equals-in-object-concatenated-with-substituted-object.conf": "{\"x\":{\"k\":[\"a\"]},\"p\":{\"k\":[\"b\"]}}",
+    "array-and-object-concatenation/022-sibling-reference-in-object-concatenated-with-substitution.conf": "rejected",
+    "key-value-separator/007-omitted-separator-then-object-concatenation.conf": "rejected",
+    "plus-equals-field-separator/010-plus-equals-inside-object-concatenated-with-substitution.conf": "rejected",
+    "plus-equals-field-separator/011-repeated-plus-equals-inside-a-list-element.conf": "rejected",
+    "self-referential-examples/029-field-in-object-concatenated-with-substitution-hidden-by-later-scalar.conf": "rejected",
+    "self-referential-substitutions/007-self-reference-inside-object-concatenated-with-substitution.conf": "rejected",
+    "self-referential-substitutions/008-self-referential-array-concatenation-in-object-merged-with-substitution.conf": "rejected",
+    "unchanged-from-json/028-integer-beyond-64-bits-is-a-number.conf": "{\"a\":12321321837612378126213217321}",
+    "unchanged-from-json/029-float-beyond-long-range-keeps-its-value.conf": "{\"a\":9223372036854775808}",
+    "unchanged-from-json/030-unicode-escape-with-a-sign-is-illegal.conf": "{\"a\":\"A\"}",
+    "unchanged-from-json/031-unicode-escape-with-non-ascii-digits-is-illegal.conf": "{\"a\":\"\\u0000\"}",
+    "unquoted-strings/026-hyphen-right-after-a-substitution.conf": "{\"a\":\"foo\",\"b\":\"foo-bar\"}"
+  },
+  "failures": [
+    {
+      "case": "array-and-object-concatenation/020-array-with-inner-merge-concatenated-with-substitution.conf",
+      "spec": "HOCON.md#array-and-object-concatenation",
+      "rule": "the array counterpart of 018: an array whose object element holds a merge (foo = 1 then an undefined optional) concatenates with a substituted array. typesafe/config fails with BugOrBroken (lightbend/config#751); inlining tail as [ 2 ] works there",
+      "expected": {
+        "tail": [
+          2
+        ],
+        "front": [
+          {
+            "foo": 1
+          },
+          2
+        ]
+      },
+      "got": "rejected (exit 1)",
+      "java": "unsupported"
+    },
+    {
+      "case": "array-and-object-concatenation/021-plus-equals-in-object-concatenated-with-substituted-object.conf",
+      "spec": "HOCON.md#array-and-object-concatenation",
+      "rule": "${x} resolves to {k: [a]}, so p is {k: [a]} {k += b}, which every implementation resolves to k = [a, b]; with the substitution in place all of them give [b]",
+      "expected": {
+        "x": {
+          "k": [
+            "a"
+          ]
+        },
+        "p": {
+          "k": [
+            "a",
+            "b"
+          ]
+        }
+      },
+      "got": {
+        "x": {
+          "k": [
+            "a"
+          ]
+        },
+        "p": {
+          "k": [
+            "b"
+          ]
+        }
+      },
+      "open_question": "is a substitution required to behave exactly like its value inside an object concatenation (ekrich/sconfig#611)? Under the spec's 'possible implementation' p is self-referential and k's lookup skips ${x}, giving [b]"
+    },
+    {
+      "case": "array-and-object-concatenation/022-sibling-reference-in-object-concatenated-with-substitution.conf",
+      "spec": "HOCON.md#array-and-object-concatenation",
+      "rule": "with x = {} this is p: {} {y: 0, m: ${p.y}}, where m is 0 in every implementation; an object may refer to paths within itself. With the substitution every implementation reports a cycle",
+      "expected": {
+        "x": {},
+        "p": {
+          "y": 0,
+          "m": 0
+        }
+      },
+      "got": "rejected (exit 1)",
+      "open_question": "same question as 021 (ekrich/sconfig#611, row 4)"
+    },
+    {
+      "case": "key-value-separator/007-omitted-separator-then-object-concatenation.conf",
+      "spec": "HOCON.md#key-value-separator",
+      "rule": "a key followed by { may omit the separator, which makes this common_modules : {} {perl: 1}, an object concatenation of {} and {perl: 1}. typesafe/config only reads one object after an omitted separator and rejects the second brace (pyhocon tests/test_config_parser.py expects {perl: 1})",
+      "expected": {
+        "common_modules": {
+          "perl": 1
+        }
+      },
+      "got": "rejected (exit 1)",
+      "java": "unsupported"
+    },
+    {
+      "case": "plus-equals-field-separator/010-plus-equals-inside-object-concatenated-with-substitution.conf",
+      "spec": "HOCON.md#the--field-separator",
+      "rule": "k += b is k = ${?p.k} [b]; its previous value is the k: [a] just before it in the same object, so k is [a, b] -- the same object written without ${p} gives [a, b] everywhere. Losing [a] silently is data loss. typesafe/config fails with BugOrBroken; ekrich/sconfig gets [a, b] (sconfig ConfigSubstitutionSharedTest)",
+      "expected": {
+        "p": {
+          "z": 0,
+          "k": [
+            "a",
+            "b"
+          ]
+        }
+      },
+      "got": "rejected (exit 1)",
+      "java": "unsupported"
+    },
+    {
+      "case": "plus-equals-field-separator/011-repeated-plus-equals-inside-a-list-element.conf",
+      "spec": "HOCON.md#the--field-separator",
+      "rule": "each b += n appends to the previous b in the same object, as x { b += 1, b += 2 } gives [1, 2] outside a list; the first += has no previous value and starts the array. typesafe/config refuses += inside a list (see 006)",
+      "expected": {
+        "a": [
+          {
+            "b": [
+              1,
+              2,
+              3
+            ]
+          }
+        ]
+      },
+      "got": "rejected (exit 1)",
+      "java": "unsupported"
+    },
+    {
+      "case": "self-referential-examples/027-substitution-in-merge-hidden-by-substituted-scalar.conf",
+      "spec": "HOCON.md#examples-of-self-referential-substitutions",
+      "rule": "p.a is the merge of ${y}, 42 (from ${x}) and { x : 1 }; 42 is not an object, so it hides ${y}, which is never evaluated and its being undefined is no error. typesafe/config gets this right (lightbend ConfigSubstitutionTest)",
+      "expected": {
+        "p": {
+          "a": {
+            "x": 1
+          }
+        },
+        "x": {
+          "a": 42
+        }
+      },
+      "got": "rejected (exit 1)"
+    },
+    {
+      "case": "self-referential-examples/029-field-in-object-concatenated-with-substitution-hidden-by-later-scalar.conf",
+      "spec": "HOCON.md#examples-of-self-referential-substitutions",
+      "rule": "child.foo = \"test-foo\" hides foo = ${FOOBAR}, which is never evaluated; ${base} is {} and must behave exactly as the literal {} does, and child = {} { foo = ${FOOBAR} } followed by the same override resolves everywhere. typesafe/config, sconfig and zig-hocon evaluate the hidden substitution anyway (lightbend/config#812); pyhocon does not",
+      "expected": {
+        "base": {},
+        "child": {
+          "foo": "test-foo"
+        }
+      },
+      "got": "rejected (exit 1)",
+      "java": "unsupported"
+    },
+    {
+      "case": "self-referential-substitutions/007-self-reference-inside-object-concatenated-with-substitution.conf",
+      "spec": "HOCON.md#self-referential-substitutions",
+      "rule": "the second k refers to the field being defined, so it looks back to the earlier k = [a] in the same object; ${x} resolves to {} and concatenating an empty object changes nothing, so the result must equal the plain object { k = [a], k = ${p.k} [b] }, which every implementation resolves to [a, b]. typesafe/config fails with an internal error (BugOrBroken, lightbend/config#647); ekrich/sconfig resolves it",
+      "expected": {
+        "x": {},
+        "p": {
+          "k": [
+            "a",
+            "b"
+          ]
+        }
+      },
+      "got": "rejected (exit 1)",
+      "java": "unsupported"
+    },
+    {
+      "case": "self-referential-substitutions/008-self-referential-array-concatenation-in-object-merged-with-substitution.conf",
+      "spec": "HOCON.md#self-referential-substitutions",
+      "rule": "c.x : ${c.x}[1, 2] looks back to c.x from ${d}, which is [], so c.x is [1, 2]; typesafe/config resolves the two-step form x : ${c.x}[1], x : ${c.x}[2] but reports a cycle for this one (lightbend/config#728)",
+      "expected": {
+        "d": {
+          "x": []
+        },
+        "c": {
+          "x": [
+            1,
+            2
+          ]
+        }
+      },
+      "got": "rejected (exit 1)",
+      "java": "unsupported"
+    },
+    {
+      "case": "unchanged-from-json/030-unicode-escape-with-a-sign-is-illegal.conf",
+      "spec": "HOCON.md#unchanged-from-json",
+      "rule": "a JSON \\u escape is exactly four hex digits, and + is not one. typesafe/config reads the four characters with Integer.parseInt(_, 16), which accepts a sign, and yields \"A\" (lightbend/config#884)",
+      "expected": "rejected",
+      "got": "{\"a\":\"A\"}",
+      "java": "lenient"
+    },
+    {
+      "case": "unchanged-from-json/031-unicode-escape-with-non-ascii-digits-is-illegal.conf",
+      "spec": "HOCON.md#unchanged-from-json",
+      "rule": "Arabic-Indic digits are not JSON hex digits; typesafe/config's Integer.parseInt accepts any Unicode decimal digit and yields \"A\" (lightbend/config#884)",
+      "expected": "rejected",
+      "got": "{\"a\":\"\\u0000\"}",
+      "java": "lenient"
+    },
+    {
+      "case": "unquoted-strings/026-hyphen-right-after-a-substitution.conf",
+      "spec": "HOCON.md#unquoted-strings",
+      "rule": "-bar follows ${a} with no whitespace. If it is a new unquoted string it begins with a hyphen and must be rejected like 012; if the hyphen is 'inside' the concatenation it is plain text and b is foo-bar. Every other implementation measured, typesafe/config included, gives foo-bar, and the shape (${prefix}-service, -Xmx${heap}m) is everyday config",
+      "expected": {
+        "a": "foo",
+        "b": "foo-bar"
+      },
+      "got": {
+        "a": "foo",
+        "b": "foo-bar"
+      },
+      "open_question": "does 'may not begin with a hyphen' apply to a token that continues a value concatenation after a substitution? zig-hocon rejects it today (HyphenIsNotAJsonNumber)"
+    }
+  ]
+}

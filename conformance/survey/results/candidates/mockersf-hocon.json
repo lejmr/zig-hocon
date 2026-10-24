@@ -1,0 +1,211 @@
+{
+  "suite": "hocon-conformance",
+  "implementation": "mockersf-hocon.sh",
+  "version": "hocon 0.9.0 (Rust, mockersf, strict loader)",
+  "mode": "spec",
+  "command": "/workspace/conformance-adapters/bin/mockersf-hocon.sh",
+  "ran_at": "2026-10-24T06:54:15Z",
+  "suite_digest": "8f46f63d8a14f34d",
+  "total": 19,
+  "passed": 11,
+  "percent": 57.9,
+  "sections": {
+    "array-and-object-concatenation": {
+      "total": 3,
+      "passed": 0
+    },
+    "arrays-without-commas-or-newlines": {
+      "total": 1,
+      "passed": 1
+    },
+    "key-value-separator": {
+      "total": 1,
+      "passed": 1
+    },
+    "plus-equals-field-separator": {
+      "total": 2,
+      "passed": 2
+    },
+    "self-referential-examples": {
+      "total": 3,
+      "passed": 2
+    },
+    "self-referential-substitutions": {
+      "total": 2,
+      "passed": 2
+    },
+    "unchanged-from-json": {
+      "total": 5,
+      "passed": 2
+    },
+    "unquoted-strings": {
+      "total": 2,
+      "passed": 1
+    }
+  },
+  "cases": {
+    "array-and-object-concatenation/020-array-with-inner-merge-concatenated-with-substitution.conf": "fail",
+    "array-and-object-concatenation/021-plus-equals-in-object-concatenated-with-substituted-object.conf": "open",
+    "array-and-object-concatenation/022-sibling-reference-in-object-concatenated-with-substitution.conf": "open",
+    "arrays-without-commas-or-newlines/008-objects-on-one-line-in-an-array-merge.conf": "pass",
+    "key-value-separator/007-omitted-separator-then-object-concatenation.conf": "pass",
+    "plus-equals-field-separator/010-plus-equals-inside-object-concatenated-with-substitution.conf": "pass",
+    "plus-equals-field-separator/011-repeated-plus-equals-inside-a-list-element.conf": "pass",
+    "self-referential-examples/027-substitution-in-merge-hidden-by-substituted-scalar.conf": "pass",
+    "self-referential-examples/028-cycle-through-a-merged-object-is-broken-by-looking-back.conf": "fail",
+    "self-referential-examples/029-field-in-object-concatenated-with-substitution-hidden-by-later-scalar.conf": "pass",
+    "self-referential-substitutions/007-self-reference-inside-object-concatenated-with-substitution.conf": "pass",
+    "self-referential-substitutions/008-self-referential-array-concatenation-in-object-merged-with-substitution.conf": "pass",
+    "unchanged-from-json/028-integer-beyond-64-bits-is-a-number.conf": "fail",
+    "unchanged-from-json/029-float-beyond-long-range-keeps-its-value.conf": "pass",
+    "unchanged-from-json/030-unicode-escape-with-a-sign-is-illegal.conf": "fail",
+    "unchanged-from-json/031-unicode-escape-with-non-ascii-digits-is-illegal.conf": "fail",
+    "unchanged-from-json/032-exponent-with-explicit-plus.conf": "pass",
+    "unquoted-strings/026-hyphen-right-after-a-substitution.conf": "open",
+    "unquoted-strings/027-parentheses-are-allowed.conf": "pass"
+  },
+  "outputs": {
+    "array-and-object-concatenation/020-array-with-inner-merge-concatenated-with-substitution.conf": "rejected",
+    "array-and-object-concatenation/021-plus-equals-in-object-concatenated-with-substituted-object.conf": "{\"p\":{\"k\":[\"b\"]},\"x\":{\"k\":[\"a\"]}}",
+    "array-and-object-concatenation/022-sibling-reference-in-object-concatenated-with-substitution.conf": "{\"p\":{\"m\":0,\"y\":0},\"x\":{}}",
+    "key-value-separator/007-omitted-separator-then-object-concatenation.conf": "{\"common_modules\":{\"perl\":1}}",
+    "plus-equals-field-separator/010-plus-equals-inside-object-concatenated-with-substitution.conf": "{\"p\":{\"k\":[\"a\",\"b\"],\"z\":0}}",
+    "plus-equals-field-separator/011-repeated-plus-equals-inside-a-list-element.conf": "{\"a\":[{\"b\":[1,2,3]}]}",
+    "self-referential-examples/029-field-in-object-concatenated-with-substitution-hidden-by-later-scalar.conf": "{\"base\":{},\"child\":{\"foo\":\"test-foo\"}}",
+    "self-referential-substitutions/007-self-reference-inside-object-concatenated-with-substitution.conf": "{\"p\":{\"k\":[\"a\",\"b\"]},\"x\":{}}",
+    "self-referential-substitutions/008-self-referential-array-concatenation-in-object-merged-with-substitution.conf": "{\"c\":{\"x\":[1,2]},\"d\":{\"x\":[]}}",
+    "unchanged-from-json/028-integer-beyond-64-bits-is-a-number.conf": "{\"a\":1.2321321837612378e+28}",
+    "unchanged-from-json/029-float-beyond-long-range-keeps-its-value.conf": "{\"a\":9.223372036854776e+18}",
+    "unchanged-from-json/030-unicode-escape-with-a-sign-is-illegal.conf": "{\"a\":\"A\"}",
+    "unchanged-from-json/031-unicode-escape-with-non-ascii-digits-is-illegal.conf": "{\"a\":\"٤١\"}",
+    "unquoted-strings/026-hyphen-right-after-a-substitution.conf": "{\"a\":\"foo\",\"b\":\"foo-bar\"}"
+  },
+  "failures": [
+    {
+      "case": "array-and-object-concatenation/020-array-with-inner-merge-concatenated-with-substitution.conf",
+      "spec": "HOCON.md#array-and-object-concatenation",
+      "rule": "the array counterpart of 018: an array whose object element holds a merge (foo = 1 then an undefined optional) concatenates with a substituted array. typesafe/config fails with BugOrBroken (lightbend/config#751); inlining tail as [ 2 ] works there",
+      "expected": {
+        "tail": [
+          2
+        ],
+        "front": [
+          {
+            "foo": 1
+          },
+          2
+        ]
+      },
+      "got": "rejected (exit 1)",
+      "java": "unsupported"
+    },
+    {
+      "case": "array-and-object-concatenation/021-plus-equals-in-object-concatenated-with-substituted-object.conf",
+      "spec": "HOCON.md#array-and-object-concatenation",
+      "rule": "${x} resolves to {k: [a]}, so p is {k: [a]} {k += b}, which every implementation resolves to k = [a, b]; with the substitution in place all of them give [b]",
+      "expected": {
+        "x": {
+          "k": [
+            "a"
+          ]
+        },
+        "p": {
+          "k": [
+            "a",
+            "b"
+          ]
+        }
+      },
+      "got": {
+        "p": {
+          "k": [
+            "b"
+          ]
+        },
+        "x": {
+          "k": [
+            "a"
+          ]
+        }
+      },
+      "open_question": "is a substitution required to behave exactly like its value inside an object concatenation (ekrich/sconfig#611)? Under the spec's 'possible implementation' p is self-referential and k's lookup skips ${x}, giving [b]"
+    },
+    {
+      "case": "array-and-object-concatenation/022-sibling-reference-in-object-concatenated-with-substitution.conf",
+      "spec": "HOCON.md#array-and-object-concatenation",
+      "rule": "with x = {} this is p: {} {y: 0, m: ${p.y}}, where m is 0 in every implementation; an object may refer to paths within itself. With the substitution every implementation reports a cycle",
+      "expected": {
+        "x": {},
+        "p": {
+          "y": 0,
+          "m": 0
+        }
+      },
+      "got": {
+        "p": {
+          "m": 0,
+          "y": 0
+        },
+        "x": {}
+      },
+      "open_question": "same question as 021 (ekrich/sconfig#611, row 4)"
+    },
+    {
+      "case": "self-referential-examples/028-cycle-through-a-merged-object-is-broken-by-looking-back.conf",
+      "spec": "HOCON.md#examples-of-self-referential-substitutions",
+      "rule": "i = ${d} refers to d, whose a refers back to i.b, so i is self-referential; the cycle can be broken by looking back, where i.b is 7, so d.a is 7 and i is { b : 7 } merged with { a : 7 }. Breaking the cycle at d.a instead gives the same answer. typesafe/config resolves it (lightbend ConfigSubstitutionTest, the 'tricky cycle' with defaults/item1)",
+      "expected": {
+        "d": {
+          "a": 7
+        },
+        "i": {
+          "a": 7,
+          "b": 7
+        }
+      },
+      "got": "rejected (exit 1)"
+    },
+    {
+      "case": "unchanged-from-json/028-integer-beyond-64-bits-is-a-number.conf",
+      "spec": "HOCON.md#unchanged-from-json",
+      "rule": "JSON puts no limit on the size of a number, and an unquoted string may not begin with a digit, so this is a number. typesafe/config turns an integer that fits neither a long nor its own rules into the string \"12321321837612378126213217321\" (ekrich/sconfig#631)",
+      "expected": {
+        "a": 12321321837612378126213217321
+      },
+      "got": {
+        "a": 1.2321321837612378e+28
+      },
+      "java": "diverges"
+    },
+    {
+      "case": "unchanged-from-json/030-unicode-escape-with-a-sign-is-illegal.conf",
+      "spec": "HOCON.md#unchanged-from-json",
+      "rule": "a JSON \\u escape is exactly four hex digits, and + is not one. typesafe/config reads the four characters with Integer.parseInt(_, 16), which accepts a sign, and yields \"A\" (lightbend/config#884)",
+      "expected": "rejected",
+      "got": "{\"a\":\"A\"}",
+      "java": "lenient"
+    },
+    {
+      "case": "unchanged-from-json/031-unicode-escape-with-non-ascii-digits-is-illegal.conf",
+      "spec": "HOCON.md#unchanged-from-json",
+      "rule": "Arabic-Indic digits are not JSON hex digits; typesafe/config's Integer.parseInt accepts any Unicode decimal digit and yields \"A\" (lightbend/config#884)",
+      "expected": "rejected",
+      "got": "{\"a\":\"٤١\"}",
+      "java": "lenient"
+    },
+    {
+      "case": "unquoted-strings/026-hyphen-right-after-a-substitution.conf",
+      "spec": "HOCON.md#unquoted-strings",
+      "rule": "-bar follows ${a} with no whitespace. If it is a new unquoted string it begins with a hyphen and must be rejected like 012; if the hyphen is 'inside' the concatenation it is plain text and b is foo-bar. Every other implementation measured, typesafe/config included, gives foo-bar, and the shape (${prefix}-service, -Xmx${heap}m) is everyday config",
+      "expected": {
+        "a": "foo",
+        "b": "foo-bar"
+      },
+      "got": {
+        "a": "foo",
+        "b": "foo-bar"
+      },
+      "open_question": "does 'may not begin with a hyphen' apply to a token that continues a value concatenation after a substitution? zig-hocon rejects it today (HyphenIsNotAJsonNumber)"
+    }
+  ]
+}

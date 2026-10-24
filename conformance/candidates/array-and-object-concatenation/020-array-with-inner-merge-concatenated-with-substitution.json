@@ -1,0 +1,19 @@
+{
+  "spec": "HOCON.md#array-and-object-concatenation",
+  "rule": "array-and-object-concatenation.2",
+  "why": "the array counterpart of 018: an array whose object element holds a merge (foo = 1 then an undefined optional) concatenates with a substituted array. typesafe/config fails with BugOrBroken (lightbend/config#751); inlining tail as [ 2 ] works there",
+  "expect": {
+    "tail": [
+      2
+    ],
+    "front": [
+      {
+        "foo": 1
+      },
+      2
+    ]
+  },
+  "java": "unsupported",
+  "java_error": "BugOrBroken",
+  "resolve": true
+}

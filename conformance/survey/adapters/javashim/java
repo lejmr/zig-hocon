@@ -1,0 +1,11 @@
+#!/bin/sh
+# The first java on PATH that is not this shim, or $JAVA_HOME/bin/java, with stdout
+# forced to UTF-8: run.sh runs adapters under env -i, and a JVM without a
+# locale prints ? for every non-ASCII character.
+HERE=$(cd "$(dirname "$0")" && pwd)
+real=
+if [ -n "${JAVA_HOME:-}" ]; then real=$JAVA_HOME/bin/java; else
+    IFS=:; for d in $PATH; do [ "$d" != "$HERE" ] && [ -x "$d/java" ] && { real=$d/java; break; }; done; unset IFS
+fi
+[ -n "$real" ] || { echo "no java on PATH" >&2; exit 2; }
+exec "$real" -Dstdout.encoding=UTF-8 -Dfile.encoding=UTF-8 "$@"

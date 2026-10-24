@@ -1,0 +1,10 @@
+{
+  "spec": "HOCON.md#unchanged-from-json",
+  "rule": "unchanged-from-json.2",
+  "why": "Arabic-Indic digits are not JSON hex digits; typesafe/config's Integer.parseInt accepts any Unicode decimal digit and yields \"A\" (lightbend/config#884)",
+  "error": "InvalidEscape",
+  "java": "lenient",
+  "java_expect": {
+    "a": "A"
+  }
+}

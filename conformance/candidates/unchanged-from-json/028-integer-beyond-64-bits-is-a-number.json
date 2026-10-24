@@ -1,0 +1,12 @@
+{
+  "spec": "HOCON.md#unchanged-from-json",
+  "rule": "unchanged-from-json.4",
+  "why": "JSON puts no limit on the size of a number, and an unquoted string may not begin with a digit, so this is a number. typesafe/config turns an integer that fits neither a long nor its own rules into the string \"12321321837612378126213217321\" (ekrich/sconfig#631)",
+  "expect": {
+    "a": 12321321837612378126213217321
+  },
+  "java": "diverges",
+  "java_expect": {
+    "a": "12321321837612378126213217321"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "spec": "HOCON.md#unchanged-from-json",
+  "rule": "unchanged-from-json.4",
+  "why": "the number 2^63 written as a float must keep its value; typesafe/config 1.4.9 renders it as 9223372036854775807 (clamped to Long.MAX_VALUE, lightbend ConfigValueTest, lightbend/config#873), main renders 9.223372036854776E18, which is the same value",
+  "expect": {
+    "a": 9.223372036854776e+18
+  },
+  "java": "diverges",
+  "java_expect": {
+    "a": 9223372036854775807
+  },
+  "java_since": {
+    "version": "main",
+    "by": "verified on lightbend/config main@a9e5a9d"
+  }
+}

@@ -1,0 +1,11 @@
+#!/bin/sh
+# The first javac on PATH that is not this shim, or $JAVA_HOME/bin/javac, with stdout
+# forced to UTF-8: run.sh runs adapters under env -i, and a JVM without a
+# locale prints ? for every non-ASCII character.
+HERE=$(cd "$(dirname "$0")" && pwd)
+real=
+if [ -n "${JAVA_HOME:-}" ]; then real=$JAVA_HOME/bin/javac; else
+    IFS=:; for d in $PATH; do [ "$d" != "$HERE" ] && [ -x "$d/javac" ] && { real=$d/javac; break; }; done; unset IFS
+fi
+[ -n "$real" ] || { echo "no javac on PATH" >&2; exit 2; }
+exec "$real" "$@"

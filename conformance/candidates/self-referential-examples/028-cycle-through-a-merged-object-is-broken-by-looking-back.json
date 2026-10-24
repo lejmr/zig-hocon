@@ -1,0 +1,19 @@
+{
+  "spec": "HOCON.md#examples-of-self-referential-substitutions",
+  "rule": [
+    "self-referential-substitutions.2",
+    "self-referential-substitutions.4",
+    "examples-of-self-referential-substitutions.22"
+  ],
+  "why": "i = ${d} refers to d, whose a refers back to i.b, so i is self-referential; the cycle can be broken by looking back, where i.b is 7, so d.a is 7 and i is { b : 7 } merged with { a : 7 }. Breaking the cycle at d.a instead gives the same answer. typesafe/config resolves it (lightbend ConfigSubstitutionTest, the 'tricky cycle' with defaults/item1)",
+  "expect": {
+    "d": {
+      "a": 7
+    },
+    "i": {
+      "a": 7,
+      "b": 7
+    }
+  },
+  "resolve": true
+}

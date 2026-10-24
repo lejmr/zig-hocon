@@ -1,0 +1,17 @@
+{
+  "spec": "HOCON.md#examples-of-self-referential-substitutions",
+  "rule": [
+    "examples-of-self-referential-substitutions.8",
+    "array-and-object-concatenation.2"
+  ],
+  "why": "child.foo = \"test-foo\" hides foo = ${FOOBAR}, which is never evaluated; ${base} is {} and must behave exactly as the literal {} does, and child = {} { foo = ${FOOBAR} } followed by the same override resolves everywhere. typesafe/config, sconfig and zig-hocon evaluate the hidden substitution anyway (lightbend/config#812); pyhocon does not",
+  "expect": {
+    "base": {},
+    "child": {
+      "foo": "test-foo"
+    }
+  },
+  "java": "unsupported",
+  "java_error": "UnresolvedSubstitution",
+  "resolve": true
+}

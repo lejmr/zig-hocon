@@ -1,0 +1,17 @@
+{
+  "spec": "HOCON.md#unquoted-strings",
+  "rule": [
+    "unquoted-strings.12",
+    "unquoted-strings.13"
+  ],
+  "why": "-bar follows ${a} with no whitespace. If it is a new unquoted string it begins with a hyphen and must be rejected like 012; if the hyphen is 'inside' the concatenation it is plain text and b is foo-bar. Every other implementation measured, typesafe/config included, gives foo-bar, and the shape (${prefix}-service, -Xmx${heap}m) is everyday config",
+  "expect": {
+    "a": "foo",
+    "b": "foo-bar"
+  },
+  "also_valid": [
+    "rejected"
+  ],
+  "review": "does 'may not begin with a hyphen' apply to a token that continues a value concatenation after a substitution? zig-hocon rejects it today (HyphenIsNotAJsonNumber)",
+  "resolve": true
+}

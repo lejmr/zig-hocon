@@ -1,0 +1,22 @@
+{
+  "spec": "HOCON.md#self-referential-substitutions",
+  "rule": [
+    "self-referential-substitutions.2",
+    "self-referential-substitutions.7"
+  ],
+  "why": "c.x : ${c.x}[1, 2] looks back to c.x from ${d}, which is [], so c.x is [1, 2]; typesafe/config resolves the two-step form x : ${c.x}[1], x : ${c.x}[2] but reports a cycle for this one (lightbend/config#728)",
+  "expect": {
+    "d": {
+      "x": []
+    },
+    "c": {
+      "x": [
+        1,
+        2
+      ]
+    }
+  },
+  "java": "unsupported",
+  "java_error": "UnresolvedSubstitution",
+  "resolve": true
+}

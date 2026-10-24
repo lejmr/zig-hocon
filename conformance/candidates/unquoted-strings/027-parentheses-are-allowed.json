@@ -1,0 +1,8 @@
+{
+  "spec": "HOCON.md#unquoted-strings",
+  "rule": "unquoted-strings.2",
+  "why": "( and ) are not forbidden characters, so (42) is one unquoted string (lightbend TestUtils validConf)",
+  "expect": {
+    "a": "(42)"
+  }
+}

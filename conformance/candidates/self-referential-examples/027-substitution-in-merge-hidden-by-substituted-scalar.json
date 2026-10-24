@@ -1,0 +1,16 @@
+{
+  "spec": "HOCON.md#examples-of-self-referential-substitutions",
+  "rule": "examples-of-self-referential-substitutions.8",
+  "why": "p.a is the merge of ${y}, 42 (from ${x}) and { x : 1 }; 42 is not an object, so it hides ${y}, which is never evaluated and its being undefined is no error. typesafe/config gets this right (lightbend ConfigSubstitutionTest)",
+  "expect": {
+    "p": {
+      "a": {
+        "x": 1
+      }
+    },
+    "x": {
+      "a": 42
+    }
+  },
+  "resolve": true
+}

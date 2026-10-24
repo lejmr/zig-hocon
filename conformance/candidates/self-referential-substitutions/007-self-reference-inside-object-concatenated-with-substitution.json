@@ -1,0 +1,20 @@
+{
+  "spec": "HOCON.md#self-referential-substitutions",
+  "rule": [
+    "self-referential-substitutions.2",
+    "array-and-object-concatenation.2"
+  ],
+  "why": "the second k refers to the field being defined, so it looks back to the earlier k = [a] in the same object; ${x} resolves to {} and concatenating an empty object changes nothing, so the result must equal the plain object { k = [a], k = ${p.k} [b] }, which every implementation resolves to [a, b]. typesafe/config fails with an internal error (BugOrBroken, lightbend/config#647); ekrich/sconfig resolves it",
+  "expect": {
+    "x": {},
+    "p": {
+      "k": [
+        "a",
+        "b"
+      ]
+    }
+  },
+  "java": "unsupported",
+  "java_error": "BugOrBroken",
+  "resolve": true
+}

@@ -1,0 +1,20 @@
+{
+  "spec": "HOCON.md#the--field-separator",
+  "rule": [
+    "the--field-separator.2",
+    "the--field-separator.3"
+  ],
+  "why": "k += b is k = ${?p.k} [b]; its previous value is the k: [a] just before it in the same object, so k is [a, b] -- the same object written without ${p} gives [a, b] everywhere. Losing [a] silently is data loss. typesafe/config fails with BugOrBroken; ekrich/sconfig gets [a, b] (sconfig ConfigSubstitutionSharedTest)",
+  "expect": {
+    "p": {
+      "z": 0,
+      "k": [
+        "a",
+        "b"
+      ]
+    }
+  },
+  "java": "unsupported",
+  "java_error": "BugOrBroken",
+  "resolve": true
+}

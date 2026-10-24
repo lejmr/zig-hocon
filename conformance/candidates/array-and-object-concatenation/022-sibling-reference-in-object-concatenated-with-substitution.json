@@ -1,0 +1,17 @@
+{
+  "spec": "HOCON.md#array-and-object-concatenation",
+  "rule": [
+    "array-and-object-concatenation.2",
+    "examples-of-self-referential-substitutions.14"
+  ],
+  "why": "with x = {} this is p: {} {y: 0, m: ${p.y}}, where m is 0 in every implementation; an object may refer to paths within itself. With the substitution every implementation reports a cycle",
+  "expect": {
+    "x": {},
+    "p": {
+      "y": 0,
+      "m": 0
+    }
+  },
+  "review": "same question as 021 (ekrich/sconfig#611, row 4)",
+  "resolve": true
+}
