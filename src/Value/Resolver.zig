@@ -352,11 +352,16 @@ fn resolveTarget(state: *Resolver, target: *Value, ref: Ref) Error!?Value {
                 state.cycles += 1;
                 return null;
             }
-            // An optional that began after the target did is on the cycle.
+            // A field on the cycle that can look back breaks it first
+            // (spec L849): inside the target, it is walked again; anywhere
+            // else that is not done, and the cycle stays one.
+            if (try state.walkAgain(target, ref, i)) |val| return val;
+            // Else an optional that began after the target did is on it.
             const last = state.optionals.items.len;
-            if (last > 0 and state.optionals.items[last - 1] > i) {
-                state.breaking = last - 1;
-            } else if (try state.walkAgain(target, ref, i)) |val| return val;
+            const looking_back = for (state.visiting.items[i + 1 ..]) |p| {
+                if (looksBackAt(state, p)) break true;
+            } else false;
+            if (!looking_back and last > 0 and state.optionals.items[last - 1] > i) state.breaking = last - 1;
             state.err_pos.* = ref.at();
             return Error.SubstitutionCycle;
         }
@@ -380,12 +385,26 @@ fn walkAgain(state: *Resolver, target: *Value, ref: Ref, i: usize) Error!?Value 
     if (target.* != .object) return null;
     for (state.again.items) |a| if (a.place == target) return null;
     for (state.visiting.items[i + 1 ..]) |place| {
-        if (!looksBackAt(state, place)) continue;
+        if (!looksBackAt(state, place) or !holds(target.*, place)) continue;
         try state.again.append(state.gpa, .{ .place = target, .ref = ref });
         defer _ = state.again.pop();
         return try state.resolveValue(target.*);
     }
     return null;
+}
+
+// Whether `place` is a member of `value` or of a list or object in it.
+fn holds(value: Value, place: *Value) bool {
+    switch (value) {
+        .object => |members| for (members) |*m| {
+            if (&m.value == place or holds(m.value, place)) return true;
+        },
+        .array => |items| for (items) |*item| {
+            if (item == place or holds(item.*, place)) return true;
+        },
+        else => {},
+    }
+    return false;
 }
 
 // Whether `place` is a field being resolved that looks back at layers below.
@@ -603,4 +622,16 @@ test "resolve.a look-back that refers to its own object" {
     try expectResolved("o { a = 1, a = ${o} }", "{\"o\":{\"a\":{\"a\":1}}}");
     try expectResolveError("a { b = ${a} }", error.SubstitutionCycle);
     try expectResolveError("o { a = [], a += ${o}, c = ${o} }", error.SubstitutionCycle);
+}
+// Zig only for the errors (java ✓ on the first two values, ✗ on the rest: it
+// reports the cycles with the fields in this order) · spec ✓ — a cycle is broken
+// by looking back where that gives every field one value, and only there: a
+// field resolved anew a second time, a re-walk of an object the look-back is not
+// in, or an optional the look-back would have reached first stay cycles.
+test "resolve.a cycle breaks only where its look-back stays one value" {
+    try expectResolved("bar : ${foo}\nfoo += 5\nfoo : ${bar}", "{\"bar\":[5],\"foo\":[5]}");
+    try expectResolved("a : ${?t} ${?a}${?n.x}\nn = ${a}", "{\"a\":\" \",\"n\":\" \"}");
+    try expectResolveError("a = ${p}\np = 1\np = ${a}x\np = ${a}x", error.SubstitutionCycle);
+    try expectResolveError("v { n = { x = ${a} } }\na = { n = { h = 0 } }\na = ${v}", error.SubstitutionCycle);
+    try expectResolveError("v = { x = ${?a} }\nr = null\nr = ${v}\na = null\na = ${r}", error.SubstitutionCycle);
 }

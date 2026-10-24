@@ -279,7 +279,9 @@ pub fn seen(state: *Resolver, place: *Value, ref: Ref) Error!?*Value {
                     // round through p, which has a value below to look back at,
                     // so it breaks there (spec L659): a is resolved anew, and in
                     // it p is the 1.
-                    if (looksBackAfter(state, i)) {
+                    // Once: a second time round, the value it was resolved
+                    // to would not be the one its look-back saw.
+                    if (field.again == null and looksBackAfter(state, i)) {
                         const again = try gpa.create(Value);
                         again.* = place.*;
                         field.again = again;
