@@ -5,10 +5,10 @@
   "mode": "java",
   "java_version": "1.4.9",
   "command": "conformance/adapters/oracle.sh hocon-java",
-  "ran_at": "2026-10-24T06:20:49Z",
-  "suite_digest": "b80d17e86b169bad",
-  "total": 454,
-  "passed": 454,
+  "ran_at": "2026-10-24T06:50:11Z",
+  "suite_digest": "34d5b6ef5070df01",
+  "total": 457,
+  "passed": 457,
   "percent": 100.0,
   "sections": {
     "array-and-object-concatenation": {
@@ -104,8 +104,8 @@
       "passed": 12
     },
     "self-referential-examples": {
-      "total": 30,
-      "passed": 30
+      "total": 33,
+      "passed": 33
     },
     "self-referential-substitutions": {
       "total": 5,
@@ -457,6 +457,9 @@
     "self-referential-examples/028-self-reference-through-two-concatenated-substitutions.conf": "pass",
     "self-referential-examples/029-concatenated-object-refers-to-its-mixin.conf": "pass",
     "self-referential-examples/030-concatenated-object-sees-its-own-field.conf": "pass",
+    "self-referential-examples/031-field-hidden-by-a-substituted-object.conf": "pass",
+    "self-referential-examples/032-field-hidden-inside-object-concatenation.conf": "pass",
+    "self-referential-examples/033-object-below-a-substitution-looks-forward.conf": "pass",
     "self-referential-substitutions/001-path-builds-on-older-value.conf": "pass",
     "self-referential-substitutions/002-self-referential-concatenation.conf": "pass",
     "self-referential-substitutions/003-object-containing-self-reference-is-not-self-referential.conf": "pass",
@@ -642,6 +645,7 @@
     "self-referential-examples/028-self-reference-through-two-concatenated-substitutions.conf": "rejected",
     "self-referential-examples/029-concatenated-object-refers-to-its-mixin.conf": "rejected",
     "self-referential-examples/030-concatenated-object-sees-its-own-field.conf": "rejected",
+    "self-referential-examples/032-field-hidden-inside-object-concatenation.conf": "rejected",
     "string-value-concatenation/010-object-then-scalar-drops-the-scalar.conf": "{\"a\":{\"b\":1}}",
     "string-value-concatenation/011-array-then-scalar-drops-the-scalar.conf": "{\"a\":[1,2]}",
     "string-value-concatenation/014-array-then-unquoted-text-without-space.conf": "{\"x\":[1]}",

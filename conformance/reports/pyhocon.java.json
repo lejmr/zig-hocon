@@ -5,11 +5,11 @@
   "mode": "java",
   "java_version": "1.4.9",
   "command": "conformance/adapters/oracle.sh hocon-py",
-  "ran_at": "2026-10-24T06:27:43Z",
-  "suite_digest": "b80d17e86b169bad",
-  "total": 454,
-  "passed": 299,
-  "percent": 65.9,
+  "ran_at": "2026-10-24T07:40:43Z",
+  "suite_digest": "34d5b6ef5070df01",
+  "total": 457,
+  "passed": 300,
+  "percent": 65.6,
   "sections": {
     "array-and-object-concatenation": {
       "total": 19,
@@ -104,8 +104,8 @@
       "passed": 0
     },
     "self-referential-examples": {
-      "total": 30,
-      "passed": 20
+      "total": 33,
+      "passed": 21
     },
     "self-referential-substitutions": {
       "total": 5,
@@ -457,6 +457,9 @@
     "self-referential-examples/028-self-reference-through-two-concatenated-substitutions.conf": "fail",
     "self-referential-examples/029-concatenated-object-refers-to-its-mixin.conf": "fail",
     "self-referential-examples/030-concatenated-object-sees-its-own-field.conf": "fail",
+    "self-referential-examples/031-field-hidden-by-a-substituted-object.conf": "pass",
+    "self-referential-examples/032-field-hidden-inside-object-concatenation.conf": "fail",
+    "self-referential-examples/033-object-below-a-substitution-looks-forward.conf": "fail",
     "self-referential-substitutions/001-path-builds-on-older-value.conf": "pass",
     "self-referential-substitutions/002-self-referential-concatenation.conf": "pass",
     "self-referential-substitutions/003-object-containing-self-reference-is-not-self-referential.conf": "pass",
@@ -642,6 +645,7 @@
     "self-referential-examples/028-self-reference-through-two-concatenated-substitutions.conf": "{\"d\":{\"x\":[0]},\"e\":{\"z\":5},\"c\":{\"x\":[0,1,1],\"z\":5,\"w\":5}}",
     "self-referential-examples/029-concatenated-object-refers-to-its-mixin.conf": "{\"mixin\":{\"hello\":\"world\"},\"a\":{\"hello\":\"world\",\"y\":\"world\"}}",
     "self-referential-examples/030-concatenated-object-sees-its-own-field.conf": "{\"x\":{\"n\":1},\"top\":{\"n\":2,\"seen\":2}}",
+    "self-referential-examples/032-field-hidden-inside-object-concatenation.conf": "{\"base\":{},\"child\":{\"foo\":\"x\"}}",
     "string-value-concatenation/010-object-then-scalar-drops-the-scalar.conf": "rejected",
     "string-value-concatenation/011-array-then-scalar-drops-the-scalar.conf": "rejected",
     "string-value-concatenation/014-array-then-unquoted-text-without-space.conf": "rejected",
@@ -2103,6 +2107,29 @@
       "java": "unsupported"
     },
     {
+      "case": "self-referential-examples/032-field-hidden-inside-object-concatenation.conf",
+      "spec": "HOCON.md#examples-of-self-referential-substitutions",
+      "rule": "${base} { ... } is a merge, and child.foo = x merges onto it and hides its foo, so ${missing} is never evaluated, as with child = ${base} and child { foo = ${missing} } written as two fields; typesafe/config evaluates it (lightbend/config#812)",
+      "expected": "rejected",
+      "got": "{\"base\":{},\"child\":{\"foo\":\"x\"}}",
+      "java": "unsupported"
+    },
+    {
+      "case": "self-referential-examples/033-object-below-a-substitution-looks-forward.conf",
+      "spec": "HOCON.md#examples-of-self-referential-substitutions",
+      "rule": "${bar.foo} is not self-referential, so it looks forward at the final bar.foo, which the object ${r} gives on top: 43, as when the later bar is written out",
+      "expected": {
+        "bar": {
+          "foo": 43,
+          "baz": 43
+        },
+        "r": {
+          "foo": 43
+        }
+      },
+      "got": "rejected (exit 142)"
+    },
+    {
       "case": "size-in-bytes-format/004-powers-of-two-suffixes.conf",
       "spec": "HOCON.md#size-in-bytes-format",
       "rule": "every power-of-2 suffix and its long forms name the same unit family; one table, one rule. The E and e forms are quoted because an unquoted 5E is a number token that is not a number (see unquoted-strings/022)",
@@ -2226,7 +2253,7 @@
         "a": "null bar"
       },
       "got": {
-        "a": "<pyhocon.config_tree.NoneValue object at 0x101b26150>bar"
+        "a": "<pyhocon.config_tree.NoneValue object at 0x1011c8950>bar"
       }
     },
     {

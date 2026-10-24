@@ -1,0 +1,17 @@
+{
+  "spec": "HOCON.md#examples-of-self-referential-substitutions",
+  "rule": [
+    "array-and-object-concatenation.6",
+    "examples-of-self-referential-substitutions.8"
+  ],
+  "why": "${base} { ... } is a merge, and child.foo = x merges onto it and hides its foo, so ${missing} is never evaluated, as with child = ${base} and child { foo = ${missing} } written as two fields; typesafe/config evaluates it (lightbend/config#812)",
+  "expect": {
+    "base": {},
+    "child": {
+      "foo": "x"
+    }
+  },
+  "java": "unsupported",
+  "java_error": "UnresolvedSubstitution",
+  "resolve": true
+}
