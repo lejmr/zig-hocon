@@ -1,0 +1,19 @@
+{
+  "spec": "HOCON.md#path-expressions",
+  "rule": [
+    "path-expressions.7",
+    "path-expressions.10",
+    "the--field-separator.1"
+  ],
+  "why": "a key may start with a number and run into +=: 3 and 1e are keys, and += appends to nothing: {\"3\": [[]], \"1e\": [1]}; typesafe/config reads + as part of the number and rejects it, pyhocon drops the brackets",
+  "expect": {
+    "3": [
+      []
+    ],
+    "1e": [
+      1
+    ]
+  },
+  "java": "unsupported",
+  "java_error": "Parse"
+}
