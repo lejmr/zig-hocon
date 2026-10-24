@@ -1,0 +1,19 @@
+{
+  "spec": "HOCON.md#self-referential-substitutions",
+  "rule": [
+    "self-referential-substitutions.4",
+    "self-referential-substitutions.2",
+    "the--field-separator.2"
+  ],
+  "why": "a += ${o} is a = ${?a} [${o}], self-referential through ${?a}; the cycle through ${o} is broken by looking back, with o's a at its earlier value []: o = {a: [{a: []}]}, the implementation the spec sketches",
+  "expect": {
+    "o": {
+      "a": [
+        {
+          "a": []
+        }
+      ]
+    }
+  },
+  "resolve": true
+}
