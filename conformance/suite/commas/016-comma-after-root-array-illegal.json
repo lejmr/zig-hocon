@@ -1,0 +1,9 @@
+{
+  "spec": "HOCON.md#commas",
+  "rule": [
+    "commas.2",
+    "omit-root-braces.1"
+  ],
+  "why": "the same after a root array: the comma follows the document, not an element inside it",
+  "error": "Parse"
+}
