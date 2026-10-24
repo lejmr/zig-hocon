@@ -5,11 +5,11 @@
   "mode": "java",
   "java_version": "1.4.9",
   "command": "conformance/adapters/oracle.sh hocon-py",
-  "ran_at": "2026-10-24T07:51:58Z",
-  "suite_digest": "1762fcc881cbda49",
-  "total": 469,
-  "passed": 301,
-  "percent": 64.2,
+  "ran_at": "2026-10-24T08:02:58Z",
+  "suite_digest": "b96a5612ee3983ff",
+  "total": 471,
+  "passed": 303,
+  "percent": 64.3,
   "sections": {
     "array-and-object-concatenation": {
       "total": 22,
@@ -136,8 +136,8 @@
       "passed": 5
     },
     "unquoted-strings": {
-      "total": 25,
-      "passed": 19
+      "total": 27,
+      "passed": 21
     },
     "value-concatenation": {
       "total": 2,
@@ -603,6 +603,8 @@
     "unquoted-strings/023-unquoted-string-ends-at-end-of-file.conf": "pass",
     "unquoted-strings/024-escape-sequence-in-unquoted-string-illegal.conf": "fail",
     "unquoted-strings/025-digit-initial-invalid-number.conf": "pass",
+    "unquoted-strings/026-invalid-number-run-before-text.conf": "pass",
+    "unquoted-strings/027-unquoted-uuid-is-an-error.conf": "pass",
     "value-concatenation/001-simple-values-concatenate-to-string.conf": "pass",
     "value-concatenation/004-string-concatenation-allowed-in-field-keys.conf": "pass",
     "whitespace/001-nonbreaking-space-as-whitespace.conf": "fail",
@@ -678,7 +680,9 @@
     "unchanged-from-json/030-unicode-escape-with-non-ascii-digits-is-invalid.conf": "{\"a\":\"\\\\u\\u00d9\\u00a0\\u00d9\\u00a0\\u00d9\\u00a4\\u00d9\\u00a1\"}",
     "unquoted-strings/012-unquoted-cannot-start-with-hyphen.conf": "{\"a\":\"-foo\"}",
     "unquoted-strings/022-digit-then-exponent-letter-illegal.conf": "{\"a\":\"1e\"}",
-    "unquoted-strings/025-digit-initial-invalid-number.conf": "{\"a\":\"1.2.3\"}"
+    "unquoted-strings/025-digit-initial-invalid-number.conf": "{\"a\":\"1.2.3\"}",
+    "unquoted-strings/026-invalid-number-run-before-text.conf": "{\"a\":\"1.2.3x\"}",
+    "unquoted-strings/027-unquoted-uuid-is-an-error.conf": "{\"id\":\"92806961-7548-48f0-943c-8fb861bb642f\"}"
   },
   "failures": [
     {
@@ -2360,7 +2364,7 @@
         "a": "null bar"
       },
       "got": {
-        "a": "<pyhocon.config_tree.NoneValue object at 0x10377f010>bar"
+        "a": "<pyhocon.config_tree.NoneValue object at 0x1037d0dd0>bar"
       }
     },
     {

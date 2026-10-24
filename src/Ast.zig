@@ -917,9 +917,12 @@ test "commas.separate, and only once" {
 // do not hold:
 //   'a = 1e+5.x' -> java Parse error      'a = 1e5.x' -> java {"a":"1e5.x"}
 //   'a = 1e+5x'  -> java {"a":"1e+5x"}    '1e+5 = 1'  -> java {"1e+5":1}
+// `1e5.x` is an error too, but not for the `+`: its run `1e5.` is no number,
+// and text after the run needs one (see "numbers.are JSON numbers or an error").
 test "numbers.a + belongs to a number" {
     try expectAll(&.{
         .bad("a = 1e+5.x"),
+        .bad("a = 1e5.x"),
         .bad("a = -1e+5.5"),
         .bad("a = [1e+5e+5]"),
         .bad("a = tea 1e+5.x"),
@@ -927,7 +930,6 @@ test "numbers.a + belongs to a number" {
         .bad("a { 1e+5.x = 1 }"),
         .bad("a = ${1e+5.x}"),
 
-        .ok("a = 1e5.x", "root(assign(value(a), value(1e5.x)))"),
         .ok("a = 1e+5x", "root(assign(value(a), value(1e+5x)))"),
         .ok("1e+5 = 1", "root(assign(value(1e+5), value(1)))"),
         .ok("\"1e+5\".x = 1", "root(assign(value(\"1e+5\"), block(assign(value(x), value(1)))))"),
@@ -981,7 +983,9 @@ test "nesting.deeper than max_depth is an error" {
 //
 // Text after a valid number concatenates with it — '10.0bar', '5EB' and
 // '5exabyte' are strings on all three, and size-in-bytes-format/003-004 need
-// them to stay so. A key or a `${…}` path is exempt: there a dot separates path
+// them to stay so: a unit that starts with `e` lends the run its first letter.
+// With no number in front, text is no way out: '1.2.3x' and a UUID are errors,
+// strings on both oracles (lightbend/config#480). A key or a `${…}` path is exempt: there a dot separates path
 // elements, '1.2.3 = 1' -> {"1":{"2":{"3":1}}} and '-.33 = 1' -> {"-":{"33":1}}
 // on both oracles.
 test "numbers.are JSON numbers or an error" {
@@ -1002,12 +1006,18 @@ test "numbers.are JSON numbers or an error" {
         .bad("a = 01 x"),
         .bad("a = 1e x"),
         .bad("a = [1, 01]"),
+        // Text after the run needs a number in front of it (unquoted-strings/026-027).
+        .bad("a = 1.2.3x"),
+        .bad("a = 01x"),
+        .bad("a = 2024-01-01T10"),
+        .bad("a = 92806961-7548-48f0-943c-8fb861bb642f"),
 
         .ok("a = 0", "root(assign(value(a), value(0)))"),
         .ok("a = -0.5e-3", "root(assign(value(a), value(-0.5e-3)))"),
         .ok("a = 10.0bar", "root(assign(value(a), value(10.0bar)))"),
         .ok("a = 5EB", "root(assign(value(a), value(5EB)))"),
         .ok("a = 5exabyte", "root(assign(value(a), value(5exabyte)))"),
+        .ok("a = -1.5Ei", "root(assign(value(a), value(-1.5Ei)))"),
         .ok("a = .5", "root(assign(value(a), value(.5)))"),
         .ok("a = \"01\"", "root(assign(value(a), value(\"01\")))"),
         .ok("a = foo-1", "root(assign(value(a), value(foo-1)))"),

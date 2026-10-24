@@ -10,6 +10,7 @@ What changed for someone using zig-hocon: the Zig package, the `hocon` command l
 
 ### Fixed
 
+- A value that begins with a digit and is no number stays an error with text after it, as the spec has it: `1.2.3x`, an unquoted UUID and `2.13.x` are `BadNumber`, where they were strings (pyhocon and typesafe/config read them as text, `python/MIGRATING.md` says to quote them). A unit that starts with `e`, `5EB`, is unchanged.
 - An object after a substitution, `top = ${x} { … }`, is a merge, the same as `top = ${x}` and `top { … }` written as two fields. A `+=` inside it appends to the list `${x}` gives (`top = ${x} { arr += four }` was `[four]`, is `[one, four]`), a self-reference looks back at it, and `${top.n}` inside it sees the merged object instead of reporting a cycle. Eight new conformance cases pin it.
 - Layers of a key are merged before they are resolved, as the spec has it: in `p : { a : ${y} }`, `p : ${x}` with `x.a` set, `${y}` is hidden and no longer evaluated (it was an error), and a reference in the earlier object sees the final value. Three more conformance cases, all 457 pass.
 

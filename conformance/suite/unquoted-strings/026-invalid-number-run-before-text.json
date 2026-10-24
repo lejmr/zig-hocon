@@ -1,0 +1,13 @@
+{
+  "spec": "HOCON.md#unquoted-strings",
+  "rule": [
+    "unquoted-strings.12",
+    "unquoted-strings.13"
+  ],
+  "why": "the run of number characters 1.2.3 must be parsed as a number, and text after it does not change that: it is not one, so the input is rejected; typesafe/config and pyhocon read the string \"1.2.3x\"",
+  "error": "BadNumber",
+  "java": "lenient",
+  "java_expect": {
+    "a": "1.2.3x"
+  }
+}

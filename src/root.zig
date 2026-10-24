@@ -996,6 +996,9 @@ test "diagnostics.BadNumber" {
         \\a { b = -.33 }
         \\        ^ BadNumber
         ,
+        \\id = 92806961-7548-48f0-943c-8fb861bb642f
+        \\     ^ BadNumber
+        ,
     });
 }
 

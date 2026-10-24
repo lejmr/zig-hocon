@@ -43,16 +43,19 @@ pub const NumberError = error{ LeadingZeroIsNotAJsonNumber, HyphenIsNotAJsonNumb
 /// characters JSON allows in one (`0-9 + - . e E`) is parsed as a number, with
 /// no fallback to text. So `1e`, `01`, `1.`, `-.5` and `-foo` are errors.
 ///
-/// Text after the run concatenates with the number it starts with, as in `5EB`
-/// or `10.0bar` — which needs a number to be there: `-foo` has none. Nor may
-/// the run hold a `+` then: `1e+5.x`.
+/// Text after the run concatenates with the number it starts with, as in
+/// `10.0bar` — which needs a number to be there: `-foo` and `1.2.3x` have
+/// none. A unit that starts with `e` or `E` lends the run its first letter, so
+/// `5EB` and `5exabytes` are the number 5 and the unit. Nor may the run hold a
+/// `+` then: `1e+5.x`.
 pub fn checkNumber(word: []const u8) NumberError!void {
     if (word.len == 0 or !(std.ascii.isDigit(word[0]) or word[0] == '-')) return;
     const end = std.mem.indexOfNone(u8, word, "0123456789+-.eE") orelse word.len;
     const run = word[0..end];
     if (isJsonNumber(run)) return;
     try checkPlus(word);
-    if (end < word.len and std.ascii.isDigit(word[@intFromBool(word[0] == '-')])) return;
+    const last = run[run.len - 1];
+    if (end < word.len and (last == 'e' or last == 'E') and isJsonNumber(run[0 .. run.len - 1])) return;
     if (run.len == 1) return error.HyphenIsNotAJsonNumber;
     if (run[0] == '0' and std.ascii.isDigit(run[1])) return error.LeadingZeroIsNotAJsonNumber;
     return error.BadNumber;

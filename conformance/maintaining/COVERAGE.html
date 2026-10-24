@@ -184,9 +184,9 @@ because of value concatenation; see later section.)</p>
 forbidden character or the two-character string &quot;//&quot; is
 encountered.</mark> <mark class="ok" title="unquoted-strings.11 — unquoted-strings/010-embedded-null-not-recognized.conf">Embedded (non-initial) booleans, nulls, and numbers
 are not recognized as such, they are part of the string.</mark></p>
-<p data-line="270"><mark class="ok" title="unquoted-strings.12 — unquoted-strings/012-unquoted-cannot-start-with-hyphen.conf, unquoted-strings/018-leading-dot-is-not-a-number.conf, unquoted-strings/025-digit-initial-invalid-number.conf">An unquoted string may not _begin_ with the digits 0-9 or with a
+<p data-line="270"><mark class="ok" title="unquoted-strings.12 — unquoted-strings/012-unquoted-cannot-start-with-hyphen.conf, unquoted-strings/018-leading-dot-is-not-a-number.conf, unquoted-strings/025-digit-initial-invalid-number.conf, unquoted-strings/026-invalid-number-run-before-text.conf, unquoted-strings/027-unquoted-uuid-is-an-error.conf">An unquoted string may not _begin_ with the digits 0-9 or with a
 hyphen (`-`, 0x002D) because those are valid characters to begin a
-JSON number.</mark> <mark class="ok" title="unquoted-strings.13 — unquoted-strings/013-negative-number-then-string.conf, unquoted-strings/021-plus-inside-a-number-illegal.conf, unquoted-strings/022-digit-then-exponent-letter-illegal.conf, unquoted-strings/025-digit-initial-invalid-number.conf">The initial number character, plus any valid-in-JSON
+JSON number.</mark> <mark class="ok" title="unquoted-strings.13 — unquoted-strings/013-negative-number-then-string.conf, unquoted-strings/021-plus-inside-a-number-illegal.conf, unquoted-strings/022-digit-then-exponent-letter-illegal.conf, unquoted-strings/025-digit-initial-invalid-number.conf, unquoted-strings/026-invalid-number-run-before-text.conf, unquoted-strings/027-unquoted-uuid-is-an-error.conf">The initial number character, plus any valid-in-JSON
 number characters that follow it, must be parsed as a number
 value.</mark> Again, these characters are not special _inside_ an
 unquoted string; they only trigger number parsing if they appear
