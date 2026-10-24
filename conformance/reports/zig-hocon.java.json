@@ -1,15 +1,15 @@
 {
   "suite": "hocon-conformance",
   "implementation": "zig-hocon",
-  "version": "zig-hocon code@3777be0",
+  "version": "zig-hocon code@5b9031b",
   "mode": "java",
   "java_version": "1.4.9",
   "command": "conformance/adapters/zig-hocon.sh",
-  "ran_at": "2026-10-24T06:49:25Z",
+  "ran_at": "2026-10-24T07:43:11Z",
   "suite_digest": "34d5b6ef5070df01",
   "total": 457,
-  "passed": 403,
-  "percent": 88.2,
+  "passed": 404,
+  "percent": 88.4,
   "sections": {
     "array-and-object-concatenation": {
       "total": 19,
@@ -105,7 +105,7 @@
     },
     "self-referential-examples": {
       "total": 33,
-      "passed": 25
+      "passed": 26
     },
     "self-referential-substitutions": {
       "total": 5,
@@ -457,9 +457,9 @@
     "self-referential-examples/028-self-reference-through-two-concatenated-substitutions.conf": "fail",
     "self-referential-examples/029-concatenated-object-refers-to-its-mixin.conf": "fail",
     "self-referential-examples/030-concatenated-object-sees-its-own-field.conf": "fail",
-    "self-referential-examples/031-field-hidden-by-a-substituted-object.conf": "fail",
-    "self-referential-examples/032-field-hidden-inside-object-concatenation.conf": "pass",
-    "self-referential-examples/033-object-below-a-substitution-looks-forward.conf": "fail",
+    "self-referential-examples/031-field-hidden-by-a-substituted-object.conf": "pass",
+    "self-referential-examples/032-field-hidden-inside-object-concatenation.conf": "fail",
+    "self-referential-examples/033-object-below-a-substitution-looks-forward.conf": "pass",
     "self-referential-substitutions/001-path-builds-on-older-value.conf": "pass",
     "self-referential-substitutions/002-self-referential-concatenation.conf": "pass",
     "self-referential-substitutions/003-object-containing-self-reference-is-not-self-referential.conf": "pass",
@@ -645,7 +645,7 @@
     "self-referential-examples/028-self-reference-through-two-concatenated-substitutions.conf": "{\"d\":{\"x\":[0]},\"e\":{\"z\":5},\"c\":{\"x\":[0,1],\"z\":5,\"w\":5}}",
     "self-referential-examples/029-concatenated-object-refers-to-its-mixin.conf": "{\"mixin\":{\"hello\":\"world\"},\"a\":{\"hello\":\"world\",\"y\":\"world\"}}",
     "self-referential-examples/030-concatenated-object-sees-its-own-field.conf": "{\"x\":{\"n\":1},\"top\":{\"n\":2,\"seen\":2}}",
-    "self-referential-examples/032-field-hidden-inside-object-concatenation.conf": "rejected",
+    "self-referential-examples/032-field-hidden-inside-object-concatenation.conf": "{\"base\":{},\"child\":{\"foo\":\"x\"}}",
     "string-value-concatenation/010-object-then-scalar-drops-the-scalar.conf": "rejected",
     "string-value-concatenation/011-array-then-scalar-drops-the-scalar.conf": "rejected",
     "string-value-concatenation/014-array-then-unquoted-text-without-space.conf": "rejected",
@@ -1264,41 +1264,12 @@
       "java": "unsupported"
     },
     {
-      "case": "self-referential-examples/031-field-hidden-by-a-substituted-object.conf",
+      "case": "self-referential-examples/032-field-hidden-inside-object-concatenation.conf",
       "spec": "HOCON.md#examples-of-self-referential-substitutions",
-      "rule": "the object ${x} gives merges onto the earlier p, and its a = 42 hides the earlier a, a non-object over a substitution, so ${y} is never evaluated (lightbend/config#838)",
-      "expected": {
-        "p": {
-          "a": 42
-        },
-        "x": {
-          "a": 42
-        }
-      },
-      "got": "rejected (exit 1)"
-    },
-    {
-      "case": "self-referential-examples/033-object-below-a-substitution-looks-forward.conf",
-      "spec": "HOCON.md#examples-of-self-referential-substitutions",
-      "rule": "${bar.foo} is not self-referential, so it looks forward at the final bar.foo, which the object ${r} gives on top: 43, as when the later bar is written out",
-      "expected": {
-        "bar": {
-          "foo": 43,
-          "baz": 43
-        },
-        "r": {
-          "foo": 43
-        }
-      },
-      "got": {
-        "bar": {
-          "foo": 43,
-          "baz": 42
-        },
-        "r": {
-          "foo": 43
-        }
-      }
+      "rule": "${base} { ... } is a merge, and child.foo = x merges onto it and hides its foo, so ${missing} is never evaluated, as with child = ${base} and child { foo = ${missing} } written as two fields; typesafe/config evaluates it (lightbend/config#812)",
+      "expected": "rejected",
+      "got": "{\"base\":{},\"child\":{\"foo\":\"x\"}}",
+      "java": "unsupported"
     },
     {
       "case": "string-value-concatenation/010-object-then-scalar-drops-the-scalar.conf",

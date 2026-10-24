@@ -113,6 +113,12 @@ pub fn resolveStack(state: *Resolver, place: *Value, layers: []const Value) Erro
             // Gone, or an object that merges onto what was below: then that
             // counts. So does what is below a top that waits, to fall back to.
             if (val != null and val.? != .object and !waits(val.?)) return val;
+            // An object: merged onto what was below before either is resolved
+            // further, as an object layer is, so a field it hides there is
+            // never evaluated (spec L776). Unless a self-reference has
+            // resolved what was below already.
+            if (val != null and !waits(val.?) and field.progress != .done and mergeable(below))
+                return try state.resolveObjectLayer(place, val.?, below);
             const under = if (field.progress == .done)
                 field.merged
             else if (val != null and !waits(val.?) and !mergeable(below))
@@ -136,8 +142,35 @@ pub fn resolveStack(state: *Resolver, place: *Value, layers: []const Value) Erro
 
 // An object layer of a field: merged onto the layers below, then resolved.
 pub noinline fn resolveObjectLayer(state: *Resolver, place: *Value, top: Value, below: []const Value) Error!?Value {
-    const under = if (mergeable(below)) try state.resolveStack(place, below) else null;
+    const under = if (mergeable(below)) try mergedBelow(state, place, below) else null;
     return try objectOnto(state, place, top, below, under);
+}
+
+// What the layers give for an object to merge onto, with the objects among
+// them as written: a ref is resolved, to know whether it merges, but an
+// object waits for the layers over it, so a field one of them hides is never
+// evaluated (spec L776): `p : { a : ${y} }`, `p : ${x}` with `x.a` set.
+// Where that cannot be told yet, everything is resolved.
+fn mergedBelow(state: *Resolver, place: *Value, layers: []const Value) Error!?Value {
+    const gpa = state.gpa;
+    const top = layers[layers.len - 1];
+    var object = top;
+    var front = layers[0 .. layers.len - 1];
+    if (objectAfterRef(top)) |split| {
+        object = split.object;
+        front = try std.mem.concat(gpa, Value, &.{ front, &.{split.front} });
+    } else if (top != .object) return try state.resolveStack(place, layers);
+    const under = if (mergeable(front)) try mergedBelow(state, place, front) else null;
+    const u = under orelse return object;
+    // Hidden by a plain object; but what it is next to a concatenation, or
+    // whether it merges under `.keep`, is for `resolveStack` to say.
+    if (u != .object or waits(u)) {
+        if (top == .object and !waits(u)) return object;
+        return try state.resolveStack(place, layers);
+    }
+    var merged = u;
+    try merged.update(gpa, object);
+    return merged;
 }
 
 // `${x} { … }`: the object merges onto what the parts in front of it give
@@ -148,15 +181,21 @@ pub noinline fn resolveObjectLayer(state: *Resolver, place: *Value, top: Value, 
 // concatenation, joined in `resolvePending` once the object is resolved.
 noinline fn resolveObjectAfterRef(state: *Resolver, place: *Value, top: Value, below: []const Value) Error!?Value {
     const gpa = state.gpa;
+    const split = objectAfterRef(top) orelse return null;
+    const layers = try std.mem.concat(gpa, Value, &.{ below, &.{split.front} });
+    const under = try state.resolveStack(place, layers);
+    if (under) |u| if (u != .object or waits(u)) return null;
+    return try objectOnto(state, place, split.object, layers, under);
+}
+
+// `${x} { … }` as what is in front of the object and the object.
+fn objectAfterRef(top: Value) ?struct { front: Value, object: Value } {
     if (top != .pending) return null;
     const parts = top.pending;
     const object = parts[parts.len - 1].value;
-    if (object != .object) return null;
+    if (object != .object or !looksBack(top)) return null;
     const front: Value = if (parts.len == 2) parts[0].value else .{ .pending = parts[0 .. parts.len - 1] };
-    const layers = try std.mem.concat(gpa, Value, &.{ below, &.{front} });
-    const under = try state.resolveStack(place, layers);
-    if (under) |u| if (u != .object or waits(u)) return null;
-    return try objectOnto(state, place, object, layers, under);
+    return .{ .front = front, .object = object };
 }
 
 // An object layer over what the layers below it resolved to, `under`.
@@ -468,6 +507,20 @@ test "resolve.a hidden value is never evaluated" {
         .ok("a = ${nope}\na = 42", "{\"a\":42}"),
         .ok("a = [${nope}]\nr = {}\na = ${r}", "{\"a\":{},\"r\":{}}"),
         .bad("a = { b = ${nope} }\nr = {}\na = ${r}"),
+    });
+}
+// self-referential-examples/031–033 · java ✓ (⚠️ second row, it evaluates
+// `${missing}`; lightbend/config#812) · pyhocon ✓ (hangs on the last) · spec ✓
+// — the layers merge before they are resolved (`mergedBelow`): a field the
+// object on top hides is never evaluated (spec L776), and a reference in the
+// object below looks forward at the merged value.
+test "resolve.layers merge before they are resolved" {
+    try expectAllResolved(&.{
+        .ok("p : { a : ${y} }\np : ${x}\nx : { a : 42 }", "{\"p\":{\"a\":42},\"x\":{\"a\":42}}"),
+        .ok("base = {}\nchild = ${base} { foo = ${missing} }\nchild.foo = x", "{\"base\":{},\"child\":{\"foo\":\"x\"}}"),
+        .ok("bar : { foo : 42, baz : ${bar.foo} }\nbar : ${r}\nr = { foo : 43 }", "{\"bar\":{\"foo\":43,\"baz\":43},\"r\":{\"foo\":43}}"),
+        // what is not hidden is still evaluated
+        .bad("p : { a : ${y}, b : 1 }\np : ${x}\nx : { b : 2 }"),
     });
 }
 // java ✓ · pyhocon ✓ · spec ✓ — an object layer is not self-referential: a
