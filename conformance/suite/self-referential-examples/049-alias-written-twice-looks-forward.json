@@ -1,0 +1,20 @@
+{
+  "spec": "HOCON.md#examples-of-self-referential-substitutions",
+  "rule": [
+    "examples-of-self-referential-substitutions.13",
+    "examples-of-self-referential-substitutions.16",
+    "substitutions.11"
+  ],
+  "why": "p's last value is an object, so it is not self-referential and ${a.q} looks forward through the alias a, resolving only q: r is 1, as 038 with a = ${p} written twice",
+  "expect": {
+    "p": {
+      "q": 1,
+      "r": 1
+    },
+    "a": {
+      "q": 1,
+      "r": 1
+    }
+  },
+  "resolve": true
+}

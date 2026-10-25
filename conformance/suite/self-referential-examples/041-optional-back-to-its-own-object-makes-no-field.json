@@ -1,0 +1,11 @@
+{
+  "spec": "HOCON.md#examples-of-self-referential-substitutions",
+  "rule": [
+    "self-referential-substitutions.13",
+    "substitutions.15",
+    "substitutions.11"
+  ],
+  "why": "${?a} leads back to the field it is in, so it is nonexistent and a.n is not created; o then refers to a path not in the document, an error, not the {} the field never was",
+  "error": "UnresolvedSubstitution",
+  "resolve": true
+}

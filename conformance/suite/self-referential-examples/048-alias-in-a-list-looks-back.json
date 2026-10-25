@@ -1,0 +1,17 @@
+{
+  "spec": "HOCON.md#examples-of-self-referential-substitutions",
+  "rule": [
+    "self-referential-substitutions.4",
+    "self-referential-substitutions.2"
+  ],
+  "why": "p = ${a} comes back to p through a = [${p}], so it looks back at p = 1: a is [1] and p is a, [1], as 035 with the alias in a list",
+  "expect": {
+    "a": [
+      1
+    ],
+    "p": [
+      1
+    ]
+  },
+  "resolve": true
+}

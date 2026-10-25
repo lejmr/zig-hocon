@@ -1,0 +1,20 @@
+{
+  "spec": "HOCON.md#examples-of-self-referential-substitutions",
+  "rule": [
+    "self-referential-substitutions.13",
+    "substitutions.11",
+    "examples-of-self-referential-substitutions.27"
+  ],
+  "why": "${?a} inside a.n leads back to a.n through a, so it is as if it referred to a nonexistent value and a.n is {h: 0}; o is the final a.n, whichever field is resolved first: substitutions are memoized, so both have the same value",
+  "expect": {
+    "o": {
+      "h": 0
+    },
+    "a": {
+      "n": {
+        "h": 0
+      }
+    }
+  },
+  "resolve": true
+}

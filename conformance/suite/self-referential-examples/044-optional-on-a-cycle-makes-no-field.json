@@ -1,0 +1,28 @@
+{
+  "spec": "HOCON.md#examples-of-self-referential-substitutions",
+  "rule": [
+    "self-referential-substitutions.4",
+    "self-referential-substitutions.13",
+    "substitutions.15"
+  ],
+  "why": "as 043 without the x: ${?a.t} leads back to f, so it is nonexistent and f is not created; ${?f} leads back to a and is nonexistent too, so a is {t: 1}. typesafe/config gives f = 1 here, though in 043 it reads ${?a.t} as nonexistent",
+  "expect": {
+    "a": {
+      "t": 1
+    },
+    "y": {
+      "t": 1
+    }
+  },
+  "resolve": true,
+  "java": "diverges",
+  "java_expect": {
+    "a": {
+      "t": 1
+    },
+    "f": 1,
+    "y": {
+      "t": 1
+    }
+  }
+}

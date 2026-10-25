@@ -1,0 +1,17 @@
+{
+  "spec": "HOCON.md#self-referential-substitutions",
+  "rule": [
+    "self-referential-substitutions.9",
+    "self-referential-substitutions.11",
+    "substitutions.15"
+  ],
+  "why": "${?r} is undefined, so the previous value of v.x remains, ${v}: a field referring to the object it is in, the a : { b : ${a} } the spec names an unbreakable cycle. typesafe/config sets the field aside and reads v as {}",
+  "error": "SubstitutionCycle",
+  "resolve": true,
+  "java": "lenient",
+  "java_expect": {
+    "v": {
+      "x": {}
+    }
+  }
+}

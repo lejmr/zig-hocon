@@ -1,0 +1,16 @@
+{
+  "spec": "HOCON.md#examples-of-self-referential-substitutions",
+  "rule": [
+    "examples-of-self-referential-substitutions.8",
+    "array-and-object-concatenation.1"
+  ],
+  "why": "${nope} [1] is a list or an error whatever ${nope} is, so the object hides it and it is never evaluated (\"no matter what ${does-not-exist} resolves to\"): no error. A lone ${nope} could be an object, and is evaluated",
+  "expect": {
+    "wrapper": {
+      "a": 1
+    }
+  },
+  "resolve": true,
+  "java": "unsupported",
+  "java_error": "UnresolvedSubstitution"
+}

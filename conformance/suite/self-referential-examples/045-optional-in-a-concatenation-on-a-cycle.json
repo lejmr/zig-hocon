@@ -1,0 +1,14 @@
+{
+  "spec": "HOCON.md#examples-of-self-referential-substitutions",
+  "rule": [
+    "self-referential-substitutions.4",
+    "self-referential-substitutions.13",
+    "substitutions.18"
+  ],
+  "why": "${?c} leads back to d through c = ${d}, so it is nonexistent and an empty string in the concatenation: d and c are \"yes\", in either order of the lines",
+  "expect": {
+    "d": "yes",
+    "c": "yes"
+  },
+  "resolve": true
+}

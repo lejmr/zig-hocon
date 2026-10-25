@@ -1,0 +1,24 @@
+{
+  "spec": "HOCON.md#include-semantics-substitution",
+  "rule": [
+    "include-semantics-substitution.1",
+    "substitution-fallback-to-environment-variables.1",
+    "the--field-separator.2"
+  ],
+  "why": "${?CONFORMANCE_PARROT} is in no document, so it reads the environment variable, also in a file included into an object that += appends; typesafe/config refuses an include in a list value",
+  "env": {
+    "CONFORMANCE_PARROT": "norwegian-blue"
+  },
+  "expect": {
+    "k": {
+      "a": [
+        {
+          "x": "norwegian-blue"
+        }
+      ]
+    }
+  },
+  "resolve": true,
+  "java": "unsupported",
+  "java_error": "Parse"
+}

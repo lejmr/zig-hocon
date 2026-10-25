@@ -1,0 +1,21 @@
+{
+  "spec": "HOCON.md#examples-of-self-referential-substitutions",
+  "rule": [
+    "self-referential-substitutions.2",
+    "self-referential-substitutions.4",
+    "examples-of-self-referential-substitutions.13"
+  ],
+  "why": "the second c comes back to itself through a, and has c = 2 below to look back at: while it is resolved the list is seen with c at 2, so c is [{c: 2}]. a : [${a}] is unbreakable only because nothing is below",
+  "expect": {
+    "a": [
+      {
+        "c": [
+          {
+            "c": 2
+          }
+        ]
+      }
+    ]
+  },
+  "resolve": true
+}
