@@ -513,8 +513,8 @@ fn lookup(state: *Resolver, ref: Ref, path: []const Key) Error!Place {
 // goes (spec L815). Null where the path goes on through `a` as it is: an
 // optional, a `+=`, a ref from an included file or one kept for later.
 fn throughAlias(state: *Resolver, ref: Ref, place: *Value, rest: []const Key) Error!?Place {
-    if (place.* != .ref or state.env == .keep) return null;
-    const alias = place.ref;
+    if (state.env == .keep) return null;
+    const alias = aliasOf(place.*) orelse return null;
     if (alias.flags.optional or alias.flags.append or alias.scope_len > 0) return null;
     // Resolving it already, it is a cycle, which `resolveTarget` says.
     for (state.visiting.items) |p| if (p == place) return null;
@@ -522,6 +522,26 @@ fn throughAlias(state: *Resolver, ref: Ref, place: *Value, rest: []const Key) Er
     try state.visiting.append(gpa, place);
     defer _ = state.visiting.pop();
     return try state.lookup(ref, try std.mem.concat(gpa, Key, &.{ alias.path, rest }));
+}
+
+// The ref an alias is: `a = ${p}`, also written more than once, which merges
+// p onto p and is p still. Null for anything else.
+fn aliasOf(value: Value) ?Ref {
+    switch (value) {
+        .ref => |r| return r,
+        .stack => |layers| {
+            if (layers[0] != .ref) return null;
+            const first = layers[0].ref;
+            for (layers[1..]) |layer| {
+                if (layer != .ref or layer.ref.path.len != first.path.len) return null;
+                for (layer.ref.path, first.path) |a, b| {
+                    if (!std.mem.eql(u8, a.value, b.value)) return null;
+                }
+            }
+            return first;
+        },
+        else => return null,
+    }
 }
 
 // A new place holding `value`, resolved already, for a path to find.
