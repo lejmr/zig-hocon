@@ -1,0 +1,9 @@
+{
+  "spec": "HOCON.md#commas",
+  "rule": [
+    "commas.2",
+    "omit-root-braces.1"
+  ],
+  "why": "a single comma may follow the last field of an object or the last element of an array, and the root object is neither: the file begins with a brace, so nothing wraps it, and the comma is a token after the document; pyhocon accepts it",
+  "error": "Parse"
+}

@@ -516,7 +516,9 @@ pub const Parser = struct {
                     break :blk null;
                 },
                 .comma => blk: {
-                    if (!comma_allowed) return self.fail(token.loc.start);
+                    // The braced root is no field and no element, so not even
+                    // one comma may follow it: `{a = 1},`.
+                    if (!comma_allowed or braced_root) return self.fail(token.loc.start);
                     comma_allowed = false;
                     _ = self.t.next();
                     break :blk null;
