@@ -425,7 +425,8 @@ const Place = union(enum) { absent, gone, waits, place: *Value };
 // object is in `visiting`; null where nothing in it looks back, or it is
 // being walked again already, and the cycle cannot be broken.
 fn walkAgain(state: *Resolver, target: *Value, ref: Ref, i: usize) Error!?Value {
-    if (target.* != .object) return null;
+    // A list the same as an object (spec L684, L801): `a = [{c = 2, c = ${a}}]`.
+    if (target.* != .object and target.* != .array) return null;
     for (state.again.items) |a| if (a.place == target) return null;
     for (state.visiting.items[i + 1 ..]) |place| {
         if (!looksBackAt(state, place) or !holds(target.*, place)) continue;

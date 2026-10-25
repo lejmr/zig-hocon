@@ -246,6 +246,12 @@ fn looksBack(value: Value) bool {
 fn mergeable(layers: []const Value) bool {
     if (layers.len == 0) return false;
     const top = layers[layers.len - 1];
+    // With a list in it a concatenation is a list or an error, never an
+    // object (spec L384), so an object over it hides it, and it is never
+    // evaluated (L778): `c = [1] ${x}`, `c = { a = 1 }`.
+    if (top == .pending) for (top.pending) |part| {
+        if (part.value == .array) return false;
+    };
     return top == .object or looksBack(top);
 }
 
