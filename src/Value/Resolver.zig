@@ -173,7 +173,7 @@ pub fn resolveValue(state: *Resolver, value: Value) Error!?Value {
                 // Walked again: a field that looks back is what it looks back at.
                 if (state.again.items.len > 0 and looksBackAt(state, &m.value)) {
                     const ref = state.again.items[state.again.items.len - 1].ref;
-                    const seen_as = try state.seen(&m.value, ref) orelse continue;
+                    const seen_as = try state.seen(&m.value, ref, false) orelse continue;
                     if (try state.resolveValue(seen_as.*)) |val| try resolved.append(gpa, .{ .key = m.key, .value = val });
                     continue;
                 }
@@ -391,7 +391,7 @@ fn follow(state: *Resolver, ref: Ref, path: []const Key) Error!Found {
     // An optional that found nothing leaves no field: not in the document.
     // Unless it hit a cycle on the way, then the field is just gone.
     const cycles = state.cycles;
-    const val = try state.resolveTarget(target, ref) orelse
+    const val = try state.resolveTarget(target, ref, true) orelse
         return if (state.cycles > cycles) .gone else .absent;
     return .{ .value = val };
 }
@@ -399,12 +399,17 @@ fn follow(state: *Resolver, ref: Ref, path: []const Key) Error!Found {
 // Resolves the place a ref points to and stores it back, next ref there is for free.
 // `ref` is the one that asked, the one that closes a cycle. An optional one
 // finds nothing there instead (spec L714): `a = [${?a}]` is `[]`.
-fn resolveTarget(state: *Resolver, target: *Value, ref: Ref) Error!?Value {
+//
+// `whole`: the path ends at the target. Only then does a ref to an object a
+// place being resolved is in come back round; on the way through it the path
+// goes into it and resolves what it passes, as objects may refer to paths
+// within themselves (spec L815).
+fn resolveTarget(state: *Resolver, target: *Value, ref: Ref, whole: bool) Error!?Value {
     const gpa = state.gpa;
     for (state.visiting.items, 0..) |place, i| {
         // A ref to a place being resolved, or to an object it is in, comes
         // back round (spec L697: the lookup document is an ancestor).
-        if (place == target or holds(target.*, place)) {
+        if (place == target or (whole and holds(target.*, place))) {
             if (ref.flags.optional) {
                 state.closeAt(i);
                 return null;
@@ -488,12 +493,12 @@ fn lookup(state: *Resolver, ref: Ref, path: []const Key) Error!Place {
         // nothing there it is as if the path were not in the document
         // (spec L767), so it reads the variable; a cycle on the way is gone.
         const before = state.cycles;
-        current = try state.seen(current, ref) orelse
+        current = try state.seen(current, ref, false) orelse
             return if (state.cycles > before) .gone else .absent;
         if (try state.throughAlias(ref, current, path[k..])) |found| return found;
         if (current.* == .ref or current.* == .pending or current.* == .stack) {
             const cycles = state.cycles;
-            const val = try state.resolveTarget(current, ref) orelse
+            const val = try state.resolveTarget(current, ref, false) orelse
                 return if (state.cycles > cycles) .gone else .absent;
             if (waits(val)) return .waits;
         }
@@ -508,7 +513,7 @@ fn lookup(state: *Resolver, ref: Ref, path: []const Key) Error!Place {
         current = members.value_ptr.get(key.value) orelse return .absent;
     }
     const before = state.cycles;
-    const place = try state.seen(current, ref) orelse
+    const place = try state.seen(current, ref, true) orelse
         return if (state.cycles > before) .gone else .absent;
     return .{ .place = place };
 }
