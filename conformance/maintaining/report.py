@@ -191,6 +191,10 @@ def main(argv):
                 # the same shape the implementations' outputs come in
                 "spec_side": None if "error" in meta else
                              json.dumps(meta["expect"], separators=(",", ":"), ensure_ascii=False),
+                # what typesafe/config is scored against, as run.sh has it
+                "java_side": json.dumps(meta["java_expect"], separators=(",", ":"), ensure_ascii=False)
+                             if "java_expect" in meta else None if "java_error" in meta or "error" in meta else
+                             json.dumps(meta["expect"], separators=(",", ":"), ensure_ascii=False),
                 "got": {i: runs[i]["outputs"].get(key, "—") for i in impls},
             })
 

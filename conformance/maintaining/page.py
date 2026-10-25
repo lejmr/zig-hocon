@@ -152,8 +152,8 @@ td.out:hover, td.out:focus { outline: 1px solid var(--accent); outline-offset: -
       <span class="note">__SPLITCOUNT__ of __TOTAL__ rows. Everywhere else they ask the same question.</span>
     </div>
     <div class="scroll">__SPLIT__</div>
-    <p class="note" style="padding:0 10px 10px">Each column is what that implementation actually returns, keys in the spec's order. The spec column is the bar being scored; Java's is, by definition, the other one.
-    Hover over a result to compare it with the spec: <span class="d-add">green</span> is only in the result, <span class="d-del">red</span> only in the spec, <span class="d-chg">yellow</span> differs.</p>
+    <p class="note" style="padding:0 10px 10px">Each column is what that implementation actually returns, keys in the bar's order. The second column is the bar being scored: what the spec requires, or what typesafe/config does when scoring against it.
+    Hover over a result to compare it with the bar: <span class="d-add">green</span> is only in the result, <span class="d-del">red</span> only in the bar, <span class="d-chg">yellow</span> differs.</p>
   </section>
 
   <section>
@@ -208,6 +208,8 @@ function render() {
   }).join("");
   for (const td of document.querySelectorAll("td.v")) td.innerHTML = cell(JSON.parse(td.dataset.v)[mode]);
   for (const el of document.querySelectorAll("[data-impl]")) el.hidden = HIDDEN.has(el.dataset.impl);
+  document.getElementById("bar-head").textContent = mode === "java" ? "typesafe/config requires" : "the spec requires";
+  for (const plain of PLAIN) plain();
   renderYours();
   for (const el of document.querySelectorAll("[data-tally]")) {
     const rows = DATA.sections[+el.dataset.tally].rows;
@@ -262,8 +264,9 @@ document.getElementById("pick").addEventListener("change", e => {
   for (const f of e.target.files) f.text().then(t => adopt(t, f.name));
 });
 
-// The disagree table: every result is drawn in the spec's key order, so rows line
-// up by eye; hovering one marks how it differs from the spec, in both cells.
+// The disagree table: every result is drawn in the bar's key order, so rows line
+// up by eye; hovering one marks how it differs from the bar, in both cells. The
+// bar is the spec's answer, or typesafe/config's in java mode.
 const NONE = Symbol("none");
 const parse = s => { try { return JSON.parse(s); } catch (e) { return NONE; } };   // "rejected", "—"
 const isObj = v => v !== null && typeof v === "object" && !Array.isArray(v);
@@ -298,19 +301,20 @@ function cellHTML(raw, other, only) {
   if (o === NONE) return mark(only ? "d-chg" : "", h(JSON.stringify(v)));
   return draw(v, o, only);
 }
+const PLAIN = [];   // redraws a row without marks, for the current bar
 for (const spec of document.querySelectorAll("td.spec")) {
-  const specRaw = spec.dataset.j;
+  const bar = () => mode === "java" ? spec.dataset.java : spec.dataset.j;
   const plain = () => {
-    spec.innerHTML = parse(specRaw) === NONE ? "rejects" : cellHTML(specRaw);
-    for (const td of spec.parentElement.querySelectorAll("td.out")) td.innerHTML = cellHTML(td.dataset.j, specRaw, null);
+    spec.innerHTML = parse(bar()) === NONE ? "rejects" : cellHTML(bar());
+    for (const td of spec.parentElement.querySelectorAll("td.out")) td.innerHTML = cellHTML(td.dataset.j, bar(), null);
   };
-  plain();
+  PLAIN.push(plain);
   for (const td of spec.parentElement.querySelectorAll("td.out")) {
     const on = () => {
       plain();
-      spec.innerHTML = parse(specRaw) === NONE ? mark(td.dataset.j === "rejected" ? "" : "d-chg", "rejects")
-                                               : cellHTML(specRaw, td.dataset.j, "d-del");
-      td.innerHTML = cellHTML(td.dataset.j, specRaw, "d-add");
+      spec.innerHTML = parse(bar()) === NONE ? mark(td.dataset.j === "rejected" ? "" : "d-chg", "rejects")
+                                             : cellHTML(bar(), td.dataset.j, "d-del");
+      td.innerHTML = cellHTML(td.dataset.j, bar(), "d-add");
     };
     td.addEventListener("mouseenter", on); td.addEventListener("focus", on);
     td.addEventListener("mouseleave", plain); td.addEventListener("blur", plain);
@@ -379,7 +383,7 @@ def _scores(impls, sections, versions):
 def build(impls, sections, split_rows, lede, versions, digest):
     head = "".join('<th data-impl="{0}">{0}</th>'.format(esc.escape(i)) for i in impls)
 
-    split = ['<table><thead><tr><th>input</th><th>the spec requires</th>{}</tr></thead>'
+    split = ['<table><thead><tr><th>input</th><th id="bar-head">the spec requires</th>{}</tr></thead>'
              '<tbody>'.format(head)]
     for r in split_rows:
         # data-j carries the raw output for the hover diff; the text is the fallback without JS
@@ -387,9 +391,10 @@ def build(impls, sections, split_rows, lede, versions, digest):
             esc.escape(i), esc.escape(r["got"][i])) for i in impls)
         spec = r["spec_side"]
         split.append('<tr><td class="mono">{}<span class="tag kind">{}</span></td>'
-                     '<td class="mono spec" data-j="{}">{}</td>{}</tr>'.format(
+                     '<td class="mono spec" data-j="{}" data-java="{}">{}</td>{}</tr>'.format(
                          esc.escape(r["input"]), esc.escape(r["kind"]),
-                         esc.escape(spec or "rejected"), esc.escape(spec or "rejects"), got))
+                         esc.escape(spec or "rejected"), esc.escape(r["java_side"] or "rejected"),
+                         esc.escape(spec or "rejects"), got))
     split.append("</tbody></table>")
 
     out = []
