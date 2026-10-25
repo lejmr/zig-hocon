@@ -1,0 +1,17 @@
+{
+  "spec": "HOCON.md#unchanged-from-json",
+  "rule": [
+    "unchanged-from-json.4",
+    "unquoted-strings.2"
+  ],
+  "why": "-.33e+1 has no integer part, so it is no JSON number, and as text it would hold a +, a forbidden character outside the exponent of a number; without the + it is text (032). typesafe/config releases up to 1.4.9 parse it as -3.3; upstream main since lightbend/config#861 (unreleased) rejects it, on the reserved +",
+  "error": "BadNumber",
+  "java": "lenient",
+  "java_expect": {
+    "a": -3.3
+  },
+  "java_since": {
+    "version": "main",
+    "by": "lightbend/config#861"
+  }
+}

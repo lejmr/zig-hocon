@@ -1,0 +1,11 @@
+{
+  "spec": "HOCON.md#unquoted-strings",
+  "rule": [
+    "unquoted-strings.4",
+    "unquoted-strings.12"
+  ],
+  "why": "the shortest shape of 012: a lone hyphen begins no number and holds no forbidden character, so it is the string \"-\"",
+  "expect": {
+    "a": "-"
+  }
+}

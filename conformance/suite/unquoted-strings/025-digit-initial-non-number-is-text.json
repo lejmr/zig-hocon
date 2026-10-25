@@ -1,0 +1,11 @@
+{
+  "spec": "HOCON.md#unquoted-strings",
+  "rule": [
+    "unquoted-strings.4",
+    "unquoted-strings.13"
+  ],
+  "why": "the initial characters that parse as a number are 1.2, and .3 is an unquoted string after it, so the value is the string \"1.2.3\"; a value is written as a path expression is (path-expressions.2), and the spec reads 1.2.3 as the three-element path 1, 2, 3 (path-expressions.10), so it cannot be an error here",
+  "expect": {
+    "a": "1.2.3"
+  }
+}

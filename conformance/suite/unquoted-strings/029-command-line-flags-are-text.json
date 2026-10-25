@@ -1,0 +1,14 @@
+{
+  "spec": "HOCON.md#unquoted-strings",
+  "rule": [
+    "unquoted-strings.4",
+    "unquoted-strings.12"
+  ],
+  "why": "the everyday shape of 012: command line flags in a list, -Xmx2g and --verbose, begin no number and are strings",
+  "expect": {
+    "opts": [
+      "-Xmx2g",
+      "--verbose"
+    ]
+  }
+}

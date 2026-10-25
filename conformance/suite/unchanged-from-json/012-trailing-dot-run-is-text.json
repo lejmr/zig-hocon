@@ -1,0 +1,15 @@
+{
+  "spec": "HOCON.md#unchanged-from-json",
+  "rule": [
+    "unchanged-from-json.4",
+    "unquoted-strings.4"
+  ],
+  "why": "JSON requires a digit after the decimal point, so the number is 1 and the dot is text after it: the string \"1.\". typesafe/config reads it as 1, and lightbend/config#861 leaves it so on purpose",
+  "expect": {
+    "a": "1."
+  },
+  "java": "diverges",
+  "java_expect": {
+    "a": 1
+  }
+}

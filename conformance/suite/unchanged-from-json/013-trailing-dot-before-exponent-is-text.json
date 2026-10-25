@@ -1,0 +1,15 @@
+{
+  "spec": "HOCON.md#unchanged-from-json",
+  "rule": [
+    "unchanged-from-json.4",
+    "unquoted-strings.4"
+  ],
+  "why": "the same with an exponent after the dot: the number is -1 and .e3 is text after it, the string \"-1.e3\"; typesafe/config reads it as -1000 (named out of scope in lightbend/config#861)",
+  "expect": {
+    "a": "-1.e3"
+  },
+  "java": "diverges",
+  "java_expect": {
+    "a": -1000
+  }
+}
