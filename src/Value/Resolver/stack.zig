@@ -283,8 +283,11 @@ pub fn seen(state: *Resolver, place: *Value, ref: Ref) Error!?*Value {
             // `a = [${a}], a = ${?a}`: the layers below lead back here.
             .busy => {
                 const at = state.visitingAt(place) orelse 0;
+                // The optional that came round finds nothing. One around it
+                // that is looking back at these layers is not on this cycle:
+                // `a = [{ b += 1 }]`, `a += 3` keeps the list.
                 if (ref.flags.optional) {
-                    state.closeAt(at);
+                    state.cycles += 1;
                     return null;
                 }
                 state.markBreaking(at);
