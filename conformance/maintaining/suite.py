@@ -13,7 +13,9 @@ SPEC = ROOT / "spec" / "HOCON.md"
 
 
 def encode(src):
-    """One case per line, `\\n` `\\t` `\\"` escaped — the oracle protocol.
+    """One case per line, `\\n` `\\t` `\\"` escaped — the oracle protocol. A NUL
+    byte travels as `\\0`: the adapter holds the line in a shell variable, which
+    cannot carry one.
 
     The wrappers drop blank input lines, so an empty document has to travel as
     whitespace; same parse, and it keeps one line in == one line out.
@@ -22,7 +24,7 @@ def encode(src):
     """
     if not src.strip():
         src = " " + src.lstrip("\n")
-    return src.replace("\\", "\\\\").replace("\t", "\\t").replace('"', '\\"').replace("\r", "\\r").replace("\n", "\\n")
+    return src.replace("\\", "\\\\").replace("\t", "\\t").replace('"', '\\"').replace("\r", "\\r").replace("\n", "\\n").replace("\0", "\\0")
 
 
 def is_json(s):

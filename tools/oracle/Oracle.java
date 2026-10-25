@@ -110,6 +110,7 @@ public class Oracle {
                 case 'n' -> b.append('\n');
                 case 't' -> b.append('\t');
                 case 'r' -> b.append('\r');
+                case '0' -> b.append('\0');
                 case '\\' -> b.append('\\');
                 case '"' -> b.append('"');
                 default -> b.append('\\').append(n);

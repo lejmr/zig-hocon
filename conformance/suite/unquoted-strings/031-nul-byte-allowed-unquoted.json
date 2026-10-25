@@ -1,0 +1,8 @@
+{
+  "spec": "HOCON.md#unquoted-strings",
+  "rule": "unquoted-strings.15",
+  "why": "unquoted strings place no restriction on control characters other than the forbidden ones, and NUL is not forbidden, so it is part of the text",
+  "expect": {
+    "a": "spam\u0000eggs"
+  }
+}

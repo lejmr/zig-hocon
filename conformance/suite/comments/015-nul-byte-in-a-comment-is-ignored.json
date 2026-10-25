@@ -1,0 +1,9 @@
+{
+  "spec": "HOCON.md#comments",
+  "rule": "comments.1",
+  "why": "anything between // or # and the next newline is ignored, a NUL byte too: the comment ends at the newline and b is still read, not at the NUL",
+  "expect": {
+    "a": 1,
+    "b": 2
+  }
+}
