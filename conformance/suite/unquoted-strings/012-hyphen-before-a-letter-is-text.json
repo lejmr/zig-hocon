@@ -1,0 +1,11 @@
+{
+  "spec": "HOCON.md#unquoted-strings",
+  "rule": [
+    "unquoted-strings.4",
+    "unquoted-strings.12"
+  ],
+  "why": "a hyphen may not begin an unquoted string because it begins a JSON number, so that a number comes first (unquoted-strings.12); -foo begins no number, a hyphen starts one only before a digit, and the sequence is a string value by the definition: no forbidden character, and its initial characters do not parse as a number (unquoted-strings.4)",
+  "expect": {
+    "a": "-foo"
+  }
+}

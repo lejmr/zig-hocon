@@ -1,0 +1,11 @@
+{
+  "spec": "HOCON.md#unquoted-strings",
+  "rule": [
+    "unquoted-strings.4",
+    "unquoted-strings.9"
+  ],
+  "why": "the everyday shape of 025: 127.0 is the number at the start and .0.1 the unquoted string after it; the number keeps the text it was written with, so the address comes out whole",
+  "expect": {
+    "host": "127.0.0.1"
+  }
+}

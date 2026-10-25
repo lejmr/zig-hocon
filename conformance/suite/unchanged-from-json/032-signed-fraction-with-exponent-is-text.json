@@ -1,0 +1,19 @@
+{
+  "spec": "HOCON.md#unchanged-from-json",
+  "rule": [
+    "unchanged-from-json.4",
+    "unquoted-strings.4"
+  ],
+  "why": "the same as 010 with an exponent: -.33e1 has no integer part and is no JSON number, and it holds no forbidden character, so it is the string \"-.33e1\"; with a + in the exponent it is an error (011). typesafe/config releases up to 1.4.9 parse it as -3.3; upstream main since lightbend/config#861 (unreleased) reads the string",
+  "expect": {
+    "a": "-.33e1"
+  },
+  "java": "diverges",
+  "java_expect": {
+    "a": -3.3
+  },
+  "java_since": {
+    "version": "main",
+    "by": "lightbend/config#861"
+  }
+}

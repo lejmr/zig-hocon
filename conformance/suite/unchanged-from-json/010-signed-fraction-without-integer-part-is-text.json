@@ -1,0 +1,19 @@
+{
+  "spec": "HOCON.md#unchanged-from-json",
+  "rule": [
+    "unchanged-from-json.4",
+    "unquoted-strings.4"
+  ],
+  "why": "allowed number formats match JSON, and JSON requires a digit before the decimal point, so -.33 is no number; it holds no forbidden character and its initial characters parse as no number, so it is the unquoted string \"-.33\", as .33 is (unquoted-strings/018). typesafe/config releases up to 1.4.9 parse it as -0.33; upstream main since lightbend/config#861 (unreleased) reads the string",
+  "expect": {
+    "a": "-.33"
+  },
+  "java": "diverges",
+  "java_expect": {
+    "a": -0.33
+  },
+  "java_since": {
+    "version": "main",
+    "by": "lightbend/config#861"
+  }
+}

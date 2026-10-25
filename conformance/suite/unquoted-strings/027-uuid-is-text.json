@@ -1,0 +1,11 @@
+{
+  "spec": "HOCON.md#unquoted-strings",
+  "rule": [
+    "unquoted-strings.4",
+    "unquoted-strings.9"
+  ],
+  "why": "92806961 is the number at the start, and what JSON does not read on is text after it; whether a group ends in a hex letter or a digit makes no difference, the value is the UUID as written",
+  "expect": {
+    "id": "92806961-7548-48f0-943c-8fb861bb642f"
+  }
+}

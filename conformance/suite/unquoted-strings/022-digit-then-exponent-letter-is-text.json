@@ -1,0 +1,11 @@
+{
+  "spec": "HOCON.md#unquoted-strings",
+  "rule": [
+    "unquoted-strings.4",
+    "unquoted-strings.9"
+  ],
+  "why": "the initial characters that parse as a number are 1, the e after it does not continue a JSON number, so 1e is the number 1 then the unquoted string e, like 10.0bar: the string \"1e\"",
+  "expect": {
+    "a": "1e"
+  }
+}

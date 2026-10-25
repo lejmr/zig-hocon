@@ -246,7 +246,7 @@ pub const Parser = struct {
             const part: Node = switch (self.t.peek().tag) {
                 .string, .quoted_string, .multiline_string => blk: {
                     const text = try self.parseText();
-                    try checkNumbers(text, number.checkNumber, &self.err_offset);
+                    try checkNumbers(text, number.checkPlus, &self.err_offset);
                     break :blk text;
                 },
                 // `[1] {"0" : 2}` is a list once the object is converted, so
@@ -597,10 +597,9 @@ fn prepareMemberNode(gpa: std.mem.Allocator, key: Node, kind: Node.NodeKind, val
     return return_node.?;
 }
 
-/// Applies `check` to every unquoted word of a text: `number.checkNumber` to
-/// a value, `number.checkPlus` to a key or a `${…}` path. There a dot separates
-/// elements, so `1.2.3 = x` and `${-.33}` are paths where `a = 1.2.3` is not a
-/// number; only the rule for `+` is the same everywhere.
+/// Applies `check` to every unquoted word of a text: `number.checkPlus` to a
+/// value, a key or a `${…}` path alike, since a word that is no number is text
+/// and only the rule for `+` is left; `stringify` passes a stricter one.
 ///
 /// A run of unquoted words is one part, but its words are exactly the tokens it
 /// was made of, separated by whitespace — so this sees what the tokenizer saw.
@@ -970,39 +969,52 @@ test "nesting.deeper than max_depth is an error" {
     }
 }
 
-// unchanged-from-json/009-014, unquoted-strings/012, 022 · java ⚠️ · pyhocon ⚠️ ·
-// spec ✓ — a value word that starts with a digit or `-` starts with a number:
-// the run of `0-9 + - . e E` after it must be a JSON number, with no fallback to
-// text. Both oracles fall back, so every `.bad` row is a value for them:
+// unchanged-from-json/009-014, 032, unquoted-strings/012, 022, 025-030 · java ⚠️ ·
+// pyhocon ⚠️ · spec ✓ — a value word that starts with a digit starts with the
+// number JSON reads there, and what follows is text after it (spec L250, L260):
+// `1.2.3` is `1.2` then `.3`, the text "1.2.3". It used to be an error, read
+// from the letter of L272, until the spec's own `1.2.3` path (L502), written as
+// a value is (L478), said otherwise (decided 2026-10-24). A `-` begins a number
+// only before a digit, so `-foo`, `-` and `-.33` are text by L250 as well
+// (decided 2026-10-25); only a `+` outside a number is an error. The oracles
+// differ where JSON stops early but they do not:
 //   'a = 01'  -> java/pyhocon {"a":1}        'a = -foo' -> both {"a":"-foo"}
 //   'a = 1.'  -> java {"a":1}, pyhocon "1."  'a = 1e'   -> both {"a":"1e"}
 //   'a = -.33' -> both {"a":-0.33}           'a = -0033' -> both {"a":-33}
-// The spec is followed (decided 2026-10-11).
 //
-// Text after a valid number concatenates with it — '10.0bar', '5EB' and
-// '5exabyte' are strings on all three, and size-in-bytes-format/003-004 need
-// them to stay so. A key or a `${…}` path is exempt: there a dot separates path
-// elements, '1.2.3 = 1' -> {"1":{"2":{"3":1}}} and '-.33 = 1' -> {"-":{"33":1}}
-// on both oracles.
-test "numbers.are JSON numbers or an error" {
+// '10.0bar', '5EB' and '5exabyte' are strings on all three, and
+// size-in-bytes-format/003-004 need them to stay so. In a key or a `${…}` path
+// a dot separates path elements: '1.2.3 = 1' -> {"1":{"2":{"3":1}}} and
+// '-.33 = 1' -> {"-":{"33":1}} on both oracles.
+test "numbers.a value word that starts with a digit starts with a number" {
     try expectAll(&.{
-        .bad("a = 01"),
-        .bad("a = -01"),
-        .bad("a = -0033"),
-        .bad("a = -.33"),
-        .bad("a = 1."),
-        .bad("a = 1.e5"),
-        .bad("a = -1.e3"),
-        .bad("a = 1e"),
-        .bad("a = 5E"),
-        .bad("a = -foo"),
-        .bad("a = -"),
-        // Every word of a value, not only the first, whatever comes after it.
-        .bad("a = foo 1e"),
-        .bad("a = 01 x"),
-        .bad("a = 1e x"),
-        .bad("a = [1, 01]"),
+        // A `+` outside a number, in every word of a value, not only the first.
+        .bad("a = -.33e+1"),
+        .bad("a = foo -.5e+1"),
+        .bad("a = [1, -.5e+1]"),
 
+        .ok("a = -.33", "root(assign(value(a), value(-.33)))"),
+        .ok("a = -.33e1", "root(assign(value(a), value(-.33e1)))"),
+        .ok("a = [1, -.5]", "root(assign(value(a), array(value(1), value(-.5))))"),
+        .ok("a = -foo", "root(assign(value(a), value(-foo)))"),
+        .ok("a = -", "root(assign(value(a), value(-)))"),
+        .ok("a = foo - bar", "root(assign(value(a), value(foo - bar)))"),
+        .ok("a = [-Xmx2g, --verbose]", "root(assign(value(a), array(value(-Xmx2g), value(--verbose))))"),
+        .ok("a = -.", "root(assign(value(a), value(-.)))"),
+        .ok("a = -e5", "root(assign(value(a), value(-e5)))"),
+
+        .ok("a = 01", "root(assign(value(a), value(01)))"),
+        .ok("a = -01", "root(assign(value(a), value(-01)))"),
+        .ok("a = -0033", "root(assign(value(a), value(-0033)))"),
+        .ok("a = 1.", "root(assign(value(a), value(1.)))"),
+        .ok("a = 1.e5", "root(assign(value(a), value(1.e5)))"),
+        .ok("a = -1.e3", "root(assign(value(a), value(-1.e3)))"),
+        .ok("a = 1e", "root(assign(value(a), value(1e)))"),
+        .ok("a = 5E", "root(assign(value(a), value(5E)))"),
+        .ok("a = 1.2.3", "root(assign(value(a), value(1.2.3)))"),
+        .ok("a = 127.0.0.1", "root(assign(value(a), value(127.0.0.1)))"),
+        .ok("a = foo 1e", "root(assign(value(a), value(foo 1e)))"),
+        .ok("a = [1, 01]", "root(assign(value(a), array(value(1), value(01))))"),
         .ok("a = 0", "root(assign(value(a), value(0)))"),
         .ok("a = -0.5e-3", "root(assign(value(a), value(-0.5e-3)))"),
         .ok("a = 10.0bar", "root(assign(value(a), value(10.0bar)))"),
@@ -1019,16 +1031,11 @@ test "numbers.are JSON numbers or an error" {
     });
 }
 
-// The suite names three of the errors; each is the one its row asks for.
+// The suite names the error; it is the one its row asks for.
 test "numbers.name what is wrong" {
     const cases = [_]struct { [:0]const u8, anyerror }{
-        .{ "a = 01", error.LeadingZeroIsNotAJsonNumber },
-        .{ "a = -foo", error.HyphenIsNotAJsonNumber },
-        .{ "a = -", error.HyphenIsNotAJsonNumber },
-        .{ "a = -.33", error.BadNumber },
-        .{ "a = 1.", error.BadNumber },
-        .{ "a = -1.e3", error.BadNumber },
-        .{ "a = -0033", error.BadNumber },
+        .{ "a = -.33e+1", error.BadNumber },
+        .{ "a = 1e+5.x", error.BadNumber },
     };
     for (cases) |c| {
         var arena = std.heap.ArenaAllocator.init(testing.allocator);

@@ -1,0 +1,15 @@
+{
+  "spec": "HOCON.md#unchanged-from-json",
+  "rule": [
+    "unchanged-from-json.4",
+    "unquoted-strings.4"
+  ],
+  "why": "JSON reads only the 0 of 01 as a number, a zero is not followed by digits; what follows is text after the number, as 10.0bar is the number 10.0 then bar (unquoted-strings.9), and a number keeps the text it was written with in a concatenation, so the value is the string \"01\". typesafe/config reads the number 1.",
+  "expect": {
+    "a": "01"
+  },
+  "java": "diverges",
+  "java_expect": {
+    "a": 1
+  }
+}

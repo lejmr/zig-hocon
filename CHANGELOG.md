@@ -4,6 +4,10 @@ What changed for someone using zig-hocon: the Zig package, the `hocon` command l
 
 ## [Unreleased]
 
+### Changed
+
+- A value that begins with a digit but is no number is text again, as the spec has it: `host = 127.0.0.1`, `1.2.3`, a UUID and `01` are the strings they were written as, no longer a `BadNumber` error, so an IP address needs no quotes. The number JSON reads at the start is followed by text, as `10.0bar` is; the spec's own `1.2.3`, a path in a key, is written the same way in a value. So is a value that begins with `-` and no number: `-foo`, `-Xmx2g`, `--verbose`, and the `-` in `Monty Python - Holy Grail`, no longer a `HyphenIsNotAJsonNumber` error. So are `-.5` and `-.33e1`, which JSON has no number for, as `.5` already was. A `+` outside a number, `1+2` or `-.33e+1`, stays an error. Seven new conformance cases, eight rows rewritten, all 476 pass.
+
 ### Added
 
 - Twelve conformance cases from bug reports in lightbend/config and ekrich/sconfig where the spec has the answer: typesafe/config fails inside `${a} { … }`, turns integers past 2^63 into strings and accepts `\u+041`; pyhocon loses `+=` across an include and the text of a substituted number. zig-hocon passes all 469.

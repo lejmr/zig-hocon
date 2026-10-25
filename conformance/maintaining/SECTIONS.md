@@ -9,14 +9,14 @@ observable parse behaviour.
 |---|---|---|---|
 | 59 | Goals / Background | — | — |
 | 92 | Definitions | — | — |
-| 115 | Unchanged from JSON | `unchanged-from-json` | ✅ 30 cases |
+| 115 | Unchanged from JSON | `unchanged-from-json` | ✅ 32 cases |
 | 123 | Comments | `comments` | ✅ 14 cases |
 | 128 | Omit root braces | `omit-root-braces` | ✅ 14 cases |
 | 141 | Key-value separator | `key-value-separator` | ✅ 6 cases |
 | 149 | Commas | `commas` | ✅ 13 cases |
 | 165 | Whitespace | `whitespace` | ✅ 13 cases |
 | 186 | Duplicate keys and object merging | `duplicate-keys-and-object-merging` | ✅ 28 cases |
-| 240 | Unquoted strings | `unquoted-strings` | ✅ 25 cases |
+| 240 | Unquoted strings | `unquoted-strings` | ✅ 30 cases |
 | 288 | Multi-line strings | `multi-line-strings` | ✅ 9 cases |
 | 304 | Value concatenation | `value-concatenation` | ✅ 2 cases |
 | 321 | String value concatenation | `string-value-concatenation` | ✅ 19 cases |

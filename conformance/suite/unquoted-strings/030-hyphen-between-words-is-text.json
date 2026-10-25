@@ -1,0 +1,11 @@
+{
+  "spec": "HOCON.md#unquoted-strings",
+  "rule": [
+    "unquoted-strings.4",
+    "unquoted-strings.12"
+  ],
+  "why": "a hyphen standing alone between words begins no number, so it is an unquoted string like the words around it, and the value concatenation keeps the whitespace between them",
+  "expect": {
+    "title": "Monty Python - Holy Grail"
+  }
+}

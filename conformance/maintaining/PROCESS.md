@@ -40,7 +40,7 @@ Where the two part ways, the row records both:
 | `unsupported` | a value | refuses | `expect` + `java_error` |
 | `lenient` | rejects | a value | `error` + `java_expect` |
 
-`lenient` is the common one, and the one worth staring at: it is every input HOCON forbids that typesafe/config waves through. `a = 01`, `a = -foo` and `include.foo : 42` are all of this kind. An implementation aiming at compatibility may copy the leniency; one aiming at conformance must not.
+`lenient` is the common one, and the one worth staring at: it is every input HOCON forbids that typesafe/config waves through. `a = -.33e+1`, `a = "\u+041"` and `include.foo : 42` are all of this kind. An implementation aiming at compatibility may copy the leniency; one aiming at conformance must not.
 
 `java_expect` / `java_error` record the typesafe/config release, 1.4.9. When a later typesafe/config changes a row, the row says since when and by what, and `run.sh --java-version <v>` scores against that version instead:
 

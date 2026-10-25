@@ -945,20 +945,6 @@ test "diagnostics.UnsupportedConcatenation from +=" {
     });
 }
 
-// The number errors from #6 point at the start of the word that is not a JSON
-// number, also when it is not the first word of the value.
-// java ⚠️ lenient (a string) · pyhocon ⚠️ lenient · spec ✓
-test "diagnostics.LeadingZeroIsNotAJsonNumber" {
-    try expectCarets(&.{
-        \\a = 01
-        \\    ^ LeadingZeroIsNotAJsonNumber
-        ,
-        \\a = my cat is 01
-        \\              ^ LeadingZeroIsNotAJsonNumber
-        ,
-    });
-}
-
 // A HOCON file is UTF-8 (spec L117): the first byte that is not, quoted or
 // not, wherever it stands. Written with `\x` escapes, which a multiline string
 // does not have.
@@ -978,23 +964,17 @@ test "diagnostics.InvalidUtf8" {
     });
 }
 
-// java ⚠️ lenient · pyhocon ⚠️ lenient · spec ✓
-test "diagnostics.HyphenIsNotAJsonNumber" {
-    try expectCarets(&.{
-        \\a = -foo
-        \\    ^ HyphenIsNotAJsonNumber
-        ,
-    });
-}
-
-// java ⚠️ lenient · pyhocon ⚠️ lenient · spec ✓
+// The number error points at the start of the word, also when it is not the
+// first word of the value. A word that is no number is text since 2026-10-25
+// (`01`, `-foo`, `-.5`), so a `+` outside a number is the one way to it.
+// java ⚠️ lenient on `-.5e+1` (-5) · pyhocon ⚠️ lenient · spec ✓
 test "diagnostics.BadNumber" {
     try expectCarets(&.{
-        \\a = 1.
+        \\a = -.5e+1
         \\    ^ BadNumber
         ,
-        \\a { b = -.33 }
-        \\        ^ BadNumber
+        \\a = my cat is -.5e+1
+        \\              ^ BadNumber
         ,
     });
 }

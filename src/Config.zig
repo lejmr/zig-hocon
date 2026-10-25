@@ -580,13 +580,15 @@ test "convert.number from text is a JSON number" {
     try expectConverts(struct { a: f64 }, "a = \"-1.5e3\"", .{ .a = -1500 });
 }
 
-// unquoted-strings.12-13 · java ⚠️ · pyhocon ⚠️ · spec ✓ — text that only starts
-// like a number never gets as far as converting: the spec makes it a parse
-// error. Both oracles parse `-foo` and `1.2.3` as strings and fail only when
-// asked for a number (FINDINGS.md, unquoted-strings).
+// unquoted-strings.4, .12 · automatic-type-conversions L1242 · java ✓ ·
+// pyhocon ✓ · spec ✓ — `1.2.3` and `-foo` are text that starts like a number,
+// and text converts to a number only by the JSON rules, so asking for one
+// fails, as on both oracles. `-.5` is text by the same rules, where both
+// oracles give -0.5 (python/MIGRATING.md).
 test "convert.int refuses a string that merely starts like a number" {
-    try expectConvertError(struct { a: usize }, "a = 1.2.3", error.BadNumber);
-    try expectConvertError(struct { a: i64 }, "a = -foo", error.HyphenIsNotAJsonNumber);
+    try expectConvertError(struct { a: usize }, "a = 1.2.3", error.InvalidCharacter);
+    try expectConvertError(struct { a: i64 }, "a = -foo", error.InvalidCharacter);
+    try expectConvertError(struct { a: f64 }, "a = -.5", error.InvalidCharacter);
 }
 
 // automatic-type-conversions L1238 · java ⚠️ · pyhocon ⚠️ · spec – — both truncate 1.5 to 1 without a word.

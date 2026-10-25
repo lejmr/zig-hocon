@@ -1,0 +1,8 @@
+{
+  "spec": "HOCON.md#unchanged-from-json",
+  "rule": "unchanged-from-json.4",
+  "why": "JSON allows a sign in the exponent, so -0.33e+1 is a number, -3.3; the + that unquoted text may not hold is part of the number here",
+  "expect": {
+    "a": -3.3
+  }
+}
