@@ -1,0 +1,17 @@
+{
+  "spec": "HOCON.md#include-semantics-merging",
+  "rule": [
+    "include-semantics-merging.5",
+    "duplicate-keys-and-object-merging.8"
+  ],
+  "why": "child.conf's a = bar hides the ${r} above it, and its a { m = 1 } replaces bar: a is {m: 1}, and ${r} is never merged in",
+  "expect": {
+    "a": {
+      "m": 1
+    },
+    "r": {
+      "y": 9
+    }
+  },
+  "resolve": true
+}

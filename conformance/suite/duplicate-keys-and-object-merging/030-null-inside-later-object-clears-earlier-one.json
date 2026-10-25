@@ -1,0 +1,15 @@
+{
+  "spec": "HOCON.md#duplicate-keys-and-object-merging",
+  "rule": [
+    "duplicate-keys-and-object-merging.8",
+    "config-object-merging-and-file-merging.7"
+  ],
+  "why": "b.a is set to an object, then null, then an object, so the last object never sees the first: merging is done two values at a time, and the null between them made {z: 3} lose what it overrode, also when the two b objects merge afterwards. pyhocon keeps x",
+  "expect": {
+    "b": {
+      "a": {
+        "z": 3
+      }
+    }
+  }
+}

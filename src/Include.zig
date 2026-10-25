@@ -708,6 +708,41 @@ test "include.files merge like duplicate keys" {
     }, "{\"a\":{\"z\":3}}");
 }
 
+// include-merging/017–019 · java ✓ · pyhocon ✗ (keeps x) · spec ✓ — a key set
+// to an object over a non-object lost everything it overrode, and it stays lost
+// once its file is included or its object merges with another: `a = null`,
+// `a { z = 3 }` clears the `a` above the include, and inside one file the same
+// holds a level down. Through a substitution only the value comes: `${x}` is
+// x's object, which merges with a's.
+test "include.a key cleared in its file is cleared where it is included" {
+    try expectJson(&.{
+        .{ .path = "main.conf", .text = "a { x = 1 }\ninclude \"over.conf\"" },
+        .{ .path = "over.conf", .text = "a = null\na { z = 3 }" },
+    }, "{\"a\":{\"z\":3}}");
+    try expectJson(&.{
+        .{ .path = "main.conf", .text = "a { x = 1 }\ninclude \"over.conf\"" },
+        .{ .path = "over.conf", .text = "a = 2\na.z = 3" },
+    }, "{\"a\":{\"z\":3}}");
+    try expectJson(&.{
+        .{ .path = "main.conf", .text = "a = ${r}\ninclude \"child.conf\"\nr { y = 9 }" },
+        .{ .path = "child.conf", .text = "a = bar\na { m = 1 }" },
+    }, "{\"a\":{\"m\":1},\"r\":{\"y\":9}}");
+
+    // No include: the second b's a merges onto the first one's as written.
+    try expectJson(&.{
+        .{ .path = "main.conf", .text = "b { a { x = 1 } }\nb { a = null, a { z = 3 } }" },
+    }, "{\"b\":{\"a\":{\"z\":3}}}");
+    // Still clear after another object on top of it.
+    try expectJson(&.{
+        .{ .path = "main.conf", .text = "a { x = 1 }\ninclude \"over.conf\"" },
+        .{ .path = "over.conf", .text = "a = null\na { z = 3 }\na { w = 4 }" },
+    }, "{\"a\":{\"z\":3,\"w\":4}}");
+    // A substitution gives the value, not how the key got it.
+    try expectJson(&.{
+        .{ .path = "main.conf", .text = "x { m = null, m { z = 1 } }\na { m { y = 2 } }\na = ${x}" },
+    }, "{\"x\":{\"m\":{\"z\":1}},\"a\":{\"m\":{\"y\":2,\"z\":1}}}");
+}
+
 // include-merging/002 · java ✓ · pyhocon – · spec ✓ — an included file must hold
 // an object; a list as the root is an error (java: WrongType).
 test "include.a list as the root is not an object" {

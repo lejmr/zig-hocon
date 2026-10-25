@@ -1,13 +1,13 @@
 {
   "suite": "hocon-conformance",
   "implementation": "zig-hocon",
-  "version": "zig-hocon code@ac7e733",
+  "version": "zig-hocon code@9c6b4d4",
   "mode": "spec",
   "command": "conformance/adapters/zig-hocon.sh",
-  "ran_at": "2026-10-25T19:51:27Z",
-  "suite_digest": "24820168cf5464fb",
-  "total": 492,
-  "passed": 492,
+  "ran_at": "2026-10-25T20:06:47Z",
+  "suite_digest": "ad70c055a052409f",
+  "total": 496,
+  "passed": 496,
   "percent": 100.0,
   "sections": {
     "array-and-object-concatenation": {
@@ -35,8 +35,8 @@
       "passed": 4
     },
     "duplicate-keys-and-object-merging": {
-      "total": 29,
-      "passed": 29
+      "total": 30,
+      "passed": 30
     },
     "duration-format": {
       "total": 9,
@@ -51,8 +51,8 @@
       "passed": 5
     },
     "include-merging": {
-      "total": 16,
-      "passed": 16
+      "total": 19,
+      "passed": 19
     },
     "include-missing-and-required": {
       "total": 6,
@@ -249,6 +249,7 @@
     "duplicate-keys-and-object-merging/027-nested-object-then-scalar-inside-merge.conf": "pass",
     "duplicate-keys-and-object-merging/028-null-in-second-object-wins.conf": "pass",
     "duplicate-keys-and-object-merging/029-substituted-object-hides-earlier-scalar.conf": "pass",
+    "duplicate-keys-and-object-merging/030-null-inside-later-object-clears-earlier-one.conf": "pass",
     "duration-format/001-bare-number-is-milliseconds.conf": "pass",
     "duration-format/002-uppercase-unit-is-illegal.conf": "pass",
     "duration-format/003-nanoseconds-spellings.conf": "pass",
@@ -302,6 +303,9 @@
     "include-merging/014-included-merge-stack-over-earlier-scalar/main.conf": "pass",
     "include-merging/015-included-object-on-top-of-substitution-over-earlier-substitution/main.conf": "pass",
     "include-merging/016-plus-equals-across-include-keeps-order/main.conf": "pass",
+    "include-merging/017-included-null-then-object-hides-the-earlier-object/main.conf": "pass",
+    "include-merging/018-included-scalar-then-path-hides-the-earlier-object/main.conf": "pass",
+    "include-merging/019-included-scalar-then-object-hides-a-substitution/main.conf": "pass",
     "include-missing-and-required/001-missing-include-ignored/main.conf": "pass",
     "include-missing-and-required/002-missing-include-is-empty-object/main.conf": "pass",
     "include-missing-and-required/003-missing-file-include-ignored/main.conf": "pass",

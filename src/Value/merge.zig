@@ -20,17 +20,24 @@ const n = @import("build.zig").n;
 /// The members in the order their keys first came, a key written more than
 /// once holding what its values make one on top of the other (see `push`).
 pub fn mergeMembers(gpa: std.mem.Allocator, members: []const Member) Error![]Member {
-    var by_key: std.StringArrayHashMapUnmanaged(std.ArrayList(Value)) = .empty;
+    const Written = struct { values: std.ArrayList(Value) = .empty, hides: bool = false };
+    var by_key: std.StringArrayHashMapUnmanaged(Written) = .empty;
     defer by_key.deinit(gpa);
     for (members) |m| {
         const entry = try by_key.getOrPut(gpa, m.key.value);
-        if (!entry.found_existing) entry.value_ptr.* = .empty;
-        try entry.value_ptr.append(gpa, m.value);
+        if (!entry.found_existing) entry.value_ptr.* = .{};
+        // What it lost in its own object it loses here as well.
+        if (m.hides) {
+            entry.value_ptr.values.clearRetainingCapacity();
+            entry.value_ptr.hides = true;
+        }
+        try entry.value_ptr.values.append(gpa, m.value);
     }
     var merged: std.ArrayList(Member) = .empty;
     for (by_key.keys(), by_key.values()) |key, *written| {
-        defer written.deinit(gpa);
-        try merged.append(gpa, .{ .key = .{ .value = key }, .value = try fold(gpa, written.items) });
+        defer written.values.deinit(gpa);
+        const value = try fold(gpa, written.values.items, &written.hides);
+        try merged.append(gpa, .{ .key = .{ .value = key }, .value = value, .hides = written.hides });
     }
     return merged.toOwnedSlice(gpa);
 }
@@ -39,7 +46,7 @@ pub fn mergeMembers(gpa: std.mem.Allocator, members: []const Member) Error![]Mem
 /// follow each other merge first, all at once, which is the same, as merging
 /// is associative: a thousand `a.x = …` lines are then a thousand steps, not
 /// half a million, which merging them two at a time took.
-fn fold(gpa: std.mem.Allocator, written: []const Value) Error!Value {
+fn fold(gpa: std.mem.Allocator, written: []const Value, hides: *bool) Error!Value {
     var result: ?Value = null;
     var i: usize = 0;
     while (i < written.len) {
@@ -52,7 +59,7 @@ fn fold(gpa: std.mem.Allocator, written: []const Value) Error!Value {
             for (written[i..end]) |object| try members.appendSlice(gpa, object.object);
             next = .{ .object = try mergeMembers(gpa, members.items) };
         }
-        if (result) |*r| try push(r, gpa, next) else result = next;
+        if (result) |*r| try push(r, gpa, next, hides) else result = next;
         i = end;
     }
     return result.?;
@@ -66,10 +73,10 @@ fn fold(gpa: std.mem.Allocator, written: []const Value) Error!Value {
 // ponytail: a ref or a pending is appended by copying the stack, so a key
 // written as a ref thousands of times is quadratic (10 000: 0.2 s). Build the
 // layers in one list in `fold` if a real file ever does that.
-fn push(self: *Value, gpa: std.mem.Allocator, other: Value) Error!void {
+fn push(self: *Value, gpa: std.mem.Allocator, other: Value, hides: *bool) Error!void {
     switch (other) {
         // From an include: its layers go on one by one.
-        .stack => |layers| for (layers) |layer| try push(self, gpa, layer),
+        .stack => |layers| for (layers) |layer| try push(self, gpa, layer, hides),
         .ref, .pending => {
             // Built before it is stored: `self.* = .{ .stack = … self.* … }`
             // would read `self` after its tag changed.
@@ -94,7 +101,10 @@ fn push(self: *Value, gpa: std.mem.Allocator, other: Value) Error!void {
                     self.stack = copy;
                 }
             },
-            else => self.* = other,
+            else => {
+                self.* = other;
+                hides.* = true;
+            },
         },
         else => self.* = other,
     }

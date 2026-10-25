@@ -1,0 +1,13 @@
+{
+  "spec": "HOCON.md#include-semantics-merging",
+  "rule": [
+    "include-semantics-merging.5",
+    "duplicate-keys-and-object-merging.8"
+  ],
+  "why": "the same with a scalar: over.conf's a = 2 replaces the object above, and a.z = 3 replaces the 2, so only z is left: {a: {z: 3}}",
+  "expect": {
+    "a": {
+      "z": 3
+    }
+  }
+}

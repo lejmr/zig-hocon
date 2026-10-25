@@ -136,7 +136,7 @@ assumption here is that duplicate keys are invalid JSON.</mark></p>
    object values should be recursively merged according to
    these same rules.</mark></p>
 <p data-line="207"><mark class="ok" title="duplicate-keys-and-object-merging.7 — duplicate-keys-and-object-merging/014-own-null-still-blocks-merge-with-referenced-object.conf, duplicate-keys-and-object-merging/022-scalar-then-empty-object-then-object.conf">Object merge can be prevented by setting the key to another value
-first.</mark> <mark class="ok" title="duplicate-keys-and-object-merging.8 — duplicate-keys-and-object-merging/003-scalar-breaks-the-merge.conf, plus-equals-field-separator/014-appends-twice-after-null-replaced-by-object.conf">This is because merging is always done two values at a
+first.</mark> <mark class="ok" title="duplicate-keys-and-object-merging.8 — duplicate-keys-and-object-merging/003-scalar-breaks-the-merge.conf, duplicate-keys-and-object-merging/030-null-inside-later-object-clears-earlier-one.conf, include-merging/018-included-scalar-then-path-hides-the-earlier-object/main.conf, include-merging/019-included-scalar-then-object-hides-a-substitution/main.conf, plus-equals-field-separator/014-appends-twice-after-null-replaced-by-object.conf">This is because merging is always done two values at a
 time; if you set a key to an object, a non-object, then an object,
 first the non-object falls back to the object (non-object always
 wins), and then the object falls back to the non-object (no
@@ -727,7 +727,7 @@ invalid and an error should be generated.</mark></p>
 <p data-line="996"><mark class="gap" title="include-semantics-merging.3 — no case">The included file should be parsed, producing a root object.</mark> <mark class="ok" title="include-semantics-merging.4 — include-merging/001-included-keys-merge-in-place/main.conf, include-merging/004-include-inside-nested-object/main.conf, include-merging/011-include-inside-a-list-with-a-substitution/main.conf, include-merging/016-plus-equals-across-include-keeps-order/main.conf">The
 keys from the root object are conceptually substituted for the
 include statement in the including file.</mark></p>
-<p data-line="1000"> - <mark class="ok" title="include-semantics-merging.5 — include-merging/005-included-scalar-overrides-earlier-key/main.conf, include-merging/006-included-object-merges-with-earlier-object/main.conf, include-merging/007-included-scalar-replaces-earlier-object/main.conf, include-merging/012-included-merge-stack-over-earlier-object/main.conf, include-merging/013-included-merge-stack-over-earlier-substitution/main.conf, include-merging/014-included-merge-stack-over-earlier-scalar/main.conf, include-merging/015-included-object-on-top-of-substitution-over-earlier-substitution/main.conf">If a key in the included object occurred prior to the include
+<p data-line="1000"> - <mark class="ok" title="include-semantics-merging.5 — include-merging/005-included-scalar-overrides-earlier-key/main.conf, include-merging/006-included-object-merges-with-earlier-object/main.conf, include-merging/007-included-scalar-replaces-earlier-object/main.conf, include-merging/012-included-merge-stack-over-earlier-object/main.conf, include-merging/013-included-merge-stack-over-earlier-substitution/main.conf, include-merging/014-included-merge-stack-over-earlier-scalar/main.conf, include-merging/015-included-object-on-top-of-substitution-over-earlier-substitution/main.conf, include-merging/017-included-null-then-object-hides-the-earlier-object/main.conf, include-merging/018-included-scalar-then-path-hides-the-earlier-object/main.conf, include-merging/019-included-scalar-then-object-hides-a-substitution/main.conf">If a key in the included object occurred prior to the include
    statement in the including object, the included key&#x27;s value
    overrides or merges with the earlier value, exactly as with
    duplicate keys found in a single file.</mark>
@@ -1064,7 +1064,7 @@ same file.</mark> All merging works the same way.</p>
 <p data-line="1436">Needless to say, normally it&#x27;s well-defined whether a config
 setting is supposed to be a number or an object. This kind of
 weird pathology where the two are mixed should not be happening.</p>
-<p data-line="1440"><mark class="ok" title="config-object-merging-and-file-merging.7 — config-and-file-merging/005-null-clears-included-object/main.conf">The one place where it matters, though, is that it allows you to
+<p data-line="1440"><mark class="ok" title="config-object-merging-and-file-merging.7 — config-and-file-merging/005-null-clears-included-object/main.conf, duplicate-keys-and-object-merging/030-null-inside-later-object-clears-earlier-one.conf, include-merging/017-included-null-then-object-hides-the-earlier-object/main.conf">The one place where it matters, though, is that it allows you to
 &quot;clear&quot; an object and start over by setting it to null and then
 setting it back to a new object.</mark> So this behavior gives people a
 way to get rid of default fallback values they don&#x27;t want.</p>
