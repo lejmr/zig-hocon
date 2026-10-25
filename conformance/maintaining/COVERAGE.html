@@ -75,7 +75,7 @@ JSON spec at https://json.org/ of course.</p>
  - <mark class="ok" title="unchanged-from-json.4 — unchanged-from-json/008-number-format-decimal-and-exponent.conf, unchanged-from-json/009-leading-zero-run-is-text.conf, unchanged-from-json/010-signed-fraction-without-integer-part-is-text.conf, unchanged-from-json/011-plus-in-a-signed-fraction-is-illegal.conf, unchanged-from-json/012-trailing-dot-run-is-text.conf, unchanged-from-json/013-trailing-dot-before-exponent-is-text.conf, unchanged-from-json/014-negative-leading-zeros-are-text.conf, unchanged-from-json/023-64-bit-integer.conf, unchanged-from-json/025-nan-is-not-a-number.conf, unchanged-from-json/028-integer-beyond-64-bits-is-a-number.conf, unchanged-from-json/031-exponent-with-a-plus-sign.conf, unchanged-from-json/032-signed-fraction-with-exponent-is-text.conf">allowed number formats matches JSON; as in JSON, some possible
    floating-point values are not represented, such as `NaN`</mark></p>
 <h3>Comments</h3>
-<p data-line="125"><mark class="ok" title="comments.1 — comments/001-hash-comment.conf, comments/002-double-slash-comment.conf, comments/003-whole-line-comment.conf, comments/004-comment-stops-at-newline.conf, comments/005-hash-inside-quoted-string-is-not-a-comment.conf, comments/006-double-slash-inside-quoted-string-is-not-a-comment.conf, comments/007-comment-between-separator-and-value.conf, comments/008-comment-then-blank-line-then-field.conf, comments/009-comment-inside-object.conf, comments/010-comments-inside-array.conf, comments/011-comment-before-values-of-every-type.conf, comments/013-line-comment-after-array.conf, comments/014-hash-comment-after-array-without-space.conf">Anything between `//` or `#` and the next newline is considered a comment
+<p data-line="125"><mark class="ok" title="comments.1 — comments/001-hash-comment.conf, comments/002-double-slash-comment.conf, comments/003-whole-line-comment.conf, comments/004-comment-stops-at-newline.conf, comments/005-hash-inside-quoted-string-is-not-a-comment.conf, comments/006-double-slash-inside-quoted-string-is-not-a-comment.conf, comments/007-comment-between-separator-and-value.conf, comments/008-comment-then-blank-line-then-field.conf, comments/009-comment-inside-object.conf, comments/010-comments-inside-array.conf, comments/011-comment-before-values-of-every-type.conf, comments/013-line-comment-after-array.conf, comments/014-hash-comment-after-array-without-space.conf, comments/015-nul-byte-in-a-comment-is-ignored.conf">Anything between `//` or `#` and the next newline is considered a comment
 and ignored, unless the `//` or `#` is inside a quoted string.</mark></p>
 <h3>Omit root braces</h3>
 <p data-line="130"><mark class="ok" title="omit-root-braces.1 — omit-root-braces/011-trailing-array-after-root-array.conf">JSON documents must have an array or object at the root.</mark> <mark class="ok" title="omit-root-braces.2 — include-file-formats/016-json-rejects-empty-document/main.conf, include-file-formats/017-json-rejects-scalar-root/main.conf">Empty
@@ -191,9 +191,9 @@ number characters that follow it, must be parsed as a number
 value.</mark> Again, these characters are not special _inside_ an
 unquoted string; they only trigger number parsing if they appear
 initially.</p>
-<p data-line="278"><mark class="ok" title="unquoted-strings.14 — unchanged-from-json/021-raw-newline-in-quoted-string-illegal.conf, unchanged-from-json/022-raw-tab-in-quoted-string-illegal.conf, unquoted-strings/017-control-char-forbidden-in-quoted.conf">Note that quoted JSON strings may not contain control characters
+<p data-line="278"><mark class="ok" title="unquoted-strings.14 — unchanged-from-json/021-raw-newline-in-quoted-string-illegal.conf, unchanged-from-json/022-raw-tab-in-quoted-string-illegal.conf, unquoted-strings/017-control-char-forbidden-in-quoted.conf, unquoted-strings/032-nul-byte-forbidden-in-quoted.conf">Note that quoted JSON strings may not contain control characters
 (control characters include some whitespace characters, such as
-newline).</mark> This rule is from the JSON spec. <mark class="ok" title="unquoted-strings.15 — unquoted-strings/016-control-char-allowed-unquoted.conf">However, unquoted
+newline).</mark> This rule is from the JSON spec. <mark class="ok" title="unquoted-strings.15 — unquoted-strings/016-control-char-allowed-unquoted.conf, unquoted-strings/031-nul-byte-allowed-unquoted.conf">However, unquoted
 strings have no restriction on control characters, other than the
 ones listed as &quot;forbidden characters&quot; above.</mark></p>
 <p data-line="284">Some of the &quot;forbidden characters&quot; are forbidden because they
@@ -201,7 +201,7 @@ already have meaning in JSON or HOCON, others are essentially
 reserved keywords to allow future extensions to this spec.</p>
 <h3>Multi-line strings</h3>
 <p data-line="290">Multi-line strings are similar to Python or Scala, using triple
-quotes. <mark class="ok" title="multi-line-strings.1 — multi-line-strings/001-basic-triple-quote.conf, multi-line-strings/006-unterminated-is-illegal.conf, multi-line-strings/008-backslash-kept-literally.conf">If the three-character sequence `&quot;&quot;&quot;` appears, then all
+quotes. <mark class="ok" title="multi-line-strings.1 — multi-line-strings/001-basic-triple-quote.conf, multi-line-strings/006-unterminated-is-illegal.conf, multi-line-strings/008-backslash-kept-literally.conf, multi-line-strings/010-nul-byte-kept.conf">If the three-character sequence `&quot;&quot;&quot;` appears, then all
 Unicode characters until a closing `&quot;&quot;&quot;` sequence are used
 unmodified to create a string value.</mark> <mark class="ok" title="multi-line-strings.2 — multi-line-strings/002-newlines-and-whitespace-preserved.conf">Newlines and whitespace
 receive no special treatment.</mark> <mark class="ok" title="multi-line-strings.3 — multi-line-strings/003-unicode-escape-not-interpreted.conf">Unlike Scala, and unlike JSON quoted

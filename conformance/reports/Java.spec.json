@@ -4,11 +4,11 @@
   "version": "typesafe/config 1.4.9",
   "mode": "spec",
   "command": "conformance/adapters/oracle.sh hocon-java",
-  "ran_at": "2026-10-25T09:40:25Z",
-  "suite_digest": "088483db7c04ff14",
-  "total": 478,
-  "passed": 419,
-  "percent": 87.7,
+  "ran_at": "2026-10-25T18:37:41Z",
+  "suite_digest": "e4f19aa15860467f",
+  "total": 482,
+  "passed": 423,
+  "percent": 87.8,
   "sections": {
     "array-and-object-concatenation": {
       "total": 22,
@@ -23,8 +23,8 @@
       "passed": 13
     },
     "comments": {
-      "total": 14,
-      "passed": 14
+      "total": 15,
+      "passed": 15
     },
     "concatenation-whitespace-and-substitutions": {
       "total": 9,
@@ -75,8 +75,8 @@
       "passed": 6
     },
     "multi-line-strings": {
-      "total": 9,
-      "passed": 9
+      "total": 10,
+      "passed": 10
     },
     "numerically-indexed-objects-to-arrays": {
       "total": 7,
@@ -135,8 +135,8 @@
       "passed": 6
     },
     "unquoted-strings": {
-      "total": 30,
-      "passed": 30
+      "total": 32,
+      "passed": 32
     },
     "value-concatenation": {
       "total": 2,
@@ -204,6 +204,7 @@
     "comments/012-comment-before-explicit-root-object.conf": "pass",
     "comments/013-line-comment-after-array.conf": "pass",
     "comments/014-hash-comment-after-array-without-space.conf": "pass",
+    "comments/015-nul-byte-in-a-comment-is-ignored.conf": "pass",
     "concatenation-whitespace-and-substitutions/001-unquoted-whitespace-between-substitutions-is-significant-for-strings.conf": "pass",
     "concatenation-whitespace-and-substitutions/002-quoted-whitespace-between-substitutions-is-error.conf": "pass",
     "concatenation-whitespace-and-substitutions/003-unquoted-whitespace-between-object-and-list-substitutions-is-ignored.conf": "pass",
@@ -360,6 +361,7 @@
     "multi-line-strings/007-fewer-than-three-quotes-does-not-close.conf": "pass",
     "multi-line-strings/008-backslash-kept-literally.conf": "pass",
     "multi-line-strings/009-six-quotes-are-an-empty-string.conf": "pass",
+    "multi-line-strings/010-nul-byte-kept.conf": "pass",
     "numerically-indexed-objects-to-arrays/001-object-with-numeric-keys-stays-object.conf": "pass",
     "numerically-indexed-objects-to-arrays/003-concatenation-converts-numeric-object-to-array.conf": "pass",
     "numerically-indexed-objects-to-arrays/004-concatenation-ignores-non-integer-keys.conf": "pass",
@@ -611,6 +613,8 @@
     "unquoted-strings/028-lone-hyphen-is-text.conf": "pass",
     "unquoted-strings/029-command-line-flags-are-text.conf": "pass",
     "unquoted-strings/030-hyphen-between-words-is-text.conf": "pass",
+    "unquoted-strings/031-nul-byte-allowed-unquoted.conf": "pass",
+    "unquoted-strings/032-nul-byte-forbidden-in-quoted.conf": "pass",
     "value-concatenation/001-simple-values-concatenate-to-string.conf": "pass",
     "value-concatenation/004-string-concatenation-allowed-in-field-keys.conf": "pass",
     "whitespace/001-nonbreaking-space-as-whitespace.conf": "pass",

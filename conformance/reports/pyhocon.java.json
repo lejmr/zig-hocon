@@ -5,11 +5,11 @@
   "mode": "java",
   "java_version": "1.4.9",
   "command": "conformance/adapters/oracle.sh hocon-py",
-  "ran_at": "2026-10-25T09:47:56Z",
-  "suite_digest": "088483db7c04ff14",
-  "total": 478,
-  "passed": 308,
-  "percent": 64.4,
+  "ran_at": "2026-10-25T18:44:36Z",
+  "suite_digest": "e4f19aa15860467f",
+  "total": 482,
+  "passed": 311,
+  "percent": 64.5,
   "sections": {
     "array-and-object-concatenation": {
       "total": 22,
@@ -24,8 +24,8 @@
       "passed": 6
     },
     "comments": {
-      "total": 14,
-      "passed": 14
+      "total": 15,
+      "passed": 15
     },
     "concatenation-whitespace-and-substitutions": {
       "total": 9,
@@ -76,8 +76,8 @@
       "passed": 3
     },
     "multi-line-strings": {
-      "total": 9,
-      "passed": 9
+      "total": 10,
+      "passed": 10
     },
     "numerically-indexed-objects-to-arrays": {
       "total": 7,
@@ -136,8 +136,8 @@
       "passed": 5
     },
     "unquoted-strings": {
-      "total": 30,
-      "passed": 24
+      "total": 32,
+      "passed": 25
     },
     "value-concatenation": {
       "total": 2,
@@ -205,6 +205,7 @@
     "comments/012-comment-before-explicit-root-object.conf": "pass",
     "comments/013-line-comment-after-array.conf": "pass",
     "comments/014-hash-comment-after-array-without-space.conf": "pass",
+    "comments/015-nul-byte-in-a-comment-is-ignored.conf": "pass",
     "concatenation-whitespace-and-substitutions/001-unquoted-whitespace-between-substitutions-is-significant-for-strings.conf": "pass",
     "concatenation-whitespace-and-substitutions/002-quoted-whitespace-between-substitutions-is-error.conf": "pass",
     "concatenation-whitespace-and-substitutions/003-unquoted-whitespace-between-object-and-list-substitutions-is-ignored.conf": "pass",
@@ -361,6 +362,7 @@
     "multi-line-strings/007-fewer-than-three-quotes-does-not-close.conf": "pass",
     "multi-line-strings/008-backslash-kept-literally.conf": "pass",
     "multi-line-strings/009-six-quotes-are-an-empty-string.conf": "pass",
+    "multi-line-strings/010-nul-byte-kept.conf": "pass",
     "numerically-indexed-objects-to-arrays/001-object-with-numeric-keys-stays-object.conf": "pass",
     "numerically-indexed-objects-to-arrays/003-concatenation-converts-numeric-object-to-array.conf": "fail",
     "numerically-indexed-objects-to-arrays/004-concatenation-ignores-non-integer-keys.conf": "fail",
@@ -612,6 +614,8 @@
     "unquoted-strings/028-lone-hyphen-is-text.conf": "pass",
     "unquoted-strings/029-command-line-flags-are-text.conf": "pass",
     "unquoted-strings/030-hyphen-between-words-is-text.conf": "pass",
+    "unquoted-strings/031-nul-byte-allowed-unquoted.conf": "pass",
+    "unquoted-strings/032-nul-byte-forbidden-in-quoted.conf": "fail",
     "value-concatenation/001-simple-values-concatenate-to-string.conf": "pass",
     "value-concatenation/004-string-concatenation-allowed-in-field-keys.conf": "pass",
     "whitespace/001-nonbreaking-space-as-whitespace.conf": "fail",
@@ -2369,7 +2373,7 @@
         "a": "null bar"
       },
       "got": {
-        "a": "<pyhocon.config_tree.NoneValue object at 0x10627fe50>bar"
+        "a": "<pyhocon.config_tree.NoneValue object at 0x101295310>bar"
       }
     },
     {
@@ -2793,6 +2797,13 @@
       "rule": "unquoted strings support no escaping, so \\u00e9 is not decoded, and the backslash it needs is forbidden in an unquoted string; the quoted \"caf\\u00e9\" is how to write it",
       "expected": "rejected",
       "got": "{\"a\":\"caf\\\\u00e9\"}"
+    },
+    {
+      "case": "unquoted-strings/032-nul-byte-forbidden-in-quoted.conf",
+      "spec": "HOCON.md#unquoted-strings",
+      "rule": "quoted JSON strings may not contain control characters, NUL among them, per the JSON spec",
+      "expected": "rejected",
+      "got": "{\"a\":\"spam\\u0000eggs\"}"
     },
     {
       "case": "whitespace/001-nonbreaking-space-as-whitespace.conf",

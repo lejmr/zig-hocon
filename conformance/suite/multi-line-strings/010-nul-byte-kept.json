@@ -1,0 +1,8 @@
+{
+  "spec": "HOCON.md#multi-line-strings",
+  "rule": "multi-line-strings.1",
+  "why": "all characters until the closing triple quote are used unmodified, a NUL byte too",
+  "expect": {
+    "a": "spam\u0000eggs"
+  }
+}
