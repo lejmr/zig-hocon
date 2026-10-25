@@ -70,6 +70,9 @@ closed: ?usize = null,
 // Objects walked again from inside a look-back of a field in them, and the
 // ref that led back (`walkAgain`).
 again: std.ArrayList(struct { place: *Value, ref: Ref }) = .empty,
+// What a place resolved to when it was walked again inside the look-back of a
+// field outside it: its value, resolved once (`walkAgain`, `resolveField`).
+walked: std.AutoHashMapUnmanaged(*Value, Value) = .empty,
 // Where a path that is not in the document is looked up.
 env: Env,
 // Where the error points; written once, where the error starts.
@@ -109,6 +112,7 @@ fn deinit(state: *Resolver) void {
     state.fields.deinit(gpa);
     state.optionals.deinit(gpa);
     state.again.deinit(gpa);
+    state.walked.deinit(gpa);
     state.kept.deinit(gpa);
     var it = state.index.valueIterator();
     while (it.next()) |members| members.deinit(gpa);
@@ -424,15 +428,23 @@ const Place = union(enum) { absent, gone, waits, place: *Value };
 // a at [] (the implementation the spec sketches, L693). `i` is where the
 // object is in `visiting`; null where nothing in it looks back, or it is
 // being walked again already, and the cycle cannot be broken.
+//
+// A target the field is not in, `a = [${p}]`, `p = 1`, `p = ${a}`: walked again
+// too, the field it led to seen at its earlier value, and what it resolves to
+// there is its value, as a substitution is resolved once (spec L886): `a` is
+// `[1]`, whichever field goes first.
 fn walkAgain(state: *Resolver, target: *Value, ref: Ref, i: usize) Error!?Value {
     // A list the same as an object (spec L684, L801): `a = [{c = 2, c = ${a}}]`.
     if (target.* != .object and target.* != .array) return null;
     for (state.again.items) |a| if (a.place == target) return null;
     for (state.visiting.items[i + 1 ..]) |place| {
-        if (!looksBackAt(state, place) or !holds(target.*, place)) continue;
+        if (!looksBackAt(state, place)) continue;
+        const inside = holds(target.*, place);
         try state.again.append(state.gpa, .{ .place = target, .ref = ref });
         defer _ = state.again.pop();
-        return try state.resolveValue(target.*);
+        const val = try state.resolveValue(target.*) orelse return null;
+        if (!inside) try state.walked.put(state.gpa, target, val);
+        return val;
     }
     return null;
 }
@@ -667,15 +679,16 @@ test "resolve.a look-back that refers to its own object" {
     try expectResolveError("a { b = ${a} }", error.SubstitutionCycle);
     try expectResolveError("o { a = [], a += ${o}, c = ${o} }", error.SubstitutionCycle);
 }
-// Zig only for the errors (java ✓ on the first two values, ✗ on the rest: it
-// reports the cycles with the fields in this order) · spec ✓ — a cycle is broken
-// by looking back where that gives every field one value, and only there: a
-// field resolved anew a second time, a re-walk of an object the look-back is not
-// in, or an optional the look-back would have reached first stay cycles.
+// java ✓ · spec ✓ — a cycle is broken by looking back where that gives every
+// field one value, and only there: a field resolved anew a second time stays a
+// cycle. An object the look-back is not in is walked again inside it, and what
+// it resolves to there is its value, a substitution being resolved once (L886);
+// until 2026-10-25 that was a cycle too, the last two rows, which typesafe/config
+// resolves to these values.
 test "resolve.a cycle breaks only where its look-back stays one value" {
     try expectResolved("bar : ${foo}\nfoo += 5\nfoo : ${bar}", "{\"bar\":[5],\"foo\":[5]}");
     try expectResolved("a : ${?t} ${?a}${?n.x}\nn = ${a}", "{\"a\":\" \",\"n\":\" \"}");
     try expectResolveError("a = ${p}\np = 1\np = ${a}x\np = ${a}x", error.SubstitutionCycle);
-    try expectResolveError("v { n = { x = ${a} } }\na = { n = { h = 0 } }\na = ${v}", error.SubstitutionCycle);
-    try expectResolveError("v = { x = ${?a} }\nr = null\nr = ${v}\na = null\na = ${r}", error.SubstitutionCycle);
+    try expectResolved("v { n = { x = ${a} } }\na = { n = { h = 0 } }\na = ${v}", "{\"v\":{\"n\":{\"x\":{\"n\":{\"h\":0}}}},\"a\":{\"n\":{\"h\":0,\"x\":{\"n\":{\"h\":0}}}}}");
+    try expectResolved("v = { x = ${?a} }\nr = null\nr = ${v}\na = null\na = ${r}", "{\"v\":{\"x\":null},\"r\":{\"x\":null},\"a\":{\"x\":null}}");
 }

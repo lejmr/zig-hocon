@@ -57,6 +57,10 @@ pub const Field = struct {
 pub fn resolveField(state: *Resolver, place: *Value) Error!?Value {
     const gpa = state.gpa;
     if (state.kept.contains(place)) return place.*;
+    if (state.walked.get(place)) |val| {
+        place.* = val;
+        return val;
+    }
     // A field written once is a stack of one.
     const one = [_]Value{place.*};
     const val = switch (place.*) {
@@ -64,9 +68,11 @@ pub fn resolveField(state: *Resolver, place: *Value) Error!?Value {
         .ref, .pending => try state.resolveStack(place, &one),
         else => try state.resolveValue(place.*),
     } orelse return null;
-    place.* = val;
-    if (waits(val)) try state.kept.put(gpa, place, {});
-    return val;
+    // Walked again inside a look-back meanwhile: that is its value.
+    const value = state.walked.get(place) orelse val;
+    place.* = value;
+    if (waits(value)) try state.kept.put(gpa, place, {});
+    return value;
 }
 
 // The layers of a field, from the top: the top one decides, and the ones
