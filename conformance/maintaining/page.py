@@ -59,6 +59,10 @@ button.mode:focus-visible { outline: 2px solid var(--accent); outline-offset: 2p
 .score .of { color: var(--muted); font-size: 13px; }
 .bar { height: 4px; background: var(--rule-soft); border-radius: 2px; margin-top: 12px; overflow: hidden; }
 .bar > i { display: block; height: 100%; background: var(--accent); }
+.score { cursor: pointer; user-select: none; }
+.score[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent), var(--shadow); }
+.score[aria-pressed="false"] { opacity: .5; box-shadow: none; }
+.score:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 table { width: 100%; border-collapse: collapse; font-size: 14px; }
 .scroll { overflow-x: auto; }
@@ -130,6 +134,7 @@ td.out:hover, td.out:focus { outline: 1px solid var(--accent); outline-offset: -
   </div>
 
   <div class="scores" id="scores">__SCORES__</div>
+  <p class="note" style="margin:-16px 0 0">Click a card to leave that implementation out of the tables below, and again to bring it back.</p>
 
   <section class="drop" id="drop">
     <label for="pick"><b>Add your own result</b></label>
@@ -143,7 +148,7 @@ td.out:hover, td.out:focus { outline: 1px solid var(--accent); outline-offset: -
 
   <section class="split">
     <div class="section-head" style="padding:12px 10px 2px">
-      <h2>Where the two bars disagree</h2>
+      <h2>Where the spec and typesafe/config disagree</h2>
       <span class="note">__SPLITCOUNT__ of __TOTAL__ rows. Everywhere else they ask the same question.</span>
     </div>
     <div class="scroll">__SPLIT__</div>
@@ -170,6 +175,7 @@ td.out:hover, td.out:focus { outline: 1px solid var(--accent); outline-offset: -
 const DATA = __DATA__;
 let mode = "spec";
 const LOCAL = {};   // results dropped in by the viewer, this tab only
+const HIDDEN = new Set();   // implementations the viewer clicked away, this tab only
 
 function cell(v) {
   if (v === "review") return '<span class="tag review">open</span>';
@@ -185,13 +191,15 @@ function score(rows, impl) {
   return [ok, rows.length];
 }
 function columns() { return DATA.impls.concat(Object.keys(LOCAL)); }
+function shown() { return columns().filter(i => !HIDDEN.has(i)); }
 function render() {
   const all = DATA.sections.flatMap(s => s.rows);
   document.getElementById("scores").innerHTML = columns().map(impl => {
     const [ok, n] = score(all, impl);
     const pct = !n ? 0 : ok === n ? 100 : (100 * ok / n).toFixed(1);
     const local = LOCAL[impl];
-    return `<div class="score${local ? " local" : ""}"><div class="impl">${impl}</div>
+    return `<div class="score${local ? " local" : ""}" data-card="${h(impl)}" role="button" tabindex="0"
+      aria-pressed="${!HIDDEN.has(impl)}"><div class="impl">${impl}</div>
       <div class="pct num">${pct}%</div>
       <div class="of num">${ok} of ${n} rows</div>
       <div class="of num">${local ? local.version : DATA.versions[impl]}</div>
@@ -199,15 +207,16 @@ function render() {
       <div class="bar"><i style="width:${pct}%"></i></div></div>`;
   }).join("");
   for (const td of document.querySelectorAll("td.v")) td.innerHTML = cell(JSON.parse(td.dataset.v)[mode]);
+  for (const el of document.querySelectorAll("[data-impl]")) el.hidden = HIDDEN.has(el.dataset.impl);
   renderYours();
   for (const el of document.querySelectorAll("[data-tally]")) {
     const rows = DATA.sections[+el.dataset.tally].rows;
-    el.textContent = columns().map(i => { const [ok, n] = score(rows, i); return `${i} ${ok}/${n}`; }).join(" · ");
+    el.textContent = shown().map(i => { const [ok, n] = score(rows, i); return `${i} ${ok}/${n}`; }).join(" · ");
   }
 }
 function renderYours() {
   const box = document.getElementById("yours");
-  const names = Object.keys(LOCAL);
+  const names = Object.keys(LOCAL).filter(i => !HIDDEN.has(i));
   box.hidden = names.length === 0;
   if (box.hidden) return;
   const rows = DATA.sections.flatMap(s => s.rows.map(r => [s.name, r]));
@@ -308,6 +317,22 @@ for (const spec of document.querySelectorAll("td.spec")) {
   }
 }
 
+// A score card shows or hides its implementation's columns and tallies.
+const scores = document.getElementById("scores");
+function toggle(e) {
+  const card = e.target.closest(".score");
+  if (!card) return;
+  const impl = card.dataset.card;
+  if (!HIDDEN.delete(impl)) HIDDEN.add(impl);
+  render();
+  // render() redraws the cards, so the focus goes back to the new one
+  for (const c of scores.querySelectorAll(".score")) if (c.dataset.card === impl) c.focus();
+}
+scores.addEventListener("click", toggle);
+scores.addEventListener("keydown", e => {
+  if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(e); }
+});
+
 for (const b of document.querySelectorAll("button.mode")) {
   b.addEventListener("click", () => {
     mode = b.dataset.mode;
@@ -329,8 +354,8 @@ def _cell(v):
 
 
 def _cells(row, impls):
-    return "".join('<td class="v" data-v=\'{}\'>{}</td>'.format(json.dumps(row["v"][i]), _cell(row["v"][i]["spec"]))
-                   for i in impls)
+    return "".join('<td class="v" data-impl="{}" data-v=\'{}\'>{}</td>'.format(
+        esc.escape(i), json.dumps(row["v"][i]), _cell(row["v"][i]["spec"])) for i in impls)
 
 
 def _score(rows, impl):
@@ -343,7 +368,8 @@ def _scores(impls, sections, versions):
     for i in impls:
         ok, n = _score(rows, i)
         pct = 0 if not n else 100 if ok == n else "{:.1f}".format(100 * ok / n)
-        cards.append('<div class="score"><div class="impl">{0}</div><div class="pct num">{1}%</div>'
+        cards.append('<div class="score" data-card="{0}" role="button" tabindex="0" aria-pressed="true">'
+                     '<div class="impl">{0}</div><div class="pct num">{1}%</div>'
                      '<div class="of num">{2} of {3} rows</div><div class="of num">{4}</div>'
                      '<div class="bar"><i style="width:{1}%"></i></div></div>'.format(
                          esc.escape(i), pct, ok, n, esc.escape(versions[i])))
@@ -351,14 +377,14 @@ def _scores(impls, sections, versions):
 
 
 def build(impls, sections, split_rows, lede, versions, digest):
-    head = "".join("<th>{}</th>".format(esc.escape(i)) for i in impls)
+    head = "".join('<th data-impl="{0}">{0}</th>'.format(esc.escape(i)) for i in impls)
 
     split = ['<table><thead><tr><th>input</th><th>the spec requires</th>{}</tr></thead>'
              '<tbody>'.format(head)]
     for r in split_rows:
         # data-j carries the raw output for the hover diff; the text is the fallback without JS
-        got = "".join('<td class="mono out" tabindex="0" data-j="{0}">{0}</td>'.format(esc.escape(r["got"][i]))
-                      for i in impls)
+        got = "".join('<td class="mono out" tabindex="0" data-impl="{0}" data-j="{1}">{1}</td>'.format(
+            esc.escape(i), esc.escape(r["got"][i])) for i in impls)
         spec = r["spec_side"]
         split.append('<tr><td class="mono">{}<span class="tag kind">{}</span></td>'
                      '<td class="mono spec" data-j="{}">{}</td>{}</tr>'.format(
