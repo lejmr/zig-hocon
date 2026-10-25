@@ -11,7 +11,7 @@ What changed for someone using zig-hocon: the Zig package, the `hocon` command l
 ### Added
 
 - Twelve conformance cases from bug reports in lightbend/config and ekrich/sconfig where the spec has the answer: typesafe/config fails inside `${a} { … }`, turns integers past 2^63 into strings and accepts `\u+041`; pyhocon loses `+=` across an include and the text of a substituted number. zig-hocon passes all 469.
-- Eight conformance cases found by fuzzing zig-hocon against typesafe/config, where the spec has the answer: typesafe/config rejects `a { m = 2 } { n = 1 }` and `3+=[]`, loses the first `+=` after `c = null` and keeps the number in `[${?x}10]`. zig-hocon passes all 479.
+- Eight conformance cases found by fuzzing zig-hocon against typesafe/config, where the spec has the answer: typesafe/config rejects `a { m = 2 } { n = 1 }` and `3+=[]`, loses the first `+=` after `c = null` and keeps the number in `[${?x}10]`. zig-hocon passes all 490.
 
 ### Fixed
 

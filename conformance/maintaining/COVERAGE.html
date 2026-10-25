@@ -20,8 +20,8 @@ mark.ok { background: var(--ok); } mark.gap { background: var(--gap); }
 .note { color: var(--muted); font-size: 14px; }
 </style>
 <div class="legend">
-  <mark class="ok">273 rules with a case</mark> &nbsp;
-  <mark class="gap">15 rules without one</mark> &nbsp;
+  <mark class="ok">274 rules with a case</mark> &nbsp;
+  <mark class="gap">14 rules without one</mark> &nbsp;
   unmarked text is not a rule — 288 rules in RULES.md. Hover a mark for the id and its cases.
 </div>
 
@@ -75,7 +75,7 @@ JSON spec at https://json.org/ of course.</p>
  - <mark class="ok" title="unchanged-from-json.4 — unchanged-from-json/008-number-format-decimal-and-exponent.conf, unchanged-from-json/009-leading-zero-run-is-text.conf, unchanged-from-json/010-signed-fraction-without-integer-part-is-text.conf, unchanged-from-json/011-plus-in-a-signed-fraction-is-illegal.conf, unchanged-from-json/012-trailing-dot-run-is-text.conf, unchanged-from-json/013-trailing-dot-before-exponent-is-text.conf, unchanged-from-json/014-negative-leading-zeros-are-text.conf, unchanged-from-json/023-64-bit-integer.conf, unchanged-from-json/025-nan-is-not-a-number.conf, unchanged-from-json/028-integer-beyond-64-bits-is-a-number.conf, unchanged-from-json/031-exponent-with-a-plus-sign.conf, unchanged-from-json/032-signed-fraction-with-exponent-is-text.conf">allowed number formats matches JSON; as in JSON, some possible
    floating-point values are not represented, such as `NaN`</mark></p>
 <h3>Comments</h3>
-<p data-line="125"><mark class="ok" title="comments.1 — comments/001-hash-comment.conf, comments/002-double-slash-comment.conf, comments/003-whole-line-comment.conf, comments/004-comment-stops-at-newline.conf, comments/005-hash-inside-quoted-string-is-not-a-comment.conf, comments/006-double-slash-inside-quoted-string-is-not-a-comment.conf, comments/007-comment-between-separator-and-value.conf, comments/008-comment-then-blank-line-then-field.conf, comments/009-comment-inside-object.conf, comments/010-comments-inside-array.conf, comments/011-comment-before-values-of-every-type.conf, comments/013-line-comment-after-array.conf, comments/014-hash-comment-after-array-without-space.conf, comments/015-nul-byte-in-a-comment-is-ignored.conf">Anything between `//` or `#` and the next newline is considered a comment
+<p data-line="125"><mark class="ok" title="comments.1 — comments/001-hash-comment.conf, comments/002-double-slash-comment.conf, comments/003-whole-line-comment.conf, comments/004-comment-stops-at-newline.conf, comments/005-hash-inside-quoted-string-is-not-a-comment.conf, comments/006-double-slash-inside-quoted-string-is-not-a-comment.conf, comments/007-comment-between-separator-and-value.conf, comments/008-comment-then-blank-line-then-field.conf, comments/009-comment-inside-object.conf, comments/010-comments-inside-array.conf, comments/011-comment-before-values-of-every-type.conf, comments/013-line-comment-after-array.conf, comments/014-hash-comment-after-array-without-space.conf, comments/015-nul-byte-in-a-comment-is-ignored.conf, omit-root-braces/009-comment-before-array-root.conf">Anything between `//` or `#` and the next newline is considered a comment
 and ignored, unless the `//` or `#` is inside a quoted string.</mark></p>
 <h3>Omit root braces</h3>
 <p data-line="130"><mark class="ok" title="omit-root-braces.1 — omit-root-braces/011-trailing-array-after-root-array.conf">JSON documents must have an array or object at the root.</mark> <mark class="ok" title="omit-root-braces.2 — include-file-formats/016-json-rejects-empty-document/main.conf, include-file-formats/017-json-rejects-scalar-root/main.conf">Empty
@@ -106,7 +106,7 @@ followed by a single comma.</mark> <mark class="ok" title="commas.3 — commas/0
 <h3>Whitespace</h3>
 <p data-line="167">The JSON spec simply says &quot;whitespace&quot;; in HOCON whitespace is
 defined as follows:</p>
-<p data-line="170"> - <mark class="ok" title="whitespace.1 — concatenation-whitespace-and-substitutions/005-nonbreaking-space-between-list-substitutions-is-ignored.conf, whitespace/001-nonbreaking-space-as-whitespace.conf, whitespace/006-special-nonbreaking-spaces.conf, whitespace/010-line-separator-is-whitespace.conf, whitespace/012-ideographic-space-is-whitespace.conf">any Unicode space separator (Zs category), line separator (Zl
+<p data-line="170"> - <mark class="ok" title="whitespace.1 — concatenation-whitespace-and-substitutions/005-nonbreaking-space-between-list-substitutions-is-ignored.conf, concatenation-whitespace-and-substitutions/007-zero-width-space-between-list-substitutions-is-error.conf, whitespace/001-nonbreaking-space-as-whitespace.conf, whitespace/006-special-nonbreaking-spaces.conf, whitespace/010-line-separator-is-whitespace.conf, whitespace/012-ideographic-space-is-whitespace.conf">any Unicode space separator (Zs category), line separator (Zl
    category), or paragraph separator (Zp category), including
    nonbreaking spaces (such as 0x00A0, 0x2007, and 0x202F).</mark>
    <mark class="ok" title="whitespace.2 — concatenation-whitespace-and-substitutions/006-bom-between-list-substitutions-is-ignored.conf, whitespace/002-bom-at-start-is-whitespace.conf, whitespace/013-bom-inside-the-document-is-whitespace.conf">The BOM (0xFEFF) must also be treated as whitespace.</mark>
@@ -470,7 +470,7 @@ elements (value concatenations), they are not allowed in keys or
 nested inside other substitutions (path expressions).</mark></p>
 <p data-line="648"><mark class="ok" title="substitutions.22 — substitutions/025-substitution-preserves-type-string-booleans-null.conf">A substitution is replaced with any value type (number, object,
 string, array, true, false, null).</mark> <mark class="ok" title="substitutions.23 — substitutions/022-substitution-preserves-type-array.conf, substitutions/025-substitution-preserves-type-string-booleans-null.conf">If the substitution is the only
-part of a value, then the type is preserved.</mark> <mark class="ok" title="substitutions.24 — substitutions/024-substitution-concatenation-forms-string.conf, substitutions/042-undefined-optional-next-to-number-is-a-string.conf">Otherwise, it is
+part of a value, then the type is preserved.</mark> <mark class="ok" title="substitutions.24 — substitutions/024-substitution-concatenation-forms-string.conf, substitutions/039-undefined-optional-with-number-is-a-string.conf, substitutions/042-undefined-optional-next-to-number-is-a-string.conf">Otherwise, it is
 value-concatenated to form a string.</mark></p>
 <h4>Self-Referential Substitutions</h4>
 <p data-line="655">The big picture:</p>
@@ -787,7 +787,7 @@ have some documented mapping to JSON&#x27;s type system.</p>
 <p data-line="1080"><mark class="ok" title="include-semantics-file-formats-and-extensions.1 — include-file-formats/006-json-extension-means-json-syntax/main.conf">If an implementation supports multiple formats, then the extension
 may be omitted from the name of included files:</mark></p>
 <p data-line="1083">    include &quot;foo&quot;</p>
-<p data-line="1085"><mark class="ok" title="include-semantics-file-formats-and-extensions.2 — include-file-formats/002-basename-with-only-conf/main.conf, include-file-formats/010-json-file-with-every-value-type/main.conf, include-file-formats/011-json-rejects-unquoted-values/main.conf, include-file-formats/012-json-rejects-substitutions/main.conf, include-file-formats/013-json-rejects-trailing-comma/main.conf, include-file-formats/015-json-array-needs-commas/main.conf, include-file-formats/019-json-key-must-be-a-string/main.conf, include-file-formats/020-json-newline-is-not-a-separator/main.conf, include-file-formats/022-json-dotted-key-is-one-key/main.conf, include-file-formats/023-json-leading-zero-illegal/main.conf">If a filename has no extension, the implementation should treat it
+<p data-line="1085"><mark class="ok" title="include-semantics-file-formats-and-extensions.2 — include-file-formats/002-basename-with-only-conf/main.conf, include-file-formats/010-json-file-with-every-value-type/main.conf, include-file-formats/011-json-rejects-unquoted-values/main.conf, include-file-formats/012-json-rejects-substitutions/main.conf, include-file-formats/013-json-rejects-trailing-comma/main.conf, include-file-formats/015-json-array-needs-commas/main.conf, include-file-formats/019-json-key-must-be-a-string/main.conf, include-file-formats/020-json-newline-is-not-a-separator/main.conf, include-file-formats/022-json-dotted-key-is-one-key/main.conf, include-file-formats/023-json-leading-zero-illegal/main.conf, include-file-formats/024-unknown-extension-is-not-a-basename/main.conf">If a filename has no extension, the implementation should treat it
 as a basename and try loading the file with all known extensions.</mark></p>
 <p data-line="1088"><mark class="ok" title="include-semantics-file-formats-and-extensions.3 — include-file-formats/001-basename-loads-every-extension/main.conf">If the file exists with multiple extensions, they should _all_ be
 loaded and merged together.</mark></p>
@@ -797,7 +797,7 @@ should be parsed next-to-last.</mark></p>
 <p data-line="1096">    include &quot;foo.properties&quot;
     include &quot;foo.json&quot;
     include &quot;foo.conf&quot;</p>
-<p data-line="1100"><mark class="gap" title="include-semantics-file-formats-and-extensions.6 — no case">This same extension-based behavior is applied to classpath
+<p data-line="1100"><mark class="ok" title="include-semantics-file-formats-and-extensions.6 — include-file-formats/006-json-extension-means-json-syntax/main.conf, include-file-formats/007-properties-extension-means-properties-syntax/main.conf">This same extension-based behavior is applied to classpath
 resources and files.</mark></p>
 <p data-line="1103">For URLs, a basename without extension is not allowed; only the
 exact URL specified is used. The format will be chosen based on

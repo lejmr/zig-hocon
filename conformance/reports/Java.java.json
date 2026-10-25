@@ -5,10 +5,10 @@
   "mode": "java",
   "java_version": "1.4.9",
   "command": "conformance/adapters/oracle.sh hocon-java",
-  "ran_at": "2026-10-25T18:38:33Z",
-  "suite_digest": "e4f19aa15860467f",
-  "total": 482,
-  "passed": 482,
+  "ran_at": "2026-10-25T19:04:08Z",
+  "suite_digest": "c506f6677517fbfc",
+  "total": 490,
+  "passed": 490,
   "percent": 100.0,
   "sections": {
     "array-and-object-concatenation": {
@@ -36,8 +36,8 @@
       "passed": 4
     },
     "duplicate-keys-and-object-merging": {
-      "total": 28,
-      "passed": 28
+      "total": 29,
+      "passed": 29
     },
     "duration-format": {
       "total": 9,
@@ -68,8 +68,8 @@
       "passed": 15
     },
     "key-value-separator": {
-      "total": 6,
-      "passed": 6
+      "total": 8,
+      "passed": 8
     },
     "list-values-from-environment-variables": {
       "total": 6,
@@ -88,8 +88,8 @@
       "passed": 14
     },
     "path-expressions": {
-      "total": 20,
-      "passed": 20
+      "total": 21,
+      "passed": 21
     },
     "paths-as-keys": {
       "total": 11,
@@ -100,12 +100,12 @@
       "passed": 7
     },
     "plus-equals-field-separator": {
-      "total": 13,
-      "passed": 13
+      "total": 14,
+      "passed": 14
     },
     "self-referential-examples": {
-      "total": 34,
-      "passed": 34
+      "total": 36,
+      "passed": 36
     },
     "self-referential-substitutions": {
       "total": 5,
@@ -124,8 +124,8 @@
       "passed": 10
     },
     "substitutions": {
-      "total": 38,
-      "passed": 38
+      "total": 39,
+      "passed": 39
     },
     "unchanged-from-json": {
       "total": 32,
@@ -247,6 +247,7 @@
     "duplicate-keys-and-object-merging/026-missing-key-in-object-that-replaced-a-list.conf": "pass",
     "duplicate-keys-and-object-merging/027-nested-object-then-scalar-inside-merge.conf": "pass",
     "duplicate-keys-and-object-merging/028-null-in-second-object-wins.conf": "pass",
+    "duplicate-keys-and-object-merging/029-substituted-object-hides-earlier-scalar.conf": "pass",
     "duration-format/001-bare-number-is-milliseconds.conf": "pass",
     "duration-format/002-uppercase-unit-is-illegal.conf": "pass",
     "duration-format/003-nanoseconds-spellings.conf": "pass",
@@ -347,6 +348,8 @@
     "key-value-separator/004-value-on-the-line-after-the-separator.conf": "pass",
     "key-value-separator/005-separator-cannot-be-omitted-before-array.conf": "pass",
     "key-value-separator/006-newline-between-key-and-brace.conf": "pass",
+    "key-value-separator/007-object-after-omitted-separator-concatenates.conf": "pass",
+    "key-value-separator/008-substitution-after-omitted-separator-concatenates.conf": "pass",
     "list-values-from-environment-variables/001-list-from-indexed-variables.conf": "pass",
     "list-values-from-environment-variables/002-optional-list-with-no-elements-is-undefined.conf": "pass",
     "list-values-from-environment-variables/003-required-list-with-no-elements-is-error.conf": "pass",
@@ -404,6 +407,7 @@
     "path-expressions/021-quoted-dot-in-substitution-path-is-literal.conf": "pass",
     "path-expressions/022-keyword-in-substitution-path-is-a-string.conf": "pass",
     "path-expressions/023-substitution-in-dotted-key-illegal.conf": "pass",
+    "path-expressions/024-number-like-keys-before-plus-equals.conf": "pass",
     "paths-as-keys/001-two-element-path-expands.conf": "pass",
     "paths-as-keys/002-three-element-path-expands.conf": "pass",
     "paths-as-keys/003-merge-sibling-paths.conf": "pass",
@@ -435,6 +439,7 @@
     "plus-equals-field-separator/011-appends-deep-inside-object-concatenation.conf": "pass",
     "plus-equals-field-separator/012-appends-to-a-list-defined-in-object-concatenation.conf": "pass",
     "plus-equals-field-separator/013-appends-after-a-substituted-object.conf": "pass",
+    "plus-equals-field-separator/014-appends-twice-after-null-replaced-by-object.conf": "pass",
     "self-referential-examples/001-isolated-self-reference-is-an-error.conf": "pass",
     "self-referential-examples/002-self-reference-resolves-to-earlier-merged-value.conf": "pass",
     "self-referential-examples/003-self-reference-before-any-value-is-undefined.conf": "pass",
@@ -469,6 +474,8 @@
     "self-referential-examples/032-field-hidden-inside-object-concatenation.conf": "pass",
     "self-referential-examples/033-object-below-a-substitution-looks-forward.conf": "pass",
     "self-referential-examples/034-object-over-scalar-hidden-by-later-object.conf": "pass",
+    "self-referential-examples/035-alias-read-inside-a-look-back.conf": "pass",
+    "self-referential-examples/036-alias-path-read-inside-a-look-back.conf": "pass",
     "self-referential-substitutions/001-path-builds-on-older-value.conf": "pass",
     "self-referential-substitutions/002-self-referential-concatenation.conf": "pass",
     "self-referential-substitutions/003-object-containing-self-reference-is-not-self-referential.conf": "pass",
@@ -546,6 +553,7 @@
     "substitutions/039-undefined-optional-with-number-is-a-string.conf": "pass",
     "substitutions/040-null-blocks-environment-lookup.conf": "pass",
     "substitutions/041-undefined-optional-under-a-path-leaves-the-object.conf": "pass",
+    "substitutions/042-undefined-optional-next-to-number-is-a-string.conf": "pass",
     "unchanged-from-json/001-quoted-string-json-format.conf": "pass",
     "unchanged-from-json/002-string-value-type.conf": "pass",
     "unchanged-from-json/003-number-value-type.conf": "pass",
@@ -648,6 +656,7 @@
     "duplicate-keys-and-object-merging/016-null-deeper-in-a-merge-stack-stays-at-its-key.conf": "{\"a\":{\"nested\":{\"x\":1},\"y\":2},\"pending\":{\"x\":1},\"pendingTop\":{\"y\":2},\"v\":{\"nested\":{\"x\":1},\"y\":2}}",
     "duplicate-keys-and-object-merging/017-lookup-into-nested-null-merges.conf": "rejected",
     "duplicate-keys-and-object-merging/025-lookup-into-object-that-replaced-a-list.conf": "rejected",
+    "duplicate-keys-and-object-merging/029-substituted-object-hides-earlier-scalar.conf": "{\"a\":{\"q\":2},\"x\":{\"q\":2}}",
     "include-file-formats/006-json-extension-means-json-syntax/main.conf": "{\"a\":\"b\"}",
     "include-file-formats/007-properties-extension-means-properties-syntax/main.conf": "rejected",
     "include-file-formats/023-json-leading-zero-illegal/main.conf": "{\"a\":1}",
@@ -656,10 +665,13 @@
     "include-substitution/009-undefined-optional-at-fixed-up-path-falls-back/main.conf": "rejected",
     "include-substitution/011-optional-reference-falls-back-too/main.conf": "{\"common\":{\"x\":{}},\"x\":{\"y\":0}}",
     "include-substitution/014-unrelated-key-does-not-change-the-result/main.conf": "rejected",
+    "key-value-separator/007-object-after-omitted-separator-concatenates.conf": "rejected",
+    "key-value-separator/008-substitution-after-omitted-separator-concatenates.conf": "rejected",
     "omit-root-braces/006-array-root-unaffected.conf": "rejected",
     "omit-root-braces/008-empty-array-root.conf": "rejected",
     "omit-root-braces/009-comment-before-array-root.conf": "rejected",
     "omit-root-braces/010-blank-line-before-array-root.conf": "rejected",
+    "path-expressions/024-number-like-keys-before-plus-equals.conf": "rejected",
     "paths-as-keys/008-include-cannot-begin-key.conf": "{\"include\":{\"foo\":42}}",
     "plus-equals-field-separator/006-plus-equals-inside-a-list-element.conf": "rejected",
     "plus-equals-field-separator/008-plus-equals-with-an-object-containing-a-merge.conf": "rejected",
@@ -667,6 +679,7 @@
     "plus-equals-field-separator/010-appends-through-chained-object-concatenations.conf": "{\"x\":{\"l\":[1]},\"y\":{\"l\":[2]},\"z\":{\"l\":[3]}}",
     "plus-equals-field-separator/011-appends-deep-inside-object-concatenation.conf": "{\"top\":{\"a\":{\"b\":{\"c\":[2]}}},\"x\":{\"a\":{\"b\":{\"c\":[1]}}}}",
     "plus-equals-field-separator/012-appends-to-a-list-defined-in-object-concatenation.conf": "{\"x\":{},\"y\":{\"l\":[3]}}",
+    "plus-equals-field-separator/014-appends-twice-after-null-replaced-by-object.conf": "{\"c\":{\"x\":[2]}}",
     "self-referential-examples/015-list-hidden-by-substituted-object-is-never-evaluated.conf": "rejected",
     "self-referential-examples/021-hidden-list-does-not-depend-on-key-order.conf": "rejected",
     "self-referential-examples/027-self-reference-inside-object-concatenation.conf": "rejected",
@@ -674,6 +687,7 @@
     "self-referential-examples/029-concatenated-object-refers-to-its-mixin.conf": "rejected",
     "self-referential-examples/030-concatenated-object-sees-its-own-field.conf": "rejected",
     "self-referential-examples/032-field-hidden-inside-object-concatenation.conf": "rejected",
+    "self-referential-examples/036-alias-path-read-inside-a-look-back.conf": "{\"a\":\"x\",\"p\":\"x\"}",
     "string-value-concatenation/010-object-then-scalar-drops-the-scalar.conf": "{\"a\":{\"b\":1}}",
     "string-value-concatenation/011-array-then-scalar-drops-the-scalar.conf": "{\"a\":[1,2]}",
     "string-value-concatenation/014-array-then-unquoted-text-without-space.conf": "{\"x\":[1]}",
@@ -682,6 +696,7 @@
     "substitution-fallback-to-environment/009-self-reference-reads-env.conf": "rejected",
     "substitution-fallback-to-environment/010-optional-self-reference-reads-env.conf": "{}",
     "substitutions/039-undefined-optional-with-number-is-a-string.conf": "{\"a\":42}",
+    "substitutions/042-undefined-optional-next-to-number-is-a-string.conf": "{\"a\":[10,1.5]}",
     "unchanged-from-json/009-leading-zero-run-is-text.conf": "{\"a\":1}",
     "unchanged-from-json/010-signed-fraction-without-integer-part-is-text.conf": "{\"a\":-0.33}",
     "unchanged-from-json/011-plus-in-a-signed-fraction-is-illegal.conf": "{\"a\":-3.3}",
