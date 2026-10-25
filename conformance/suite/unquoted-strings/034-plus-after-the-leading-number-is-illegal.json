@@ -1,0 +1,9 @@
+{
+  "spec": "HOCON.md#unquoted-strings",
+  "rule": [
+    "unquoted-strings.2",
+    "unquoted-strings.13"
+  ],
+  "why": "JSON reads the number 1e+5, and the second + comes after it, in the text: + is a forbidden character in an unquoted string, so this is an error, where 1e+5.x (033) is text. pyhocon reads a number",
+  "error": "BadNumber"
+}

@@ -1,0 +1,16 @@
+{
+  "spec": "HOCON.md#unquoted-strings",
+  "rule": [
+    "unquoted-strings.9",
+    "unquoted-strings.13",
+    "unquoted-strings.2"
+  ],
+  "why": "the initial number is what JSON reads, 1e+5 and 1.2e+3 with the + in their exponent, and the rest is text after it, as 10.0bar is the number 10.0 then bar; the + stands inside a number, so no forbidden character is in the text: the strings \"1e+5.x\", \"1.2e+3.x\" and \"1e+5.5\". typesafe/config and pyhocon reject them",
+  "expect": {
+    "a": "1e+5.x",
+    "b": "1.2e+3.x",
+    "c": "1e+5.5"
+  },
+  "java": "unsupported",
+  "java_error": "Parse"
+}

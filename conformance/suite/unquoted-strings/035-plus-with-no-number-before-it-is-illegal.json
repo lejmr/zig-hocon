@@ -1,0 +1,17 @@
+{
+  "spec": "HOCON.md#unquoted-strings",
+  "rule": [
+    "unquoted-strings.2",
+    "unquoted-strings.4"
+  ],
+  "why": "-. begins no JSON number, so -.33e+1x is text from its first character, and its + is a forbidden character there: an error, as -.33e+1 is (unchanged-from-json/011). typesafe/config releases up to 1.4.9 read the string; upstream main since lightbend/config#861 (unreleased) rejects it",
+  "error": "BadNumber",
+  "java": "lenient",
+  "java_expect": {
+    "a": "-.33e+1x"
+  },
+  "java_since": {
+    "version": "main",
+    "by": "lightbend/config#861"
+  }
+}
