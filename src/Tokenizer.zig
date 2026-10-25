@@ -168,8 +168,12 @@ pub const Tokenizer = struct {
                         return .{ .tag = .invalid, .loc = .{ .start = self.pos, .end = self.pos } };
                     },
 
-                    // End of the file
-                    0 => continue :sw_state .eof,
+                    // End of the file. A NUL before it is a character, which
+                    // starts unquoted text as any other one does.
+                    0 => if (self.pos == self.input.len) continue :sw_state .eof else {
+                        state = .word;
+                        state_start = self.pos;
+                    },
 
                     // Reserved, so they cannot start anything.
                     '`', '^', '?', '!', '@', '*', '&', '\\' => return .{ .tag = .invalid, .loc = .{
@@ -214,7 +218,7 @@ pub const Tokenizer = struct {
                         .end = self.pos,
                     } },
 
-                    0 => return .{ .tag = .string, .loc = .{
+                    0 => if (self.pos == self.input.len) return .{ .tag = .string, .loc = .{
                         .start = state_start,
                         .end = self.pos,
                     } },
@@ -232,7 +236,7 @@ pub const Tokenizer = struct {
                             .end = self.pos,
                         } };
                     },
-                    0 => return .{ .tag = .eof, .loc = .{
+                    0 => if (self.pos == self.input.len) return .{ .tag = .eof, .loc = .{
                         .start = self.pos,
                         .end = self.pos,
                     } },
@@ -252,7 +256,7 @@ pub const Tokenizer = struct {
                     '\\' => if (self.input[self.pos + 1] != 0) {
                         self.pos += 1;
                     },
-                    0 => return .{ .tag = .invalid, .loc = .{
+                    0 => if (self.pos == self.input.len) return .{ .tag = .invalid, .loc = .{
                         .start = state_start,
                         .end = self.pos,
                     } },
@@ -273,7 +277,7 @@ pub const Tokenizer = struct {
                             } };
                         }
                     },
-                    0 => return .{ .tag = .invalid, .loc = .{
+                    0 => if (self.pos == self.input.len) return .{ .tag = .invalid, .loc = .{
                         .start = state_start,
                         .end = self.pos,
                     } },
@@ -341,6 +345,21 @@ test "parentheses are unquoted text" {
         .ok("file(\"a\")", "string(file() quoted_string(\"a\") string()) eof"),
         .ok("required( \"a\" ) b", "string(required() quoted_string(\"a\") string()) string(b) eof"),
         .ok("a = (b)", "string(a) assignment(=) string((b)) eof"),
+    });
+}
+
+// java ✓ · pyhocon ✓ (quoted ⚠️) · spec ✓ — only the NUL past the last byte
+// ends the input; one inside it is a character like any other. A comment
+// ignores it, unquoted and triple-quoted text keep it, and a quoted string
+// hands it to the parser, which rejects it as any control character. It used
+// to end the file: `a = 1 # x<NUL>` dropped everything below silently.
+test "a NUL byte before the end of the input is a character" {
+    try expectAll(&.{
+        .ok("a # x\x00y\nb", "string(a) newline(\\n) string(b) eof"),
+        .ok("a = x\x00y", "string(a) assignment(=) string(x\x00y) eof"),
+        .ok("\x00a", "string(\x00a) eof"),
+        .ok("\"x\x00y\"", "quoted_string(\"x\x00y\") eof"),
+        .ok("\"\"\"x\x00y\"\"\"", "multiline_string(\"\"\"x\x00y\"\"\") eof"),
     });
 }
 

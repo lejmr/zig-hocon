@@ -4,7 +4,7 @@ This guide moves a project from pyhocon to zig_hocon. For most code it is a chan
 
 ## Why move
 
-- **Correct.** zig_hocon passes all 478 tests in the [conformance suite](https://htmlpreview.github.io/?https://github.com/lejmr/zig-hocon/blob/main/conformance/report.html), pyhocon 337.
+- **Correct.** zig_hocon passes all 482 tests in the [conformance suite](https://htmlpreview.github.io/?https://github.com/lejmr/zig-hocon/blob/main/conformance/report.html), pyhocon 340.
 - **Fast.** A 10 MB config loads in 0.3 s. pyhocon takes 68 s, and 867 s when the file has substitutions.
 - **No crash on a layered config.** A list from an included file, extended with `+=`, stops pyhocon 0.3.63 with an `AttributeError`:
 
