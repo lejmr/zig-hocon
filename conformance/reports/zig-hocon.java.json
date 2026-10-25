@@ -1,15 +1,15 @@
 {
   "suite": "hocon-conformance",
   "implementation": "zig-hocon",
-  "version": "zig-hocon code@b9c2064",
+  "version": "zig-hocon code@7d85c06",
   "mode": "java",
   "java_version": "1.4.9",
   "command": "conformance/adapters/zig-hocon.sh",
-  "ran_at": "2026-10-25T20:33:23Z",
-  "suite_digest": "c815d4769cd7d962",
-  "total": 500,
-  "passed": 435,
-  "percent": 87.0,
+  "ran_at": "2026-10-25T20:59:02Z",
+  "suite_digest": "bccf5309c9f4079d",
+  "total": 506,
+  "passed": 436,
+  "percent": 86.2,
   "sections": {
     "array-and-object-concatenation": {
       "total": 22,
@@ -88,7 +88,7 @@
       "passed": 10
     },
     "path-expressions": {
-      "total": 21,
+      "total": 22,
       "passed": 20
     },
     "paths-as-keys": {
@@ -124,11 +124,11 @@
       "passed": 8
     },
     "substitutions": {
-      "total": 39,
+      "total": 40,
       "passed": 37
     },
     "unchanged-from-json": {
-      "total": 32,
+      "total": 33,
       "passed": 22
     },
     "units-format": {
@@ -136,8 +136,8 @@
       "passed": 6
     },
     "unquoted-strings": {
-      "total": 32,
-      "passed": 32
+      "total": 35,
+      "passed": 33
     },
     "value-concatenation": {
       "total": 2,
@@ -414,6 +414,7 @@
     "path-expressions/022-keyword-in-substitution-path-is-a-string.conf": "pass",
     "path-expressions/023-substitution-in-dotted-key-illegal.conf": "pass",
     "path-expressions/024-number-like-keys-before-plus-equals.conf": "fail",
+    "path-expressions/025-plus-inside-a-number-in-a-key.conf": "fail",
     "paths-as-keys/001-two-element-path-expands.conf": "pass",
     "paths-as-keys/002-three-element-path-expands.conf": "pass",
     "paths-as-keys/003-merge-sibling-paths.conf": "pass",
@@ -564,6 +565,7 @@
     "substitutions/040-null-blocks-environment-lookup.conf": "pass",
     "substitutions/041-undefined-optional-under-a-path-leaves-the-object.conf": "pass",
     "substitutions/042-undefined-optional-next-to-number-is-a-string.conf": "fail",
+    "substitutions/043-undefined-optional-before-a-leading-zero.conf": "fail",
     "unchanged-from-json/001-quoted-string-json-format.conf": "pass",
     "unchanged-from-json/002-string-value-type.conf": "pass",
     "unchanged-from-json/003-number-value-type.conf": "pass",
@@ -596,6 +598,7 @@
     "unchanged-from-json/030-unicode-escape-with-non-ascii-digits-is-invalid.conf": "fail",
     "unchanged-from-json/031-exponent-with-a-plus-sign.conf": "pass",
     "unchanged-from-json/032-signed-fraction-with-exponent-is-text.conf": "fail",
+    "unchanged-from-json/033-leading-zero-and-trailing-dot-are-text.conf": "fail",
     "units-format/001-number-value-is-default-unit.conf": "pass",
     "units-format/002-quoted-string-with-no-unit-uses-default-unit.conf": "pass",
     "units-format/003-string-with-unit-name-specifies-interpretation.conf": "pass",
@@ -634,6 +637,9 @@
     "unquoted-strings/030-hyphen-between-words-is-text.conf": "pass",
     "unquoted-strings/031-nul-byte-allowed-unquoted.conf": "pass",
     "unquoted-strings/032-nul-byte-forbidden-in-quoted.conf": "pass",
+    "unquoted-strings/033-plus-inside-the-leading-number-then-text.conf": "fail",
+    "unquoted-strings/034-plus-after-the-leading-number-is-illegal.conf": "pass",
+    "unquoted-strings/035-plus-with-no-number-before-it-is-illegal.conf": "fail",
     "value-concatenation/001-simple-values-concatenate-to-string.conf": "pass",
     "value-concatenation/004-string-concatenation-allowed-in-field-keys.conf": "pass",
     "whitespace/001-nonbreaking-space-as-whitespace.conf": "pass",
@@ -682,6 +688,7 @@
     "omit-root-braces/009-comment-before-array-root.conf": "[1,2]",
     "omit-root-braces/010-blank-line-before-array-root.conf": "[1,2]",
     "path-expressions/024-number-like-keys-before-plus-equals.conf": "{\"3\":[[]],\"1e\":[1]}",
+    "path-expressions/025-plus-inside-a-number-in-a-key.conf": "{\"1e+5\":{\"5\":1}}",
     "paths-as-keys/008-include-cannot-begin-key.conf": "rejected",
     "plus-equals-field-separator/006-plus-equals-inside-a-list-element.conf": "{\"a\":[{\"b\":[1]}]}",
     "plus-equals-field-separator/008-plus-equals-with-an-object-containing-a-merge.conf": "{\"x\":{\"p\":1},\"l\":[{\"a\":{\"p\":1}}]}",
@@ -707,6 +714,7 @@
     "substitution-fallback-to-environment/010-optional-self-reference-reads-env.conf": "{\"CONFORMANCE_HOME\":\"/from/env\"}",
     "substitutions/039-undefined-optional-with-number-is-a-string.conf": "{\"a\":\"42\"}",
     "substitutions/042-undefined-optional-next-to-number-is-a-string.conf": "{\"a\":[\"10\",\"1.50\"]}",
+    "substitutions/043-undefined-optional-before-a-leading-zero.conf": "{\"a\":\"01\"}",
     "unchanged-from-json/009-leading-zero-run-is-text.conf": "{\"a\":\"01\"}",
     "unchanged-from-json/010-signed-fraction-without-integer-part-is-text.conf": "{\"a\":\"-.33\"}",
     "unchanged-from-json/011-plus-in-a-signed-fraction-is-illegal.conf": "rejected",
@@ -716,7 +724,10 @@
     "unchanged-from-json/028-integer-beyond-64-bits-is-a-number.conf": "{\"a\":9223372036854775808,\"b\":-9223372036854775809,\"c\":123456789012345678901234567890}",
     "unchanged-from-json/029-unicode-escape-with-a-sign-is-invalid.conf": "rejected",
     "unchanged-from-json/030-unicode-escape-with-non-ascii-digits-is-invalid.conf": "rejected",
-    "unchanged-from-json/032-signed-fraction-with-exponent-is-text.conf": "{\"a\":\"-.33e1\"}"
+    "unchanged-from-json/032-signed-fraction-with-exponent-is-text.conf": "{\"a\":\"-.33e1\"}",
+    "unchanged-from-json/033-leading-zero-and-trailing-dot-are-text.conf": "{\"a\":\"08080\",\"b\":\"01.5\",\"c\":\"0.\"}",
+    "unquoted-strings/033-plus-inside-the-leading-number-then-text.conf": "{\"a\":\"1e+5.x\",\"b\":\"1.2e+3.x\",\"c\":\"1e+5.5\"}",
+    "unquoted-strings/035-plus-with-no-number-before-it-is-illegal.conf": "rejected"
   },
   "failures": [
     {
@@ -1170,6 +1181,14 @@
       "java": "unsupported"
     },
     {
+      "case": "path-expressions/025-plus-inside-a-number-in-a-key.conf",
+      "spec": "HOCON.md#path-expressions",
+      "rule": "a key is written as a value is, and 10.0foo is the path 10, 0foo: 1e+5.5 is the number 1e+5 then .5, so the path 1e+5, 5. typesafe/config and pyhocon reject the +",
+      "expected": "rejected",
+      "got": "{\"1e+5\":{\"5\":1}}",
+      "java": "unsupported"
+    },
+    {
       "case": "paths-as-keys/008-include-cannot-begin-key.conf",
       "spec": "HOCON.md#paths-as-keys",
       "rule": "the unquoted string include may not begin a path expression in a key: where an object key is expected, include is not read as a key at all and must be followed by a quoted resource name, so include.foo is an error. typesafe/config recognises the keyword only as a bare include token -- include.foo tokenizes as one unquoted string, so it is accepted as the path include.foo, while include = 42 is rejected under the very rule the spec states.",
@@ -1530,6 +1549,18 @@
       "java": "diverges"
     },
     {
+      "case": "substitutions/043-undefined-optional-before-a-leading-zero.conf",
+      "spec": "HOCON.md#substitutions",
+      "rule": "${?n}01 is a concatenation of two parts, so it is a string (042), and 01 is no JSON number anyway: \"01\". typesafe/config and pyhocon drop the undefined part and read the number 1",
+      "expected": {
+        "a": 1
+      },
+      "got": {
+        "a": "01"
+      },
+      "java": "diverges"
+    },
+    {
       "case": "unchanged-from-json/009-leading-zero-run-is-text.conf",
       "spec": "HOCON.md#unchanged-from-json",
       "rule": "JSON reads only the 0 of 01 as a number, a zero is not followed by digits; what follows is text after the number, as 10.0bar is the number 10.0 then bar (unquoted-strings.9), and a number keeps the text it was written with in a concatenation, so the value is the string \"01\". typesafe/config reads the number 1.",
@@ -1646,6 +1677,40 @@
         "a": "-.33e1"
       },
       "java": "diverges"
+    },
+    {
+      "case": "unchanged-from-json/033-leading-zero-and-trailing-dot-are-text.conf",
+      "spec": "HOCON.md#unchanged-from-json",
+      "rule": "number formats are JSON's, where 08080, 01.5 and 0. are no numbers: JSON reads 0, then the rest is text after it, so all three are the strings as written, as 01 is (009). typesafe/config reads 8080, 1.5 and 0; pyhocon 8080 and 1.5",
+      "expected": {
+        "a": 8080,
+        "b": 1.5,
+        "c": 0
+      },
+      "got": {
+        "a": "08080",
+        "b": "01.5",
+        "c": "0."
+      },
+      "java": "diverges"
+    },
+    {
+      "case": "unquoted-strings/033-plus-inside-the-leading-number-then-text.conf",
+      "spec": "HOCON.md#unquoted-strings",
+      "rule": "the initial number is what JSON reads, 1e+5 and 1.2e+3 with the + in their exponent, and the rest is text after it, as 10.0bar is the number 10.0 then bar; the + stands inside a number, so no forbidden character is in the text: the strings \"1e+5.x\", \"1.2e+3.x\" and \"1e+5.5\". typesafe/config and pyhocon reject them",
+      "expected": "rejected",
+      "got": "{\"a\":\"1e+5.x\",\"b\":\"1.2e+3.x\",\"c\":\"1e+5.5\"}",
+      "java": "unsupported"
+    },
+    {
+      "case": "unquoted-strings/035-plus-with-no-number-before-it-is-illegal.conf",
+      "spec": "HOCON.md#unquoted-strings",
+      "rule": "-. begins no JSON number, so -.33e+1x is text from its first character, and its + is a forbidden character there: an error, as -.33e+1 is (unchanged-from-json/011). typesafe/config releases up to 1.4.9 read the string; upstream main since lightbend/config#861 (unreleased) rejects it",
+      "expected": {
+        "a": "-.33e+1x"
+      },
+      "got": "rejected (exit 1)",
+      "java": "lenient"
     }
   ]
 }

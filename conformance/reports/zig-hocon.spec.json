@@ -1,13 +1,13 @@
 {
   "suite": "hocon-conformance",
   "implementation": "zig-hocon",
-  "version": "zig-hocon code@b9c2064",
+  "version": "zig-hocon code@7d85c06",
   "mode": "spec",
   "command": "conformance/adapters/zig-hocon.sh",
-  "ran_at": "2026-10-25T20:33:14Z",
-  "suite_digest": "c815d4769cd7d962",
-  "total": 500,
-  "passed": 500,
+  "ran_at": "2026-10-25T20:58:52Z",
+  "suite_digest": "bccf5309c9f4079d",
+  "total": 506,
+  "passed": 506,
   "percent": 100.0,
   "sections": {
     "array-and-object-concatenation": {
@@ -87,8 +87,8 @@
       "passed": 14
     },
     "path-expressions": {
-      "total": 21,
-      "passed": 21
+      "total": 22,
+      "passed": 22
     },
     "paths-as-keys": {
       "total": 11,
@@ -123,20 +123,20 @@
       "passed": 10
     },
     "substitutions": {
-      "total": 39,
-      "passed": 39
+      "total": 40,
+      "passed": 40
     },
     "unchanged-from-json": {
-      "total": 32,
-      "passed": 32
+      "total": 33,
+      "passed": 33
     },
     "units-format": {
       "total": 6,
       "passed": 6
     },
     "unquoted-strings": {
-      "total": 32,
-      "passed": 32
+      "total": 35,
+      "passed": 35
     },
     "value-concatenation": {
       "total": 2,
@@ -413,6 +413,7 @@
     "path-expressions/022-keyword-in-substitution-path-is-a-string.conf": "pass",
     "path-expressions/023-substitution-in-dotted-key-illegal.conf": "pass",
     "path-expressions/024-number-like-keys-before-plus-equals.conf": "pass",
+    "path-expressions/025-plus-inside-a-number-in-a-key.conf": "pass",
     "paths-as-keys/001-two-element-path-expands.conf": "pass",
     "paths-as-keys/002-three-element-path-expands.conf": "pass",
     "paths-as-keys/003-merge-sibling-paths.conf": "pass",
@@ -563,6 +564,7 @@
     "substitutions/040-null-blocks-environment-lookup.conf": "pass",
     "substitutions/041-undefined-optional-under-a-path-leaves-the-object.conf": "pass",
     "substitutions/042-undefined-optional-next-to-number-is-a-string.conf": "pass",
+    "substitutions/043-undefined-optional-before-a-leading-zero.conf": "pass",
     "unchanged-from-json/001-quoted-string-json-format.conf": "pass",
     "unchanged-from-json/002-string-value-type.conf": "pass",
     "unchanged-from-json/003-number-value-type.conf": "pass",
@@ -595,6 +597,7 @@
     "unchanged-from-json/030-unicode-escape-with-non-ascii-digits-is-invalid.conf": "pass",
     "unchanged-from-json/031-exponent-with-a-plus-sign.conf": "pass",
     "unchanged-from-json/032-signed-fraction-with-exponent-is-text.conf": "pass",
+    "unchanged-from-json/033-leading-zero-and-trailing-dot-are-text.conf": "pass",
     "units-format/001-number-value-is-default-unit.conf": "pass",
     "units-format/002-quoted-string-with-no-unit-uses-default-unit.conf": "pass",
     "units-format/003-string-with-unit-name-specifies-interpretation.conf": "pass",
@@ -633,6 +636,9 @@
     "unquoted-strings/030-hyphen-between-words-is-text.conf": "pass",
     "unquoted-strings/031-nul-byte-allowed-unquoted.conf": "pass",
     "unquoted-strings/032-nul-byte-forbidden-in-quoted.conf": "pass",
+    "unquoted-strings/033-plus-inside-the-leading-number-then-text.conf": "pass",
+    "unquoted-strings/034-plus-after-the-leading-number-is-illegal.conf": "pass",
+    "unquoted-strings/035-plus-with-no-number-before-it-is-illegal.conf": "pass",
     "value-concatenation/001-simple-values-concatenate-to-string.conf": "pass",
     "value-concatenation/004-string-concatenation-allowed-in-field-keys.conf": "pass",
     "whitespace/001-nonbreaking-space-as-whitespace.conf": "pass",
@@ -681,6 +687,7 @@
     "omit-root-braces/009-comment-before-array-root.conf": "[1,2]",
     "omit-root-braces/010-blank-line-before-array-root.conf": "[1,2]",
     "path-expressions/024-number-like-keys-before-plus-equals.conf": "{\"3\":[[]],\"1e\":[1]}",
+    "path-expressions/025-plus-inside-a-number-in-a-key.conf": "{\"1e+5\":{\"5\":1}}",
     "paths-as-keys/008-include-cannot-begin-key.conf": "rejected",
     "plus-equals-field-separator/006-plus-equals-inside-a-list-element.conf": "{\"a\":[{\"b\":[1]}]}",
     "plus-equals-field-separator/008-plus-equals-with-an-object-containing-a-merge.conf": "{\"x\":{\"p\":1},\"l\":[{\"a\":{\"p\":1}}]}",
@@ -706,6 +713,7 @@
     "substitution-fallback-to-environment/010-optional-self-reference-reads-env.conf": "{\"CONFORMANCE_HOME\":\"/from/env\"}",
     "substitutions/039-undefined-optional-with-number-is-a-string.conf": "{\"a\":\"42\"}",
     "substitutions/042-undefined-optional-next-to-number-is-a-string.conf": "{\"a\":[\"10\",\"1.50\"]}",
+    "substitutions/043-undefined-optional-before-a-leading-zero.conf": "{\"a\":\"01\"}",
     "unchanged-from-json/009-leading-zero-run-is-text.conf": "{\"a\":\"01\"}",
     "unchanged-from-json/010-signed-fraction-without-integer-part-is-text.conf": "{\"a\":\"-.33\"}",
     "unchanged-from-json/011-plus-in-a-signed-fraction-is-illegal.conf": "rejected",
@@ -715,7 +723,10 @@
     "unchanged-from-json/028-integer-beyond-64-bits-is-a-number.conf": "{\"a\":9223372036854775808,\"b\":-9223372036854775809,\"c\":123456789012345678901234567890}",
     "unchanged-from-json/029-unicode-escape-with-a-sign-is-invalid.conf": "rejected",
     "unchanged-from-json/030-unicode-escape-with-non-ascii-digits-is-invalid.conf": "rejected",
-    "unchanged-from-json/032-signed-fraction-with-exponent-is-text.conf": "{\"a\":\"-.33e1\"}"
+    "unchanged-from-json/032-signed-fraction-with-exponent-is-text.conf": "{\"a\":\"-.33e1\"}",
+    "unchanged-from-json/033-leading-zero-and-trailing-dot-are-text.conf": "{\"a\":\"08080\",\"b\":\"01.5\",\"c\":\"0.\"}",
+    "unquoted-strings/033-plus-inside-the-leading-number-then-text.conf": "{\"a\":\"1e+5.x\",\"b\":\"1.2e+3.x\",\"c\":\"1e+5.5\"}",
+    "unquoted-strings/035-plus-with-no-number-before-it-is-illegal.conf": "rejected"
   },
   "failures": []
 }

@@ -979,18 +979,18 @@ test "diagnostics.BadNumber" {
     });
 }
 
-// A `+` outside the exponent of a number, in a value, a key or a path: the word
-// it is in. java ✓ (Parse error, same line) · pyhocon ✓ on the first two rows,
-// the third is Unresolved there · spec ✓
+// A `+` after the number JSON reads, in a value, a key or a path: the word it
+// is in. `1e+5.x` is no error since 2026-10-25, so the rows use `1e+5e+5`.
+// java ✓ (Parse error, same line) · pyhocon ⚠️ reads a number · spec ✓
 test "diagnostics.BadNumber a + that is no exponent" {
     try expectCarets(&.{
-        \\a = tea 1e+5.x
+        \\a = tea 1e+5e+5
         \\        ^ BadNumber
         ,
-        \\a { 1e+5.5 = 1 }
+        \\a { 1e+5e+5 = 1 }
         \\    ^ BadNumber
         ,
-        \\a = ${1e+5.x}
+        \\a = ${1e+5e+5}
         \\      ^ BadNumber
         ,
     });

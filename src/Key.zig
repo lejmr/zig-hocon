@@ -440,13 +440,16 @@ test "split.every suite path is the same keys as a key, a substitution and text"
     try table.expectAll(&cases, .{ .dump = asText });
 }
 
-// java ✓ (as a key and a substitution) · pyhocon ⚠️ splits `1e+5.5` at the
-// dot · spec ✓ — `+` stands only in the exponent of a number, so a run of
-// number characters with one in it is a number, cut three ways alike.
-test "split.a + that is no exponent fails as a key, a substitution and text" {
+// java ⚠️ (rejects `1e+5.5` as a key and a substitution) · pyhocon ⚠️ splits
+// `1e+5.5` at the dot · spec ✓ — `+` stands only in the exponent of the number
+// JSON reads at the start, so `1e+5.5` is that number then `.5`, the path
+// `1e+5`, `5`, and a `+` after the number fails, cut three ways alike. Until
+// 2026-10-25 `1e+5.5` failed too.
+test "split.a + after the number fails as a key, a substitution and text" {
     const cases = [_]table.Case{
         .ok("1e+5", "[1e+5]"),
-        .ok("1e+5.5", "BadNumber at 0"),
+        .ok("1e+5.5", "[1e+5] [5]"),
+        .ok("1e+5e+5", "BadNumber at 0"),
         // after a letter it is no sign at all
         .ok("a.1e+5.x", "UnexpectedToken at 4"),
     };

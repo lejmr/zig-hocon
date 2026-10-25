@@ -365,11 +365,15 @@ fn isRaw(text: []const u8) bool {
 /// A word that is a run of number characters but no JSON number, `01` or
 /// `1.2.3`, is text to zig-hocon and to the spec, but typesafe/config and
 /// pyhocon read `01` as 1, so it goes out quoted for whoever reads it next.
-/// With text after the run, `5EB` or `1.2.3x`, all of them read text.
+/// With text after the run, `5EB` or `1.2.3x`, all of them read text. So does
+/// zig-hocon `1e+5.x`, but typesafe/config and pyhocon reject a `+` in a run
+/// that is no number, so that goes out quoted too.
 fn readsAlike(word: []const u8) number.NumberError!void {
     try number.checkPlus(word);
     if (word.len == 0 or !(std.ascii.isDigit(word[0]) or word[0] == '-')) return;
     const end = std.mem.indexOfNone(u8, word, "0123456789+-.eE") orelse word.len;
+    const run = word[0..end];
+    if (std.mem.indexOfScalar(u8, run, '+') != null and !number.isJsonNumber(run)) return error.BadNumber;
     if (end == word.len and !number.isJsonNumber(word)) return error.BadNumber;
 }
 
@@ -906,12 +910,15 @@ test "stringify.a loaded scalar keeps how it was written" {
 // has to be one, and a `+` belongs only to an exponent. Both oracles read every
 // output as the text it came from but `tea 1e+5`, which pyhocon reads as
 // `tea 100000.0`. `01` reads back as text here but as 1 on both, so it goes out
-// quoted, and so does `-.5`, text here but -0.5 on both.
+// quoted, and so does `-.5`, text here but -0.5 on both. `1e+5.x` is text
+// here since 2026-10-25, and both reject it bare, so it goes out quoted.
 test "stringify.unquoted text built by hand reads back" {
     const rows = [_]struct { []const u8, []const u8 }{
         .{ "the wombat sleeps", "the wombat sleeps" },
         .{ "%x", "%x" },
         .{ "1e+5", "1e+5" },
+        .{ "1e+5.x", "\"1e+5.x\"" },
+        .{ "1e+5x", "1e+5x" },
         .{ "tea 1e+5", "tea 1e+5" },
         .{ "1e+5 e+5", "\"1e+5 e+5\"" },
         .{ "5EB", "5EB" },
