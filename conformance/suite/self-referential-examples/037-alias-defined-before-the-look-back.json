@@ -1,0 +1,20 @@
+{
+  "spec": "HOCON.md#examples-of-self-referential-substitutions",
+  "rule": [
+    "self-referential-substitutions.4",
+    "self-referential-substitutions.2",
+    "examples-of-self-referential-substitutions.27"
+  ],
+  "why": "035 with a defined first: p's last value reaches p again through a, so the cycle is broken by looking back at p = 1, and p = \"1x\" whichever field is resolved first. a keeps the memoized 1 (expect) or is an alias for the final p (also_valid); an error is not allowed, the cycle can be broken",
+  "expect": {
+    "a": 1,
+    "p": "1x"
+  },
+  "resolve": true,
+  "also_valid": [
+    {
+      "a": "1x",
+      "p": "1x"
+    }
+  ]
+}

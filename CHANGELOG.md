@@ -21,6 +21,10 @@ What changed for someone using zig-hocon: the Zig package, the `hocon` command l
 - A NUL byte inside a file is a character, as the spec has it, no longer the end of the file. In a comment it dropped everything below without a word: `a = 1 # note<NUL>`, then `b = 2`, read as `{a: 1}`, and a file saved as UTF-16 without a byte order mark read as `{}`, where it is now an error. In unquoted and triple-quoted text the NUL is kept (`a = x<NUL>y` was an error); in a quoted string it is an error, as any control character is. Four new conformance cases, all 482 pass.
 - A comma after a braced root, `{ a = 1 },` or `[1, 2],`, is an error now, as the spec and typesafe/config have it; it was accepted. Two new conformance cases, all 492 pass.
 - `a = null` then `a { … }` clears what `a` held before also when the file is included or the object merges with an earlier one: `a { x = 1 }` and then `include "over.conf"` with those two lines give `{a: {…}}` without `x`, as typesafe/config has it; the `x` was kept. Four new conformance cases, all 496 pass.
+- An optional substitution on a cycle finds nothing also when the cycle runs on through other fields: `v { x = ${?r} }` with `r = ${v}` gives `v = {}` and `r = {}`, as typesafe/config has it; it was a SubstitutionCycle.
+- A substitution path through an alias resolves only what it reaches: `a = ${p}` with `p = { r = ${a.q} }` reads `p.q`, as typesafe/config does; it was a SubstitutionCycle.
+- `a = ${p}`, `p = 1`, `p = ${a}x` resolves to `a = 1`, `p = "1x"` in any order of the lines, as typesafe/config has it: the cycle breaks where `p` can look back. With `a` first it was a SubstitutionCycle.
+- A field that looks back and refers to the object it is in sees that object with the field at its earlier value: `o { a = [], a += ${o} }` is `o = {a: [{a: []}]}`, as typesafe/config has it; it was a SubstitutionCycle. Four new conformance cases, all 500 pass.
 
 ## [0.5.2] - 2026-10-23
 

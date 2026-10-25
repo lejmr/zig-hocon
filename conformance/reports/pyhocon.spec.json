@@ -4,11 +4,11 @@
   "version": "pyhocon 0.3.63",
   "mode": "spec",
   "command": "conformance/adapters/oracle.sh hocon-py",
-  "ran_at": "2026-10-25T20:11:57Z",
-  "suite_digest": "ad70c055a052409f",
-  "total": 496,
-  "passed": 341,
-  "percent": 68.8,
+  "ran_at": "2026-10-25T20:38:21Z",
+  "suite_digest": "c815d4769cd7d962",
+  "total": 500,
+  "passed": 342,
+  "percent": 68.4,
   "sections": {
     "array-and-object-concatenation": {
       "total": 22,
@@ -103,11 +103,11 @@
       "passed": 0
     },
     "self-referential-examples": {
-      "total": 36,
-      "passed": 28
+      "total": 39,
+      "passed": 29
     },
     "self-referential-substitutions": {
-      "total": 5,
+      "total": 6,
       "passed": 5
     },
     "size-in-bytes-format": {
@@ -481,11 +481,15 @@
     "self-referential-examples/034-object-over-scalar-hidden-by-later-object.conf": "fail",
     "self-referential-examples/035-alias-read-inside-a-look-back.conf": "pass",
     "self-referential-examples/036-alias-path-read-inside-a-look-back.conf": "fail",
+    "self-referential-examples/037-alias-defined-before-the-look-back.conf": "pass",
+    "self-referential-examples/038-object-refers-forward-through-an-alias.conf": "fail",
+    "self-referential-examples/039-optional-in-a-two-step-cycle-is-missing.conf": "fail",
     "self-referential-substitutions/001-path-builds-on-older-value.conf": "pass",
     "self-referential-substitutions/002-self-referential-concatenation.conf": "pass",
     "self-referential-substitutions/003-object-containing-self-reference-is-not-self-referential.conf": "pass",
     "self-referential-substitutions/004-array-containing-self-reference-is-not-self-referential.conf": "pass",
     "self-referential-substitutions/006-self-referential-array-concatenation.conf": "pass",
+    "self-referential-substitutions/007-plus-equals-of-the-parent-object.conf": "fail",
     "size-in-bytes-format/001-bare-number-is-bytes.conf": "pass",
     "size-in-bytes-format/002-single-byte-spellings.conf": "pass",
     "size-in-bytes-format/003-powers-of-ten-suffixes.conf": "pass",
@@ -2182,6 +2186,47 @@
       "java": "diverges"
     },
     {
+      "case": "self-referential-examples/038-object-refers-forward-through-an-alias.conf",
+      "spec": "HOCON.md#examples-of-self-referential-substitutions",
+      "rule": "p's last value is an object, so it is not self-referential and ${a.q} looks forward: a is the merged p, and only its q is needed, which is 1. The same principle as 029, through an alias; there is no cycle to report",
+      "expected": {
+        "p": {
+          "q": 1,
+          "r": 1
+        },
+        "a": {
+          "q": 1,
+          "r": 1
+        }
+      },
+      "got": "rejected (exit 1)"
+    },
+    {
+      "case": "self-referential-examples/039-optional-in-a-two-step-cycle-is-missing.conf",
+      "spec": "HOCON.md#examples-of-self-referential-substitutions",
+      "rule": "r needs v, v.x needs r: a cycle, and a cycle is a missing value for an optional substitution, so v.x is not created. v and r are both {}",
+      "expected": {
+        "v": {},
+        "r": {}
+      },
+      "got": "rejected (exit 1)"
+    },
+    {
+      "case": "self-referential-substitutions/007-plus-equals-of-the-parent-object.conf",
+      "spec": "HOCON.md#self-referential-substitutions",
+      "rule": "a += ${o} is a = ${?a} [${o}], self-referential through ${?a}; the cycle through ${o} is broken by looking back, with o's a at its earlier value []: o = {a: [{a: []}]}, the implementation the spec sketches",
+      "expected": {
+        "o": {
+          "a": [
+            {
+              "a": []
+            }
+          ]
+        }
+      },
+      "got": "rejected (exit 1)"
+    },
+    {
       "case": "size-in-bytes-format/004-powers-of-two-suffixes.conf",
       "spec": "HOCON.md#size-in-bytes-format",
       "rule": "every power-of-2 suffix and its long forms name the same unit family; one table, one rule. The E and e forms are quoted because an unquoted 5E is a number token that is not a number (see unquoted-strings/022)",
@@ -2305,7 +2350,7 @@
         "a": "null bar"
       },
       "got": {
-        "a": "<pyhocon.config_tree.NoneValue object at 0x104718e10>bar"
+        "a": "<pyhocon.config_tree.NoneValue object at 0x105405110>bar"
       }
     },
     {

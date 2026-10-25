@@ -4,11 +4,11 @@
   "version": "typesafe/config 1.4.9",
   "mode": "spec",
   "command": "conformance/adapters/oracle.sh hocon-java",
-  "ran_at": "2026-10-25T20:07:50Z",
-  "suite_digest": "ad70c055a052409f",
-  "total": 496,
-  "passed": 431,
-  "percent": 86.9,
+  "ran_at": "2026-10-25T20:34:17Z",
+  "suite_digest": "c815d4769cd7d962",
+  "total": 500,
+  "passed": 435,
+  "percent": 87.0,
   "sections": {
     "array-and-object-concatenation": {
       "total": 22,
@@ -103,12 +103,12 @@
       "passed": 7
     },
     "self-referential-examples": {
-      "total": 36,
-      "passed": 29
+      "total": 39,
+      "passed": 32
     },
     "self-referential-substitutions": {
-      "total": 5,
-      "passed": 5
+      "total": 6,
+      "passed": 6
     },
     "size-in-bytes-format": {
       "total": 5,
@@ -481,11 +481,15 @@
     "self-referential-examples/034-object-over-scalar-hidden-by-later-object.conf": "pass",
     "self-referential-examples/035-alias-read-inside-a-look-back.conf": "pass",
     "self-referential-examples/036-alias-path-read-inside-a-look-back.conf": "pass",
+    "self-referential-examples/037-alias-defined-before-the-look-back.conf": "pass",
+    "self-referential-examples/038-object-refers-forward-through-an-alias.conf": "pass",
+    "self-referential-examples/039-optional-in-a-two-step-cycle-is-missing.conf": "pass",
     "self-referential-substitutions/001-path-builds-on-older-value.conf": "pass",
     "self-referential-substitutions/002-self-referential-concatenation.conf": "pass",
     "self-referential-substitutions/003-object-containing-self-reference-is-not-self-referential.conf": "pass",
     "self-referential-substitutions/004-array-containing-self-reference-is-not-self-referential.conf": "pass",
     "self-referential-substitutions/006-self-referential-array-concatenation.conf": "pass",
+    "self-referential-substitutions/007-plus-equals-of-the-parent-object.conf": "pass",
     "size-in-bytes-format/001-bare-number-is-bytes.conf": "pass",
     "size-in-bytes-format/002-single-byte-spellings.conf": "pass",
     "size-in-bytes-format/003-powers-of-ten-suffixes.conf": "pass",

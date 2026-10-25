@@ -1,15 +1,15 @@
 {
   "suite": "hocon-conformance",
   "implementation": "zig-hocon",
-  "version": "zig-hocon code@9c6b4d4",
+  "version": "zig-hocon code@b9c2064",
   "mode": "java",
   "java_version": "1.4.9",
   "command": "conformance/adapters/zig-hocon.sh",
-  "ran_at": "2026-10-25T20:06:57Z",
-  "suite_digest": "ad70c055a052409f",
-  "total": 496,
-  "passed": 430,
-  "percent": 86.7,
+  "ran_at": "2026-10-25T20:33:23Z",
+  "suite_digest": "c815d4769cd7d962",
+  "total": 500,
+  "passed": 435,
+  "percent": 87.0,
   "sections": {
     "array-and-object-concatenation": {
       "total": 22,
@@ -104,12 +104,12 @@
       "passed": 7
     },
     "self-referential-examples": {
-      "total": 36,
-      "passed": 28
+      "total": 39,
+      "passed": 32
     },
     "self-referential-substitutions": {
-      "total": 5,
-      "passed": 5
+      "total": 6,
+      "passed": 6
     },
     "size-in-bytes-format": {
       "total": 5,
@@ -481,12 +481,16 @@
     "self-referential-examples/033-object-below-a-substitution-looks-forward.conf": "pass",
     "self-referential-examples/034-object-over-scalar-hidden-by-later-object.conf": "pass",
     "self-referential-examples/035-alias-read-inside-a-look-back.conf": "pass",
-    "self-referential-examples/036-alias-path-read-inside-a-look-back.conf": "fail",
+    "self-referential-examples/036-alias-path-read-inside-a-look-back.conf": "pass",
+    "self-referential-examples/037-alias-defined-before-the-look-back.conf": "pass",
+    "self-referential-examples/038-object-refers-forward-through-an-alias.conf": "pass",
+    "self-referential-examples/039-optional-in-a-two-step-cycle-is-missing.conf": "pass",
     "self-referential-substitutions/001-path-builds-on-older-value.conf": "pass",
     "self-referential-substitutions/002-self-referential-concatenation.conf": "pass",
     "self-referential-substitutions/003-object-containing-self-reference-is-not-self-referential.conf": "pass",
     "self-referential-substitutions/004-array-containing-self-reference-is-not-self-referential.conf": "pass",
     "self-referential-substitutions/006-self-referential-array-concatenation.conf": "pass",
+    "self-referential-substitutions/007-plus-equals-of-the-parent-object.conf": "pass",
     "size-in-bytes-format/001-bare-number-is-bytes.conf": "pass",
     "size-in-bytes-format/002-single-byte-spellings.conf": "pass",
     "size-in-bytes-format/003-powers-of-ten-suffixes.conf": "pass",
@@ -693,7 +697,7 @@
     "self-referential-examples/029-concatenated-object-refers-to-its-mixin.conf": "{\"mixin\":{\"hello\":\"world\"},\"a\":{\"hello\":\"world\",\"y\":\"world\"}}",
     "self-referential-examples/030-concatenated-object-sees-its-own-field.conf": "{\"x\":{\"n\":1},\"top\":{\"n\":2,\"seen\":2}}",
     "self-referential-examples/032-field-hidden-inside-object-concatenation.conf": "{\"base\":{},\"child\":{\"foo\":\"x\"}}",
-    "self-referential-examples/036-alias-path-read-inside-a-look-back.conf": "{\"p\":\"x\",\"a\":1}",
+    "self-referential-examples/036-alias-path-read-inside-a-look-back.conf": "{\"p\":\"x\",\"a\":\"x\"}",
     "string-value-concatenation/010-object-then-scalar-drops-the-scalar.conf": "rejected",
     "string-value-concatenation/011-array-then-scalar-drops-the-scalar.conf": "rejected",
     "string-value-concatenation/014-array-then-unquoted-text-without-space.conf": "rejected",
@@ -1414,20 +1418,6 @@
       "expected": "rejected",
       "got": "{\"base\":{},\"child\":{\"foo\":\"x\"}}",
       "java": "unsupported"
-    },
-    {
-      "case": "self-referential-examples/036-alias-path-read-inside-a-look-back.conf",
-      "spec": "HOCON.md#examples-of-self-referential-substitutions",
-      "rule": "as 035, through a path: inside p's look-back a is the earlier 1, which has no z, so p = \"x\"; a keeps the memoized 1 (expect) or is an alias for the final p (also_valid). typesafe/config gives a = \"x\", which is the second reading, though for 035 it takes the first",
-      "expected": {
-        "a": "x",
-        "p": "x"
-      },
-      "got": {
-        "p": "x",
-        "a": 1
-      },
-      "java": "diverges"
     },
     {
       "case": "string-value-concatenation/010-object-then-scalar-drops-the-scalar.conf",

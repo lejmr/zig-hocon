@@ -48,6 +48,8 @@ pub const Field = struct {
     // `below` merged, worked out on the first path that needs it.
     merged: ?Value = null,
     progress: enum { todo, busy, done } = .todo,
+    // The field resolved anew inside a look-back its own ref led to (`seen`).
+    again: ?*Value = null,
 };
 
 // Resolves the value of a field and stores it back, so the next ref there
@@ -106,6 +108,13 @@ pub fn resolveStack(state: *Resolver, place: *Value, layers: []const Value) Erro
             try state.fields.append(gpa, .{ .place = place, .below = below });
             const val = if (top == .ref) try state.resolveRef(top.ref, true) else try state.resolveValue(top);
             const field = state.fields.pop().?;
+            // What it was resolved to in there is its value: a substitution
+            // is resolved once (spec L884), so `a` is 1 whichever field goes
+            // first.
+            if (field.again) |again| switch (again.*) {
+                .ref, .pending, .stack => {},
+                else => return again.*,
+            };
             // `.keep`: a self-reference, already the layers below over its
             // fallback (`resolveRef`).
             if (val != null and val.? == .stack) return val;
@@ -266,6 +275,18 @@ pub fn seen(state: *Resolver, place: *Value, ref: Ref) Error!?*Value {
             },
             .todo => {
                 if (field.below.len == 0 and i + 1 < state.fields.items.len) {
+                    // `a = ${p}`, `p = 1`, `p = ${a}x`, from a: the cycle came
+                    // round through p, which has a value below to look back at,
+                    // so it breaks there (spec L659): a is resolved anew, and in
+                    // it p is the 1.
+                    // Once: a second time round, the value it was resolved
+                    // to would not be the one its look-back saw.
+                    if (field.again == null and looksBackAfter(state, i)) {
+                        const again = try gpa.create(Value);
+                        again.* = place.*;
+                        field.again = again;
+                        return again;
+                    }
                     if (!ref.flags.optional) {
                         state.err_pos.* = ref.at();
                         return Error.SubstitutionCycle;
@@ -294,6 +315,14 @@ pub fn seen(state: *Resolver, place: *Value, ref: Ref) Error!?*Value {
         return try state.placeFor(state.fields.items[i].merged orelse return null);
     }
     return place;
+}
+
+// Whether a field resolved after the i-th one looks back at layers below it.
+fn looksBackAfter(state: *Resolver, i: usize) bool {
+    for (state.fields.items[i + 1 ..]) |later| {
+        if (later.below.len > 0 and later.object == null and later.progress == .todo) return true;
+    }
+    return false;
 }
 
 // ---------------------------------------------------------------------------
