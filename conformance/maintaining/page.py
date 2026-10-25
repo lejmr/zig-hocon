@@ -114,6 +114,8 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--rule)
 .score .local-tag { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); }
 #dropmsg.bad { color: var(--fail); }
 td.out { cursor: default; }
+/* a long JSON value has no spaces; it breaks anywhere so every column stays in view */
+td.spec, td.out { overflow-wrap: anywhere; min-width: 12ch; }
 td.out:hover, td.out:focus { outline: 1px solid var(--accent); outline-offset: -1px; }
 .d-add { background: var(--pass-bg); color: var(--pass); border-radius: 3px; }
 .d-del { background: var(--fail-bg); color: var(--fail); border-radius: 3px; text-decoration: line-through; }
@@ -148,12 +150,13 @@ td.out:hover, td.out:focus { outline: 1px solid var(--accent); outline-offset: -
 
   <section class="split">
     <div class="section-head" style="padding:12px 10px 2px">
-      <h2>Where the spec and typesafe/config disagree</h2>
-      <span class="note">__SPLITCOUNT__ of __TOTAL__ rows. Everywhere else they ask the same question.</span>
+      <h2 id="disagree-head">Where the spec disagrees with implementations</h2>
+      <span class="note"><span id="disagree-count">__SPLITCOUNT__</span> of __TOTAL__ rows, where an implementation shown above differs from the bar.</span>
     </div>
-    <div class="scroll">__SPLIT__</div>
-    <p class="note" style="padding:0 10px 10px">Each column is what that implementation actually returns, keys in the bar's order. The second column is the bar being scored: what the spec requires, or what typesafe/config does when scoring against it.
-    Hover over a result to compare it with the bar: <span class="d-add">green</span> is only in the result, <span class="d-del">red</span> only in the bar, <span class="d-chg">yellow</span> differs.</p>
+    <div class="scroll" id="disagree-table"__SPLITHIDDEN__>__SPLIT__</div>
+    <p class="note" id="disagree-none" style="padding:0 10px 10px"__NONEHIDDEN__>No implementation shown above differs from the bar.</p>
+    <p class="note" style="padding:0 10px 10px">The second column is the bar being scored: what the spec requires, or what typesafe/config does when scoring against it.
+    A result that differs from it is shown as returned, keys in the bar's order; hover over one to compare: <span class="d-add">green</span> is only in the result, <span class="d-del">red</span> only in the bar, <span class="d-chg">yellow</span> differs.</p>
   </section>
 
   <section>
@@ -178,7 +181,7 @@ const LOCAL = {};   // results dropped in by the viewer, this tab only
 const HIDDEN = new Set();   // implementations the viewer clicked away, this tab only
 
 function cell(v) {
-  if (v === "review") return '<span class="tag review">open</span>';
+  if (v === "review" || v === "open") return '<span class="tag review">open</span>';
   return v === "pass" ? '<span class="tag pass">pass</span>' : '<span class="tag fail">fail</span>';
 }
 function verdictOf(row, impl) {
@@ -209,6 +212,16 @@ function render() {
   for (const td of document.querySelectorAll("td.v")) td.innerHTML = cell(JSON.parse(td.dataset.v)[mode]);
   for (const el of document.querySelectorAll("[data-impl]")) el.hidden = HIDDEN.has(el.dataset.impl);
   document.getElementById("bar-head").textContent = mode === "java" ? "typesafe/config requires" : "the spec requires";
+  document.getElementById("disagree-head").textContent =
+    `Where ${mode === "java" ? "typesafe/config" : "the spec"} disagrees with implementations`;
+  let differs = 0;
+  for (const tr of document.querySelectorAll("tr[data-key]")) {
+    tr.hidden = !DATA.impls.some(i => !HIDDEN.has(i) && failing(tr, i));
+    differs += !tr.hidden;
+  }
+  document.getElementById("disagree-count").textContent = differs;
+  document.getElementById("disagree-table").hidden = !differs;
+  document.getElementById("disagree-none").hidden = !!differs;
   for (const plain of PLAIN) plain();
   renderYours();
   for (const el of document.querySelectorAll("[data-tally]")) {
@@ -301,17 +314,25 @@ function cellHTML(raw, other, only) {
   if (o === NONE) return mark(only ? "d-chg" : "", h(JSON.stringify(v)));
   return draw(v, o, only);
 }
+// A row shows while an implementation shown fails it against the current bar;
+// one that passes is marked so, one that fails shows what it returned.
+const VERDICTS = Object.fromEntries(DATA.sections.flatMap(s => s.rows.map(r => [r.key, r.v])));
+const verdict = (tr, impl) => VERDICTS[tr.dataset.key][impl][mode];
+const failing = (tr, impl) => verdict(tr, impl) === "fail";
 const PLAIN = [];   // redraws a row without marks, for the current bar
 for (const spec of document.querySelectorAll("td.spec")) {
+  const tr = spec.parentElement, outs = [...tr.querySelectorAll("td.out")];
   const bar = () => mode === "java" ? spec.dataset.java : spec.dataset.j;
   const plain = () => {
     spec.innerHTML = parse(bar()) === NONE ? "rejects" : cellHTML(bar());
-    for (const td of spec.parentElement.querySelectorAll("td.out")) td.innerHTML = cellHTML(td.dataset.j, bar(), null);
+    for (const td of outs) td.innerHTML = failing(tr, td.dataset.impl) ? cellHTML(td.dataset.j, bar(), null)
+                                                                        : cell(verdict(tr, td.dataset.impl));
   };
   PLAIN.push(plain);
-  for (const td of spec.parentElement.querySelectorAll("td.out")) {
+  for (const td of outs) {
     const on = () => {
       plain();
+      if (!failing(tr, td.dataset.impl)) return;
       spec.innerHTML = parse(bar()) === NONE ? mark(td.dataset.j === "rejected" ? "" : "d-chg", "rejects")
                                              : cellHTML(bar(), td.dataset.j, "d-del");
       td.innerHTML = cellHTML(td.dataset.j, bar(), "d-add");
@@ -352,7 +373,7 @@ render();
 # The page is written already rendered in spec mode, so it reads without
 # JavaScript (a phone's file preview runs none); the script redraws it per mode.
 def _cell(v):
-    if v == "review":
+    if v in ("review", "open"):
         return '<span class="tag review">open</span>'
     return '<span class="tag pass">pass</span>' if v == "pass" else '<span class="tag fail">fail</span>'
 
@@ -385,14 +406,20 @@ def build(impls, sections, split_rows, lede, versions, digest):
 
     split = ['<table><thead><tr><th>input</th><th id="bar-head">the spec requires</th>{}</tr></thead>'
              '<tbody>'.format(head)]
+    differs = 0
     for r in split_rows:
-        # data-j carries the raw output for the hover diff; the text is the fallback without JS
-        got = "".join('<td class="mono out" tabindex="0" data-impl="{0}" data-j="{1}">{1}</td>'.format(
-            esc.escape(i), esc.escape(r["got"][i])) for i in impls)
+        # written as in spec mode: the rows some implementation fails, a pass marked so;
+        # data-j carries the raw output for the hover diff
+        fails = [i for i in impls if r["v"][i]["spec"] == "fail"]
+        differs += bool(fails)
+        got = "".join('<td class="mono out" tabindex="0" data-impl="{0}" data-j="{1}">{2}</td>'.format(
+            esc.escape(i), esc.escape(r["got"][i]),
+            esc.escape(r["got"][i]) if i in fails else _cell(r["v"][i]["spec"])) for i in impls)
         spec = r["spec_side"]
-        split.append('<tr><td class="mono">{}<span class="tag kind">{}</span></td>'
+        kind = '<span class="tag kind">{}</span>'.format(esc.escape(r["kind"])) if r["kind"] else ""
+        split.append('<tr data-key="{}"{}><td class="mono">{}{}</td>'
                      '<td class="mono spec" data-j="{}" data-java="{}">{}</td>{}</tr>'.format(
-                         esc.escape(r["input"]), esc.escape(r["kind"]),
+                         esc.escape(r["key"]), "" if fails else " hidden", esc.escape(r["input"]), kind,
                          esc.escape(spec or "rejected"), esc.escape(r["java_side"] or "rejected"),
                          esc.escape(spec or "rejects"), got))
     split.append("</tbody></table>")
@@ -418,6 +445,8 @@ def build(impls, sections, split_rows, lede, versions, digest):
                 .replace("__SCORES__", _scores(impls, sections, versions))
                 .replace("__SECTIONS__", "".join(out))
                 .replace("__SPLIT__", "".join(split))
-                .replace("__SPLITCOUNT__", str(len(split_rows)))
+                .replace("__SPLITCOUNT__", str(differs))
+                .replace("__SPLITHIDDEN__", "" if differs else " hidden")
+                .replace("__NONEHIDDEN__", " hidden" if differs else "")
                 .replace("__TOTAL__", str(total))
                 .replace("__LEDE__", esc.escape(lede)))

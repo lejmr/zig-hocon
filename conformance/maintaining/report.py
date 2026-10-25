@@ -133,6 +133,13 @@ __BODY__
 """
 
 
+def compact(value):
+    """Compact JSON, the shape implementations print. A lone surrogate, as in an
+    unpaired \\u escape, has no UTF-8, so then the text stays escaped."""
+    text = json.dumps(value, separators=(",", ":"), ensure_ascii=False)
+    return json.dumps(value, separators=(",", ":")) if any("\ud800" <= c <= "\udfff" for c in text) else text
+
+
 def load_runs():
     """One entry per implementation, carrying its verdicts in both modes."""
     runs = {}
@@ -145,6 +152,10 @@ def load_runs():
         impl.setdefault("measured", set()).add(mode)
         impl["modes"][mode] = r["cases"]
         impl.setdefault("digests", set()).add(r.get("suite_digest", "none"))
+        # what it returned: kept for every contested row, and for every row it failed
+        for f in r.get("failures", []):
+            got = f["got"] if isinstance(f["got"], str) else compact(f["got"])
+            impl["outputs"].setdefault(f["case"], "rejected" if got.startswith("rejected") else got)
         impl["outputs"].update(r.get("outputs", {}))
     for impl in runs.values():
         impl["modes"].setdefault("java", impl["modes"].get("spec", {}))
@@ -182,19 +193,20 @@ def main(argv):
                "review": meta.get("review", ""),
                "v": {i: {m: verdict(i, key, m) for m in ("spec", "java")} for i in impls}}
         sections.setdefault(suite.section_of(case), []).append(row)
-        if meta.get("java"):
+        # a row the page may show in its disagree table: some implementation fails
+        # it against one bar or the other; which rows show is decided per view
+        if any(v != "pass" and v != "open" for i in impls for v in row["v"][i].values()):
             split.append({
+                "key": key, "v": row["v"],
                 "input": suite.encode(case.open(newline="").read()) if not suite.is_dir_case(case)
                          else "{}/ (directory)".format(suite.name_of(case)),
-                "kind": meta["java"],
+                "kind": meta.get("java", ""),
                 # None means the spec rejects the input; otherwise compact JSON,
                 # the same shape the implementations' outputs come in
-                "spec_side": None if "error" in meta else
-                             json.dumps(meta["expect"], separators=(",", ":"), ensure_ascii=False),
+                "spec_side": None if "error" in meta else compact(meta["expect"]),
                 # what typesafe/config is scored against, as run.sh has it
-                "java_side": json.dumps(meta["java_expect"], separators=(",", ":"), ensure_ascii=False)
-                             if "java_expect" in meta else None if "java_error" in meta or "error" in meta else
-                             json.dumps(meta["expect"], separators=(",", ":"), ensure_ascii=False),
+                "java_side": compact(meta["java_expect"]) if "java_expect" in meta else
+                             None if "java_error" in meta or "error" in meta else compact(meta["expect"]),
                 "got": {i: runs[i]["outputs"].get(key, "—") for i in impls},
             })
 
