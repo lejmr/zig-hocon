@@ -1,0 +1,17 @@
+{
+  "spec": "HOCON.md#key-value-separator",
+  "rule": [
+    "key-value-separator.2",
+    "value-concatenation.4",
+    "array-and-object-concatenation.3"
+  ],
+  "why": "leaving out the separator before { changes nothing about the value: a { m = 2 } { n = 1 } is a : { m = 2 } { n = 1 }, two objects concatenated into one; typesafe/config and pyhocon read only the first object and reject the second",
+  "expect": {
+    "a": {
+      "m": 2,
+      "n": 1
+    }
+  },
+  "java": "unsupported",
+  "java_error": "Parse"
+}

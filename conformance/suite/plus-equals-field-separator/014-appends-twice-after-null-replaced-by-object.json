@@ -1,0 +1,26 @@
+{
+  "spec": "HOCON.md#the--field-separator",
+  "rule": [
+    "the--field-separator.3",
+    "duplicate-keys-and-object-merging.8",
+    "examples-of-self-referential-substitutions.22"
+  ],
+  "why": "the object replaces the null, so the first += finds no c.x and starts [1], and the second appends to it: [1, 2]; typesafe/config keeps only the last element, pyhocon gives 2",
+  "expect": {
+    "c": {
+      "x": [
+        1,
+        2
+      ]
+    }
+  },
+  "resolve": true,
+  "java": "diverges",
+  "java_expect": {
+    "c": {
+      "x": [
+        2
+      ]
+    }
+  }
+}

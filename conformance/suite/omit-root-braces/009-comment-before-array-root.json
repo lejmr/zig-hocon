@@ -1,7 +1,10 @@
 {
   "spec": "HOCON.md#omit-root-braces",
-  "rule": "omit-root-braces.3",
-  "why": "the {} wrap fires only for a file that does not begin with a bracket or brace, and a leading comment does not make it one -- both typesafe/config and pyhocon read the first token, not the first byte. the spec's wording is loose here; this row records the consensus reading",
+  "rule": [
+    "omit-root-braces.3",
+    "comments.1"
+  ],
+  "why": "a comment is ignored, so the file still begins with a square bracket and the {} wrap does not fire: the root is the array",
   "expect": [
     1,
     2

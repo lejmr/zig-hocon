@@ -1,0 +1,20 @@
+{
+  "spec": "HOCON.md#key-value-separator",
+  "rule": [
+    "key-value-separator.2",
+    "array-and-object-concatenation.3"
+  ],
+  "why": "the same with a substitution after the object: a { m = 2 } ${x} is a : { m = 2 } ${x}, and the two objects merge; typesafe/config and pyhocon reject the substitution",
+  "expect": {
+    "x": {
+      "p": 1
+    },
+    "a": {
+      "m": 2,
+      "p": 1
+    }
+  },
+  "resolve": true,
+  "java": "unsupported",
+  "java_error": "Parse"
+}

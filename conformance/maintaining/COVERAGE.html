@@ -20,8 +20,8 @@ mark.ok { background: var(--ok); } mark.gap { background: var(--gap); }
 .note { color: var(--muted); font-size: 14px; }
 </style>
 <div class="legend">
-  <mark class="ok">273 rules with a case</mark> &nbsp;
-  <mark class="gap">15 rules without one</mark> &nbsp;
+  <mark class="ok">274 rules with a case</mark> &nbsp;
+  <mark class="gap">14 rules without one</mark> &nbsp;
   unmarked text is not a rule — 288 rules in RULES.md. Hover a mark for the id and its cases.
 </div>
 
@@ -75,7 +75,7 @@ JSON spec at https://json.org/ of course.</p>
  - <mark class="ok" title="unchanged-from-json.4 — unchanged-from-json/008-number-format-decimal-and-exponent.conf, unchanged-from-json/009-leading-zero-run-is-text.conf, unchanged-from-json/010-signed-fraction-without-integer-part-is-text.conf, unchanged-from-json/011-plus-in-a-signed-fraction-is-illegal.conf, unchanged-from-json/012-trailing-dot-run-is-text.conf, unchanged-from-json/013-trailing-dot-before-exponent-is-text.conf, unchanged-from-json/014-negative-leading-zeros-are-text.conf, unchanged-from-json/023-64-bit-integer.conf, unchanged-from-json/025-nan-is-not-a-number.conf, unchanged-from-json/028-integer-beyond-64-bits-is-a-number.conf, unchanged-from-json/031-exponent-with-a-plus-sign.conf, unchanged-from-json/032-signed-fraction-with-exponent-is-text.conf">allowed number formats matches JSON; as in JSON, some possible
    floating-point values are not represented, such as `NaN`</mark></p>
 <h3>Comments</h3>
-<p data-line="125"><mark class="ok" title="comments.1 — comments/001-hash-comment.conf, comments/002-double-slash-comment.conf, comments/003-whole-line-comment.conf, comments/004-comment-stops-at-newline.conf, comments/005-hash-inside-quoted-string-is-not-a-comment.conf, comments/006-double-slash-inside-quoted-string-is-not-a-comment.conf, comments/007-comment-between-separator-and-value.conf, comments/008-comment-then-blank-line-then-field.conf, comments/009-comment-inside-object.conf, comments/010-comments-inside-array.conf, comments/011-comment-before-values-of-every-type.conf, comments/013-line-comment-after-array.conf, comments/014-hash-comment-after-array-without-space.conf, comments/015-nul-byte-in-a-comment-is-ignored.conf">Anything between `//` or `#` and the next newline is considered a comment
+<p data-line="125"><mark class="ok" title="comments.1 — comments/001-hash-comment.conf, comments/002-double-slash-comment.conf, comments/003-whole-line-comment.conf, comments/004-comment-stops-at-newline.conf, comments/005-hash-inside-quoted-string-is-not-a-comment.conf, comments/006-double-slash-inside-quoted-string-is-not-a-comment.conf, comments/007-comment-between-separator-and-value.conf, comments/008-comment-then-blank-line-then-field.conf, comments/009-comment-inside-object.conf, comments/010-comments-inside-array.conf, comments/011-comment-before-values-of-every-type.conf, comments/013-line-comment-after-array.conf, comments/014-hash-comment-after-array-without-space.conf, comments/015-nul-byte-in-a-comment-is-ignored.conf, omit-root-braces/009-comment-before-array-root.conf">Anything between `//` or `#` and the next newline is considered a comment
 and ignored, unless the `//` or `#` is inside a quoted string.</mark></p>
 <h3>Omit root braces</h3>
 <p data-line="130"><mark class="ok" title="omit-root-braces.1 — omit-root-braces/011-trailing-array-after-root-array.conf">JSON documents must have an array or object at the root.</mark> <mark class="ok" title="omit-root-braces.2 — include-file-formats/016-json-rejects-empty-document/main.conf, include-file-formats/017-json-rejects-scalar-root/main.conf">Empty
@@ -89,7 +89,7 @@ a closing `}`; the curly braces must be balanced.</mark></p>
 <h3>Key-value separator</h3>
 <p data-line="143"><mark class="ok" title="key-value-separator.1 — key-value-separator/001-equals-as-separator.conf, key-value-separator/004-value-on-the-line-after-the-separator.conf">The `=` character can be used anywhere JSON allows `:`, i.e. to
 separate keys from values.</mark></p>
-<p data-line="146"><mark class="ok" title="key-value-separator.2 — key-value-separator/002-omitted-separator-before-object.conf, key-value-separator/003-omitted-separator-unquoted-key.conf, key-value-separator/005-separator-cannot-be-omitted-before-array.conf, key-value-separator/006-newline-between-key-and-brace.conf">If a key is followed by `{`, the `:` or `=` may be omitted.</mark> So
+<p data-line="146"><mark class="ok" title="key-value-separator.2 — key-value-separator/002-omitted-separator-before-object.conf, key-value-separator/003-omitted-separator-unquoted-key.conf, key-value-separator/005-separator-cannot-be-omitted-before-array.conf, key-value-separator/006-newline-between-key-and-brace.conf, key-value-separator/007-object-after-omitted-separator-concatenates.conf, key-value-separator/008-substitution-after-omitted-separator-concatenates.conf">If a key is followed by `{`, the `:` or `=` may be omitted.</mark> So
 `&quot;foo&quot; {}` means `&quot;foo&quot; : {}`</p>
 <h3>Commas</h3>
 <p data-line="151"><mark class="ok" title="commas.1 — commas/002-array-newline-no-comma.conf, commas/007-object-newline-no-comma.conf, commas/009-fields-on-one-line-need-a-comma.conf">Values in arrays, and fields in objects, need not have a comma
@@ -106,7 +106,7 @@ followed by a single comma.</mark> <mark class="ok" title="commas.3 — commas/0
 <h3>Whitespace</h3>
 <p data-line="167">The JSON spec simply says &quot;whitespace&quot;; in HOCON whitespace is
 defined as follows:</p>
-<p data-line="170"> - <mark class="ok" title="whitespace.1 — concatenation-whitespace-and-substitutions/005-nonbreaking-space-between-list-substitutions-is-ignored.conf, whitespace/001-nonbreaking-space-as-whitespace.conf, whitespace/006-special-nonbreaking-spaces.conf, whitespace/010-line-separator-is-whitespace.conf, whitespace/012-ideographic-space-is-whitespace.conf">any Unicode space separator (Zs category), line separator (Zl
+<p data-line="170"> - <mark class="ok" title="whitespace.1 — concatenation-whitespace-and-substitutions/005-nonbreaking-space-between-list-substitutions-is-ignored.conf, concatenation-whitespace-and-substitutions/007-zero-width-space-between-list-substitutions-is-error.conf, whitespace/001-nonbreaking-space-as-whitespace.conf, whitespace/006-special-nonbreaking-spaces.conf, whitespace/010-line-separator-is-whitespace.conf, whitespace/012-ideographic-space-is-whitespace.conf">any Unicode space separator (Zs category), line separator (Zl
    category), or paragraph separator (Zp category), including
    nonbreaking spaces (such as 0x00A0, 0x2007, and 0x202F).</mark>
    <mark class="ok" title="whitespace.2 — concatenation-whitespace-and-substitutions/006-bom-between-list-substitutions-is-ignored.conf, whitespace/002-bom-at-start-is-whitespace.conf, whitespace/013-bom-inside-the-document-is-whitespace.conf">The BOM (0xFEFF) must also be treated as whitespace.</mark>
@@ -123,7 +123,7 @@ this spec &quot;newline&quot; refers only and specifically to ASCII newline
 <p data-line="188">The JSON spec does not clarify how duplicate keys in the same
 object should be handled. <mark class="ok" title="duplicate-keys-and-object-merging.1 — array-and-object-concatenation/021-substitution-over-duplicate-key-inside-object-concatenation.conf, duplicate-keys-and-object-merging/001-later-scalar-wins.conf, duplicate-keys-and-object-merging/008-arrays-are-not-objects.conf, duplicate-keys-and-object-merging/009-later-null-overrides.conf, duplicate-keys-and-object-merging/019-duplicate-keys-merge-inside-a-list-element.conf, duplicate-keys-and-object-merging/021-later-object-replaces-earlier-concatenation.conf, duplicate-keys-and-object-merging/025-lookup-into-object-that-replaced-a-list.conf, duplicate-keys-and-object-merging/026-missing-key-in-object-that-replaced-a-list.conf">In HOCON, duplicate keys that appear
 later override those that appear earlier, unless both values are
-objects.</mark> <mark class="ok" title="duplicate-keys-and-object-merging.2 — duplicate-keys-and-object-merging/002-objects-merge.conf, duplicate-keys-and-object-merging/015-earlier-receiver-value-is-evaluated-once-merged.conf, duplicate-keys-and-object-merging/018-object-then-empty-object.conf, duplicate-keys-and-object-merging/020-objects-and-substitutions-alternate.conf, duplicate-keys-and-object-merging/023-empty-object-then-substitution.conf, duplicate-keys-and-object-merging/024-merge-stack-nested-inside-a-merge-stack.conf">If both values are objects, then the objects are merged.</mark></p>
+objects.</mark> <mark class="ok" title="duplicate-keys-and-object-merging.2 — duplicate-keys-and-object-merging/002-objects-merge.conf, duplicate-keys-and-object-merging/015-earlier-receiver-value-is-evaluated-once-merged.conf, duplicate-keys-and-object-merging/018-object-then-empty-object.conf, duplicate-keys-and-object-merging/020-objects-and-substitutions-alternate.conf, duplicate-keys-and-object-merging/023-empty-object-then-substitution.conf, duplicate-keys-and-object-merging/024-merge-stack-nested-inside-a-merge-stack.conf, duplicate-keys-and-object-merging/029-substituted-object-hides-earlier-scalar.conf">If both values are objects, then the objects are merged.</mark></p>
 <p data-line="193">Note: this would make HOCON a non-superset of JSON if you assume
 that JSON requires duplicate keys to have a behavior. <mark class="ok" title="duplicate-keys-and-object-merging.3 — include-file-formats/014-json-rejects-duplicate-keys/main.conf">The
 assumption here is that duplicate keys are invalid JSON.</mark></p>
@@ -136,7 +136,7 @@ assumption here is that duplicate keys are invalid JSON.</mark></p>
    object values should be recursively merged according to
    these same rules.</mark></p>
 <p data-line="207"><mark class="ok" title="duplicate-keys-and-object-merging.7 — duplicate-keys-and-object-merging/014-own-null-still-blocks-merge-with-referenced-object.conf, duplicate-keys-and-object-merging/022-scalar-then-empty-object-then-object.conf">Object merge can be prevented by setting the key to another value
-first.</mark> <mark class="ok" title="duplicate-keys-and-object-merging.8 — duplicate-keys-and-object-merging/003-scalar-breaks-the-merge.conf">This is because merging is always done two values at a
+first.</mark> <mark class="ok" title="duplicate-keys-and-object-merging.8 — duplicate-keys-and-object-merging/003-scalar-breaks-the-merge.conf, plus-equals-field-separator/014-appends-twice-after-null-replaced-by-object.conf">This is because merging is always done two values at a
 time; if you set a key to an object, a non-object, then an object,
 first the non-object falls back to the object (non-object always
 wins), and then the object falls back to the non-object (no
@@ -220,7 +220,7 @@ concatenation:</p>
    arrays), they are concatenated into a string.</mark>
  - <mark class="ok" title="value-concatenation.3 — array-and-object-concatenation/001-arrays-concatenate.conf">if all the values are arrays, they are concatenated into
    one array.</mark>
- - <mark class="ok" title="value-concatenation.4 — array-and-object-concatenation/002-objects-concatenate.conf">if all the values are objects, they are merged (as with
+ - <mark class="ok" title="value-concatenation.4 — array-and-object-concatenation/002-objects-concatenate.conf, key-value-separator/007-object-after-omitted-separator-concatenates.conf">if all the values are objects, they are merged (as with
    duplicate keys) into one object.</mark></p>
 <p data-line="317"><mark class="ok" title="value-concatenation.5 — value-concatenation/004-string-concatenation-allowed-in-field-keys.conf">String value concatenation is allowed in field keys, in addition
 to field values and array elements.</mark> Objects and arrays do not make
@@ -259,7 +259,7 @@ converted to strings as follows (strings shown as quoted strings):</p>
 <p data-line="363"> - <mark class="ok" title="string-value-concatenation.7 — string-value-concatenation/006-boolean-becomes-string-in-concatenation.conf, string-value-concatenation/021-false-becomes-string-in-concatenation.conf">`true` and `false` become the strings `&quot;true&quot;` and `&quot;false&quot;`.</mark>
  - <mark class="ok" title="string-value-concatenation.8 — string-value-concatenation/007-null-becomes-string-in-concatenation.conf">`null` becomes the string `&quot;null&quot;`.</mark>
  - <mark class="ok" title="string-value-concatenation.9 — string-value-concatenation/022-quoted-and-unquoted-strings-concatenate.conf">quoted and unquoted strings are themselves.</mark>
- - <mark class="ok" title="string-value-concatenation.10 — string-value-concatenation/008-number-kept-as-written-in-concatenation.conf, string-value-concatenation/020-64-bit-number-kept-as-written.conf, string-value-concatenation/023-substituted-number-keeps-its-text.conf">numbers should be kept as they were originally written in the
+ - <mark class="ok" title="string-value-concatenation.10 — string-value-concatenation/008-number-kept-as-written-in-concatenation.conf, string-value-concatenation/020-64-bit-number-kept-as-written.conf, string-value-concatenation/023-substituted-number-keeps-its-text.conf, substitutions/042-undefined-optional-next-to-number-is-a-string.conf">numbers should be kept as they were originally written in the
    file.</mark> For example, if you parse `1e5` then you might render
    it alternatively as `1E5` with capital `E`, or just `100000`.
    For purposes of value concatenation, it should be rendered
@@ -279,7 +279,7 @@ but it is an error if they are mixed.</mark></p>
 <p data-line="387"><mark class="ok" title="array-and-object-concatenation.2 — array-and-object-concatenation/004-substitution-counts-as-array-for-concatenation.conf, array-and-object-concatenation/005-substitution-counts-as-object-for-concatenation.conf, array-and-object-concatenation/010-worked-example-object-inheritance.conf, array-and-object-concatenation/011-worked-example-array-path-append.conf, array-and-object-concatenation/012-worked-example-self-referential-array-concat.conf, array-and-object-concatenation/014-substitution-object-with-literal-array-is-error.conf, array-and-object-concatenation/015-substitution-array-with-literal-object-is-error.conf, array-and-object-concatenation/018-object-with-inner-merge-concatenated-with-substitution.conf, array-and-object-concatenation/019-self-referential-object-concatenation-with-inner-merge.conf, array-and-object-concatenation/022-duplicate-key-in-list-element-before-list-substitution.conf">For purposes of concatenation, &quot;array&quot; also means &quot;substitution
 that resolves to an array&quot; and &quot;object&quot; also means &quot;substitution
 that resolves to an object.&quot;</mark></p>
-<p data-line="391"><mark class="ok" title="array-and-object-concatenation.3 — array-and-object-concatenation/001-arrays-concatenate.conf">Within a field value or array element, if only non-newline
+<p data-line="391"><mark class="ok" title="array-and-object-concatenation.3 — array-and-object-concatenation/001-arrays-concatenate.conf, key-value-separator/007-object-after-omitted-separator-concatenates.conf, key-value-separator/008-substitution-after-omitted-separator-concatenates.conf">Within a field value or array element, if only non-newline
 whitespace separates the end of a first array or object or
 substitution from the start of a second array or object or
 substitution, the two values are concatenated.</mark> <mark class="ok" title="array-and-object-concatenation.4 — array-and-object-concatenation/013-newlines-within-value-still-allow-concatenation.conf">Newlines may occur
@@ -359,13 +359,13 @@ expression, it&#x27;s essential to retain the _original_ string
 representation of the number as it appeared in the file (rather
 than converting it back to a string with a generic
 number-to-string library function).</mark></p>
-<p data-line="496"> - <mark class="ok" title="path-expressions.7 — path-expressions/003-number-then-unquoted-string.conf">`10.0foo` is a number then unquoted string `foo` and should
+<p data-line="496"> - <mark class="ok" title="path-expressions.7 — path-expressions/003-number-then-unquoted-string.conf, path-expressions/024-number-like-keys-before-plus-equals.conf">`10.0foo` is a number then unquoted string `foo` and should
    be the two-element path with `10` and `0foo` as the elements.</mark>
  - <mark class="ok" title="path-expressions.8 — path-expressions/004-unquoted-string-with-dot.conf">`foo10.0` is an unquoted string with a `.` in it, so this would
    be a two-element path with `foo10` and `0` as the elements.</mark>
  - <mark class="ok" title="path-expressions.9 — path-expressions/005-unquoted-concatenated-with-quoted-number.conf">`foo&quot;10.0&quot;` is an unquoted then a quoted string which are
    concatenated, so this is a single-element path.</mark>
- - <mark class="ok" title="path-expressions.10 — path-expressions/006-all-numeric-path.conf">`1.2.3` is the three-element path with `1`,`2`,`3`</mark></p>
+ - <mark class="ok" title="path-expressions.10 — path-expressions/006-all-numeric-path.conf, path-expressions/024-number-like-keys-before-plus-equals.conf">`1.2.3` is the three-element path with `1`,`2`,`3`</mark></p>
 <p data-line="504"><mark class="ok" title="path-expressions.11 — path-expressions/022-keyword-in-substitution-path-is-a-string.conf">Unlike value concatenations, path expressions are _always_
 converted to a string, even if they are just a single value.</mark></p>
 <p data-line="507"><mark class="ok" title="path-expressions.12 — path-expressions/008-value-concatenation-keeps-boolean.conf">If you have an array or element value consisting of the single
@@ -438,7 +438,7 @@ i.e. it is &quot;absolute&quot; rather than &quot;relative.&quot;</mark></p>
 a substitution can look forward in the configuration.</mark> <mark class="gap" title="substitutions.10 — no case">If a
 configuration consists of multiple files, it may even end up
 retrieving a value from another file.</mark></p>
-<p data-line="612"><mark class="ok" title="substitutions.11 — duplicate-keys-and-object-merging/010-null-in-referenced-key-history-does-not-block-merge.conf, duplicate-keys-and-object-merging/011-nested-null-in-referenced-object-does-not-block-merge.conf, duplicate-keys-and-object-merging/012-reference-to-merged-field-sees-the-same-value.conf, duplicate-keys-and-object-merging/013-top-level-null-before-object-with-substitution.conf, duplicate-keys-and-object-merging/016-null-deeper-in-a-merge-stack-stays-at-its-key.conf, duplicate-keys-and-object-merging/017-lookup-into-nested-null-merges.conf, substitutions/009-substitution-latest-duplicate-key.conf, substitutions/010-substitution-latest-duplicate-key-object-merge.conf">If a key has been specified more than once, the substitution will
+<p data-line="612"><mark class="ok" title="substitutions.11 — duplicate-keys-and-object-merging/010-null-in-referenced-key-history-does-not-block-merge.conf, duplicate-keys-and-object-merging/011-nested-null-in-referenced-object-does-not-block-merge.conf, duplicate-keys-and-object-merging/012-reference-to-merged-field-sees-the-same-value.conf, duplicate-keys-and-object-merging/013-top-level-null-before-object-with-substitution.conf, duplicate-keys-and-object-merging/016-null-deeper-in-a-merge-stack-stays-at-its-key.conf, duplicate-keys-and-object-merging/017-lookup-into-nested-null-merges.conf, duplicate-keys-and-object-merging/029-substituted-object-hides-earlier-scalar.conf, substitutions/009-substitution-latest-duplicate-key.conf, substitutions/010-substitution-latest-duplicate-key-object-merge.conf">If a key has been specified more than once, the substitution will
 always evaluate to its latest-assigned value (that is, it will
 evaluate to the merged object, or the last non-object value that
 was set, in the entire document being parsed including all
@@ -458,7 +458,7 @@ is invalid and should generate an error.</mark></p>
    be created.</mark> <mark class="ok" title="substitutions.16 — array-and-object-concatenation/020-optional-override-inside-object-concatenation.conf, array-and-object-concatenation/022-duplicate-key-in-list-element-before-list-substitution.conf, self-referential-examples/022-undefined-optional-does-not-hide.conf, substitutions/013-undefined-optional-substitution-keeps-previous-value.conf">If the field would have overridden a previously-set
    value for the same field, then the previous value remains.</mark>
  - <mark class="ok" title="substitutions.17 — substitutions/014-undefined-optional-substitution-array-element-not-added.conf">if it is an array element then the element should not be added.</mark>
- - <mark class="ok" title="substitutions.18 — concatenation-whitespace-and-substitutions/008-list-then-undefined-optional-is-the-list.conf, concatenation-whitespace-and-substitutions/009-undefined-optional-then-list-is-the-list.conf, substitutions/015-undefined-optional-substitution-concatenation-string-empty.conf, substitutions/016-undefined-optional-substitution-concatenation-object-empty.conf, substitutions/017-undefined-optional-substitution-concatenation-array-empty.conf, substitutions/039-undefined-optional-with-number-is-a-string.conf">if it is part of a value concatenation with another string then
+ - <mark class="ok" title="substitutions.18 — concatenation-whitespace-and-substitutions/008-list-then-undefined-optional-is-the-list.conf, concatenation-whitespace-and-substitutions/009-undefined-optional-then-list-is-the-list.conf, substitutions/015-undefined-optional-substitution-concatenation-string-empty.conf, substitutions/016-undefined-optional-substitution-concatenation-object-empty.conf, substitutions/017-undefined-optional-substitution-concatenation-array-empty.conf, substitutions/039-undefined-optional-with-number-is-a-string.conf, substitutions/042-undefined-optional-next-to-number-is-a-string.conf">if it is part of a value concatenation with another string then
    it should become an empty string; if part of a value
    concatenation with an object or array it should become an empty
    object or array.</mark>
@@ -470,7 +470,7 @@ elements (value concatenations), they are not allowed in keys or
 nested inside other substitutions (path expressions).</mark></p>
 <p data-line="648"><mark class="ok" title="substitutions.22 — substitutions/025-substitution-preserves-type-string-booleans-null.conf">A substitution is replaced with any value type (number, object,
 string, array, true, false, null).</mark> <mark class="ok" title="substitutions.23 — substitutions/022-substitution-preserves-type-array.conf, substitutions/025-substitution-preserves-type-string-booleans-null.conf">If the substitution is the only
-part of a value, then the type is preserved.</mark> <mark class="ok" title="substitutions.24 — substitutions/024-substitution-concatenation-forms-string.conf">Otherwise, it is
+part of a value, then the type is preserved.</mark> <mark class="ok" title="substitutions.24 — substitutions/024-substitution-concatenation-forms-string.conf, substitutions/039-undefined-optional-with-number-is-a-string.conf, substitutions/042-undefined-optional-next-to-number-is-a-string.conf">Otherwise, it is
 value-concatenated to form a string.</mark></p>
 <h4>Self-Referential Substitutions</h4>
 <p data-line="655">The big picture:</p>
@@ -486,7 +486,7 @@ older value:</p>
 <p data-line="669">A _self-referential field_ is one which:</p>
 <p data-line="671"> - <mark class="ok" title="self-referential-substitutions.3 — self-referential-substitutions/002-self-referential-concatenation.conf">has a substitution, or value concatenation containing a
    substitution, as its value</mark>
- - <mark class="ok" title="self-referential-substitutions.4 — self-referential-substitutions/002-self-referential-concatenation.conf">where this field value refers to the field being defined,
+ - <mark class="ok" title="self-referential-substitutions.4 — self-referential-examples/035-alias-read-inside-a-look-back.conf, self-referential-examples/036-alias-path-read-inside-a-look-back.conf, self-referential-substitutions/002-self-referential-concatenation.conf">where this field value refers to the field being defined,
    either directly or by referring to one or more other
    substitutions which eventually point back to the field being
    defined</mark></p>
@@ -523,13 +523,13 @@ resolving an optional substitution (i.e. the `${?foo}` syntax).</mark>
 <mark class="ok" title="self-referential-substitutions.13 — self-referential-examples/004-optional-self-reference-disappears-silently.conf, substitution-fallback-to-environment/010-optional-self-reference-reads-env.conf">If `${?foo}` refers to itself then it&#x27;s as if it referred to a
 nonexistent value.</mark></p>
 <h4>The `+=` field separator</h4>
-<p data-line="721"><mark class="ok" title="the--field-separator.1 — plus-equals-field-separator/001-plus-equals-desugars-to-optional-self-ref-array.conf">Fields may have `+=` as a separator rather than `:` or `=`.</mark> <mark class="ok" title="the--field-separator.2 — plus-equals-field-separator/005-plus-equals-in-nested-object-with-substitution.conf, plus-equals-field-separator/007-plus-equals-under-a-dotted-key.conf, plus-equals-field-separator/008-plus-equals-with-an-object-containing-a-merge.conf, plus-equals-field-separator/009-appends-through-object-concatenation.conf, plus-equals-field-separator/010-appends-through-chained-object-concatenations.conf, plus-equals-field-separator/011-appends-deep-inside-object-concatenation.conf, plus-equals-field-separator/012-appends-to-a-list-defined-in-object-concatenation.conf, self-referential-examples/023-append-does-not-hide.conf">A
+<p data-line="721"><mark class="ok" title="the--field-separator.1 — path-expressions/024-number-like-keys-before-plus-equals.conf, plus-equals-field-separator/001-plus-equals-desugars-to-optional-self-ref-array.conf">Fields may have `+=` as a separator rather than `:` or `=`.</mark> <mark class="ok" title="the--field-separator.2 — plus-equals-field-separator/005-plus-equals-in-nested-object-with-substitution.conf, plus-equals-field-separator/007-plus-equals-under-a-dotted-key.conf, plus-equals-field-separator/008-plus-equals-with-an-object-containing-a-merge.conf, plus-equals-field-separator/009-appends-through-object-concatenation.conf, plus-equals-field-separator/010-appends-through-chained-object-concatenations.conf, plus-equals-field-separator/011-appends-deep-inside-object-concatenation.conf, plus-equals-field-separator/012-appends-to-a-list-defined-in-object-concatenation.conf, self-referential-examples/023-append-does-not-hide.conf">A
 field with `+=` transforms into a self-referential array
 concatenation, like this:</mark></p>
 <p data-line="725">    a += b</p>
 <p data-line="727">becomes:</p>
 <p data-line="729">    a = ${?a} [b]</p>
-<p data-line="731"><mark class="ok" title="the--field-separator.3 — include-merging/016-plus-equals-across-include-keeps-order/main.conf, plus-equals-field-separator/002-plus-equals-appends-to-existing-array.conf, plus-equals-field-separator/004-plus-equals-twice.conf, plus-equals-field-separator/013-appends-after-a-substituted-object.conf">`+=` appends an element to a previous array.</mark> <mark class="ok" title="the--field-separator.4 — plus-equals-field-separator/003-plus-equals-errors-on-non-array-previous-value.conf">If the previous value
+<p data-line="731"><mark class="ok" title="the--field-separator.3 — include-merging/016-plus-equals-across-include-keeps-order/main.conf, plus-equals-field-separator/002-plus-equals-appends-to-existing-array.conf, plus-equals-field-separator/004-plus-equals-twice.conf, plus-equals-field-separator/013-appends-after-a-substituted-object.conf, plus-equals-field-separator/014-appends-twice-after-null-replaced-by-object.conf">`+=` appends an element to a previous array.</mark> <mark class="ok" title="the--field-separator.4 — plus-equals-field-separator/003-plus-equals-errors-on-non-array-previous-value.conf">If the previous value
 was not an array, an error will result just as it would in the
 long form `a = ${?a} [b]`.</mark> <mark class="ok" title="the--field-separator.5 — plus-equals-field-separator/001-plus-equals-desugars-to-optional-self-ref-array.conf, plus-equals-field-separator/006-plus-equals-inside-a-list-element.conf">Note that the previous value is
 optional (`${?a}` not `${a}`), which allows `a += b` to be the
@@ -569,7 +569,7 @@ error will be reported.</mark> So for example:</p>
 know `foo` is `42`, so `${does-not-exist}` is never evaluated and
 there is no error.</mark> <mark class="ok" title="examples-of-self-referential-substitutions.10 — self-referential-examples/006-self-reference-cycle-ignored-when-overridden-by-literal.conf">The same is true for cycles like `foo : ${foo},
 foo : 42`, where the initial self-reference must simply be ignored.</mark></p>
-<p data-line="790"><mark class="ok" title="examples-of-self-referential-substitutions.11 — plus-equals-field-separator/013-appends-after-a-substituted-object.conf, self-referential-examples/007-self-reference-in-path-expression-resolves-to-value-below.conf">A self-reference resolves to the value &quot;below&quot; even if it&#x27;s part
+<p data-line="790"><mark class="ok" title="examples-of-self-referential-substitutions.11 — plus-equals-field-separator/013-appends-after-a-substituted-object.conf, self-referential-examples/007-self-reference-in-path-expression-resolves-to-value-below.conf, self-referential-examples/036-alias-path-read-inside-a-look-back.conf">A self-reference resolves to the value &quot;below&quot; even if it&#x27;s part
 of a path expression.</mark> So for example:</p>
 <p data-line="793">    foo : { a : { c : 1 } }
     foo : ${foo.a}
@@ -614,7 +614,7 @@ because the self reference has to &quot;look back&quot; to an undefined `a`:</ma
    &quot;circularity by side effect&quot;</mark>
  - <mark class="ok" title="examples-of-self-referential-substitutions.21 — self-referential-examples/009-non-cycling-reference-looks-forward-across-merge.conf">&quot;look forward&quot; and use the final value for the path
    specified in the substitution</mark>
- - <mark class="ok" title="examples-of-self-referential-substitutions.22 — self-referential-substitutions/001-path-builds-on-older-value.conf">if a cycle results, the implementation must &quot;look back&quot;
+ - <mark class="ok" title="examples-of-self-referential-substitutions.22 — plus-equals-field-separator/014-appends-twice-after-null-replaced-by-object.conf, self-referential-examples/035-alias-read-inside-a-look-back.conf, self-referential-substitutions/001-path-builds-on-older-value.conf">if a cycle results, the implementation must &quot;look back&quot;
    in the merge stack to try to resolve the cycle</mark>
  - <mark class="ok" title="examples-of-self-referential-substitutions.23 — self-referential-examples/012-mutual-non-self-cycle-is-unresolvable.conf">if neither lazy evaluation nor &quot;looking only backward&quot; resolves
    a cycle, the substitution is missing which is an error unless
@@ -643,7 +643,7 @@ duplicate instances of the same field (i.e. merges).</p>
 <p data-line="883"><mark class="ok" title="examples-of-self-referential-substitutions.26 — self-referential-examples/014-order-dependent-resolution-must-agree-on-one-value.conf">Implementations must set both `a` and `b` to the same value in
 this case, however.</mark> In practice this means that all substitutions
 must be memoized (resolved once, with the result
-retained). <mark class="ok" title="examples-of-self-referential-substitutions.27 — self-referential-examples/026-memoized-by-instance-not-by-path.conf">Memoization should be keyed by the substitution
+retained). <mark class="ok" title="examples-of-self-referential-substitutions.27 — self-referential-examples/026-memoized-by-instance-not-by-path.conf, self-referential-examples/035-alias-read-inside-a-look-back.conf, self-referential-examples/036-alias-path-read-inside-a-look-back.conf">Memoization should be keyed by the substitution
 &quot;instance&quot; (the specific occurrence of the `${}` expression)
 rather than by the path inside the `${}` expression, because
 substitutions may be resolved differently depending on their
@@ -787,7 +787,7 @@ have some documented mapping to JSON&#x27;s type system.</p>
 <p data-line="1080"><mark class="ok" title="include-semantics-file-formats-and-extensions.1 — include-file-formats/006-json-extension-means-json-syntax/main.conf">If an implementation supports multiple formats, then the extension
 may be omitted from the name of included files:</mark></p>
 <p data-line="1083">    include &quot;foo&quot;</p>
-<p data-line="1085"><mark class="ok" title="include-semantics-file-formats-and-extensions.2 — include-file-formats/002-basename-with-only-conf/main.conf, include-file-formats/010-json-file-with-every-value-type/main.conf, include-file-formats/011-json-rejects-unquoted-values/main.conf, include-file-formats/012-json-rejects-substitutions/main.conf, include-file-formats/013-json-rejects-trailing-comma/main.conf, include-file-formats/015-json-array-needs-commas/main.conf, include-file-formats/019-json-key-must-be-a-string/main.conf, include-file-formats/020-json-newline-is-not-a-separator/main.conf, include-file-formats/022-json-dotted-key-is-one-key/main.conf, include-file-formats/023-json-leading-zero-illegal/main.conf">If a filename has no extension, the implementation should treat it
+<p data-line="1085"><mark class="ok" title="include-semantics-file-formats-and-extensions.2 — include-file-formats/002-basename-with-only-conf/main.conf, include-file-formats/010-json-file-with-every-value-type/main.conf, include-file-formats/011-json-rejects-unquoted-values/main.conf, include-file-formats/012-json-rejects-substitutions/main.conf, include-file-formats/013-json-rejects-trailing-comma/main.conf, include-file-formats/015-json-array-needs-commas/main.conf, include-file-formats/019-json-key-must-be-a-string/main.conf, include-file-formats/020-json-newline-is-not-a-separator/main.conf, include-file-formats/022-json-dotted-key-is-one-key/main.conf, include-file-formats/023-json-leading-zero-illegal/main.conf, include-file-formats/024-unknown-extension-is-not-a-basename/main.conf">If a filename has no extension, the implementation should treat it
 as a basename and try loading the file with all known extensions.</mark></p>
 <p data-line="1088"><mark class="ok" title="include-semantics-file-formats-and-extensions.3 — include-file-formats/001-basename-loads-every-extension/main.conf">If the file exists with multiple extensions, they should _all_ be
 loaded and merged together.</mark></p>
@@ -797,7 +797,7 @@ should be parsed next-to-last.</mark></p>
 <p data-line="1096">    include &quot;foo.properties&quot;
     include &quot;foo.json&quot;
     include &quot;foo.conf&quot;</p>
-<p data-line="1100"><mark class="gap" title="include-semantics-file-formats-and-extensions.6 — no case">This same extension-based behavior is applied to classpath
+<p data-line="1100"><mark class="ok" title="include-semantics-file-formats-and-extensions.6 — include-file-formats/006-json-extension-means-json-syntax/main.conf, include-file-formats/007-properties-extension-means-properties-syntax/main.conf">This same extension-based behavior is applied to classpath
 resources and files.</mark></p>
 <p data-line="1103">For URLs, a basename without extension is not allowed; only the
 exact URL specified is used. The format will be chosen based on

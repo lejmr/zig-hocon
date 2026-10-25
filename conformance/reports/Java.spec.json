@@ -4,11 +4,11 @@
   "version": "typesafe/config 1.4.9",
   "mode": "spec",
   "command": "conformance/adapters/oracle.sh hocon-java",
-  "ran_at": "2026-10-25T18:37:41Z",
-  "suite_digest": "e4f19aa15860467f",
-  "total": 482,
-  "passed": 423,
-  "percent": 87.8,
+  "ran_at": "2026-10-25T19:03:19Z",
+  "suite_digest": "c506f6677517fbfc",
+  "total": 490,
+  "passed": 425,
+  "percent": 86.7,
   "sections": {
     "array-and-object-concatenation": {
       "total": 22,
@@ -35,7 +35,7 @@
       "passed": 4
     },
     "duplicate-keys-and-object-merging": {
-      "total": 28,
+      "total": 29,
       "passed": 20
     },
     "duration-format": {
@@ -67,7 +67,7 @@
       "passed": 15
     },
     "key-value-separator": {
-      "total": 6,
+      "total": 8,
       "passed": 6
     },
     "list-values-from-environment-variables": {
@@ -87,7 +87,7 @@
       "passed": 10
     },
     "path-expressions": {
-      "total": 20,
+      "total": 21,
       "passed": 20
     },
     "paths-as-keys": {
@@ -99,12 +99,12 @@
       "passed": 7
     },
     "plus-equals-field-separator": {
-      "total": 13,
+      "total": 14,
       "passed": 7
     },
     "self-referential-examples": {
-      "total": 34,
-      "passed": 27
+      "total": 36,
+      "passed": 29
     },
     "self-referential-substitutions": {
       "total": 5,
@@ -123,7 +123,7 @@
       "passed": 8
     },
     "substitutions": {
-      "total": 38,
+      "total": 39,
       "passed": 37
     },
     "unchanged-from-json": {
@@ -246,6 +246,7 @@
     "duplicate-keys-and-object-merging/026-missing-key-in-object-that-replaced-a-list.conf": "pass",
     "duplicate-keys-and-object-merging/027-nested-object-then-scalar-inside-merge.conf": "pass",
     "duplicate-keys-and-object-merging/028-null-in-second-object-wins.conf": "pass",
+    "duplicate-keys-and-object-merging/029-substituted-object-hides-earlier-scalar.conf": "fail",
     "duration-format/001-bare-number-is-milliseconds.conf": "pass",
     "duration-format/002-uppercase-unit-is-illegal.conf": "pass",
     "duration-format/003-nanoseconds-spellings.conf": "pass",
@@ -346,6 +347,8 @@
     "key-value-separator/004-value-on-the-line-after-the-separator.conf": "pass",
     "key-value-separator/005-separator-cannot-be-omitted-before-array.conf": "pass",
     "key-value-separator/006-newline-between-key-and-brace.conf": "pass",
+    "key-value-separator/007-object-after-omitted-separator-concatenates.conf": "fail",
+    "key-value-separator/008-substitution-after-omitted-separator-concatenates.conf": "fail",
     "list-values-from-environment-variables/001-list-from-indexed-variables.conf": "pass",
     "list-values-from-environment-variables/002-optional-list-with-no-elements-is-undefined.conf": "pass",
     "list-values-from-environment-variables/003-required-list-with-no-elements-is-error.conf": "pass",
@@ -403,6 +406,7 @@
     "path-expressions/021-quoted-dot-in-substitution-path-is-literal.conf": "pass",
     "path-expressions/022-keyword-in-substitution-path-is-a-string.conf": "pass",
     "path-expressions/023-substitution-in-dotted-key-illegal.conf": "pass",
+    "path-expressions/024-number-like-keys-before-plus-equals.conf": "fail",
     "paths-as-keys/001-two-element-path-expands.conf": "pass",
     "paths-as-keys/002-three-element-path-expands.conf": "pass",
     "paths-as-keys/003-merge-sibling-paths.conf": "pass",
@@ -434,6 +438,7 @@
     "plus-equals-field-separator/011-appends-deep-inside-object-concatenation.conf": "fail",
     "plus-equals-field-separator/012-appends-to-a-list-defined-in-object-concatenation.conf": "fail",
     "plus-equals-field-separator/013-appends-after-a-substituted-object.conf": "pass",
+    "plus-equals-field-separator/014-appends-twice-after-null-replaced-by-object.conf": "fail",
     "self-referential-examples/001-isolated-self-reference-is-an-error.conf": "pass",
     "self-referential-examples/002-self-reference-resolves-to-earlier-merged-value.conf": "pass",
     "self-referential-examples/003-self-reference-before-any-value-is-undefined.conf": "pass",
@@ -468,6 +473,8 @@
     "self-referential-examples/032-field-hidden-inside-object-concatenation.conf": "fail",
     "self-referential-examples/033-object-below-a-substitution-looks-forward.conf": "pass",
     "self-referential-examples/034-object-over-scalar-hidden-by-later-object.conf": "pass",
+    "self-referential-examples/035-alias-read-inside-a-look-back.conf": "pass",
+    "self-referential-examples/036-alias-path-read-inside-a-look-back.conf": "pass",
     "self-referential-substitutions/001-path-builds-on-older-value.conf": "pass",
     "self-referential-substitutions/002-self-referential-concatenation.conf": "pass",
     "self-referential-substitutions/003-object-containing-self-reference-is-not-self-referential.conf": "pass",
@@ -545,6 +552,7 @@
     "substitutions/039-undefined-optional-with-number-is-a-string.conf": "fail",
     "substitutions/040-null-blocks-environment-lookup.conf": "pass",
     "substitutions/041-undefined-optional-under-a-path-leaves-the-object.conf": "pass",
+    "substitutions/042-undefined-optional-next-to-number-is-a-string.conf": "fail",
     "unchanged-from-json/001-quoted-string-json-format.conf": "pass",
     "unchanged-from-json/002-string-value-type.conf": "pass",
     "unchanged-from-json/003-number-value-type.conf": "pass",
@@ -647,6 +655,7 @@
     "duplicate-keys-and-object-merging/016-null-deeper-in-a-merge-stack-stays-at-its-key.conf": "{\"a\":{\"nested\":{\"x\":1},\"y\":2},\"pending\":{\"x\":1},\"pendingTop\":{\"y\":2},\"v\":{\"nested\":{\"x\":1},\"y\":2}}",
     "duplicate-keys-and-object-merging/017-lookup-into-nested-null-merges.conf": "rejected",
     "duplicate-keys-and-object-merging/025-lookup-into-object-that-replaced-a-list.conf": "rejected",
+    "duplicate-keys-and-object-merging/029-substituted-object-hides-earlier-scalar.conf": "{\"a\":{\"q\":2},\"x\":{\"q\":2}}",
     "include-file-formats/006-json-extension-means-json-syntax/main.conf": "{\"a\":\"b\"}",
     "include-file-formats/007-properties-extension-means-properties-syntax/main.conf": "rejected",
     "include-file-formats/023-json-leading-zero-illegal/main.conf": "{\"a\":1}",
@@ -655,10 +664,13 @@
     "include-substitution/009-undefined-optional-at-fixed-up-path-falls-back/main.conf": "rejected",
     "include-substitution/011-optional-reference-falls-back-too/main.conf": "{\"common\":{\"x\":{}},\"x\":{\"y\":0}}",
     "include-substitution/014-unrelated-key-does-not-change-the-result/main.conf": "rejected",
+    "key-value-separator/007-object-after-omitted-separator-concatenates.conf": "rejected",
+    "key-value-separator/008-substitution-after-omitted-separator-concatenates.conf": "rejected",
     "omit-root-braces/006-array-root-unaffected.conf": "rejected",
     "omit-root-braces/008-empty-array-root.conf": "rejected",
     "omit-root-braces/009-comment-before-array-root.conf": "rejected",
     "omit-root-braces/010-blank-line-before-array-root.conf": "rejected",
+    "path-expressions/024-number-like-keys-before-plus-equals.conf": "rejected",
     "paths-as-keys/008-include-cannot-begin-key.conf": "{\"include\":{\"foo\":42}}",
     "plus-equals-field-separator/006-plus-equals-inside-a-list-element.conf": "rejected",
     "plus-equals-field-separator/008-plus-equals-with-an-object-containing-a-merge.conf": "rejected",
@@ -666,6 +678,7 @@
     "plus-equals-field-separator/010-appends-through-chained-object-concatenations.conf": "{\"x\":{\"l\":[1]},\"y\":{\"l\":[2]},\"z\":{\"l\":[3]}}",
     "plus-equals-field-separator/011-appends-deep-inside-object-concatenation.conf": "{\"top\":{\"a\":{\"b\":{\"c\":[2]}}},\"x\":{\"a\":{\"b\":{\"c\":[1]}}}}",
     "plus-equals-field-separator/012-appends-to-a-list-defined-in-object-concatenation.conf": "{\"x\":{},\"y\":{\"l\":[3]}}",
+    "plus-equals-field-separator/014-appends-twice-after-null-replaced-by-object.conf": "{\"c\":{\"x\":[2]}}",
     "self-referential-examples/015-list-hidden-by-substituted-object-is-never-evaluated.conf": "rejected",
     "self-referential-examples/021-hidden-list-does-not-depend-on-key-order.conf": "rejected",
     "self-referential-examples/027-self-reference-inside-object-concatenation.conf": "rejected",
@@ -673,6 +686,7 @@
     "self-referential-examples/029-concatenated-object-refers-to-its-mixin.conf": "rejected",
     "self-referential-examples/030-concatenated-object-sees-its-own-field.conf": "rejected",
     "self-referential-examples/032-field-hidden-inside-object-concatenation.conf": "rejected",
+    "self-referential-examples/036-alias-path-read-inside-a-look-back.conf": "{\"a\":\"x\",\"p\":\"x\"}",
     "string-value-concatenation/010-object-then-scalar-drops-the-scalar.conf": "{\"a\":{\"b\":1}}",
     "string-value-concatenation/011-array-then-scalar-drops-the-scalar.conf": "{\"a\":[1,2]}",
     "string-value-concatenation/014-array-then-unquoted-text-without-space.conf": "{\"x\":[1]}",
@@ -681,6 +695,7 @@
     "substitution-fallback-to-environment/009-self-reference-reads-env.conf": "rejected",
     "substitution-fallback-to-environment/010-optional-self-reference-reads-env.conf": "{}",
     "substitutions/039-undefined-optional-with-number-is-a-string.conf": "{\"a\":42}",
+    "substitutions/042-undefined-optional-next-to-number-is-a-string.conf": "{\"a\":[10,1.5]}",
     "unchanged-from-json/009-leading-zero-run-is-text.conf": "{\"a\":1}",
     "unchanged-from-json/010-signed-fraction-without-integer-part-is-text.conf": "{\"a\":-0.33}",
     "unchanged-from-json/011-plus-in-a-signed-fraction-is-illegal.conf": "{\"a\":-3.3}",
@@ -1037,6 +1052,29 @@
       "java": "unsupported"
     },
     {
+      "case": "duplicate-keys-and-object-merging/029-substituted-object-hides-earlier-scalar.conf",
+      "spec": "HOCON.md#duplicate-keys-and-object-merging",
+      "rule": "${x} is x's merged object {q:2}; the 5 below it is x's history, not a's, so a's two objects merge into {p:1, q:2}. The same rule as 010–017 with a scalar instead of null; typesafe/config 1.4.9 lets the 5 cut a's merge",
+      "expected": {
+        "x": {
+          "q": 2
+        },
+        "a": {
+          "p": 1,
+          "q": 2
+        }
+      },
+      "got": {
+        "a": {
+          "q": 2
+        },
+        "x": {
+          "q": 2
+        }
+      },
+      "java": "diverges"
+    },
+    {
       "case": "include-file-formats/006-json-extension-means-json-syntax/main.conf",
       "spec": "HOCON.md#include-semantics-file-formats-and-extensions",
       "rule": "a file named .json is in JSON format, and an unquoted value is not JSON. typesafe/config parses a .json named outright with the HOCON parser, so the file is accepted; the same file found through a basename is rejected",
@@ -1145,6 +1183,35 @@
       "java": "unsupported"
     },
     {
+      "case": "key-value-separator/007-object-after-omitted-separator-concatenates.conf",
+      "spec": "HOCON.md#key-value-separator",
+      "rule": "leaving out the separator before { changes nothing about the value: a { m = 2 } { n = 1 } is a : { m = 2 } { n = 1 }, two objects concatenated into one; typesafe/config and pyhocon read only the first object and reject the second",
+      "expected": {
+        "a": {
+          "m": 2,
+          "n": 1
+        }
+      },
+      "got": "rejected (exit 1)",
+      "java": "unsupported"
+    },
+    {
+      "case": "key-value-separator/008-substitution-after-omitted-separator-concatenates.conf",
+      "spec": "HOCON.md#key-value-separator",
+      "rule": "the same with a substitution after the object: a { m = 2 } ${x} is a : { m = 2 } ${x}, and the two objects merge; typesafe/config and pyhocon reject the substitution",
+      "expected": {
+        "x": {
+          "p": 1
+        },
+        "a": {
+          "m": 2,
+          "p": 1
+        }
+      },
+      "got": "rejected (exit 1)",
+      "java": "unsupported"
+    },
+    {
       "case": "omit-root-braces/006-array-root-unaffected.conf",
       "spec": "HOCON.md#omit-root-braces",
       "rule": "the implicit {} wrap fires only when the file does not begin with a square bracket or curly brace, so a file starting with [ keeps its array root; the include section says so outright -- 'both JSON and HOCON allow arrays as root values in a document' (the reason an included file may not be one). typesafe/config has no array-rooted config at all and rejects the document as LIST rather than object.",
@@ -1167,7 +1234,7 @@
     {
       "case": "omit-root-braces/009-comment-before-array-root.conf",
       "spec": "HOCON.md#omit-root-braces",
-      "rule": "the {} wrap fires only for a file that does not begin with a bracket or brace, and a leading comment does not make it one -- both typesafe/config and pyhocon read the first token, not the first byte. the spec's wording is loose here; this row records the consensus reading",
+      "rule": "a comment is ignored, so the file still begins with a square bracket and the {} wrap does not fire: the root is the array",
       "expected": [
         1,
         2
@@ -1183,6 +1250,21 @@
         1,
         2
       ],
+      "got": "rejected (exit 1)",
+      "java": "unsupported"
+    },
+    {
+      "case": "path-expressions/024-number-like-keys-before-plus-equals.conf",
+      "spec": "HOCON.md#path-expressions",
+      "rule": "a key may start with a number and run into +=: 3 and 1e are keys, and += appends to nothing: {\"3\": [[]], \"1e\": [1]}; typesafe/config reads + as part of the number and rejects it, pyhocon drops the brackets",
+      "expected": {
+        "3": [
+          []
+        ],
+        "1e": [
+          1
+        ]
+      },
       "got": "rejected (exit 1)",
       "java": "unsupported"
     },
@@ -1375,6 +1457,27 @@
       "java": "diverges"
     },
     {
+      "case": "plus-equals-field-separator/014-appends-twice-after-null-replaced-by-object.conf",
+      "spec": "HOCON.md#the--field-separator",
+      "rule": "the object replaces the null, so the first += finds no c.x and starts [1], and the second appends to it: [1, 2]; typesafe/config keeps only the last element, pyhocon gives 2",
+      "expected": {
+        "c": {
+          "x": [
+            1,
+            2
+          ]
+        }
+      },
+      "got": {
+        "c": {
+          "x": [
+            2
+          ]
+        }
+      },
+      "java": "diverges"
+    },
+    {
       "case": "self-referential-examples/015-list-hidden-by-substituted-object-is-never-evaluated.conf",
       "spec": "HOCON.md#examples-of-self-referential-substitutions",
       "rule": "a list merges with nothing, so any later value hides it and it is never evaluated; that the hiding object arrives through ${replacement} changes nothing, since the substitution is required and so either resolves or fails on its own. typesafe/config evaluates the hidden list (lightbend/config#865)",
@@ -1555,12 +1658,30 @@
     {
       "case": "substitutions/039-undefined-optional-with-number-is-a-string.conf",
       "spec": "HOCON.md#substitutions",
-      "rule": "${?x}42 is a concatenation of two parts, so the value is a string: the undefined optional becomes empty and the number keeps its written form. The spec states the empty-string rule for a concatenation 'with another string', so this row extends it to a number; typesafe/config instead drops the undefined part and keeps the lone number as a number",
+      "rule": "${?x}42 is a concatenation of two parts, so it is value-concatenated to form a string (substitutions.24): the undefined optional becomes empty and the number keeps its written form; typesafe/config instead drops the undefined part and keeps the lone number as a number",
       "expected": {
         "a": "42"
       },
       "got": {
         "a": 42
+      },
+      "java": "diverges"
+    },
+    {
+      "case": "substitutions/042-undefined-optional-next-to-number-is-a-string.conf",
+      "spec": "HOCON.md#substitutions",
+      "rule": "each element is a concatenation of two values, not a lone substitution, so the undefined ${?x} becomes \"\" and the element is a string, the number kept as written: [\"10\", \"1.50\"]; typesafe/config and pyhocon keep the numbers",
+      "expected": {
+        "a": [
+          "10",
+          "1.50"
+        ]
+      },
+      "got": {
+        "a": [
+          10,
+          1.5
+        ]
       },
       "java": "diverges"
     },

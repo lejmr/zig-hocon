@@ -1,0 +1,31 @@
+{
+  "spec": "HOCON.md#duplicate-keys-and-object-merging",
+  "rule": [
+    "substitutions.11",
+    "duplicate-keys-and-object-merging.2"
+  ],
+  "why": "${x} is x's merged object {q:2}; the 5 below it is x's history, not a's, so a's two objects merge into {p:1, q:2}. The same rule as 010–017 with a scalar instead of null; typesafe/config 1.4.9 lets the 5 cut a's merge",
+  "expect": {
+    "x": {
+      "q": 2
+    },
+    "a": {
+      "p": 1,
+      "q": 2
+    }
+  },
+  "resolve": true,
+  "java": "diverges",
+  "java_expect": {
+    "x": {
+      "q": 2
+    },
+    "a": {
+      "q": 2
+    }
+  },
+  "java_since": {
+    "version": "main",
+    "by": "lightbend/config#864"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "spec": "HOCON.md#examples-of-self-referential-substitutions",
+  "rule": [
+    "self-referential-substitutions.4",
+    "examples-of-self-referential-substitutions.11",
+    "examples-of-self-referential-substitutions.27"
+  ],
+  "why": "as 035, through a path: inside p's look-back a is the earlier 1, which has no z, so p = \"x\"; a keeps the memoized 1 (expect) or is an alias for the final p (also_valid). typesafe/config gives a = \"x\", which is the second reading, though for 035 it takes the first",
+  "expect": {
+    "p": "x",
+    "a": 1
+  },
+  "resolve": true,
+  "also_valid": [
+    {
+      "p": "x",
+      "a": "x"
+    }
+  ],
+  "java": "diverges",
+  "java_expect": {
+    "a": "x",
+    "p": "x"
+  }
+}
