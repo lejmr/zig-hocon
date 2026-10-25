@@ -263,13 +263,25 @@ pub fn seen(state: *Resolver, place: *Value, ref: Ref) Error!?*Value {
         if (field.object) |object| return object;
 
         switch (field.progress) {
-            .done => {},
+            // Its own self-reference found nothing below: a required ref that
+            // comes round through another field has nothing to look back at
+            // either, a cycle as for `.todo` below, which an optional on the
+            // way may break. `e += ${?c}`, `c = ${e}`. An optional one finds
+            // nothing, as it did: an include's ref inside the field's own
+            // value looks there first, and on to the environment.
+            .done => if (field.merged == null and i + 1 < state.fields.items.len and !ref.flags.optional) {
+                state.markBreaking(state.visitingAt(place) orelse 0);
+                state.err_pos.* = ref.at();
+                return Error.SubstitutionCycle;
+            },
             // `a = [${a}], a = ${?a}`: the layers below lead back here.
             .busy => {
+                const at = state.visitingAt(place) orelse 0;
                 if (ref.flags.optional) {
-                    state.cycles += 1;
+                    state.closeAt(at);
                     return null;
                 }
+                state.markBreaking(at);
                 state.err_pos.* = ref.at();
                 return Error.SubstitutionCycle;
             },
@@ -287,11 +299,14 @@ pub fn seen(state: *Resolver, place: *Value, ref: Ref) Error!?*Value {
                         field.again = again;
                         return again;
                     }
+                    // An optional that began after the field is on the cycle.
+                    const at = state.visitingAt(place) orelse 0;
                     if (!ref.flags.optional) {
+                        state.markBreaking(at);
                         state.err_pos.* = ref.at();
                         return Error.SubstitutionCycle;
                     }
-                    state.cycles += 1;
+                    state.closeAt(at);
                 }
                 const below = field.below;
                 // An object that hides the layers under it: the path goes

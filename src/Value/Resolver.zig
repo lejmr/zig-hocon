@@ -63,6 +63,10 @@ cycles: usize = 0,
 optionals: std.ArrayList(usize) = .empty,
 // The one of `optionals` a cycle is unwinding to.
 breaking: ?usize = null,
+// The lowest place in `visiting` a cycle closed at, while the innermost
+// optional being followed was: one below where that optional began led
+// back to its own field (`resolveOptional`).
+closed: ?usize = null,
 // Objects walked again from inside a look-back of a field in them, and the
 // ref that led back (`walkAgain`).
 again: std.ArrayList(struct { place: *Value, ref: Ref }) = .empty,
@@ -246,13 +250,25 @@ pub fn resolveRef(state: *Resolver, r: Ref, on_top: bool) Error!?Value {
 // is a missing value for an optional (spec L714): so it finds nothing, even
 // when a ref further on is the one that came round. `v { x = ${?r} }`,
 // `r = ${v}` is `v = {}` whichever field is resolved first.
+//
+// One that led back to the field it stands in, through a cycle another
+// optional on the way broke, is nonexistent as well (spec L716: "If ${?foo}
+// refers to itself then it's as if it referred to a nonexistent value"), so
+// `f = ${?a.t}x`, `a = ${?y}${?f}` is `f = "x"` whichever field goes first.
 noinline fn resolveOptional(state: *Resolver, r: Ref, on_top: bool) Error!?Value {
     const mark = state.optionals.items.len;
-    try state.optionals.append(state.gpa, state.visiting.items.len);
+    const start = state.visiting.items.len;
+    try state.optionals.append(state.gpa, start);
     defer state.optionals.shrinkRetainingCapacity(mark);
     const fields = state.fields.items.len;
     const err_pos = state.err_pos.*;
-    return state.followRef(r, on_top) catch |err| {
+    const outer = state.closed;
+    state.closed = null;
+    // What closed in here closed for the optionals around it too.
+    defer if (outer) |o| {
+        if (state.closed == null or o < state.closed.?) state.closed = o;
+    };
+    const val = state.followRef(r, on_top) catch |err| {
         if (err != error.SubstitutionCycle or state.breaking != mark) return err;
         state.breaking = null;
         state.err_pos.* = err_pos;
@@ -261,6 +277,35 @@ noinline fn resolveOptional(state: *Resolver, r: Ref, on_top: bool) Error!?Value
         state.cycles += 1;
         return null;
     };
+    if (state.closed) |closed| if (closed < start) {
+        state.cycles += 1;
+        return null;
+    };
+    return val;
+}
+
+// A cycle closed at the i-th place in `visiting`, and an optional found
+// nothing there (`resolveOptional`).
+pub fn closeAt(state: *Resolver, i: usize) void {
+    state.cycles += 1;
+    if (state.closed == null or i < state.closed.?) state.closed = i;
+}
+
+// A required ref closed a cycle at the i-th place in `visiting`: the last
+// optional that began after it is on the cycle, and it breaks there, unless a
+// field on the cycle can look back (`resolveOptional`).
+pub fn markBreaking(state: *Resolver, i: usize) void {
+    const last = state.optionals.items.len;
+    const looking_back = for (state.visiting.items[i + 1 ..]) |p| {
+        if (looksBackAt(state, p)) break true;
+    } else false;
+    if (!looking_back and last > 0 and state.optionals.items[last - 1] > i) state.breaking = last - 1;
+}
+
+// Where `place` is in `visiting`, if it is there.
+pub fn visitingAt(state: *Resolver, place: *Value) ?usize {
+    for (state.visiting.items, 0..) |p, i| if (p == place) return i;
+    return null;
 }
 
 noinline fn followRef(state: *Resolver, r: Ref, on_top: bool) Error!?Value {
@@ -347,9 +392,11 @@ fn follow(state: *Resolver, ref: Ref, path: []const Key) Error!Found {
 fn resolveTarget(state: *Resolver, target: *Value, ref: Ref) Error!?Value {
     const gpa = state.gpa;
     for (state.visiting.items, 0..) |place, i| {
-        if (place == target) {
+        // A ref to a place being resolved, or to an object it is in, comes
+        // back round (spec L697: the lookup document is an ancestor).
+        if (place == target or holds(target.*, place)) {
             if (ref.flags.optional) {
-                state.cycles += 1;
+                state.closeAt(i);
                 return null;
             }
             // A field on the cycle that can look back breaks it first
@@ -357,11 +404,7 @@ fn resolveTarget(state: *Resolver, target: *Value, ref: Ref) Error!?Value {
             // else that is not done, and the cycle stays one.
             if (try state.walkAgain(target, ref, i)) |val| return val;
             // Else an optional that began after the target did is on it.
-            const last = state.optionals.items.len;
-            const looking_back = for (state.visiting.items[i + 1 ..]) |p| {
-                if (looksBackAt(state, p)) break true;
-            } else false;
-            if (!looking_back and last > 0 and state.optionals.items[last - 1] > i) state.breaking = last - 1;
+            state.markBreaking(i);
             state.err_pos.* = ref.at();
             return Error.SubstitutionCycle;
         }
