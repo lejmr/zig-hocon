@@ -5,11 +5,11 @@
   "mode": "java",
   "java_version": "1.4.9",
   "command": "conformance/adapters/oracle.sh hocon-py",
-  "ran_at": "2026-10-25T19:59:40Z",
-  "suite_digest": "24820168cf5464fb",
-  "total": 492,
+  "ran_at": "2026-10-25T20:15:04Z",
+  "suite_digest": "ad70c055a052409f",
+  "total": 496,
   "passed": 315,
-  "percent": 64.0,
+  "percent": 63.5,
   "sections": {
     "array-and-object-concatenation": {
       "total": 22,
@@ -36,7 +36,7 @@
       "passed": 2
     },
     "duplicate-keys-and-object-merging": {
-      "total": 29,
+      "total": 30,
       "passed": 17
     },
     "duration-format": {
@@ -52,7 +52,7 @@
       "passed": 4
     },
     "include-merging": {
-      "total": 16,
+      "total": 19,
       "passed": 14
     },
     "include-missing-and-required": {
@@ -250,6 +250,7 @@
     "duplicate-keys-and-object-merging/027-nested-object-then-scalar-inside-merge.conf": "pass",
     "duplicate-keys-and-object-merging/028-null-in-second-object-wins.conf": "pass",
     "duplicate-keys-and-object-merging/029-substituted-object-hides-earlier-scalar.conf": "fail",
+    "duplicate-keys-and-object-merging/030-null-inside-later-object-clears-earlier-one.conf": "fail",
     "duration-format/001-bare-number-is-milliseconds.conf": "pass",
     "duration-format/002-uppercase-unit-is-illegal.conf": "pass",
     "duration-format/003-nanoseconds-spellings.conf": "fail",
@@ -303,6 +304,9 @@
     "include-merging/014-included-merge-stack-over-earlier-scalar/main.conf": "pass",
     "include-merging/015-included-object-on-top-of-substitution-over-earlier-substitution/main.conf": "pass",
     "include-merging/016-plus-equals-across-include-keeps-order/main.conf": "fail",
+    "include-merging/017-included-null-then-object-hides-the-earlier-object/main.conf": "fail",
+    "include-merging/018-included-scalar-then-path-hides-the-earlier-object/main.conf": "fail",
+    "include-merging/019-included-scalar-then-object-hides-a-substitution/main.conf": "fail",
     "include-missing-and-required/001-missing-include-ignored/main.conf": "pass",
     "include-missing-and-required/002-missing-include-is-empty-object/main.conf": "pass",
     "include-missing-and-required/003-missing-file-include-ignored/main.conf": "pass",
@@ -1149,6 +1153,26 @@
       "java": "diverges"
     },
     {
+      "case": "duplicate-keys-and-object-merging/030-null-inside-later-object-clears-earlier-one.conf",
+      "spec": "HOCON.md#duplicate-keys-and-object-merging",
+      "rule": "b.a is set to an object, then null, then an object, so the last object never sees the first: merging is done two values at a time, and the null between them made {z: 3} lose what it overrode, also when the two b objects merge afterwards. pyhocon keeps x",
+      "expected": {
+        "b": {
+          "a": {
+            "z": 3
+          }
+        }
+      },
+      "got": {
+        "b": {
+          "a": {
+            "x": 1,
+            "z": 3
+          }
+        }
+      }
+    },
+    {
       "case": "duration-format/003-nanoseconds-spellings.conf",
       "spec": "HOCON.md#duration-format",
       "rule": "exactly ns, nano, nanos, nanosecond, nanoseconds are the supported unit strings for nanoseconds",
@@ -1478,6 +1502,47 @@
       "got": {
         "list": 100
       }
+    },
+    {
+      "case": "include-merging/017-included-null-then-object-hides-the-earlier-object/main.conf",
+      "spec": "HOCON.md#include-semantics-merging",
+      "rule": "an included key merges exactly as a duplicate key in one file would, so over.conf's a = null cuts a off from the a { x = 1 } above it, and its a { z = 3 } starts afresh: {a: {z: 3}}; pyhocon keeps x",
+      "expected": {
+        "a": {
+          "z": 3
+        }
+      },
+      "got": {
+        "a": {
+          "x": 1,
+          "z": 3
+        }
+      }
+    },
+    {
+      "case": "include-merging/018-included-scalar-then-path-hides-the-earlier-object/main.conf",
+      "spec": "HOCON.md#include-semantics-merging",
+      "rule": "the same with a scalar: over.conf's a = 2 replaces the object above, and a.z = 3 replaces the 2, so only z is left: {a: {z: 3}}",
+      "expected": {
+        "a": {
+          "z": 3
+        }
+      },
+      "got": "rejected (exit 1)"
+    },
+    {
+      "case": "include-merging/019-included-scalar-then-object-hides-a-substitution/main.conf",
+      "spec": "HOCON.md#include-semantics-merging",
+      "rule": "child.conf's a = bar hides the ${r} above it, and its a { m = 1 } replaces bar: a is {m: 1}, and ${r} is never merged in",
+      "expected": {
+        "a": {
+          "m": 1
+        },
+        "r": {
+          "y": 9
+        }
+      },
+      "got": "rejected (exit 1)"
     },
     {
       "case": "include-substitution/001-substitution-relativized-to-include-scope/main.conf",
@@ -2456,7 +2521,7 @@
         "a": "null bar"
       },
       "got": {
-        "a": "<pyhocon.config_tree.NoneValue object at 0x1024b3d10>bar"
+        "a": "<pyhocon.config_tree.NoneValue object at 0x10390ce10>bar"
       }
     },
     {

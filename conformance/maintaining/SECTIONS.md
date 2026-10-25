@@ -15,7 +15,7 @@ observable parse behaviour.
 | 141 | Key-value separator | `key-value-separator` | ✅ 8 cases |
 | 149 | Commas | `commas` | ✅ 15 cases |
 | 165 | Whitespace | `whitespace` | ✅ 13 cases |
-| 186 | Duplicate keys and object merging | `duplicate-keys-and-object-merging` | ✅ 29 cases |
+| 186 | Duplicate keys and object merging | `duplicate-keys-and-object-merging` | ✅ 30 cases |
 | 240 | Unquoted strings | `unquoted-strings` | ✅ 32 cases |
 | 288 | Multi-line strings | `multi-line-strings` | ✅ 10 cases |
 | 304 | Value concatenation | `value-concatenation` | ✅ 2 cases |
@@ -31,7 +31,7 @@ observable parse behaviour.
 | 738 | Examples of self-referential substitutions | `self-referential-examples` | ✅ 36 cases |
 | 893 | List values from environment variables | `list-values-from-environment-variables` | ✅ 6 cases |
 | 921 | Include syntax | `include-syntax` | ✅ 15 cases |
-| 982 | Include semantics: merging | `include-merging` | ✅ 16 cases |
+| 982 | Include semantics: merging | `include-merging` | ✅ 19 cases |
 | 1008 | Include semantics: substitution | `include-substitution` | ✅ 20 cases |
 | 1051 | Include semantics: missing and required files | `include-missing-and-required` | ✅ 6 cases |
 | 1074 | Include semantics: file formats and extensions | `include-file-formats` | ✅ 23 cases |
