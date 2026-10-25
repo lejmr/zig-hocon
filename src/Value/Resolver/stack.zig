@@ -61,13 +61,21 @@ pub fn resolveField(state: *Resolver, place: *Value) Error!?Value {
         place.* = val;
         return val;
     }
+    if (state.vanished.get(place)) |by_cycle| {
+        if (by_cycle) state.cycles += 1;
+        return null;
+    }
+    const cycles = state.cycles;
     // A field written once is a stack of one.
     const one = [_]Value{place.*};
     const val = switch (place.*) {
         .stack => |layers| try state.resolveStack(place, layers),
         .ref, .pending => try state.resolveStack(place, &one),
         else => try state.resolveValue(place.*),
-    } orelse return null;
+    } orelse {
+        try state.vanished.put(gpa, place, state.cycles > cycles);
+        return null;
+    };
     // Walked again inside a look-back meanwhile: that is its value.
     const value = state.walked.get(place) orelse val;
     place.* = value;

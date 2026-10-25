@@ -73,6 +73,11 @@ again: std.ArrayList(struct { place: *Value, ref: Ref }) = .empty,
 // What a place resolved to when it was walked again inside the look-back of a
 // field outside it: its value, resolved once (`walkAgain`, `resolveField`).
 walked: std.AutoHashMapUnmanaged(*Value, Value) = .empty,
+// Fields that resolved to nothing, an optional with nothing behind it: that
+// is their value too, and resolving them again later, once the cycle that
+// made it so is over, would find something (`resolveField`). True when a
+// cycle made it so: the field is in the document, never a variable.
+vanished: std.AutoHashMapUnmanaged(*Value, bool) = .empty,
 // Where a path that is not in the document is looked up.
 env: Env,
 // Where the error points; written once, where the error starts.
@@ -113,6 +118,7 @@ fn deinit(state: *Resolver) void {
     state.optionals.deinit(gpa);
     state.again.deinit(gpa);
     state.walked.deinit(gpa);
+    state.vanished.deinit(gpa);
     state.kept.deinit(gpa);
     var it = state.index.valueIterator();
     while (it.next()) |members| members.deinit(gpa);
@@ -577,6 +583,37 @@ pub fn expectResolved(src: [:0]const u8, expected: []const u8) !void {
     try root.resolve(gpa, .none, &err_pos);
     try testing.expectEqualStrings(expected, try std.json.Stringify.valueAlloc(gpa, root, .{}));
 }
+/// Parses `src`, resolves it and prints it as JSON.
+fn resolvedJson(gpa: Allocator, src: [:0]const u8) ![]const u8 {
+    var parser = Ast.Parser{ .gpa = gpa, .t = .{ .t = Tokenizer.Tokenizer.init(src) } };
+    var root = try build(gpa, try parser.parse());
+    var err_pos: ?Value.Pos = null;
+    try root.resolve(gpa, .none, &err_pos);
+    return try std.json.Stringify.valueAlloc(gpa, root, .{});
+}
+
+/// The same JSON, whatever order the keys come in.
+fn sameJson(a: std.json.Value, b: std.json.Value) bool {
+    switch (a) {
+        .object => |members| {
+            if (b != .object or b.object.count() != members.count()) return false;
+            var it = members.iterator();
+            while (it.next()) |entry| {
+                const other = b.object.get(entry.key_ptr.*) orelse return false;
+                if (!sameJson(entry.value_ptr.*, other)) return false;
+            }
+            return true;
+        },
+        .array => |items| {
+            if (b != .array or b.array.items.len != items.items.len) return false;
+            for (items.items, b.array.items) |x, y| if (!sameJson(x, y)) return false;
+            return true;
+        },
+        .string => |text| return b == .string and std.mem.eql(u8, text, b.string),
+        else => return std.meta.eql(a, b),
+    }
+}
+
 pub fn expectResolveError(src: [:0]const u8, expected: anyerror) !void {
     var arena = std.heap.ArenaAllocator.init(testing.allocator);
     defer arena.deinit();
@@ -699,6 +736,36 @@ test "resolve.a look-back that refers to its own object" {
     try expectResolveError("a { b = ${a} }", error.SubstitutionCycle);
     try expectResolveError("o { a = [], a += ${o}, c = ${o} }", error.SubstitutionCycle);
 }
+// self-referential-examples/040, 043, 045–048 · java ✓ (all but the `f =
+// ${?a.t}` row, where it gives f = 1) · spec ✓ — the same lines in either
+// order give the same values: an optional that leads back to its own field is
+// nonexistent (L716), and a target walked again inside a look-back keeps that
+// value (L886), whichever field is resolved first.
+test "resolve.a cycle gives the same values in either order" {
+    const pairs = [_]struct { [:0]const u8, [:0]const u8, []const u8 }{
+        .{ "o = ${a.n}\n", "a { n = { h = 0 } ${?a} }\n", "{\"o\":{\"h\":0},\"a\":{\"n\":{\"h\":0}}}" },
+        .{ "f = ${?a.t}x\n", "a = ${?y}${?f}\ny { t = 1 }\n", "{\"f\":\"x\",\"a\":{\"t\":1},\"y\":{\"t\":1}}" },
+        .{ "f = ${?a.t}\n", "a = ${?y}${?f}\ny { t = 1 }\n", "{\"a\":{\"t\":1},\"y\":{\"t\":1}}" },
+        .{ "d = yes${?c}\n", "c = ${d}\n", "{\"d\":\"yes\",\"c\":\"yes\"}" },
+        .{ "e += ${?c}\n", "c = ${e}\n", "{\"e\":[],\"c\":[]}" },
+        .{ "a = [${p}]\n", "p = 1\np = ${a}\n", "{\"a\":[1],\"p\":[1]}" },
+        .{ "d { a = ${i.b} }\n", "i.b = 7\ni = ${d}\n", "{\"d\":{\"a\":7},\"i\":{\"b\":7,\"a\":7}}" },
+    };
+    for (pairs) |p| {
+        var arena = std.heap.ArenaAllocator.init(testing.allocator);
+        defer arena.deinit();
+        const gpa = arena.allocator();
+        for ([_][2][]const u8{ .{ p[0], p[1] }, .{ p[1], p[0] } }) |order| {
+            const src = try std.mem.concatWithSentinel(gpa, u8, &.{ order[0], order[1] }, 0);
+            const want: std.json.Value = try std.json.parseFromSliceLeaky(std.json.Value, gpa, p[2], .{});
+            const got = try resolvedJson(gpa, src);
+            const have: std.json.Value = try std.json.parseFromSliceLeaky(std.json.Value, gpa, got, .{});
+            errdefer std.debug.print("order: {s}\ngot: {s}\n", .{ src, got });
+            try testing.expect(sameJson(want, have));
+        }
+    }
+}
+
 // java ✓ · spec ✓ — a cycle is broken by looking back where that gives every
 // field one value, and only there: a field resolved anew a second time stays a
 // cycle. An object the look-back is not in is walked again inside it, and what
