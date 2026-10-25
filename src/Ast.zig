@@ -911,23 +911,27 @@ test "commas.separate, and only once" {
     });
 }
 
-// java ✓ · pyhocon ⚠️ (rejects `1e+5.x` but also `1e+5x`, reads `-1e+5.5` as
-// "-1e5.5") · spec ✓ — `+` is reserved in text and stands only in the exponent
-// of a number, so a run of number characters with a `+` in it has to be a
-// number. In a key and a `${…}` path too, where the rest of the number rules
-// do not hold:
-//   'a = 1e+5.x' -> java Parse error      'a = 1e5.x' -> java {"a":"1e5.x"}
-//   'a = 1e+5x'  -> java {"a":"1e+5x"}    '1e+5 = 1'  -> java {"1e+5":1}
+// java ⚠️ (rejects `1e+5.x`: Parse error) · pyhocon ⚠️ (rejects `1e+5.x` but
+// also `1e+5x`) · spec ✓ — `+` is reserved in text and stands only in the
+// exponent of a number, so it has to be inside the number JSON reads at the
+// start of the word, and what follows that number is text, as `10.0bar` is.
+// In a key and a `${…}` path too. Until 2026-10-25 the whole run of number
+// characters had to be a number, and `1e+5.x` was an error:
+//   'a = 1e+5.x'  -> "1e+5.x"        '1e+5.5 = 1' -> {"1e+5":{"5":1}}
+//   'a = 1e+5e+5' -> BadNumber, the second + is after the number
 test "numbers.a + belongs to a number" {
     try expectAll(&.{
-        .bad("a = 1e+5.x"),
-        .bad("a = -1e+5.5"),
         .bad("a = [1e+5e+5]"),
-        .bad("a = tea 1e+5.x"),
-        .bad("1e+5.5 = 1"),
-        .bad("a { 1e+5.x = 1 }"),
-        .bad("a = ${1e+5.x}"),
+        .bad("a = tea 1e+5e+5"),
+        .bad("1e+5e+5 = 1"),
+        .bad("a { 1e+5e+5 = 1 }"),
+        .bad("a = ${1e+5e+5}"),
 
+        .ok("a = 1e+5.x", "root(assign(value(a), value(1e+5.x)))"),
+        .ok("a = -1e+5.5", "root(assign(value(a), value(-1e+5.5)))"),
+        .ok("1e+5.5 = 1", "root(assign(value(1e+5), block(assign(value(5), value(1)))))"),
+        .ok("a { 1e+5.x = 1 }", "root(assign(value(a), block(assign(value(1e+5), block(assign(value(x), value(1)))))))"),
+        .ok("a = ${1e+5.x}", "root(assign(value(a), subst(value(1e+5.x))))"),
         .ok("a = 1e5.x", "root(assign(value(a), value(1e5.x)))"),
         .ok("a = 1e+5x", "root(assign(value(a), value(1e+5x)))"),
         .ok("1e+5 = 1", "root(assign(value(1e+5), value(1)))"),
@@ -1037,7 +1041,7 @@ test "numbers.a value word that starts with a digit starts with a number" {
 test "numbers.name what is wrong" {
     const cases = [_]struct { [:0]const u8, anyerror }{
         .{ "a = -.33e+1", error.BadNumber },
-        .{ "a = 1e+5.x", error.BadNumber },
+        .{ "a = 1e+5e+5", error.BadNumber },
     };
     for (cases) |c| {
         var arena = std.heap.ArenaAllocator.init(testing.allocator);

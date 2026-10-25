@@ -1,0 +1,19 @@
+{
+  "spec": "HOCON.md#unchanged-from-json",
+  "rule": [
+    "unchanged-from-json.4",
+    "unquoted-strings.9"
+  ],
+  "why": "number formats are JSON's, where 08080, 01.5 and 0. are no numbers: JSON reads 0, then the rest is text after it, so all three are the strings as written, as 01 is (009). typesafe/config reads 8080, 1.5 and 0; pyhocon 8080 and 1.5",
+  "expect": {
+    "a": "08080",
+    "b": "01.5",
+    "c": "0."
+  },
+  "java": "diverges",
+  "java_expect": {
+    "a": 8080,
+    "b": 1.5,
+    "c": 0
+  }
+}

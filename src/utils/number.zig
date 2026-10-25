@@ -52,13 +52,17 @@ pub const NumberError = error{ LeadingZeroIsNotAJsonNumber, HyphenIsNotAJsonNumb
 /// a digit, so `-foo`, `-` and `-.5` are text by L250 too.
 ///
 /// What is left is `+`: in text it is reserved (L245), it stands only in the
-/// exponent of a number. So a word that starts with a run holding one needs
-/// the run to be a number: `1e+5x` is the number and `x`, `1e+5.x` and
-/// `-.5e+1` are errors where `1e5.x` and `-.5e1` are text. In a key and a
-/// `${…}` path too: `1e+5.5 = 1` is an error, `1.5 = 1` a path.
+/// exponent of a number. So a `+` has to be inside the number JSON reads at
+/// the start of the word: `1e+5.x` is the number `1e+5` then `.x`, text as
+/// `10.0bar` is (decided 2026-10-25), and `1e+5e+5` and `-.5e+1` are errors,
+/// the first with its `+` after the number, the second with no number at all.
+/// In a key and a `${…}` path too: `1e+5.5 = 1` is the path `1e+5`, `5`.
 pub fn checkPlus(word: []const u8) NumberError!void {
     if (word.len == 0 or !(std.ascii.isDigit(word[0]) or word[0] == '-')) return;
     const end = std.mem.indexOfNone(u8, word, "0123456789+-.eE") orelse word.len;
     const run = word[0..end];
-    if (std.mem.indexOfScalar(u8, run, '+') != null and !isJsonNumber(run)) return error.BadNumber;
+    // The number JSON reads there: the longest start of the run that is one.
+    var number = run.len;
+    while (number > 0 and !isJsonNumber(run[0..number])) number -= 1;
+    if (std.mem.indexOfScalar(u8, run[number..], '+') != null) return error.BadNumber;
 }

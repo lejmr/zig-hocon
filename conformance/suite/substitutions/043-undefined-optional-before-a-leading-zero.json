@@ -1,0 +1,17 @@
+{
+  "spec": "HOCON.md#substitutions",
+  "rule": [
+    "substitutions.24",
+    "substitutions.18",
+    "unchanged-from-json.4"
+  ],
+  "why": "${?n}01 is a concatenation of two parts, so it is a string (042), and 01 is no JSON number anyway: \"01\". typesafe/config and pyhocon drop the undefined part and read the number 1",
+  "expect": {
+    "a": "01"
+  },
+  "resolve": true,
+  "java": "diverges",
+  "java_expect": {
+    "a": 1
+  }
+}
