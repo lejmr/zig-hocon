@@ -5,11 +5,11 @@
   "mode": "java",
   "java_version": "1.4.9",
   "command": "conformance/adapters/oracle.sh hocon-py",
-  "ran_at": "2026-10-24T07:51:58Z",
-  "suite_digest": "1762fcc881cbda49",
-  "total": 469,
-  "passed": 301,
-  "percent": 64.2,
+  "ran_at": "2026-10-25T07:41:58Z",
+  "suite_digest": "1e463c3b5af96a46",
+  "total": 476,
+  "passed": 308,
+  "percent": 64.7,
   "sections": {
     "array-and-object-concatenation": {
       "total": 22,
@@ -128,16 +128,16 @@
       "passed": 30
     },
     "unchanged-from-json": {
-      "total": 30,
-      "passed": 17
+      "total": 32,
+      "passed": 19
     },
     "units-format": {
       "total": 6,
       "passed": 5
     },
     "unquoted-strings": {
-      "total": 25,
-      "passed": 19
+      "total": 30,
+      "passed": 24
     },
     "value-concatenation": {
       "total": 2,
@@ -550,12 +550,12 @@
     "unchanged-from-json/006-boolean-value-type.conf": "pass",
     "unchanged-from-json/007-null-value-type.conf": "pass",
     "unchanged-from-json/008-number-format-decimal-and-exponent.conf": "pass",
-    "unchanged-from-json/009-number-leading-zero-illegal.conf": "pass",
-    "unchanged-from-json/010-negative-number-without-integer-part-illegal.conf": "pass",
-    "unchanged-from-json/011-negative-exponent-number-without-integer-part-illegal.conf": "pass",
-    "unchanged-from-json/012-number-with-trailing-dot-illegal.conf": "fail",
-    "unchanged-from-json/013-trailing-dot-before-exponent-illegal.conf": "fail",
-    "unchanged-from-json/014-negative-leading-zeros-illegal.conf": "pass",
+    "unchanged-from-json/009-leading-zero-run-is-text.conf": "pass",
+    "unchanged-from-json/010-signed-fraction-without-integer-part-is-text.conf": "pass",
+    "unchanged-from-json/011-plus-in-a-signed-fraction-is-illegal.conf": "pass",
+    "unchanged-from-json/012-trailing-dot-run-is-text.conf": "fail",
+    "unchanged-from-json/013-trailing-dot-before-exponent-is-text.conf": "fail",
+    "unchanged-from-json/014-negative-leading-zeros-are-text.conf": "pass",
     "unchanged-from-json/015-remaining-json-escapes.conf": "fail",
     "unchanged-from-json/016-unknown-escape-illegal.conf": "fail",
     "unchanged-from-json/017-non-hex-unicode-escape-illegal.conf": "fail",
@@ -572,6 +572,8 @@
     "unchanged-from-json/028-integer-beyond-64-bits-is-a-number.conf": "fail",
     "unchanged-from-json/029-unicode-escape-with-a-sign-is-invalid.conf": "fail",
     "unchanged-from-json/030-unicode-escape-with-non-ascii-digits-is-invalid.conf": "fail",
+    "unchanged-from-json/031-exponent-with-a-plus-sign.conf": "pass",
+    "unchanged-from-json/032-signed-fraction-with-exponent-is-text.conf": "pass",
     "units-format/001-number-value-is-default-unit.conf": "pass",
     "units-format/002-quoted-string-with-no-unit-uses-default-unit.conf": "pass",
     "units-format/003-string-with-unit-name-specifies-interpretation.conf": "fail",
@@ -589,7 +591,7 @@
     "unquoted-strings/009-digits-not-at-start-stay-string.conf": "pass",
     "unquoted-strings/010-embedded-null-not-recognized.conf": "pass",
     "unquoted-strings/011-unquoted-cannot-contain-backslash.conf": "fail",
-    "unquoted-strings/012-unquoted-cannot-start-with-hyphen.conf": "pass",
+    "unquoted-strings/012-hyphen-before-a-letter-is-text.conf": "pass",
     "unquoted-strings/013-negative-number-then-string.conf": "pass",
     "unquoted-strings/014-hash-starts-comment-not-forbidden-char-in-string.conf": "pass",
     "unquoted-strings/015-reserved-forbidden-char-no-current-meaning.conf": "pass",
@@ -599,10 +601,15 @@
     "unquoted-strings/019-dollar-must-start-a-substitution.conf": "pass",
     "unquoted-strings/020-plus-must-be-followed-by-equals.conf": "pass",
     "unquoted-strings/021-plus-inside-a-number-illegal.conf": "fail",
-    "unquoted-strings/022-digit-then-exponent-letter-illegal.conf": "pass",
+    "unquoted-strings/022-digit-then-exponent-letter-is-text.conf": "pass",
     "unquoted-strings/023-unquoted-string-ends-at-end-of-file.conf": "pass",
     "unquoted-strings/024-escape-sequence-in-unquoted-string-illegal.conf": "fail",
-    "unquoted-strings/025-digit-initial-invalid-number.conf": "pass",
+    "unquoted-strings/025-digit-initial-non-number-is-text.conf": "pass",
+    "unquoted-strings/026-ip-address-is-text.conf": "pass",
+    "unquoted-strings/027-uuid-is-text.conf": "pass",
+    "unquoted-strings/028-lone-hyphen-is-text.conf": "pass",
+    "unquoted-strings/029-command-line-flags-are-text.conf": "pass",
+    "unquoted-strings/030-hyphen-between-words-is-text.conf": "pass",
     "value-concatenation/001-simple-values-concatenate-to-string.conf": "pass",
     "value-concatenation/004-string-concatenation-allowed-in-field-keys.conf": "pass",
     "whitespace/001-nonbreaking-space-as-whitespace.conf": "fail",
@@ -667,18 +674,16 @@
     "string-value-concatenation/015-object-then-unquoted-text-without-space.conf": "rejected",
     "string-value-concatenation/016-text-between-arrays-is-not-dropped.conf": "rejected",
     "substitutions/039-undefined-optional-with-number-is-a-string.conf": "{\"a\":42}",
-    "unchanged-from-json/009-number-leading-zero-illegal.conf": "{\"a\":1}",
-    "unchanged-from-json/010-negative-number-without-integer-part-illegal.conf": "{\"a\":-0.33}",
-    "unchanged-from-json/011-negative-exponent-number-without-integer-part-illegal.conf": "{\"a\":-3.3}",
-    "unchanged-from-json/012-number-with-trailing-dot-illegal.conf": "{\"a\":\"1.\"}",
-    "unchanged-from-json/013-trailing-dot-before-exponent-illegal.conf": "{\"a\":\"-1.e3\"}",
-    "unchanged-from-json/014-negative-leading-zeros-illegal.conf": "{\"a\":-33}",
+    "unchanged-from-json/009-leading-zero-run-is-text.conf": "{\"a\":1}",
+    "unchanged-from-json/010-signed-fraction-without-integer-part-is-text.conf": "{\"a\":-0.33}",
+    "unchanged-from-json/011-plus-in-a-signed-fraction-is-illegal.conf": "{\"a\":-3.3}",
+    "unchanged-from-json/012-trailing-dot-run-is-text.conf": "{\"a\":\"1.\"}",
+    "unchanged-from-json/013-trailing-dot-before-exponent-is-text.conf": "{\"a\":\"-1.e3\"}",
+    "unchanged-from-json/014-negative-leading-zeros-are-text.conf": "{\"a\":-33}",
     "unchanged-from-json/028-integer-beyond-64-bits-is-a-number.conf": "{\"a\":9223372036854775808,\"b\":-9223372036854775809,\"c\":123456789012345678901234567890}",
     "unchanged-from-json/029-unicode-escape-with-a-sign-is-invalid.conf": "{\"a\":\"\\\\u+041\"}",
     "unchanged-from-json/030-unicode-escape-with-non-ascii-digits-is-invalid.conf": "{\"a\":\"\\\\u\\u00d9\\u00a0\\u00d9\\u00a0\\u00d9\\u00a4\\u00d9\\u00a1\"}",
-    "unquoted-strings/012-unquoted-cannot-start-with-hyphen.conf": "{\"a\":\"-foo\"}",
-    "unquoted-strings/022-digit-then-exponent-letter-illegal.conf": "{\"a\":\"1e\"}",
-    "unquoted-strings/025-digit-initial-invalid-number.conf": "{\"a\":\"1.2.3\"}"
+    "unchanged-from-json/032-signed-fraction-with-exponent-is-text.conf": "{\"a\":-3.3}"
   },
   "failures": [
     {
@@ -2360,7 +2365,7 @@
         "a": "null bar"
       },
       "got": {
-        "a": "<pyhocon.config_tree.NoneValue object at 0x10377f010>bar"
+        "a": "<pyhocon.config_tree.NoneValue object at 0x103a20ad0>bar"
       }
     },
     {
@@ -2578,28 +2583,28 @@
       }
     },
     {
-      "case": "unchanged-from-json/012-number-with-trailing-dot-illegal.conf",
+      "case": "unchanged-from-json/012-trailing-dot-run-is-text.conf",
       "spec": "HOCON.md#unchanged-from-json",
-      "rule": "JSON requires a digit after the decimal point; 1. is a number token that is not a valid number. typesafe/config reads it as 1, and lightbend/config#861 leaves it so on purpose",
+      "rule": "JSON requires a digit after the decimal point, so the number is 1 and the dot is text after it: the string \"1.\". typesafe/config reads it as 1, and lightbend/config#861 leaves it so on purpose",
       "expected": {
         "a": 1
       },
       "got": {
         "a": "1."
       },
-      "java": "lenient"
+      "java": "diverges"
     },
     {
-      "case": "unchanged-from-json/013-trailing-dot-before-exponent-illegal.conf",
+      "case": "unchanged-from-json/013-trailing-dot-before-exponent-is-text.conf",
       "spec": "HOCON.md#unchanged-from-json",
-      "rule": "the same rule with an exponent after the dot; typesafe/config reads it as -1000 (named out of scope in lightbend/config#861)",
+      "rule": "the same with an exponent after the dot: the number is -1 and .e3 is text after it, the string \"-1.e3\"; typesafe/config reads it as -1000 (named out of scope in lightbend/config#861)",
       "expected": {
         "a": -1000
       },
       "got": {
         "a": "-1.e3"
       },
-      "java": "lenient"
+      "java": "diverges"
     },
     {
       "case": "unchanged-from-json/015-remaining-json-escapes.conf",

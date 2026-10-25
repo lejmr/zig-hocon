@@ -1,15 +1,15 @@
 {
   "suite": "hocon-conformance",
   "implementation": "zig-hocon",
-  "version": "zig-hocon code@d844ec9",
+  "version": "zig-hocon code@a40d962",
   "mode": "java",
   "java_version": "1.4.9",
   "command": "conformance/adapters/zig-hocon.sh",
-  "ran_at": "2026-10-24T07:52:45Z",
-  "suite_digest": "1762fcc881cbda49",
-  "total": 469,
-  "passed": 410,
-  "percent": 87.4,
+  "ran_at": "2026-10-25T07:42:59Z",
+  "suite_digest": "1e463c3b5af96a46",
+  "total": 476,
+  "passed": 419,
+  "percent": 88.0,
   "sections": {
     "array-and-object-concatenation": {
       "total": 22,
@@ -128,16 +128,16 @@
       "passed": 37
     },
     "unchanged-from-json": {
-      "total": 30,
-      "passed": 21
+      "total": 32,
+      "passed": 22
     },
     "units-format": {
       "total": 6,
       "passed": 6
     },
     "unquoted-strings": {
-      "total": 25,
-      "passed": 22
+      "total": 30,
+      "passed": 30
     },
     "value-concatenation": {
       "total": 2,
@@ -550,12 +550,12 @@
     "unchanged-from-json/006-boolean-value-type.conf": "pass",
     "unchanged-from-json/007-null-value-type.conf": "pass",
     "unchanged-from-json/008-number-format-decimal-and-exponent.conf": "pass",
-    "unchanged-from-json/009-number-leading-zero-illegal.conf": "fail",
-    "unchanged-from-json/010-negative-number-without-integer-part-illegal.conf": "fail",
-    "unchanged-from-json/011-negative-exponent-number-without-integer-part-illegal.conf": "fail",
-    "unchanged-from-json/012-number-with-trailing-dot-illegal.conf": "fail",
-    "unchanged-from-json/013-trailing-dot-before-exponent-illegal.conf": "fail",
-    "unchanged-from-json/014-negative-leading-zeros-illegal.conf": "fail",
+    "unchanged-from-json/009-leading-zero-run-is-text.conf": "fail",
+    "unchanged-from-json/010-signed-fraction-without-integer-part-is-text.conf": "fail",
+    "unchanged-from-json/011-plus-in-a-signed-fraction-is-illegal.conf": "fail",
+    "unchanged-from-json/012-trailing-dot-run-is-text.conf": "fail",
+    "unchanged-from-json/013-trailing-dot-before-exponent-is-text.conf": "fail",
+    "unchanged-from-json/014-negative-leading-zeros-are-text.conf": "fail",
     "unchanged-from-json/015-remaining-json-escapes.conf": "pass",
     "unchanged-from-json/016-unknown-escape-illegal.conf": "pass",
     "unchanged-from-json/017-non-hex-unicode-escape-illegal.conf": "pass",
@@ -572,6 +572,8 @@
     "unchanged-from-json/028-integer-beyond-64-bits-is-a-number.conf": "fail",
     "unchanged-from-json/029-unicode-escape-with-a-sign-is-invalid.conf": "fail",
     "unchanged-from-json/030-unicode-escape-with-non-ascii-digits-is-invalid.conf": "fail",
+    "unchanged-from-json/031-exponent-with-a-plus-sign.conf": "pass",
+    "unchanged-from-json/032-signed-fraction-with-exponent-is-text.conf": "fail",
     "units-format/001-number-value-is-default-unit.conf": "pass",
     "units-format/002-quoted-string-with-no-unit-uses-default-unit.conf": "pass",
     "units-format/003-string-with-unit-name-specifies-interpretation.conf": "pass",
@@ -589,7 +591,7 @@
     "unquoted-strings/009-digits-not-at-start-stay-string.conf": "pass",
     "unquoted-strings/010-embedded-null-not-recognized.conf": "pass",
     "unquoted-strings/011-unquoted-cannot-contain-backslash.conf": "pass",
-    "unquoted-strings/012-unquoted-cannot-start-with-hyphen.conf": "fail",
+    "unquoted-strings/012-hyphen-before-a-letter-is-text.conf": "pass",
     "unquoted-strings/013-negative-number-then-string.conf": "pass",
     "unquoted-strings/014-hash-starts-comment-not-forbidden-char-in-string.conf": "pass",
     "unquoted-strings/015-reserved-forbidden-char-no-current-meaning.conf": "pass",
@@ -599,10 +601,15 @@
     "unquoted-strings/019-dollar-must-start-a-substitution.conf": "pass",
     "unquoted-strings/020-plus-must-be-followed-by-equals.conf": "pass",
     "unquoted-strings/021-plus-inside-a-number-illegal.conf": "pass",
-    "unquoted-strings/022-digit-then-exponent-letter-illegal.conf": "fail",
+    "unquoted-strings/022-digit-then-exponent-letter-is-text.conf": "pass",
     "unquoted-strings/023-unquoted-string-ends-at-end-of-file.conf": "pass",
     "unquoted-strings/024-escape-sequence-in-unquoted-string-illegal.conf": "pass",
-    "unquoted-strings/025-digit-initial-invalid-number.conf": "fail",
+    "unquoted-strings/025-digit-initial-non-number-is-text.conf": "pass",
+    "unquoted-strings/026-ip-address-is-text.conf": "pass",
+    "unquoted-strings/027-uuid-is-text.conf": "pass",
+    "unquoted-strings/028-lone-hyphen-is-text.conf": "pass",
+    "unquoted-strings/029-command-line-flags-are-text.conf": "pass",
+    "unquoted-strings/030-hyphen-between-words-is-text.conf": "pass",
     "value-concatenation/001-simple-values-concatenate-to-string.conf": "pass",
     "value-concatenation/004-string-concatenation-allowed-in-field-keys.conf": "pass",
     "whitespace/001-nonbreaking-space-as-whitespace.conf": "pass",
@@ -667,18 +674,16 @@
     "string-value-concatenation/015-object-then-unquoted-text-without-space.conf": "rejected",
     "string-value-concatenation/016-text-between-arrays-is-not-dropped.conf": "rejected",
     "substitutions/039-undefined-optional-with-number-is-a-string.conf": "{\"a\":\"42\"}",
-    "unchanged-from-json/009-number-leading-zero-illegal.conf": "rejected",
-    "unchanged-from-json/010-negative-number-without-integer-part-illegal.conf": "rejected",
-    "unchanged-from-json/011-negative-exponent-number-without-integer-part-illegal.conf": "rejected",
-    "unchanged-from-json/012-number-with-trailing-dot-illegal.conf": "rejected",
-    "unchanged-from-json/013-trailing-dot-before-exponent-illegal.conf": "rejected",
-    "unchanged-from-json/014-negative-leading-zeros-illegal.conf": "rejected",
+    "unchanged-from-json/009-leading-zero-run-is-text.conf": "{\"a\":\"01\"}",
+    "unchanged-from-json/010-signed-fraction-without-integer-part-is-text.conf": "{\"a\":\"-.33\"}",
+    "unchanged-from-json/011-plus-in-a-signed-fraction-is-illegal.conf": "rejected",
+    "unchanged-from-json/012-trailing-dot-run-is-text.conf": "{\"a\":\"1.\"}",
+    "unchanged-from-json/013-trailing-dot-before-exponent-is-text.conf": "{\"a\":\"-1.e3\"}",
+    "unchanged-from-json/014-negative-leading-zeros-are-text.conf": "{\"a\":\"-0033\"}",
     "unchanged-from-json/028-integer-beyond-64-bits-is-a-number.conf": "{\"a\":9223372036854775808,\"b\":-9223372036854775809,\"c\":123456789012345678901234567890}",
     "unchanged-from-json/029-unicode-escape-with-a-sign-is-invalid.conf": "rejected",
     "unchanged-from-json/030-unicode-escape-with-non-ascii-digits-is-invalid.conf": "rejected",
-    "unquoted-strings/012-unquoted-cannot-start-with-hyphen.conf": "rejected",
-    "unquoted-strings/022-digit-then-exponent-letter-illegal.conf": "rejected",
-    "unquoted-strings/025-digit-initial-invalid-number.conf": "rejected"
+    "unchanged-from-json/032-signed-fraction-with-exponent-is-text.conf": "{\"a\":\"-.33e1\"}"
   },
   "failures": [
     {
@@ -1388,29 +1393,33 @@
       "java": "diverges"
     },
     {
-      "case": "unchanged-from-json/009-number-leading-zero-illegal.conf",
+      "case": "unchanged-from-json/009-leading-zero-run-is-text.conf",
       "spec": "HOCON.md#unchanged-from-json",
-      "rule": "allowed number formats match JSON, and JSON forbids a zero followed by further digits; the initial number character plus the valid-in-JSON number characters after it must be parsed as a number value, so the whole token 01 has to be a number and is not one, with no fallback offered. typesafe/config parses it leniently as the number 1.",
+      "rule": "JSON reads only the 0 of 01 as a number, a zero is not followed by digits; what follows is text after the number, as 10.0bar is the number 10.0 then bar (unquoted-strings.9), and a number keeps the text it was written with in a concatenation, so the value is the string \"01\". typesafe/config reads the number 1.",
       "expected": {
         "a": 1
       },
-      "got": "rejected (exit 1)",
-      "java": "lenient"
+      "got": {
+        "a": "01"
+      },
+      "java": "diverges"
     },
     {
-      "case": "unchanged-from-json/010-negative-number-without-integer-part-illegal.conf",
+      "case": "unchanged-from-json/010-signed-fraction-without-integer-part-is-text.conf",
       "spec": "HOCON.md#unchanged-from-json",
-      "rule": "allowed number formats match JSON, and JSON requires a digit before the decimal point, so -.33 is a number token that is not a valid number. typesafe/config releases up to 1.4.9 parse it as -0.33; upstream main since lightbend/config#861 (unreleased) reads it as the unquoted string \"-.33\", like .33 -- still accepted, still not the error the hyphen rule asks for",
+      "rule": "allowed number formats match JSON, and JSON requires a digit before the decimal point, so -.33 is no number; it holds no forbidden character and its initial characters parse as no number, so it is the unquoted string \"-.33\", as .33 is (unquoted-strings/018). typesafe/config releases up to 1.4.9 parse it as -0.33; upstream main since lightbend/config#861 (unreleased) reads the string",
       "expected": {
         "a": -0.33
       },
-      "got": "rejected (exit 1)",
-      "java": "lenient"
+      "got": {
+        "a": "-.33"
+      },
+      "java": "diverges"
     },
     {
-      "case": "unchanged-from-json/011-negative-exponent-number-without-integer-part-illegal.conf",
+      "case": "unchanged-from-json/011-plus-in-a-signed-fraction-is-illegal.conf",
       "spec": "HOCON.md#unchanged-from-json",
-      "rule": "the same JSON rule with an exponent: -.33e+1 has no integer part. typesafe/config releases up to 1.4.9 parse it as -3.3; upstream main since lightbend/config#861 (unreleased) rejects it, on the reserved +",
+      "rule": "-.33e+1 has no integer part, so it is no JSON number, and as text it would hold a +, a forbidden character outside the exponent of a number; without the + it is text (032). typesafe/config releases up to 1.4.9 parse it as -3.3; upstream main since lightbend/config#861 (unreleased) rejects it, on the reserved +",
       "expected": {
         "a": -3.3
       },
@@ -1418,34 +1427,40 @@
       "java": "lenient"
     },
     {
-      "case": "unchanged-from-json/012-number-with-trailing-dot-illegal.conf",
+      "case": "unchanged-from-json/012-trailing-dot-run-is-text.conf",
       "spec": "HOCON.md#unchanged-from-json",
-      "rule": "JSON requires a digit after the decimal point; 1. is a number token that is not a valid number. typesafe/config reads it as 1, and lightbend/config#861 leaves it so on purpose",
+      "rule": "JSON requires a digit after the decimal point, so the number is 1 and the dot is text after it: the string \"1.\". typesafe/config reads it as 1, and lightbend/config#861 leaves it so on purpose",
       "expected": {
         "a": 1
       },
-      "got": "rejected (exit 1)",
-      "java": "lenient"
+      "got": {
+        "a": "1."
+      },
+      "java": "diverges"
     },
     {
-      "case": "unchanged-from-json/013-trailing-dot-before-exponent-illegal.conf",
+      "case": "unchanged-from-json/013-trailing-dot-before-exponent-is-text.conf",
       "spec": "HOCON.md#unchanged-from-json",
-      "rule": "the same rule with an exponent after the dot; typesafe/config reads it as -1000 (named out of scope in lightbend/config#861)",
+      "rule": "the same with an exponent after the dot: the number is -1 and .e3 is text after it, the string \"-1.e3\"; typesafe/config reads it as -1000 (named out of scope in lightbend/config#861)",
       "expected": {
         "a": -1000
       },
-      "got": "rejected (exit 1)",
-      "java": "lenient"
+      "got": {
+        "a": "-1.e3"
+      },
+      "java": "diverges"
     },
     {
-      "case": "unchanged-from-json/014-negative-leading-zeros-illegal.conf",
+      "case": "unchanged-from-json/014-negative-leading-zeros-are-text.conf",
       "spec": "HOCON.md#unchanged-from-json",
-      "rule": "JSON forbids leading zeros after the minus sign as well; typesafe/config reads it as -33 (named out of scope in lightbend/config#861)",
+      "rule": "JSON forbids leading zeros after the minus sign as well, so the number is -0 and 033 text after it; a number keeps its text in a concatenation, so the value is the string \"-0033\". typesafe/config reads it as -33 (named out of scope in lightbend/config#861)",
       "expected": {
         "a": -33
       },
-      "got": "rejected (exit 1)",
-      "java": "lenient"
+      "got": {
+        "a": "-0033"
+      },
+      "java": "diverges"
     },
     {
       "case": "unchanged-from-json/028-integer-beyond-64-bits-is-a-number.conf",
@@ -1484,34 +1499,16 @@
       "java": "lenient"
     },
     {
-      "case": "unquoted-strings/012-unquoted-cannot-start-with-hyphen.conf",
-      "spec": "HOCON.md#unquoted-strings",
-      "rule": "an unquoted string may not begin with a hyphen, and the initial number character plus any valid-in-JSON number characters that follow must be parsed as a number value -- here that is the lone '-', which is not a number. typesafe/config falls back to unquoted text and yields the string '-foo', the same leniency it shows for '1e'.",
+      "case": "unchanged-from-json/032-signed-fraction-with-exponent-is-text.conf",
+      "spec": "HOCON.md#unchanged-from-json",
+      "rule": "the same as 010 with an exponent: -.33e1 has no integer part and is no JSON number, and it holds no forbidden character, so it is the string \"-.33e1\"; with a + in the exponent it is an error (011). typesafe/config releases up to 1.4.9 parse it as -3.3; upstream main since lightbend/config#861 (unreleased) reads the string",
       "expected": {
-        "a": "-foo"
+        "a": -3.3
       },
-      "got": "rejected (exit 1)",
-      "java": "lenient"
-    },
-    {
-      "case": "unquoted-strings/022-digit-then-exponent-letter-illegal.conf",
-      "spec": "HOCON.md#unquoted-strings",
-      "rule": "1e begins with a digit, so the run of number characters 1e must be parsed as a number, and it is not one; typesafe/config falls back to the unquoted string \"1e\", the same leniency it shows for -foo",
-      "expected": {
-        "a": "1e"
+      "got": {
+        "a": "-.33e1"
       },
-      "got": "rejected (exit 1)",
-      "java": "lenient"
-    },
-    {
-      "case": "unquoted-strings/025-digit-initial-invalid-number.conf",
-      "spec": "HOCON.md#unquoted-strings",
-      "rule": "an unquoted string may not begin with the digits 0-9, and the initial number character plus any valid-in-JSON number characters that follow it must be parsed as a number value -- 1.2.3 is that run, and it is not a number, so the input is rejected rather than read as a string (the everyday shape is an address like 127.0.0.1); typesafe/config and pyhocon both fall back to the unquoted string \"1.2.3\"",
-      "expected": {
-        "a": "1.2.3"
-      },
-      "got": "rejected (exit 1)",
-      "java": "lenient"
+      "java": "diverges"
     }
   ]
 }

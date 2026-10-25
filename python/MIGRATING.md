@@ -4,7 +4,7 @@ This guide moves a project from pyhocon to zig_hocon. For most code it is a chan
 
 ## Why move
 
-- **Correct.** zig_hocon passes all 469 tests in the [conformance suite](https://htmlpreview.github.io/?https://github.com/lejmr/zig-hocon/blob/main/conformance/report.html), pyhocon 324.
+- **Correct.** zig_hocon passes all 476 tests in the [conformance suite](https://htmlpreview.github.io/?https://github.com/lejmr/zig-hocon/blob/main/conformance/report.html), pyhocon 335.
 - **Fast.** A 10 MB config loads in 0.3 s. pyhocon takes 68 s, and 867 s when the file has substitutions.
 - **No crash on a layered config.** A list from an included file, extended with `+=`, stops pyhocon 0.3.63 with an `AttributeError`:
 
@@ -27,7 +27,6 @@ This guide moves a project from pyhocon to zig_hocon. For most code it is a chan
   | `a..b = 1` | `{"a": {"b": 1}}` | error at 1:3 |
   | `a = b:c` | `{"a": "b:c"}` | error at 1:6 (`:` is reserved) |
   | `,a = b` | `{"a": "b"}` | error at 1:1 |
-  | `host = 127.0.0.1` | `{"host": "127.0.0.1"}` | error at 1:8 (`BadNumber`) |
   | `a = b<TAB>c` | `"b   c"`, the tab became spaces | `"b\tc"` |
 
 - **One exception to catch.** Every error is a `ConfigException`, with the file, line and column. A syntax error in pyhocon is pyparsing's `ParseSyntaxException`, which `except ConfigException` misses.
@@ -91,7 +90,7 @@ settings["db"]["host"]
 - **Durations and sizes are text until something asks.** pyhocon turns `30s` into a `timedelta` while it parses; here `as_dict()` has `"30s"`, and `get_duration` or the model converts it. With pydantic, a `BeforeValidator(zig_hocon.parse_duration)` on the field; [examples/durations-and-sizes](examples/durations-and-sizes) has it for pydantic and msgspec.
 - **A concatenation is a string.** `a = ${?nope}42` is `"42"` by the spec; pyhocon gives the number `42`. A model that wants an int converts it.
 - **An `include url(…)` gives up after 30 s.** pyhocon waits as long as `socket.setdefaulttimeout` says, by default for ever. Here `http_timeout=` on `parse_file` and `parse_string` sets it, and a server that does not answer in time is a `ConfigParseException` named `IncludeTimeout`.
-- **An IP address needs quotes.** A value that begins with a digit is a number by the spec, so `host = 127.0.0.1` is a `BadNumber` error; pyhocon and typesafe/config read it as text. Write `host = "127.0.0.1"`.
+- **A leading zero keeps the text.** A value that begins with a digit begins with the number JSON reads there, and the rest is text, so `zip = 01234` is `"01234"` by the spec; pyhocon gives the number 1234. An IP address, a version or a UUID is text as written, as in pyhocon. So is a value that begins with `-` and no number, `-foo` or `-Xmx2g`, and a fraction JSON has no number for: `.5` and `-.5` are the text `".5"` and `"-.5"`, where pyhocon gives 0.5 and -0.5. Text becomes a number only by the JSON rules, so `get_int("zip")` on `01234` and `get_float` on `-.5` raise `ConfigWrongTypeException`, where pyhocon gives 1234 and -0.5: write `zip = "01234"` and read it with `get_string`, or `-0.5`.
 - **Strict syntax.** The other inputs in the table under *No silent guesses* are errors now. They are rare, and each error says where to look.
 
 Everything else (variables, `+=`, includes, merging) reads the same, except where pyhocon breaks the spec; the conformance report lists those cases.

@@ -1,4 +1,4 @@
-//! What a number is, for the parser (`checkNumber`) and for JSON output
+//! What a number is, for the parser (`checkPlus`) and for JSON output
 //! (`isJsonNumber`).
 
 const std = @import("std");
@@ -37,32 +37,25 @@ fn skipDigits(text: []const u8, from: usize) usize {
     return i;
 }
 
+/// `LeadingZeroIsNotAJsonNumber` and `HyphenIsNotAJsonNumber` are no longer
+/// returned: `01` and `-foo` are text now. They stay in the set so a switch
+/// over these errors keeps compiling.
 pub const NumberError = error{ LeadingZeroIsNotAJsonNumber, HyphenIsNotAJsonNumber, BadNumber };
 
-/// A word that starts with a digit or `-` starts with a number: the run of
-/// characters JSON allows in one (`0-9 + - . e E`) is parsed as a number, with
-/// no fallback to text. So `1e`, `01`, `1.`, `-.5` and `-foo` are errors.
+/// A word that is a JSON number is a number, and any other word is text (spec
+/// L250, decided 2026-10-24/25). A word that starts with a digit starts with
+/// the characters JSON reads as a number (`1.2` of `1.2.3`, `0` of `01`, `5` of
+/// `5EB`), and what follows is text after it, as `10.0bar` is the number `10.0`
+/// then `bar` (L260). So `127.0.0.1`, `1.2.3`, `01` and `1e` are text, which
+/// the spec needs: `1.2.3` as a key is the path `1`, `2`, `3` (L502), and a key
+/// is written as a value is (L478). A `-` begins no number before anything but
+/// a digit, so `-foo`, `-` and `-.5` are text by L250 too.
 ///
-/// Text after the run concatenates with the number it starts with, as in `5EB`
-/// or `10.0bar` — which needs a number to be there: `-foo` has none. Nor may
-/// the run hold a `+` then: `1e+5.x`.
-pub fn checkNumber(word: []const u8) NumberError!void {
-    if (word.len == 0 or !(std.ascii.isDigit(word[0]) or word[0] == '-')) return;
-    const end = std.mem.indexOfNone(u8, word, "0123456789+-.eE") orelse word.len;
-    const run = word[0..end];
-    if (isJsonNumber(run)) return;
-    try checkPlus(word);
-    if (end < word.len and std.ascii.isDigit(word[@intFromBool(word[0] == '-')])) return;
-    if (run.len == 1) return error.HyphenIsNotAJsonNumber;
-    if (run[0] == '0' and std.ascii.isDigit(run[1])) return error.LeadingZeroIsNotAJsonNumber;
-    return error.BadNumber;
-}
-
-/// In text `+` is reserved; it stands only in the exponent of a number. So a
-/// word that starts with a run holding one (see `checkNumber`) needs the run to
-/// be a number: `1e+5x` is the number and `x`, `1e+5.x` is an error where
-/// `1e5.x` is text. In a key and a `${…}` path too, where nothing else about
-/// numbers holds: `1e+5.5 = 1` is an error, `1.5 = 1` a path.
+/// What is left is `+`: in text it is reserved (L245), it stands only in the
+/// exponent of a number. So a word that starts with a run holding one needs
+/// the run to be a number: `1e+5x` is the number and `x`, `1e+5.x` and
+/// `-.5e+1` are errors where `1e5.x` and `-.5e1` are text. In a key and a
+/// `${…}` path too: `1e+5.5 = 1` is an error, `1.5 = 1` a path.
 pub fn checkPlus(word: []const u8) NumberError!void {
     if (word.len == 0 or !(std.ascii.isDigit(word[0]) or word[0] == '-')) return;
     const end = std.mem.indexOfNone(u8, word, "0123456789+-.eE") orelse word.len;
