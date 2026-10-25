@@ -4,11 +4,11 @@
   "version": "pyhocon 0.3.63",
   "mode": "spec",
   "command": "conformance/adapters/oracle.sh hocon-py",
-  "ran_at": "2026-10-25T07:38:56Z",
-  "suite_digest": "1e463c3b5af96a46",
-  "total": 476,
-  "passed": 335,
-  "percent": 70.4,
+  "ran_at": "2026-10-25T09:43:43Z",
+  "suite_digest": "088483db7c04ff14",
+  "total": 478,
+  "passed": 337,
+  "percent": 70.5,
   "sections": {
     "array-and-object-concatenation": {
       "total": 22,
@@ -119,8 +119,8 @@
       "passed": 15
     },
     "substitution-fallback-to-environment": {
-      "total": 8,
-      "passed": 7
+      "total": 10,
+      "passed": 9
     },
     "substitutions": {
       "total": 38,
@@ -503,6 +503,8 @@
     "substitution-fallback-to-environment/006-empty-env-var-is-empty-string.conf": "pass",
     "substitution-fallback-to-environment/007-empty-env-var-creates-optional-field.conf": "pass",
     "substitution-fallback-to-environment/008-env-vars-always-become-strings.conf": "pass",
+    "substitution-fallback-to-environment/009-self-reference-reads-env.conf": "pass",
+    "substitution-fallback-to-environment/010-optional-self-reference-reads-env.conf": "pass",
     "substitutions/001-basic-substitution.conf": "pass",
     "substitutions/002-optional-substitution-syntax.conf": "pass",
     "substitutions/003-optional-substitution-whitespace-illegal.conf": "pass",
@@ -672,6 +674,8 @@
     "string-value-concatenation/014-array-then-unquoted-text-without-space.conf": "rejected",
     "string-value-concatenation/015-object-then-unquoted-text-without-space.conf": "rejected",
     "string-value-concatenation/016-text-between-arrays-is-not-dropped.conf": "rejected",
+    "substitution-fallback-to-environment/009-self-reference-reads-env.conf": "{\"CONFORMANCE_HOME\":\"/from/env\"}",
+    "substitution-fallback-to-environment/010-optional-self-reference-reads-env.conf": "{\"CONFORMANCE_HOME\":\"/from/env\"}",
     "substitutions/039-undefined-optional-with-number-is-a-string.conf": "{\"a\":42}",
     "unchanged-from-json/009-leading-zero-run-is-text.conf": "{\"a\":1}",
     "unchanged-from-json/010-signed-fraction-without-integer-part-is-text.conf": "{\"a\":-0.33}",
@@ -2108,7 +2112,7 @@
         "a": "null bar"
       },
       "got": {
-        "a": "<pyhocon.config_tree.NoneValue object at 0x105c1de90>bar"
+        "a": "<pyhocon.config_tree.NoneValue object at 0x101219f90>bar"
       }
     },
     {

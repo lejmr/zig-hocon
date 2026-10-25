@@ -16,6 +16,7 @@ What changed for someone using zig-hocon: the Zig package, the `hocon` command l
 
 - An object after a substitution, `top = ${x} { … }`, is a merge, the same as `top = ${x}` and `top { … }` written as two fields. A `+=` inside it appends to the list `${x}` gives (`top = ${x} { arr += four }` was `[four]`, is `[one, four]`), a self-reference looks back at it, and `${top.n}` inside it sees the merged object instead of reporting a cycle. Eight new conformance cases pin it.
 - Layers of a key are merged before they are resolved, as the spec has it: in `p : { a : ${y} }`, `p : ${x}` with `x.a` set, `${y}` is hidden and no longer evaluated (it was an error), and a reference in the earlier object sees the final value. Three more conformance cases, all 457 pass.
+- A field that refers to itself with nothing before it reads the environment variable of its own name, as the spec has it: `HOME : ${HOME}` is the variable `HOME`, where it was `Unresolved`, and `HOME : ${?HOME}` creates the field instead of dropping it, as pyhocon does. A value set earlier still wins, and `HOME += x` with `HOME` set is now an error: `+=` is `HOME = ${?HOME} [x]`, text and a list. Two new conformance cases, all 478 pass. Two new conformance cases pin it.
 
 ## [0.5.2] - 2026-10-23
 
