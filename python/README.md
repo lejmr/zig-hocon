@@ -118,7 +118,7 @@ Either way, a config reads by the spec, and in a few places pyhocon reads it oth
 
 - **Durations are text in the package's own API.** `30s` is `"30s"` until a getter or a model reads it; `zig_hocon.pyhocon` makes it a `timedelta`, as pyhocon does.
 - **`+=` appends one element.** `x += [3, 4]` adds the list `[3, 4]` to `x`; `x = ${x} [3, 4]` extends it.
-- **Strict syntax.** Input pyhocon quietly accepted, such as `a..b = 1`, `a = b:c` or an unquoted `-Xmx1g`, is an error with its line and column.
+- **Strict syntax.** Input pyhocon quietly accepted, such as `a..b = 1` or `a = b:c`, is an error with its line and column.
 - **No `include package(...)`.** It is pyhocon's own; include by path.
 
 The [migration guide](https://github.com/lejmr/zig-hocon/blob/main/python/MIGRATING.md) has every difference, with what to write instead.
