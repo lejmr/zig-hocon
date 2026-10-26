@@ -63,9 +63,21 @@ cycles: usize = 0,
 optionals: std.ArrayList(usize) = .empty,
 // The one of `optionals` a cycle is unwinding to.
 breaking: ?usize = null,
+// The lowest place in `visiting` a cycle closed at, while the innermost
+// optional being followed was: one below where that optional began led
+// back to its own field (`resolveOptional`).
+closed: ?usize = null,
 // Objects walked again from inside a look-back of a field in them, and the
 // ref that led back (`walkAgain`).
 again: std.ArrayList(struct { place: *Value, ref: Ref }) = .empty,
+// What a place resolved to when it was walked again inside the look-back of a
+// field outside it: its value, resolved once (`walkAgain`, `resolveField`).
+walked: std.AutoHashMapUnmanaged(*Value, Value) = .empty,
+// Fields that resolved to nothing, an optional with nothing behind it: that
+// is their value too, and resolving them again later, once the cycle that
+// made it so is over, would find something (`resolveField`). True when a
+// cycle made it so: the field is in the document, never a variable.
+vanished: std.AutoHashMapUnmanaged(*Value, bool) = .empty,
 // Where a path that is not in the document is looked up.
 env: Env,
 // Where the error points; written once, where the error starts.
@@ -105,6 +117,8 @@ fn deinit(state: *Resolver) void {
     state.fields.deinit(gpa);
     state.optionals.deinit(gpa);
     state.again.deinit(gpa);
+    state.walked.deinit(gpa);
+    state.vanished.deinit(gpa);
     state.kept.deinit(gpa);
     var it = state.index.valueIterator();
     while (it.next()) |members| members.deinit(gpa);
@@ -159,7 +173,7 @@ pub fn resolveValue(state: *Resolver, value: Value) Error!?Value {
                 // Walked again: a field that looks back is what it looks back at.
                 if (state.again.items.len > 0 and looksBackAt(state, &m.value)) {
                     const ref = state.again.items[state.again.items.len - 1].ref;
-                    const seen_as = try state.seen(&m.value, ref) orelse continue;
+                    const seen_as = try state.seen(&m.value, ref, false) orelse continue;
                     if (try state.resolveValue(seen_as.*)) |val| try resolved.append(gpa, .{ .key = m.key, .value = val });
                     continue;
                 }
@@ -246,13 +260,25 @@ pub fn resolveRef(state: *Resolver, r: Ref, on_top: bool) Error!?Value {
 // is a missing value for an optional (spec L714): so it finds nothing, even
 // when a ref further on is the one that came round. `v { x = ${?r} }`,
 // `r = ${v}` is `v = {}` whichever field is resolved first.
+//
+// One that led back to the field it stands in, through a cycle another
+// optional on the way broke, is nonexistent as well (spec L716: "If ${?foo}
+// refers to itself then it's as if it referred to a nonexistent value"), so
+// `f = ${?a.t}x`, `a = ${?y}${?f}` is `f = "x"` whichever field goes first.
 noinline fn resolveOptional(state: *Resolver, r: Ref, on_top: bool) Error!?Value {
     const mark = state.optionals.items.len;
-    try state.optionals.append(state.gpa, state.visiting.items.len);
+    const start = state.visiting.items.len;
+    try state.optionals.append(state.gpa, start);
     defer state.optionals.shrinkRetainingCapacity(mark);
     const fields = state.fields.items.len;
     const err_pos = state.err_pos.*;
-    return state.followRef(r, on_top) catch |err| {
+    const outer = state.closed;
+    state.closed = null;
+    // What closed in here closed for the optionals around it too.
+    defer if (outer) |o| {
+        if (state.closed == null or o < state.closed.?) state.closed = o;
+    };
+    const val = state.followRef(r, on_top) catch |err| {
         if (err != error.SubstitutionCycle or state.breaking != mark) return err;
         state.breaking = null;
         state.err_pos.* = err_pos;
@@ -261,6 +287,35 @@ noinline fn resolveOptional(state: *Resolver, r: Ref, on_top: bool) Error!?Value
         state.cycles += 1;
         return null;
     };
+    if (state.closed) |closed| if (closed < start) {
+        state.cycles += 1;
+        return null;
+    };
+    return val;
+}
+
+// A cycle closed at the i-th place in `visiting`, and an optional found
+// nothing there (`resolveOptional`).
+pub fn closeAt(state: *Resolver, i: usize) void {
+    state.cycles += 1;
+    if (state.closed == null or i < state.closed.?) state.closed = i;
+}
+
+// A required ref closed a cycle at the i-th place in `visiting`: the last
+// optional that began after it is on the cycle, and it breaks there, unless a
+// field on the cycle can look back (`resolveOptional`).
+pub fn markBreaking(state: *Resolver, i: usize) void {
+    const last = state.optionals.items.len;
+    const looking_back = for (state.visiting.items[i + 1 ..]) |p| {
+        if (looksBackAt(state, p)) break true;
+    } else false;
+    if (!looking_back and last > 0 and state.optionals.items[last - 1] > i) state.breaking = last - 1;
+}
+
+// Where `place` is in `visiting`, if it is there.
+pub fn visitingAt(state: *Resolver, place: *Value) ?usize {
+    for (state.visiting.items, 0..) |p, i| if (p == place) return i;
+    return null;
 }
 
 noinline fn followRef(state: *Resolver, r: Ref, on_top: bool) Error!?Value {
@@ -336,7 +391,7 @@ fn follow(state: *Resolver, ref: Ref, path: []const Key) Error!Found {
     // An optional that found nothing leaves no field: not in the document.
     // Unless it hit a cycle on the way, then the field is just gone.
     const cycles = state.cycles;
-    const val = try state.resolveTarget(target, ref) orelse
+    const val = try state.resolveTarget(target, ref, true) orelse
         return if (state.cycles > cycles) .gone else .absent;
     return .{ .value = val };
 }
@@ -344,12 +399,19 @@ fn follow(state: *Resolver, ref: Ref, path: []const Key) Error!Found {
 // Resolves the place a ref points to and stores it back, next ref there is for free.
 // `ref` is the one that asked, the one that closes a cycle. An optional one
 // finds nothing there instead (spec L714): `a = [${?a}]` is `[]`.
-fn resolveTarget(state: *Resolver, target: *Value, ref: Ref) Error!?Value {
+//
+// `whole`: the path ends at the target. Only then does a ref to an object a
+// place being resolved is in come back round; on the way through it the path
+// goes into it and resolves what it passes, as objects may refer to paths
+// within themselves (spec L815).
+fn resolveTarget(state: *Resolver, target: *Value, ref: Ref, whole: bool) Error!?Value {
     const gpa = state.gpa;
     for (state.visiting.items, 0..) |place, i| {
-        if (place == target) {
+        // A ref to a place being resolved, or to an object it is in, comes
+        // back round (spec L697: the lookup document is an ancestor).
+        if (place == target or (whole and holds(target.*, place))) {
             if (ref.flags.optional) {
-                state.cycles += 1;
+                state.closeAt(i);
                 return null;
             }
             // A field on the cycle that can look back breaks it first
@@ -357,11 +419,7 @@ fn resolveTarget(state: *Resolver, target: *Value, ref: Ref) Error!?Value {
             // else that is not done, and the cycle stays one.
             if (try state.walkAgain(target, ref, i)) |val| return val;
             // Else an optional that began after the target did is on it.
-            const last = state.optionals.items.len;
-            const looking_back = for (state.visiting.items[i + 1 ..]) |p| {
-                if (looksBackAt(state, p)) break true;
-            } else false;
-            if (!looking_back and last > 0 and state.optionals.items[last - 1] > i) state.breaking = last - 1;
+            state.markBreaking(i);
             state.err_pos.* = ref.at();
             return Error.SubstitutionCycle;
         }
@@ -381,14 +439,23 @@ const Place = union(enum) { absent, gone, waits, place: *Value };
 // a at [] (the implementation the spec sketches, L693). `i` is where the
 // object is in `visiting`; null where nothing in it looks back, or it is
 // being walked again already, and the cycle cannot be broken.
+//
+// A target the field is not in, `a = [${p}]`, `p = 1`, `p = ${a}`: walked again
+// too, the field it led to seen at its earlier value, and what it resolves to
+// there is its value, as a substitution is resolved once (spec L886): `a` is
+// `[1]`, whichever field goes first.
 fn walkAgain(state: *Resolver, target: *Value, ref: Ref, i: usize) Error!?Value {
-    if (target.* != .object) return null;
+    // A list the same as an object (spec L684, L801): `a = [{c = 2, c = ${a}}]`.
+    if (target.* != .object and target.* != .array) return null;
     for (state.again.items) |a| if (a.place == target) return null;
     for (state.visiting.items[i + 1 ..]) |place| {
-        if (!looksBackAt(state, place) or !holds(target.*, place)) continue;
+        if (!looksBackAt(state, place)) continue;
+        const inside = holds(target.*, place);
         try state.again.append(state.gpa, .{ .place = target, .ref = ref });
         defer _ = state.again.pop();
-        return try state.resolveValue(target.*);
+        const val = try state.resolveValue(target.*) orelse return null;
+        if (!inside) try state.walked.put(state.gpa, target, val);
+        return val;
     }
     return null;
 }
@@ -426,12 +493,12 @@ fn lookup(state: *Resolver, ref: Ref, path: []const Key) Error!Place {
         // nothing there it is as if the path were not in the document
         // (spec L767), so it reads the variable; a cycle on the way is gone.
         const before = state.cycles;
-        current = try state.seen(current, ref) orelse
+        current = try state.seen(current, ref, false) orelse
             return if (state.cycles > before) .gone else .absent;
         if (try state.throughAlias(ref, current, path[k..])) |found| return found;
         if (current.* == .ref or current.* == .pending or current.* == .stack) {
             const cycles = state.cycles;
-            const val = try state.resolveTarget(current, ref) orelse
+            const val = try state.resolveTarget(current, ref, false) orelse
                 return if (state.cycles > cycles) .gone else .absent;
             if (waits(val)) return .waits;
         }
@@ -446,7 +513,7 @@ fn lookup(state: *Resolver, ref: Ref, path: []const Key) Error!Place {
         current = members.value_ptr.get(key.value) orelse return .absent;
     }
     const before = state.cycles;
-    const place = try state.seen(current, ref) orelse
+    const place = try state.seen(current, ref, true) orelse
         return if (state.cycles > before) .gone else .absent;
     return .{ .place = place };
 }
@@ -457,8 +524,8 @@ fn lookup(state: *Resolver, ref: Ref, path: []const Key) Error!Place {
 // goes (spec L815). Null where the path goes on through `a` as it is: an
 // optional, a `+=`, a ref from an included file or one kept for later.
 fn throughAlias(state: *Resolver, ref: Ref, place: *Value, rest: []const Key) Error!?Place {
-    if (place.* != .ref or state.env == .keep) return null;
-    const alias = place.ref;
+    if (state.env == .keep) return null;
+    const alias = aliasOf(place.*) orelse return null;
     if (alias.flags.optional or alias.flags.append or alias.scope_len > 0) return null;
     // Resolving it already, it is a cycle, which `resolveTarget` says.
     for (state.visiting.items) |p| if (p == place) return null;
@@ -466,6 +533,26 @@ fn throughAlias(state: *Resolver, ref: Ref, place: *Value, rest: []const Key) Er
     try state.visiting.append(gpa, place);
     defer _ = state.visiting.pop();
     return try state.lookup(ref, try std.mem.concat(gpa, Key, &.{ alias.path, rest }));
+}
+
+// The ref an alias is: `a = ${p}`, also written more than once, which merges
+// p onto p and is p still. Null for anything else.
+fn aliasOf(value: Value) ?Ref {
+    switch (value) {
+        .ref => |r| return r,
+        .stack => |layers| {
+            if (layers[0] != .ref) return null;
+            const first = layers[0].ref;
+            for (layers[1..]) |layer| {
+                if (layer != .ref or layer.ref.path.len != first.path.len) return null;
+                for (layer.ref.path, first.path) |a, b| {
+                    if (!std.mem.eql(u8, a.value, b.value)) return null;
+                }
+            }
+            return first;
+        },
+        else => return null,
+    }
 }
 
 // A new place holding `value`, resolved already, for a path to find.
@@ -501,6 +588,37 @@ pub fn expectResolved(src: [:0]const u8, expected: []const u8) !void {
     try root.resolve(gpa, .none, &err_pos);
     try testing.expectEqualStrings(expected, try std.json.Stringify.valueAlloc(gpa, root, .{}));
 }
+/// Parses `src`, resolves it and prints it as JSON.
+fn resolvedJson(gpa: Allocator, src: [:0]const u8) ![]const u8 {
+    var parser = Ast.Parser{ .gpa = gpa, .t = .{ .t = Tokenizer.Tokenizer.init(src) } };
+    var root = try build(gpa, try parser.parse());
+    var err_pos: ?Value.Pos = null;
+    try root.resolve(gpa, .none, &err_pos);
+    return try std.json.Stringify.valueAlloc(gpa, root, .{});
+}
+
+/// The same JSON, whatever order the keys come in.
+fn sameJson(a: std.json.Value, b: std.json.Value) bool {
+    switch (a) {
+        .object => |members| {
+            if (b != .object or b.object.count() != members.count()) return false;
+            var it = members.iterator();
+            while (it.next()) |entry| {
+                const other = b.object.get(entry.key_ptr.*) orelse return false;
+                if (!sameJson(entry.value_ptr.*, other)) return false;
+            }
+            return true;
+        },
+        .array => |items| {
+            if (b != .array or b.array.items.len != items.items.len) return false;
+            for (items.items, b.array.items) |x, y| if (!sameJson(x, y)) return false;
+            return true;
+        },
+        .string => |text| return b == .string and std.mem.eql(u8, text, b.string),
+        else => return std.meta.eql(a, b),
+    }
+}
+
 pub fn expectResolveError(src: [:0]const u8, expected: anyerror) !void {
     var arena = std.heap.ArenaAllocator.init(testing.allocator);
     defer arena.deinit();
@@ -623,15 +741,46 @@ test "resolve.a look-back that refers to its own object" {
     try expectResolveError("a { b = ${a} }", error.SubstitutionCycle);
     try expectResolveError("o { a = [], a += ${o}, c = ${o} }", error.SubstitutionCycle);
 }
-// Zig only for the errors (java ✓ on the first two values, ✗ on the rest: it
-// reports the cycles with the fields in this order) · spec ✓ — a cycle is broken
-// by looking back where that gives every field one value, and only there: a
-// field resolved anew a second time, a re-walk of an object the look-back is not
-// in, or an optional the look-back would have reached first stay cycles.
+// self-referential-examples/040, 043, 045–048 · java ✓ (all but the `f =
+// ${?a.t}` row, where it gives f = 1) · spec ✓ — the same lines in either
+// order give the same values: an optional that leads back to its own field is
+// nonexistent (L716), and a target walked again inside a look-back keeps that
+// value (L886), whichever field is resolved first.
+test "resolve.a cycle gives the same values in either order" {
+    const pairs = [_]struct { [:0]const u8, [:0]const u8, []const u8 }{
+        .{ "o = ${a.n}\n", "a { n = { h = 0 } ${?a} }\n", "{\"o\":{\"h\":0},\"a\":{\"n\":{\"h\":0}}}" },
+        .{ "f = ${?a.t}x\n", "a = ${?y}${?f}\ny { t = 1 }\n", "{\"f\":\"x\",\"a\":{\"t\":1},\"y\":{\"t\":1}}" },
+        .{ "f = ${?a.t}\n", "a = ${?y}${?f}\ny { t = 1 }\n", "{\"a\":{\"t\":1},\"y\":{\"t\":1}}" },
+        .{ "d = yes${?c}\n", "c = ${d}\n", "{\"d\":\"yes\",\"c\":\"yes\"}" },
+        .{ "e += ${?c}\n", "c = ${e}\n", "{\"e\":[],\"c\":[]}" },
+        .{ "a = [${p}]\n", "p = 1\np = ${a}\n", "{\"a\":[1],\"p\":[1]}" },
+        .{ "d { a = ${i.b} }\n", "i.b = 7\ni = ${d}\n", "{\"d\":{\"a\":7},\"i\":{\"b\":7,\"a\":7}}" },
+    };
+    for (pairs) |p| {
+        var arena = std.heap.ArenaAllocator.init(testing.allocator);
+        defer arena.deinit();
+        const gpa = arena.allocator();
+        for ([_][2][]const u8{ .{ p[0], p[1] }, .{ p[1], p[0] } }) |order| {
+            const src = try std.mem.concatWithSentinel(gpa, u8, &.{ order[0], order[1] }, 0);
+            const want: std.json.Value = try std.json.parseFromSliceLeaky(std.json.Value, gpa, p[2], .{});
+            const got = try resolvedJson(gpa, src);
+            const have: std.json.Value = try std.json.parseFromSliceLeaky(std.json.Value, gpa, got, .{});
+            errdefer std.debug.print("order: {s}\ngot: {s}\n", .{ src, got });
+            try testing.expect(sameJson(want, have));
+        }
+    }
+}
+
+// java ✓ · spec ✓ — a cycle is broken by looking back where that gives every
+// field one value, and only there: a field resolved anew a second time stays a
+// cycle. An object the look-back is not in is walked again inside it, and what
+// it resolves to there is its value, a substitution being resolved once (L886);
+// until 2026-10-25 that was a cycle too, the last two rows, which typesafe/config
+// resolves to these values.
 test "resolve.a cycle breaks only where its look-back stays one value" {
     try expectResolved("bar : ${foo}\nfoo += 5\nfoo : ${bar}", "{\"bar\":[5],\"foo\":[5]}");
     try expectResolved("a : ${?t} ${?a}${?n.x}\nn = ${a}", "{\"a\":\" \",\"n\":\" \"}");
     try expectResolveError("a = ${p}\np = 1\np = ${a}x\np = ${a}x", error.SubstitutionCycle);
-    try expectResolveError("v { n = { x = ${a} } }\na = { n = { h = 0 } }\na = ${v}", error.SubstitutionCycle);
-    try expectResolveError("v = { x = ${?a} }\nr = null\nr = ${v}\na = null\na = ${r}", error.SubstitutionCycle);
+    try expectResolved("v { n = { x = ${a} } }\na = { n = { h = 0 } }\na = ${v}", "{\"v\":{\"n\":{\"x\":{\"n\":{\"h\":0}}}},\"a\":{\"n\":{\"h\":0,\"x\":{\"n\":{\"h\":0}}}}}");
+    try expectResolved("v = { x = ${?a} }\nr = null\nr = ${v}\na = null\na = ${r}", "{\"v\":{\"x\":null},\"r\":{\"x\":null},\"a\":{\"x\":null}}");
 }

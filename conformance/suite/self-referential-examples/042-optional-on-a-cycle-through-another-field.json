@@ -1,0 +1,27 @@
+{
+  "spec": "HOCON.md#examples-of-self-referential-substitutions",
+  "rule": [
+    "self-referential-substitutions.13",
+    "self-referential-substitutions.4",
+    "substitutions.11"
+  ],
+  "why": "${?b} leads back to a.n through b = ${a}, so it is nonexistent and a.n is {h: 0}; b is a, and o is a.n, the same value everywhere. typesafe/config reports b's ${a} as unresolved",
+  "expect": {
+    "o": {
+      "h": 0
+    },
+    "a": {
+      "n": {
+        "h": 0
+      }
+    },
+    "b": {
+      "n": {
+        "h": 0
+      }
+    }
+  },
+  "resolve": true,
+  "java": "unsupported",
+  "java_error": "UnresolvedSubstitution"
+}

@@ -1,0 +1,19 @@
+{
+  "spec": "HOCON.md#examples-of-self-referential-substitutions",
+  "rule": [
+    "self-referential-substitutions.4",
+    "self-referential-substitutions.13",
+    "examples-of-self-referential-substitutions.27"
+  ],
+  "why": "each optional leads back to the field it stands in, ${?a.t} through a and ${?f} through f, so each is as if it referred to a nonexistent value, whichever field is resolved first: f is \"x\" and a is y's {t: 1}",
+  "expect": {
+    "f": "x",
+    "a": {
+      "t": 1
+    },
+    "y": {
+      "t": 1
+    }
+  },
+  "resolve": true
+}

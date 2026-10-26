@@ -57,16 +57,30 @@ pub const Field = struct {
 pub fn resolveField(state: *Resolver, place: *Value) Error!?Value {
     const gpa = state.gpa;
     if (state.kept.contains(place)) return place.*;
+    if (state.walked.get(place)) |val| {
+        place.* = val;
+        return val;
+    }
+    if (state.vanished.get(place)) |by_cycle| {
+        if (by_cycle) state.cycles += 1;
+        return null;
+    }
+    const cycles = state.cycles;
     // A field written once is a stack of one.
     const one = [_]Value{place.*};
     const val = switch (place.*) {
         .stack => |layers| try state.resolveStack(place, layers),
         .ref, .pending => try state.resolveStack(place, &one),
         else => try state.resolveValue(place.*),
-    } orelse return null;
-    place.* = val;
-    if (waits(val)) try state.kept.put(gpa, place, {});
-    return val;
+    } orelse {
+        try state.vanished.put(gpa, place, state.cycles > cycles);
+        return null;
+    };
+    // Walked again inside a look-back meanwhile: that is its value.
+    const value = state.walked.get(place) orelse val;
+    place.* = value;
+    if (waits(value)) try state.kept.put(gpa, place, {});
+    return value;
 }
 
 // The layers of a field, from the top: the top one decides, and the ones
@@ -246,6 +260,12 @@ fn looksBack(value: Value) bool {
 fn mergeable(layers: []const Value) bool {
     if (layers.len == 0) return false;
     const top = layers[layers.len - 1];
+    // With a list in it a concatenation is a list or an error, never an
+    // object (spec L384), so an object over it hides it, and it is never
+    // evaluated (L778): `c = [1] ${x}`, `c = { a = 1 }`.
+    if (top == .pending) for (top.pending) |part| {
+        if (part.value == .array) return false;
+    };
     return top == .object or looksBack(top);
 }
 
@@ -253,7 +273,9 @@ fn mergeable(layers: []const Value) bool {
 // resolved (see `Field`). With nothing below, a ref back to the field it is
 // in finds nothing, as if it named a missing path; one that came round
 // through another field is a cycle, unless it is optional.
-pub fn seen(state: *Resolver, place: *Value, ref: Ref) Error!?*Value {
+//
+// `whole`: the path ends at the place, rather than going on through it.
+pub fn seen(state: *Resolver, place: *Value, ref: Ref, whole: bool) Error!?*Value {
     const gpa = state.gpa;
     var i = state.fields.items.len;
     while (i > 0) {
@@ -263,13 +285,29 @@ pub fn seen(state: *Resolver, place: *Value, ref: Ref) Error!?*Value {
         if (field.object) |object| return object;
 
         switch (field.progress) {
-            .done => {},
+            // Its own self-reference found nothing below: a required ref that
+            // comes round through another field to it has nothing to look
+            // back at either, a cycle as for `.todo` below, which an optional
+            // on the way may break. `e += ${?c}`, `c = ${e}`. An optional one
+            // finds nothing, as it did, and so does a path going on through
+            // the field: an include's ref inside the field's own value looks
+            // there first, and on to the environment.
+            .done => if (whole and field.merged == null and i + 1 < state.fields.items.len and !ref.flags.optional) {
+                state.markBreaking(state.visitingAt(place) orelse 0);
+                state.err_pos.* = ref.at();
+                return Error.SubstitutionCycle;
+            },
             // `a = [${a}], a = ${?a}`: the layers below lead back here.
             .busy => {
+                const at = state.visitingAt(place) orelse 0;
+                // The optional that came round finds nothing. One around it
+                // that is looking back at these layers is not on this cycle:
+                // `a = [{ b += 1 }]`, `a += 3` keeps the list.
                 if (ref.flags.optional) {
                     state.cycles += 1;
                     return null;
                 }
+                state.markBreaking(at);
                 state.err_pos.* = ref.at();
                 return Error.SubstitutionCycle;
             },
@@ -287,11 +325,20 @@ pub fn seen(state: *Resolver, place: *Value, ref: Ref) Error!?*Value {
                         field.again = again;
                         return again;
                     }
+                    // An optional that began after the field is on the cycle.
+                    const at = state.visitingAt(place) orelse 0;
                     if (!ref.flags.optional) {
+                        state.markBreaking(at);
                         state.err_pos.* = ref.at();
                         return Error.SubstitutionCycle;
                     }
-                    state.cycles += 1;
+                    // Inside the field's own look-back, a layer above this one
+                    // busy, it is that look-back's business, not a way back
+                    // round to it: `x = … { n += 1 } …`, `x = ${?x.q} {}`.
+                    const looking_back = for (state.fields.items[0..i]) |f| {
+                        if (f.place == place and f.progress == .busy) break true;
+                    } else false;
+                    if (looking_back) state.cycles += 1 else state.closeAt(at);
                 }
                 const below = field.below;
                 // An object that hides the layers under it: the path goes

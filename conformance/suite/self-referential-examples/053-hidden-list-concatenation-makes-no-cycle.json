@@ -1,0 +1,22 @@
+{
+  "spec": "HOCON.md#examples-of-self-referential-substitutions",
+  "rule": [
+    "examples-of-self-referential-substitutions.8",
+    "array-and-object-concatenation.1",
+    "examples-of-self-referential-substitutions.16"
+  ],
+  "why": "x's hidden list concatenation is never evaluated, so there is no cycle and k looks forward: x is {b: true}, k is [{b: true}]",
+  "expect": {
+    "x": {
+      "b": true
+    },
+    "k": [
+      {
+        "b": true
+      }
+    ]
+  },
+  "resolve": true,
+  "java": "unsupported",
+  "java_error": "UnresolvedSubstitution"
+}
