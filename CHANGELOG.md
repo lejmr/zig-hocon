@@ -7,6 +7,7 @@ What changed for someone using zig-hocon: the Zig package, the `hocon` command l
 ### Fixed
 
 - Optional substitutions on a cycle resolve the same whichever field comes first, as the spec has it, where v0.5.3 dropped or kept them by the order of the lines, and in two cases lost a value: `b.c += ${y}`, `b.c += 2`, `y = [1, ${?b}]` is `b.c = [[1], 2]` again, and `f = x${?a}`, `f = { z = 3 }`, `a = ${?f}` keeps `a`, since text under an object is hidden and never evaluated, as a list is. An include inside an object concatenated with an optional, `k = { include "x" } ${?y}`, no longer reports a cycle. Found by a bug hunt on v0.5.3.
+- Four regressions in that change, found by a bug hunt on it, are fixed. A field written twice and reached again from inside a look-back, `d { z = ${?a.k} }`, `d.z += ${?c}`, `a : []`, `a += ${f}`, `f = ${d}`, crashed with `reached unreachable code` and resolves again, as typesafe/config has it; an undefined `${b}` in such a field, a crash already in v0.5.3, is the `Unresolved` error. `f += ${?b}`, `b = x${?f}`, `b += 1` dropped b's text and gave `b = [1]`, and is the error `+=` onto text is, whichever line comes first. `e = [${?f.k}y]`, `f = ${?e}${e}` and `e.k : ${?b}`, `b.k { k = ${?e}, k += ${?d} }` resolve the same in either order: an optional found to lead back to its own field stays nonexistent when it is met again. Ten new conformance cases, all 583 pass.
 
 ## [0.5.3] - 2026-10-26
 
