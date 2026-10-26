@@ -52,6 +52,11 @@ CASES = {
     "substitution in text": 'name = owl\ngreeting = "hello "${name}" friend"',
     "optional substitution": "a = ${?nope}\nb = 1",
     "self reference append": "a = [1]\na = ${a} [2]",
+    # pyhocon's += is x = ${?x} v, as its docs have it; the spec's appends v
+    # as one element, so zig_hocon.pyhocon writes it pyhocon's way
+    "+= extends a list": "a = [1]\na += [2, 3]",
+    "+= onto text": "a = abc\na += def\nb += def",
+    "+= onto an object": "a { x = 1 }\na += { y = 2 }\nb += { z = 3 }",
     "object merge by substitution": "base { x = 1 }\nfull = ${base} { y = 2 }",
     "forward reference": "b = ${a}\na = 7",
     "text concatenation": "a = owl\nb = ${a} hoots",
@@ -67,8 +72,8 @@ CASES = {
     "missing substitution": "a = ${nope}",
     "substitution cycle": "a = ${b}\nb = ${a}",
     # what the spec reads otherwise
+    "+= in an object": differs("a { b { x = [1] } }\na { b { x += [2] } }", "pyhocon loses what x was in a nested object, [2]; here it is [1, 2]"),
     "quoted duration": differs('a = "30s"', 'a quoted "30s" is a duration here too: libhocon\'s JSON has no quotes left'),
-    "+= appends one element": differs("a = [1]\na += [2, 3]", "by the spec += appends the list as one element"),
     "quoted leading zero": differs('zip = "01234"', "a number pyhocon reads where JSON has none is one quoted too: libhocon's JSON has no quotes left"),
     "optional substitution then text": differs("a = ${?nope} 4", 'by the spec it is the text " 4", pyhocon the number 4'),
     "duration then text": differs("a = 5 ms foo", "pyhocon makes '0:00:00.005000foo' of it"),

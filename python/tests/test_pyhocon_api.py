@@ -401,9 +401,33 @@ def test_errors_in_pyhocon_s_classes():
     assert isinstance(e.value, FileNotFoundError) and isinstance(e.value, ConfigException)
     assert e.value.name == "IncludeNotFound" and "IncludeNotFound" in str(e.value)
     # the others as zig_hocon raises them
-    with pytest.raises(exceptions.ConfigParseException) as e:
-        conf("a = {")
-    assert type(e.value) is exceptions.ConfigParseException
+    with pytest.raises(exceptions.ConfigSubstitutionException) as e:
+        conf("x = ${nope}")
+    assert type(e.value) is exceptions.ConfigSubstitutionException
+
+
+# pyhocon ✓: a syntax error is pyparsing's ParseException and
+# ParseSyntaxException too, with pyparsing installed, as pyhocon raises it
+def test_syntax_errors_are_pyparsing_s():
+    pp = pytest.importorskip("pyparsing")
+    with pytest.raises(pp.ParseException) as e:
+        conf("a = {\n  b = [1,")
+    err = e.value
+    assert isinstance(err, pp.ParseSyntaxException) and isinstance(err, exceptions.ConfigParseException)
+    assert type(err).__name__ == "ConfigParseException" and err.name == "UnexpectedToken"
+    assert (err.line, err.column) == (err.lineno, err.col) == (2, 10)
+    assert str(err).startswith("2:10: UnexpectedToken") and err.msg == str(err)
+
+
+def test_syntax_errors_without_pyparsing(monkeypatch):
+    monkeypatch.setitem(sys.modules, "pyparsing", None)
+    config_parser._syntax_error.cache_clear()
+    try:
+        with pytest.raises(exceptions.ConfigParseException) as e:
+            conf("a = {")
+        assert type(e.value) is exceptions.ConfigParseException
+    finally:
+        config_parser._syntax_error.cache_clear()
 
 
 def test_parse_file(tmp_path, caplog):
@@ -563,3 +587,120 @@ def test_tool(tmp_path, verbosity):
     finally:
         root.handlers[:], root.level = handlers, level
     assert (tmp_path / "out").read_text() == "a.b = 1"
+
+
+# pyhocon ✓: x += v is x = ${?x} v, as pyhocon documents it, so a list is
+# extended, text goes on after a space and an object merges. pyhocon ✗ in
+# a nested object, where it loses what x was; here it is kept
+@pytest.mark.parametrize(
+    "text, want",
+    [
+        ("x = [1, 2]\nx += [3, 4]", {"x": [1, 2, 3, 4]}),
+        ("x += [1]", {"x": [1]}),
+        ("x = abc\nx += def", {"x": "abc def"}),
+        ("x += def", {"x": " def"}),
+        ("x { a = 1 }\nx += { b = 2 }", {"x": {"a": 1, "b": 2}}),
+        ("a { b { x = [1] } }\na { b { x += [2] } }", {"a": {"b": {"x": [1, 2]}}}),
+        ('{ "q.k" = [1], "q.k" += [2] }', {'"q.k"': [1, 2]}),
+        ("a = ${?nope} { x = [1], x += [2] }", {"a": {"x": [1, 2]}}),
+        ('s = """x += [1]"""\nk += [2] # k += [3]', {"s": "x += [1]", "k": [2]}),
+        ("n = 1e+5\nx = [1] // x += [9]\nx += [2]", {"n": 1e5, "x": [1, 2]}),
+        # in a list, as the spec has it
+        ("l = [{ x = [1], x += [2] }]", {"l": [{"x": [1, [2]]}]}),
+        ("l = [[1], {}, 2]\nx += [1]", {"l": [[1], {}, 2], "x": [1]}),
+    ],
+)
+def test_plus_equals_is_pyhocon_s(text, want):
+    assert conf(text) == want
+
+
+def test_plus_equals_unresolved_with_fallback():
+    c = conf("x += [3]", resolve=False).with_fallback(conf("x = [1, 2]"))
+    assert c == {"x": [1, 2, 3]}
+
+
+# pyhocon ✓: ``abc\"d`` unquoted is ``abc"d``, its escapes as in quotes
+def test_escapes_in_unquoted_text():
+    assert conf('a = abc\\"test\nb = x\\n y') == {"a": 'abc"test', "b": "x\n y"}
+    # what is no JSON escape, or forbidden, is libhocon's error as before
+    for text in ["a = abc\\q", "a = ab\\n!"]:
+        with pytest.raises(ConfigException):
+            conf(text)
+
+
+# pyhocon ✓: what pyhocon finds is found: a glob, sorted; package(…); a
+# file without an extension, exactly that file
+def test_pyhocon_s_includes(tmp_path, monkeypatch):
+    (tmp_path / "d").mkdir()
+    (tmp_path / "d" / "a.conf").write_text("x = 1\nl = [1]")
+    (tmp_path / "d" / "b.conf").write_text("y = 2\nl += [2]")
+    (tmp_path / "plain").write_text("z = 3")
+    pkg = tmp_path / "owl_pkg"
+    pkg.mkdir()
+    (pkg / "__init__.py").write_text("")
+    (pkg / "nest.conf").write_text("hoot = true")
+    monkeypatch.syspath_prepend(str(tmp_path))
+    c = ConfigParser.parse('include "d/*.conf"\ninclude required("plain")\ninclude package("owl_pkg:nest.conf")', str(tmp_path))
+    assert c == {"x": 1, "l": [1, 2], "y": 2, "z": 3, "hoot": True}
+    assert conf('a { include "d/*.nothing" }\ninclude file("nowhere")', basedir=str(tmp_path)) == {"a": {}}
+    assert ConfigFactory.parse_file(str(tmp_path / "d" / "b.conf")) == {"y": 2, "l": [2]}
+    (tmp_path / "top.conf").write_text('include "plain"')
+    assert ConfigFactory.parse_file(str(tmp_path / "top.conf")) == {"z": 3}
+    # the classpath is libhocon's, and its error no syntax error
+    with pytest.raises(ConfigException) as e:
+        conf('include classpath("owl.conf")')
+    assert type(e.value) is exceptions.ConfigParseException and e.value.name == "UnsupportedInclude"
+    with pytest.raises(ImportError):
+        conf('include package("no_such_owl_pkg:x.conf")')
+
+
+# pyhocon ✓: an include in a list is the included list's elements, an
+# object as one; its own includes are found next to it
+def test_includes_in_a_list(tmp_path):
+    (tmp_path / "one").write_text("[1, 2]")
+    (tmp_path / "sub").mkdir()
+    (tmp_path / "sub" / "obj.conf").write_text('{ o = 1, include "inner" }')
+    (tmp_path / "sub" / "inner").write_text("i = 2")
+    (tmp_path / "sub" / "bare.conf").write_text("b = 3")
+    url = (tmp_path / "one").as_uri()
+    text = f'''l = [
+      0, include "one"
+      include file("sub/obj.conf"), include "sub/*.conf"
+      include url("{url}"), include "missing"
+    ]'''
+    assert conf(text, basedir=str(tmp_path)) == {"l": [0, 1, 2, {"o": 1, "i": 2}, {"b": 3}, {"o": 1, "i": 2}, 1, 2]}
+    with pytest.raises(OSError):
+        conf('l = [include required("missing")]', basedir=str(tmp_path))
+    # an http include in a list is left to libhocon, as text
+    assert conf('l = [include "http://example.invalid/x.conf"]') == {"l": ["include http://example.invalid/x.conf"]}
+
+
+# what the rewrite cannot follow it leaves as written, for libhocon
+@pytest.mark.parametrize(
+    "text",
+    ['a = """open', 'a = "open', 'a = "two\nlines"', "a = ${open", "a = [1", "a { b = 1", "a = 1 }", "] = 1", "= 1", "a ? 1", "a = b:c", "{ a = 1 } x", 'include """x"""', 'include file("x"', "a"],
+)
+def test_rewrite_gives_up(text):
+    from zig_hocon.pyhocon._source import written_spec_way
+
+    assert written_spec_way(text + "\nx += [1]", None, str) == text + "\nx += [1]"
+    assert written_spec_way('x += [1]\na = "open', None, str) == 'x += [1]\na = "open'
+
+
+def test_rewrite_of_included_files(tmp_path):
+    # a cycle of includes, a file not in UTF-8 and one the rewrite cannot
+    # follow are libhocon's to read or to report
+    (tmp_path / "a.conf").write_text('x += [1]\ninclude "b.conf"')
+    (tmp_path / "b.conf").write_text('y += [2]\ninclude "a.conf"')
+    with pytest.raises(ConfigException) as e:
+        ConfigFactory.parse_file(str(tmp_path / "a.conf"))
+    assert e.value.name == "IncludeCycle"
+    (tmp_path / "latin.conf").write_bytes(b"s = \"caf\xe9\"")
+    (tmp_path / "odd.conf").write_text('q = """x""""\nr = [1')
+    with pytest.raises(ConfigException):
+        conf('x += [1]\ninclude "latin.conf"', basedir=str(tmp_path))
+    with pytest.raises(ConfigException):
+        conf('x += [1]\ninclude "odd.conf"', basedir=str(tmp_path))
+    assert conf('l = [include "odd.conf"]', basedir=str(tmp_path)) == {"l": ["include odd.conf"]}
+    (tmp_path / "quotes.conf").write_text('q = """x""""\nr += [1]')
+    assert conf('include "quotes.conf"', basedir=str(tmp_path)) == {"q": 'x"', "r": [1]}
