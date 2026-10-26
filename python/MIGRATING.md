@@ -49,9 +49,9 @@ Everything of pyhocon's public API is there: `ConfigFactory.parse_file` (with `e
 
 Two tests hold it against the newest pyhocon on every change: [test_pyhocon_signatures.py](tests/test_pyhocon_signatures.py) has every public name of pyhocon's modules, with the same parameters, and [test_pyhocon_compat.py](tests/test_pyhocon_compat.py) reads documents with both and compares the values, their types and the converter's output. Each difference by design is in them with its reason.
 
-Values have pyhocon's types: `30s` is a `timedelta`, or with python-dateutil installed a `relativedelta`, as pyhocon makes it; months and years need dateutil there too. A number pyhocon reads where JSON has none is that number, as in pyhocon: `0024` is 24, `.54` and `-.5` are 0.5 and -0.5. One difference: quoted, `"30s"` is a duration as well and `"01234"` the number 1234, where pyhocon keeps them text; `"8080"` or `"0.5"` stays text.
+Values have pyhocon's types: `30s` is a `timedelta`, or with python-dateutil installed a `relativedelta`, as pyhocon makes it; months and years need dateutil there too. A number pyhocon reads where JSON has none is that number, as in pyhocon: `0024` is 24, `.54` and `-.5` are 0.54 and -0.5. One difference: quoted, `"30s"` is a duration as well and `"01234"` the number 1234, where pyhocon keeps them text; `"8080"` or `"0.5"` stays text.
 
-So is its syntax, written the spec's way before the core reads the text: `x += v` is `x = ${?x} v`, as pyhocon documents it, so `x += [3, 4]` extends a list, `x += def` goes on after the text with a space and `x += { b = 2 }` merges; in a nested object, where pyhocon loses what `x` was, it is kept. An include finds what pyhocon finds: a glob (`include "conf.d/*.conf"`, in sorted order), `package("pkg:file.conf")`, a file named without an extension as it is, and in a list the included list's elements; an included file is read the same way. An unquoted `abc\"test` is `abc"test`. With pyparsing installed, as it is beside pyhocon, a syntax error is pyparsing's `ParseException` and `ParseSyntaxException` too.
+So is its syntax, written the spec's way before the core reads the text: `x += v` is `x = ${?x} v`, as pyhocon's parser reads it, so `x += [3, 4]` extends a list, `x += def` goes on after the text with a space and `x += { b = 2 }` merges; in a nested object, where pyhocon loses what `x` was, it is kept. An include finds what pyhocon finds: a glob (`include "conf.d/*.conf"`), `package("pkg:file.conf")`, a file named without an extension as it is, and in a list the included list's elements. An included file with any of this syntax is read the same way, and still included as the spec has it. An unquoted `abc\"test` is `abc"test`. With pyparsing installed, as it is beside pyhocon, a syntax error is pyparsing's `ParseException` and `ParseSyntaxException` too.
 
 The measure is pyhocon's own test suite with the import swapped: 303 of its 308 tests pass. Of the 5 that do not, 4 are a config that reads differently by the spec:
 
@@ -65,9 +65,18 @@ The one left is `ConfigTree.resolve()`, which is not there. Nor are a few things
 
 - **A value with a `${…}` is no `ConfigValues`.** A document read with `resolve=False` has its values where it resolves on its own; where it does not, it has none until `with_fallback()` or `ConfigParser.resolve_substitutions()` gives it what it waits for, and reading it before is a `ConfigSubstitutionException`.
 - **`unresolved_value`** takes `DEFAULT_SUBSTITUTION`, `MANDATORY_SUBSTITUTION` and `NO_SUBSTITUTION`; `STR_SUBSTITUTION` and a value of your own are a `NotImplementedError`.
-- **`parse_URL`** reads a document with no `include` in it: one is an error, as it has no directory to be found in.
+- **`parse_URL`** reads a document with no `include` in it: one is an error, as it has no directory to be found in. pyhocon follows a `url(…)` include and leaves out the others with a warning.
 
-The whole document is in Python, as in pyhocon, so it is a little slower than `zig_hocon`, still far from pyhocon: a 5 KB config in 0.3 ms (pyhocon 29 ms), 10 MB in 0.38 s (pyhocon 68 s), against 0.2 ms and 0.13 s for `zig_hocon`.
+Where the spec has the answer, it reads by the spec, also around pyhocon's syntax:
+
+- **`+=` of a number, a boolean or `null`** appends it: `x += 2` after `x = [1]` is `[1, 2]`, and after `x = 5` an error. pyhocon puts the value in place of `x`.
+- **An included file under an object** looks its `${…}` and `+=` up in that object first: `n { include "f.conf" }` with `z = ${y}` in it reads `n.y` before `y`. pyhocon reads `y` at the root.
+- **`include "f"`** with no file named `f` reads `f.conf`, `f.json` or `f.properties`; pyhocon includes nothing. Values from a `.properties` file are text, where pyhocon reads numbers and booleans.
+- **An object file included in a list** is one element; pyhocon gives its fields as `(key, value)` tuples.
+- **An include of a URL that cannot be reached** is a `ConfigParseException`; pyhocon leaves it out with a warning. A glob includes its files in sorted order, pyhocon in the file system's.
+- **A text the rewrite cannot follow** is read as written, by the spec, with every `+=` in it appending one element. It is a document libhocon reports as an error, or one with HOCON the scan does not know.
+
+The whole document is in Python, as in pyhocon, so it is a little slower than `zig_hocon`, still far from pyhocon: a 5 KB config in 0.3 ms (pyhocon 29 ms), 10 MB in 0.4 s (pyhocon 68 s), against 0.12 ms and 0.13 s for `zig_hocon`. A document with `+=`, an include or a backslash is rewritten in Python first, which takes about four times as long.
 
 ## Step 1: imports
 

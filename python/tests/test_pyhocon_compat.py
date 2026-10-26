@@ -52,7 +52,7 @@ CASES = {
     "substitution in text": 'name = owl\ngreeting = "hello "${name}" friend"',
     "optional substitution": "a = ${?nope}\nb = 1",
     "self reference append": "a = [1]\na = ${a} [2]",
-    # pyhocon's += is x = ${?x} v, as its docs have it; the spec's appends v
+    # pyhocon's += is x = ${?x} v, as its parser reads it; the spec's appends v
     # as one element, so zig_hocon.pyhocon writes it pyhocon's way
     "+= extends a list": "a = [1]\na += [2, 3]",
     "+= onto text": "a = abc\na += def\nb += def",

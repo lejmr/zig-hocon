@@ -2,8 +2,10 @@
 where it differs from pyhocon; pyhocon ✓ is the same result, checked
 against pyhocon 0.3.63 itself."""
 
+import contextlib
 import copy
 import datetime
+import errno
 import logging
 import pathlib
 import pickle
@@ -589,7 +591,7 @@ def test_tool(tmp_path, verbosity):
     assert (tmp_path / "out").read_text() == "a.b = 1"
 
 
-# pyhocon ✓: x += v is x = ${?x} v, as pyhocon documents it, so a list is
+# pyhocon ✓: x += v is x = ${?x} v, as pyhocon's parser reads it, so a list is
 # extended, text goes on after a space and an object merges. pyhocon ✗ in
 # a nested object, where it loses what x was; here it is kept
 @pytest.mark.parametrize(
@@ -608,6 +610,14 @@ def test_tool(tmp_path, verbosity):
         # in a list, as the spec has it
         ("l = [{ x = [1], x += [2] }]", {"l": [{"x": [1, [2]]}]}),
         ("l = [[1], {}, 2]\nx += [1]", {"l": [[1], {}, 2], "x": [1]}),
+        # a number, a boolean or null is appended, as the spec has it; pyhocon
+        # puts it in place of the list
+        ("x = [1]\nx += 2\ny += true", {"x": [1, 2], "y": [True]}),
+        # a key and its object on the next line, a quoted } in a substitution
+        ("a\n{ b = 1 }\nx = [1]\nx += [2]", {"a": {"b": 1}, "x": [1, 2]}),
+        ('"a}b" = 1\nc = ${"a}b"}\nx = [1]\nx += [2]', {'"a}b"': 1, "c": 1, "x": [1, 2]}),
+        # an http include in a list is text, by the spec, and the rest is read
+        ('l = [include "http://example.invalid/x.conf"]\nx = [1]\nx += [2]', {"l": ["include http://example.invalid/x.conf"], "x": [1, 2]}),
     ],
 )
 def test_plus_equals_is_pyhocon_s(text, want):
@@ -678,13 +688,15 @@ def test_includes_in_a_list(tmp_path):
 # what the rewrite cannot follow it leaves as written, for libhocon
 @pytest.mark.parametrize(
     "text",
-    ['a = """open', 'a = "open', 'a = "two\nlines"', "a = ${open", "a = [1", "a { b = 1", "a = 1 }", "] = 1", "= 1", "a ? 1", "a = b:c", "{ a = 1 } x", 'include """x"""', 'include file("x"', "a"],
+    ["a, b = 1", 'a = """open', 'a = "open', 'a = "two\nlines"', "a = ${open", "a = [1", "a { b = 1", "a = 1 }", "] = 1", "= 1", "a ? 1", "a = b:c", "{ a = 1 } x", 'include """x"""', 'include file("x"', "a"],
 )
 def test_rewrite_gives_up(text):
-    from zig_hocon.pyhocon._source import written_spec_way
+    from zig_hocon.pyhocon._source import Rewrite
 
-    assert written_spec_way(text + "\nx += [1]", None, str) == text + "\nx += [1]"
-    assert written_spec_way('x += [1]\na = "open', None, str) == 'x += [1]\na = "open'
+    with contextlib.closing(Rewrite(str)) as rewrite:
+        assert rewrite.text(text + "\nx += [1]", None) == text + "\nx += [1]"
+        assert rewrite.text('x += [1]\na = "open', None) == 'x += [1]\na = "open'
+        assert rewrite.text("x += [1]\na = ${open", None) == "x += [1]\na = ${open"
 
 
 def test_rewrite_of_included_files(tmp_path):
@@ -704,3 +716,64 @@ def test_rewrite_of_included_files(tmp_path):
     assert conf('l = [include "odd.conf"]', basedir=str(tmp_path)) == {"l": ["include odd.conf"]}
     (tmp_path / "quotes.conf").write_text('q = """x""""\nr += [1]')
     assert conf('include "quotes.conf"', basedir=str(tmp_path)) == {"q": 'x"', "r": [1]}
+
+
+# pyhocon ✗: an included file with pyhocon's syntax is still included as the
+# spec has it, from a temporary file: under an object its += and ${…} look in
+# that object first; pyhocon gives l = [1] and z = 100
+def test_included_files_are_included_by_the_spec(tmp_path):
+    (tmp_path / "f.conf").write_text("y = 1\nz = ${y}\nl += [1]")
+    (tmp_path / "g.conf").write_text("m += [2]")
+    c = ConfigParser.parse('y = 100\nn { l = [0], include "f.conf" }\ninclude "g.conf"', str(tmp_path))
+    assert c == {"y": 100, "n": {"l": [0, 1], "y": 1, "z": 1}, "m": [2]}
+
+
+# an error in a file that was rewritten names that file, at its own line
+def test_errors_in_rewritten_files(tmp_path):
+    (tmp_path / "unres.conf").write_text("q = 1\nx = [1]\nx += [2]\nz = ${nope}")
+    (tmp_path / "top.conf").write_text('a = 1\nb = 2\ninclude "unres.conf"')
+    for name in ["top.conf", "unres.conf"]:
+        with pytest.raises(ConfigSubstitutionException) as e:
+            ConfigFactory.parse_file(str(tmp_path / name))
+        assert e.value.file.endswith("unres.conf") and e.value.line == 4
+        assert "zig_hocon-pyhocon-" not in str(e.value)
+    (tmp_path / "broken.conf").write_text("x = [1]\nx += [2]\na..b = 1")
+    with pytest.raises(exceptions.ConfigParseException) as e:
+        conf('include "broken.conf"', basedir=str(tmp_path))
+    assert e.value.file.endswith("broken.conf") and "zig_hocon-pyhocon-" not in str(e.value)
+    assert getattr(e.value, "msg", str(e.value)) == str(e.value)
+    (tmp_path / "two.conf").write_text('include "g1.conf"\ninclude "g2.conf"')
+    (tmp_path / "g1.conf").write_text("a += [1]")
+    (tmp_path / "g2.conf").write_text("b += [2]")
+    assert ConfigFactory.parse_file(str(tmp_path / "two.conf")) == {"a": [1], "b": [2]}
+    # a file the scan cannot follow is libhocon's, as it is
+    (tmp_path / "odd.conf").write_text('x += [1]\na = """open')
+    with pytest.raises(ConfigException) as e:
+        ConfigFactory.parse_file(str(tmp_path / "odd.conf"))
+    assert e.value.file.endswith("odd.conf")
+
+
+# pyhocon ✓: a missing required include is a FileNotFoundError with errno;
+# package() of a file the package does not have is an ImportError
+def test_missing_includes(tmp_path):
+    with pytest.raises(FileNotFoundError) as e:
+        conf('include required("nope.conf")', basedir=str(tmp_path))
+    assert e.value.errno == errno.ENOENT and e.value.strerror
+    with pytest.raises(ImportError, match="Can't find nope.conf in package:json"):
+        conf('include package("json:nope.conf")')
+
+
+# pyhocon ✓: a missing include in a list leaves nothing, nor its comma
+def test_missing_include_in_a_list(tmp_path):
+    assert conf('a = [ include "nope.conf", 1 ]', basedir=str(tmp_path)) == {"a": [1]}
+    assert conf('a = [ 1, include "nope.conf" ]', basedir=str(tmp_path)) == {"a": [1]}
+
+
+# a document from a URL has no directory: += is pyhocon's, an include is
+# libhocon's, which refuses it
+def test_parse_url_rewrites_no_include(tmp_path):
+    (tmp_path / "doc.conf").write_text("x = [1]\nx += [2]")
+    assert ConfigFactory.parse_URL((tmp_path / "doc.conf").as_uri()) == {"x": [1, 2]}
+    (tmp_path / "inc.conf").write_text('include "doc.conf"\nx += [2]')
+    with pytest.raises(ConfigException):
+        ConfigFactory.parse_URL((tmp_path / "inc.conf").as_uri())
