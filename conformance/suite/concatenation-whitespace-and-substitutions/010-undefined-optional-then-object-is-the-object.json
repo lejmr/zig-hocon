@@ -1,0 +1,19 @@
+{
+  "spec": "HOCON.md#note-concatenation-with-whitespace-and-substitutions",
+  "rule": [
+    "substitutions.18",
+    "note-concatenation-with-whitespace-and-substitutions.2"
+  ],
+  "why": "the object twin of 009: an undefined optional substitution before an object substitution becomes an empty object and the whitespace between them is ignored. typesafe/config keeps the whitespace before the object as text and rejects it, while accepting ${x} ${?absent}",
+  "expect": {
+    "x": {
+      "p": 1
+    },
+    "a": {
+      "p": 1
+    }
+  },
+  "java": "unsupported",
+  "java_error": "WrongType",
+  "resolve": true
+}

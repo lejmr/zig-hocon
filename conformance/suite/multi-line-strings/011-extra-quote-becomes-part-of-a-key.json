@@ -1,0 +1,11 @@
+{
+  "spec": "HOCON.md#multi-line-strings",
+  "rule": [
+    "multi-line-strings.4",
+    "path-expressions.2"
+  ],
+  "why": "a key is a path expression, built like a value concatenation, so a triple-quoted string can be one, and the fourth quote of its closing run is part of it, giving the key a\"",
+  "expect": {
+    "a\"": 1
+  }
+}

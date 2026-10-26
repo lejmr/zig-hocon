@@ -1,0 +1,33 @@
+{
+  "spec": "HOCON.md#examples-of-self-referential-substitutions",
+  "rule": [
+    "self-referential-substitutions.4",
+    "self-referential-substitutions.8",
+    "examples-of-self-referential-substitutions.22",
+    "examples-of-self-referential-substitutions.23"
+  ],
+  "why": "b's last value reaches b again through a.f, so b is self-referential; a is an object and not self-referential, so the cycle is broken at b, by looking back at b = 1, and that resolves it: b = {f: 1}, not an error. a.f keeps the 1 it resolved to inside the look-back (expect) or is an alias for the final b (also_valid), as in 035; typesafe/config starts from a and reports a cycle",
+  "expect": {
+    "b": {
+      "f": 1
+    },
+    "a": {
+      "f": 1
+    }
+  },
+  "resolve": true,
+  "also_valid": [
+    {
+      "b": {
+        "f": 1
+      },
+      "a": {
+        "f": {
+          "f": 1
+        }
+      }
+    }
+  ],
+  "java": "unsupported",
+  "java_error": "UnresolvedSubstitution"
+}

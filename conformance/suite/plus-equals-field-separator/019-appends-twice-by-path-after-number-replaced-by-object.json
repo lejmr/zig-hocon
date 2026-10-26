@@ -1,0 +1,27 @@
+{
+  "spec": "HOCON.md#the--field-separator",
+  "rule": [
+    "the--field-separator.3",
+    "paths-as-keys.1",
+    "duplicate-keys-and-object-merging.8",
+    "examples-of-self-referential-substitutions.3"
+  ],
+  "why": "a.b += x is a { b = ${?a.b} [x] }, an object that replaces the number without merging, so the first += finds no a.b and starts [x], and the second appends to it: [x, y]; typesafe/config keeps only the last element, as it does after the null in 014",
+  "expect": {
+    "a": {
+      "b": [
+        "x",
+        "y"
+      ]
+    }
+  },
+  "java": "diverges",
+  "java_expect": {
+    "a": {
+      "b": [
+        "y"
+      ]
+    }
+  },
+  "resolve": true
+}

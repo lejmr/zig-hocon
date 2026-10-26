@@ -1,0 +1,15 @@
+{
+  "spec": "HOCON.md#examples-of-self-referential-substitutions",
+  "rule": [
+    "examples-of-self-referential-substitutions.8",
+    "paths-as-keys.1",
+    "substitutions.15"
+  ],
+  "why": "unlike 022, the undefined optional sits one level down: it leaves out only bar, while the path w.bar still makes w an object, and that object hides the list, so ${does-not-exist} is never evaluated. typesafe/config evaluates a list hidden by an object that holds a substitution (lightbend/config#865)",
+  "expect": {
+    "w": {}
+  },
+  "java": "unsupported",
+  "java_error": "UnresolvedSubstitution",
+  "resolve": true
+}

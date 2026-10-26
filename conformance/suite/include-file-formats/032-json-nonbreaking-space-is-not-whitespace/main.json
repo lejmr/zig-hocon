@@ -1,0 +1,10 @@
+{
+  "spec": "HOCON.md#include-semantics-file-formats-and-extensions",
+  "rule": "include-semantics-file-formats-and-extensions.2",
+  "why": "the .json file is found through a basename, so it is parsed as JSON; JSON whitespace is only space, tab, LF and CR, and the wider set with the no-break space 0x00A0 is defined for HOCON only (L167-172). typesafe/config treats a no-break space as whitespace in JSON too",
+  "error": "Parse",
+  "java": "lenient",
+  "java_expect": {
+    "a": 1
+  }
+}

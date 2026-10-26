@@ -1,0 +1,6 @@
+{
+  "spec": "HOCON.md#include-syntax",
+  "rule": "include-syntax.9",
+  "why": "an include is separated from the field that follows by the usual comma, which only a newline may replace; on one line with neither, b is a stray token after the resource name",
+  "error": "Parse"
+}
