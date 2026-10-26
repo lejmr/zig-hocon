@@ -1,0 +1,17 @@
+{
+  "spec": "HOCON.md#examples-of-self-referential-substitutions",
+  "rule": [
+    "duplicate-keys-and-object-merging.8",
+    "string-value-concatenation.1"
+  ],
+  "why": "x${?a} is text or an error, never an object, so the object over it hides it and it is never evaluated (L776): f is { z = 3 }, which ${?f} reaches without coming back to a",
+  "expect": {
+    "f": {
+      "z": 3
+    },
+    "a": {
+      "z": 3
+    }
+  },
+  "resolve": true
+}

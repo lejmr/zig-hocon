@@ -1,0 +1,23 @@
+{
+  "spec": "HOCON.md#the--field-separator",
+  "rule": [
+    "self-referential-substitutions.4",
+    "self-referential-substitutions.13",
+    "substitutions.17"
+  ],
+  "why": "as 022 with y written first: y is [1], b.c is [[1], 2]",
+  "expect": {
+    "y": [
+      1
+    ],
+    "b": {
+      "c": [
+        [
+          1
+        ],
+        2
+      ]
+    }
+  },
+  "resolve": true
+}

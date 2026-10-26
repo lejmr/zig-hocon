@@ -1,0 +1,23 @@
+{
+  "spec": "HOCON.md#the--field-separator",
+  "rule": [
+    "self-referential-substitutions.4",
+    "self-referential-substitutions.13",
+    "substitutions.17"
+  ],
+  "why": "y's ${?b} leads back to y through b.c's ${y}, so it is nonexistent (L716) and y is [1]; ${y} is required and resolves to that, so b.c is [[1], 2]",
+  "expect": {
+    "b": {
+      "c": [
+        [
+          1
+        ],
+        2
+      ]
+    },
+    "y": [
+      1
+    ]
+  },
+  "resolve": true
+}

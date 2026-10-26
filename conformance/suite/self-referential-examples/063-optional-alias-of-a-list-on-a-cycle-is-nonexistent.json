@@ -1,0 +1,18 @@
+{
+  "spec": "HOCON.md#examples-of-self-referential-substitutions",
+  "rule": [
+    "self-referential-substitutions.4",
+    "self-referential-substitutions.13",
+    "substitutions.17"
+  ],
+  "why": "d's ${?c} leads back to d through c, and c's ${?d} back to c through d, so both are nonexistent (L716) whichever field is resolved first: d is [] and c, an optional with nothing behind it, is no field. typesafe/config keeps c as []",
+  "expect": {
+    "d": []
+  },
+  "resolve": true,
+  "java": "diverges",
+  "java_expect": {
+    "c": [],
+    "d": []
+  }
+}

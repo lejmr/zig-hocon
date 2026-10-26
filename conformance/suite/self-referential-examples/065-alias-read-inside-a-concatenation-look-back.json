@@ -1,0 +1,25 @@
+{
+  "spec": "HOCON.md#examples-of-self-referential-substitutions",
+  "rule": [
+    "self-referential-substitutions.4",
+    "examples-of-self-referential-substitutions.22",
+    "examples-of-self-referential-substitutions.27"
+  ],
+  "why": "e's last value reaches e again through c, so it is self-referential and looks back at e = x${?c}, whose own ${?c} leads back to e and is nonexistent: c is \"x\" there, and keeps it, as a substitution is resolved once, so e is \"xyx\". Or c is an alias for the final e, the optionals on the cycle nonexistent: \"xy\" both (also_valid), as in 035",
+  "expect": {
+    "e": "xyx",
+    "c": "x"
+  },
+  "resolve": true,
+  "also_valid": [
+    {
+      "e": "xy",
+      "c": "xy"
+    }
+  ],
+  "java": "diverges",
+  "java_expect": {
+    "c": "xy",
+    "e": "xy"
+  }
+}
