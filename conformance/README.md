@@ -53,7 +53,7 @@ suite/<spec-section>/<nnn>-<name>/main.json    what it must produce
 suite/<spec-section>/<nnn>-<name>/*             fixtures main.conf includes (.conf, .json, .properties)
 ```
 
-A runner hands your adapter the path to `main.conf`; includes resolve beside it. A case that needs environment variables lists them in the sidecar as `"env": {"NAME": "value"}`, and the runner sets them for your adapter.
+A runner hands your adapter the path to `main.conf`; includes resolve beside it. Where a fixture needs an absolute path, as `include url("file:…")` does, it writes `@CASE_DIR@`: the runner then hands your adapter a copy of the case directory with `@CASE_DIR@` replaced by that copy's absolute path. A case that needs environment variables lists them in the sidecar as `"env": {"NAME": "value"}`, and the runner sets them for your adapter.
 
 `maintaining/SECTIONS.md` maps every heading of the spec to its directory, or to the reason it has no observable parse behaviour. `maintaining/FINDINGS.md` is the open work: cases known to be defective and normative sentences nothing covers yet.
 

@@ -81,12 +81,16 @@ pub fn load(gpa: Allocator, node: Node, ctx: Value.Context) values.Error!Value {
     }
 
     const name = (try unquote.unquote(gpa, node.value)).text;
+    // A URL names one resource: no extension is tried after it, also for
+    // a `file:` URL (spec L1103).
+    var exact = false;
     const target: Target = switch (kind) {
         // A URL when it starts with http:, https: or file:, or with any other scheme://
         // (refused in urlTarget); foo:bar.conf is a file name.
         .plain => blk: {
             if (urlScheme(name)) |scheme| {
                 if (isSupportedScheme(scheme) or std.mem.startsWith(u8, name[scheme.len + 1 ..], "//")) {
+                    exact = true;
                     break :blk try urlTarget(gpa, name);
                 }
             }
@@ -101,7 +105,11 @@ pub fn load(gpa: Allocator, node: Node, ctx: Value.Context) values.Error!Value {
         // `file("…")` is not relative to the including file, but to wherever the
         // process is: the path is used as written.
         .file => .{ .local = name },
-        .url => if (urlScheme(name) != null) try urlTarget(gpa, name) else return error.InvalidUrl,
+        .url => blk: {
+            if (urlScheme(name) == null) return error.InvalidUrl;
+            exact = true;
+            break :blk try urlTarget(gpa, name);
+        },
         .classpath => return error.UnsupportedInclude,
     };
 
@@ -114,7 +122,7 @@ pub fn load(gpa: Allocator, node: Node, ctx: Value.Context) values.Error!Value {
             // path.properties, path.json and path.conf is loaded, later ones on top
             // of earlier ones.
             var probes: std.ArrayList([]const u8) = .empty;
-            if (std.fs.path.extension(path).len != 0) {
+            if (exact or std.fs.path.extension(path).len != 0) {
                 try probes.append(gpa, path);
             } else {
                 for ([_][]const u8{ ".properties", ".json", ".conf" }) |extension| {
@@ -578,6 +586,21 @@ test "include.a file URL is a path" {
         .{ .path = "y.conf", .text = "y = 2" },
         .{ .path = "z z.conf", .text = "z = 3" },
     }, "{\"x\":1,\"y\":2,\"z\":3}");
+}
+
+// include-file-formats/027 · java ✓ · pyhocon ✓ · spec ✓ — a URL is the one
+// resource it names, `file:` too: no extension is tried after it, so with only
+// x.conf beside it `file:…/x` finds nothing (L1103), where `file("…/x")` and a
+// plain name are basenames.
+test "include.a file URL without an extension is exact" {
+    try expectJson(&.{
+        .{ .path = "main.conf", .text = "include url(\"file://{abs_url}/x\")\ninclude \"file:{abs_url}/x\"" },
+        .{ .path = "x.conf", .text = "x = 1" },
+    }, "{}");
+    try expectJson(&.{
+        .{ .path = "main.conf", .text = "include \"x\"" },
+        .{ .path = "x.conf", .text = "x = 1" },
+    }, "{\"x\":1}");
 }
 
 // include-syntax/011 · java ✓ for url("x.conf"), – for the others · pyhocon – ·

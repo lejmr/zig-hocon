@@ -364,6 +364,8 @@ section rather than renumbering.
 | `include-semantics-file-formats-and-extensions.4` | L1091 | Files in HOCON format should be parsed last. |
 | `include-semantics-file-formats-and-extensions.5` | L1091 | Files in JSON format should be parsed next-to-last. |
 | `include-semantics-file-formats-and-extensions.6` | L1100 | This same extension-based behavior is applied to classpath resources and files. |
+| `include-semantics-file-formats-and-extensions.7` | L1103 | For URLs, a basename without extension is not allowed; only the exact URL specified is used. |
+| `include-semantics-file-formats-and-extensions.8` | L1104 | The format will be chosen based on the Content-Type if available, or by the extension of the path component of the URL if no Content-Type is set. This is true even for file: URLs. |
 
 ## [Include semantics: locating resources](../../spec/HOCON.md#include-semantics-locating-resources)
 

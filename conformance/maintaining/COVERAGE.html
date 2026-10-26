@@ -20,9 +20,9 @@ mark.ok { background: var(--ok); } mark.gap { background: var(--gap); }
 .note { color: var(--muted); font-size: 14px; }
 </style>
 <div class="legend">
-  <mark class="ok">274 rules with a case</mark> &nbsp;
+  <mark class="ok">276 rules with a case</mark> &nbsp;
   <mark class="gap">14 rules without one</mark> &nbsp;
-  unmarked text is not a rule — 288 rules in RULES.md. Hover a mark for the id and its cases.
+  unmarked text is not a rule — 290 rules in RULES.md. Hover a mark for the id and its cases.
 </div>
 
 <h1>HOCON (Human-Optimized Config Object Notation)</h1>
@@ -799,11 +799,11 @@ should be parsed next-to-last.</mark></p>
     include &quot;foo.conf&quot;</p>
 <p data-line="1100"><mark class="ok" title="include-semantics-file-formats-and-extensions.6 — include-file-formats/006-json-extension-means-json-syntax/main.conf, include-file-formats/007-properties-extension-means-properties-syntax/main.conf">This same extension-based behavior is applied to classpath
 resources and files.</mark></p>
-<p data-line="1103">For URLs, a basename without extension is not allowed; only the
-exact URL specified is used. The format will be chosen based on
+<p data-line="1103"><mark class="ok" title="include-semantics-file-formats-and-extensions.7 — include-file-formats/027-url-without-extension-is-the-exact-url/main.conf">For URLs, a basename without extension is not allowed; only the
+exact URL specified is used.</mark> <mark class="ok" title="include-semantics-file-formats-and-extensions.8 — include-file-formats/028-file-url-is-read-as-given/main.conf">The format will be chosen based on
 the Content-Type if available, or by the extension of the path
 component of the URL if no Content-Type is set. This is true even
-for file: URLs.</p>
+for file: URLs.</mark></p>
 <h4>Include semantics: locating resources</h4>
 <p data-line="1111"><mark class="gap" title="include-semantics-locating-resources.1 — no case">A quoted string not surrounded by `url()`, `file()`, `classpath()`
 must be interpreted heuristically.</mark> The heuristic is to treat the
@@ -867,7 +867,7 @@ they do support them they should do so as described above.</p>
 specified, the included items are NOT interpreted relative to the
 including items.</mark> <mark class="gap" title="include-semantics-locating-resources.8 — no case">Relative-to-including-file paths only work with
 the heuristic `include &quot;foo.conf&quot;`.</mark> This may change in the future.</p>
-<p data-line="1184"><mark class="ok" title="include-semantics-locating-resources.9 — include-syntax/011-url-argument-must-be-a-url/main.conf">The string inside `url()` is always an absolute URL, with a scheme
+<p data-line="1184"><mark class="ok" title="include-semantics-locating-resources.9 — include-file-formats/027-url-without-extension-is-the-exact-url/main.conf, include-file-formats/028-file-url-is-read-as-given/main.conf, include-syntax/011-url-argument-must-be-a-url/main.conf">The string inside `url()` is always an absolute URL, with a scheme
 ([RFC 3986, section 4.3](https://www.rfc-editor.org/rfc/rfc3986#section-4.3));
 `url(&quot;foo.conf&quot;)` is an error, with or without `required()`.</mark></p>
 <h3>Conversion of numerically-indexed objects to arrays</h3>

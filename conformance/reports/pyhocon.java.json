@@ -5,11 +5,11 @@
   "mode": "java",
   "java_version": "1.4.9",
   "command": "conformance/adapters/oracle.sh hocon-py",
-  "ran_at": "2026-10-26T06:10:24Z",
-  "suite_digest": "c475479caf282723",
-  "total": 528,
-  "passed": 326,
-  "percent": 61.7,
+  "ran_at": "2026-10-26T06:44:37Z",
+  "suite_digest": "2ce570f3f2de8ca4",
+  "total": 530,
+  "passed": 328,
+  "percent": 61.9,
   "sections": {
     "array-and-object-concatenation": {
       "total": 22,
@@ -44,8 +44,8 @@
       "passed": 2
     },
     "include-file-formats": {
-      "total": 23,
-      "passed": 4
+      "total": 25,
+      "passed": 6
     },
     "include-locating": {
       "total": 5,
@@ -283,6 +283,8 @@
     "include-file-formats/024-unknown-extension-is-not-a-basename/main.conf": "fail",
     "include-file-formats/025-json-is-parsed-after-properties/main.conf": "fail",
     "include-file-formats/026-conf-is-parsed-after-json/main.conf": "fail",
+    "include-file-formats/027-url-without-extension-is-the-exact-url/main.conf": "pass",
+    "include-file-formats/028-file-url-is-read-as-given/main.conf": "pass",
     "include-locating/001-include-string-that-is-a-url-is-a-url.conf": "pass",
     "include-locating/002-nested-include-is-relative-to-the-including-file/main.conf": "pass",
     "include-locating/003-plain-name-is-a-file-beside-the-including-one/main.conf": "pass",
@@ -2786,7 +2788,7 @@
         "a": "null bar"
       },
       "got": {
-        "a": "<pyhocon.config_tree.NoneValue object at 0x10142d550>bar"
+        "a": "<pyhocon.config_tree.NoneValue object at 0x1042f0890>bar"
       }
     },
     {

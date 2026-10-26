@@ -1,10 +1,13 @@
 """Reading the suite and talking to an oracle. The two things both scripts do."""
 
+import atexit
 import json
 import pathlib
 import re
+import shutil
 import subprocess
 import sys
+import tempfile
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 SUITE = ROOT / "conformance" / "suite"
@@ -89,10 +92,35 @@ def cases():
     return keep, [json.loads(c.with_suffix(".json").read_text()) for c in keep], orphans
 
 
+CASE_DIR = b"@CASE_DIR@"
+
+
+def materialize(case, cleanup=True):
+    """The main.conf to run for a case. A directory case whose files name
+    `@CASE_DIR@` runs from a copy with it replaced by the copy's own absolute
+    directory: a `url("file:…")` needs an absolute URL (spec L1184), and where
+    the suite sits differs from machine to machine. Every other case runs as it
+    is. `cleanup`: remove the copy when this process ends; a shell that runs
+    the case afterwards removes it itself."""
+    if not is_dir_case(case):
+        return case
+    files = [p for p in case.parent.rglob("*") if p.is_file()]
+    if not any(CASE_DIR in p.read_bytes() for p in files):
+        return case
+    copy = pathlib.Path(tempfile.mkdtemp(prefix="hocon-case-")).resolve()
+    if cleanup:
+        atexit.register(shutil.rmtree, copy, True)
+    for p in files:
+        out = copy / p.relative_to(case.parent)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_bytes(p.read_bytes().replace(CASE_DIR, str(copy).encode()))
+    return copy / "main.conf"
+
+
 def oracle_line(case, meta):
     """The one line that asks an oracle about this case. A directory case is sent
     as a path so its includes resolve beside it; anything else as escaped text."""
-    body = "file:" + str(case.resolve()) if is_dir_case(case) else encode(case.open(newline="").read())
+    body = "file:" + str(materialize(case).resolve()) if is_dir_case(case) else encode(case.open(newline="").read())
     return ("resolve:" if meta.get("resolve") else "") + body
 
 

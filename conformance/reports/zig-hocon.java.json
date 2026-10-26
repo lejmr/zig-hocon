@@ -1,15 +1,15 @@
 {
   "suite": "hocon-conformance",
   "implementation": "zig-hocon",
-  "version": "zig-hocon code@8a58cb5",
+  "version": "zig-hocon code@b41ba38",
   "mode": "java",
   "java_version": "1.4.9",
   "command": "conformance/adapters/zig-hocon.sh",
-  "ran_at": "2026-10-26T06:10:51Z",
-  "suite_digest": "c475479caf282723",
-  "total": 528,
-  "passed": 448,
-  "percent": 84.8,
+  "ran_at": "2026-10-26T06:45:03Z",
+  "suite_digest": "2ce570f3f2de8ca4",
+  "total": 530,
+  "passed": 450,
+  "percent": 84.9,
   "sections": {
     "array-and-object-concatenation": {
       "total": 22,
@@ -44,8 +44,8 @@
       "passed": 9
     },
     "include-file-formats": {
-      "total": 23,
-      "passed": 19
+      "total": 25,
+      "passed": 21
     },
     "include-locating": {
       "total": 5,
@@ -283,6 +283,8 @@
     "include-file-formats/024-unknown-extension-is-not-a-basename/main.conf": "fail",
     "include-file-formats/025-json-is-parsed-after-properties/main.conf": "pass",
     "include-file-formats/026-conf-is-parsed-after-json/main.conf": "pass",
+    "include-file-formats/027-url-without-extension-is-the-exact-url/main.conf": "pass",
+    "include-file-formats/028-file-url-is-read-as-given/main.conf": "pass",
     "include-locating/001-include-string-that-is-a-url-is-a-url.conf": "pass",
     "include-locating/002-nested-include-is-relative-to-the-including-file/main.conf": "pass",
     "include-locating/003-plain-name-is-a-file-beside-the-including-one/main.conf": "pass",

@@ -1,0 +1,11 @@
+{
+  "spec": "HOCON.md#include-semantics-file-formats-and-extensions",
+  "rule": [
+    "include-semantics-file-formats-and-extensions.8",
+    "include-semantics-locating-resources.9"
+  ],
+  "why": "an absolute file: URL is read as given, its format taken from the extension of its path, .conf: {a: 1}",
+  "expect": {
+    "a": 1
+  }
+}
