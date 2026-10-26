@@ -353,6 +353,8 @@ noinline fn followRef(state: *Resolver, r: Ref, on_top: bool) Error!?Value {
     defer state.followed = outer;
     var path = r.path;
     var found = try state.follow(r, path);
+    // Found, or not, at the path as written, from the document root.
+    var fell_back = false;
     // From an included file: nothing found with the scope in front,
     // so try the path as written.
     // From a list element too, unless it is a `+=` there, which only looks
@@ -361,12 +363,13 @@ noinline fn followRef(state: *Resolver, r: Ref, on_top: bool) Error!?Value {
         const scoped = found;
         path = r.path[r.scope_len..];
         found = try state.follow(r.from(path), path);
+        fell_back = true;
         // A cycle is in the document: no variable for it.
         if (found == .absent and scoped == .gone) found = .gone;
     }
     // `.keep`: what waits is looked up later the way it went now:
     // scope first, if it was found with the scope.
-    var later: Value = .{ .ref = if (path.len == r.path.len) r else r.from(path) };
+    var later: Value = .{ .ref = if (!fell_back) r else r.from(path) };
     switch (found) {
         // What it found waits, or holds something that does, so it
         // waits too, as written. Not a copy: `b = ${a}` after
@@ -396,7 +399,9 @@ noinline fn followRef(state: *Resolver, r: Ref, on_top: bool) Error!?Value {
         },
         // The path runs through a value that waits.
         .waits => return later,
-        .absent => switch (state.env) {
+        // A path from a list element has no name for a variable: nothing
+        // names the element (`Ref.flags.anchor`).
+        .absent => if (later.ref.flags.anchor == 0) switch (state.env) {
             .none => {},
             .map => |map| if (try environment.fromEnv(gpa, map, r)) |val| return val,
             // Absent with the scope too, so `later` has none.

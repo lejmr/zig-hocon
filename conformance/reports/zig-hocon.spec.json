@@ -1,13 +1,13 @@
 {
   "suite": "hocon-conformance",
   "implementation": "zig-hocon",
-  "version": "zig-hocon code@0044d2a",
+  "version": "zig-hocon code@8a58cb5",
   "mode": "spec",
   "command": "conformance/adapters/zig-hocon.sh",
-  "ran_at": "2026-10-26T05:35:23Z",
-  "suite_digest": "27b3ade83f163aad",
-  "total": 523,
-  "passed": 523,
+  "ran_at": "2026-10-26T06:10:42Z",
+  "suite_digest": "c475479caf282723",
+  "total": 528,
+  "passed": 528,
   "percent": 100.0,
   "sections": {
     "array-and-object-concatenation": {
@@ -59,8 +59,8 @@
       "passed": 6
     },
     "include-substitution": {
-      "total": 21,
-      "passed": 21
+      "total": 24,
+      "passed": 24
     },
     "include-syntax": {
       "total": 15,
@@ -99,8 +99,8 @@
       "passed": 7
     },
     "plus-equals-field-separator": {
-      "total": 14,
-      "passed": 14
+      "total": 16,
+      "passed": 16
     },
     "self-referential-examples": {
       "total": 54,
@@ -333,6 +333,9 @@
     "include-substitution/019-null-at-fixed-up-path-is-found/main.conf": "pass",
     "include-substitution/020-include-two-objects-deep-is-fixed-up/main.conf": "pass",
     "include-substitution/021-env-var-in-a-file-included-inside-plus-equals/main.conf": "pass",
+    "include-substitution/022-include-in-a-list-element-looks-up-its-own-root/main.conf": "pass",
+    "include-substitution/023-include-under-plus-equals-looks-up-its-own-root/main.conf": "pass",
+    "include-substitution/024-include-in-a-list-element-before-the-including-root/main.conf": "pass",
     "include-syntax/001-include-later-in-key-is-literal.conf": "pass",
     "include-syntax/002-include-as-object-value-is-string.conf": "pass",
     "include-syntax/003-include-as-array-element-is-string.conf": "pass",
@@ -447,6 +450,8 @@
     "plus-equals-field-separator/012-appends-to-a-list-defined-in-object-concatenation.conf": "pass",
     "plus-equals-field-separator/013-appends-after-a-substituted-object.conf": "pass",
     "plus-equals-field-separator/014-appends-twice-after-null-replaced-by-object.conf": "pass",
+    "plus-equals-field-separator/015-plus-equals-onto-a-scalar-in-a-list-element.conf": "pass",
+    "plus-equals-field-separator/016-plus-equals-in-a-list-element-sees-the-earlier-value.conf": "pass",
     "self-referential-examples/001-isolated-self-reference-is-an-error.conf": "pass",
     "self-referential-examples/002-self-reference-resolves-to-earlier-merged-value.conf": "pass",
     "self-referential-examples/003-self-reference-before-any-value-is-undefined.conf": "pass",
@@ -698,6 +703,9 @@
     "include-substitution/011-optional-reference-falls-back-too/main.conf": "{\"common\":{\"x\":{},\"a\":0},\"x\":{\"y\":0}}",
     "include-substitution/014-unrelated-key-does-not-change-the-result/main.conf": "{\"common\":{\"x\":{},\"a\":0},\"x\":{\"y\":0},\"zzz\":{}}",
     "include-substitution/021-env-var-in-a-file-included-inside-plus-equals/main.conf": "{\"k\":{\"a\":[{\"x\":\"norwegian-blue\"}]}}",
+    "include-substitution/022-include-in-a-list-element-looks-up-its-own-root/main.conf": "{\"a\":[{\"x\":1,\"y\":1}]}",
+    "include-substitution/023-include-under-plus-equals-looks-up-its-own-root/main.conf": "{\"a\":[{\"x\":1,\"y\":1}]}",
+    "include-substitution/024-include-in-a-list-element-before-the-including-root/main.conf": "{\"a\":[{\"x\":1,\"y\":1}],\"y\":2}",
     "key-value-separator/007-object-after-omitted-separator-concatenates.conf": "{\"a\":{\"m\":2,\"n\":1}}",
     "key-value-separator/008-substitution-after-omitted-separator-concatenates.conf": "{\"x\":{\"p\":1},\"a\":{\"m\":2,\"p\":1}}",
     "omit-root-braces/006-array-root-unaffected.conf": "[1,2,3]",
@@ -714,6 +722,7 @@
     "plus-equals-field-separator/011-appends-deep-inside-object-concatenation.conf": "{\"x\":{\"a\":{\"b\":{\"c\":[1]}}},\"top\":{\"a\":{\"b\":{\"c\":[1,2]}}}}",
     "plus-equals-field-separator/012-appends-to-a-list-defined-in-object-concatenation.conf": "{\"x\":{},\"y\":{\"l\":[1,2,3]}}",
     "plus-equals-field-separator/014-appends-twice-after-null-replaced-by-object.conf": "{\"c\":{\"x\":[1,2]}}",
+    "plus-equals-field-separator/016-plus-equals-in-a-list-element-sees-the-earlier-value.conf": "{\"a\":[{\"b\":[1,2]}]}",
     "self-referential-examples/015-list-hidden-by-substituted-object-is-never-evaluated.conf": "{\"wrapper\":{},\"replacement\":{}}",
     "self-referential-examples/021-hidden-list-does-not-depend-on-key-order.conf": "{\"w\":{\"x\":1},\"r\":{\"x\":1},\"zzz\":1}",
     "self-referential-examples/027-self-reference-inside-object-concatenation.conf": "{\"d\":{\"x\":[0]},\"c\":{\"x\":[0,1,2]}}",
