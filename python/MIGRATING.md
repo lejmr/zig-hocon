@@ -51,15 +51,14 @@ Two tests hold it against the newest pyhocon on every change: [test_pyhocon_sign
 
 Values have pyhocon's types: `30s` is a `timedelta`, or with python-dateutil installed a `relativedelta`, as pyhocon makes it; months and years need dateutil there too. One difference: a quoted `"30s"` is a duration as well, where pyhocon keeps it text.
 
-The measure is pyhocon's own test suite with the import swapped: 263 of its 308 tests pass. Of the 45 that do not, 44 are a config that reads differently by the spec (Step 3) or the class of a syntax error:
+The measure is pyhocon's own test suite with the import swapped: 272 of its 308 tests pass. Of the 36 that do not, 35 are a config that reads differently by the spec (Step 3) or the class of a syntax error:
 
 | tests | what pyhocon does |
 |---|---|
 | 12 | raises pyparsing's exceptions for a syntax error; here it is a `ConfigParseException` |
 | 9 | flattens `x += [3, 4]` into `x`; by the spec it appends the list as one element |
-| 6 | reads `-Xmx1g` unquoted; the spec does not let an unquoted string start with `-` |
 | 6 | `include` inside a list, `include glob(…)` and `include package(…)`, its own extensions |
-| 5 | resolves a self-reference typesafe/config refuses too: `x = ${x}` with `x` only in the environment, `x = [${x}, 2]`, an object that refers into itself |
+| 2 | resolves a self-reference typesafe/config refuses too: `x = [${x}, 2]` and an object that refers into itself |
 | 3 | accepts `.54`, and a backslash escape in an unquoted string: `abc\"test`, `abc\n` |
 | 2 | includes a file named without an extension; the spec tries `.conf`, `.json` and `.properties` after the name |
 | 1 | reads `${?nope} 4` as the number 4; by the spec it is the text `" 4"` |
