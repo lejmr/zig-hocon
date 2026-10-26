@@ -1,0 +1,28 @@
+{
+  "spec": "HOCON.md#the--field-separator",
+  "rule": [
+    "the--field-separator.3",
+    "examples-of-self-referential-substitutions.3",
+    "paths-as-keys.3"
+  ],
+  "why": "b.x += 2 is b.x = ${?b.x} [2], and it overrides the b.x = [1] that merges onto the object ${a} gives b, so it appends to [1]: [1, 2], as without b = ${a}; typesafe/config drops the 1 when the two fields are separate objects over a substitution, though it gets b { x = [1], x += 2 } right",
+  "expect": {
+    "a": {},
+    "b": {
+      "x": [
+        1,
+        2
+      ]
+    }
+  },
+  "java": "diverges",
+  "java_expect": {
+    "a": {},
+    "b": {
+      "x": [
+        2
+      ]
+    }
+  },
+  "resolve": true
+}

@@ -1,0 +1,35 @@
+{
+  "spec": "HOCON.md#the--field-separator",
+  "rule": [
+    "the--field-separator.3",
+    "examples-of-self-referential-substitutions.3",
+    "duplicate-keys-and-object-merging.2",
+    "substitutions.22"
+  ],
+  "why": "a = ${x} resolves to an object, so it merges with the earlier a { c += 1 } instead of hiding it, and the later += looks back at the [1] that one made: [1, 2]; typesafe/config drops the 1 when an object substitution sits between two appends",
+  "expect": {
+    "x": {
+      "e": 3
+    },
+    "a": {
+      "c": [
+        1,
+        2
+      ],
+      "e": 3
+    }
+  },
+  "java": "diverges",
+  "java_expect": {
+    "x": {
+      "e": 3
+    },
+    "a": {
+      "c": [
+        2
+      ],
+      "e": 3
+    }
+  },
+  "resolve": true
+}

@@ -1,0 +1,16 @@
+{
+  "spec": "HOCON.md#examples-of-self-referential-substitutions",
+  "rule": [
+    "examples-of-self-referential-substitutions.8",
+    "duplicate-keys-and-object-merging.8"
+  ],
+  "why": "the 1 under the list changes nothing: merging goes two values at a time, the object replaces the list without merging, so the list is hidden and ${does-not-exist} is never evaluated. typesafe/config resolves the same file without the 1, but keeps an unresolved list over a scalar as a delayed merge and evaluates it (lightbend/config#865)",
+  "expect": {
+    "wrapper": {
+      "b": 1
+    }
+  },
+  "java": "unsupported",
+  "java_error": "UnresolvedSubstitution",
+  "resolve": true
+}

@@ -43,7 +43,10 @@ def ask(cmd, lines, strict=True, env=None):
     died or broke the protocol, and every later row would be scored against its
     neighbour's answer — so it is an error, never a silent shift."""
     out = subprocess.run([str(c) for c in cmd], input="\n".join(lines) + "\n",
-                         capture_output=True, text=True, env=env).stdout.splitlines()
+                         capture_output=True, text=True, env=env).stdout
+    # One answer per "\n": splitlines() would also split at U+0085 and
+    # U+2028, which a key may hold (whitespace/014).
+    out = out.split("\n")[:-1]
     if len(out) == len(lines):
         return out
     if strict:

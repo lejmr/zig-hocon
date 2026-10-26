@@ -1,0 +1,12 @@
+{
+  "spec": "HOCON.md#whitespace",
+  "rule": [
+    "whitespace.1",
+    "whitespace.3",
+    "unquoted-strings.15"
+  ],
+  "why": "U+0085 (NEL) is a Cc control, neither a Zs/Zl/Zp separator nor one of the listed ASCII controls, so it is not whitespace and stays part of the unquoted key",
+  "expect": {
+    "a": 1
+  }
+}

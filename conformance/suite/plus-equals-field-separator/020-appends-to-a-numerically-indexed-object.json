@@ -1,0 +1,15 @@
+{
+  "spec": "HOCON.md#the--field-separator",
+  "rule": [
+    "the--field-separator.4",
+    "conversion-of-numerically-indexed-objects-to-arrays.3"
+  ],
+  "why": "foo += b is foo = ${?foo} [b], and the previous value is an object with numeric keys; in that concatenation a list is expected, so the object converts to [a] and b is appended rather than += failing on a non-array",
+  "expect": {
+    "foo": [
+      "a",
+      "b"
+    ]
+  },
+  "resolve": true
+}

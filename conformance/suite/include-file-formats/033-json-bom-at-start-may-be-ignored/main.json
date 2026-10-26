@@ -1,0 +1,11 @@
+{
+  "spec": "HOCON.md#include-semantics-file-formats-and-extensions",
+  "rule": "include-semantics-file-formats-and-extensions.2",
+  "why": "the .json file is found through a basename, so it is parsed as JSON, whose whitespace has no BOM: the BOM-is-whitespace rule is HOCON's. RFC 8259 section 8.1 lets a JSON parser ignore a leading BOM or reject it, and this spec does not choose, so both pass",
+  "expect": {
+    "a": 1
+  },
+  "also_valid": [
+    "rejected"
+  ]
+}

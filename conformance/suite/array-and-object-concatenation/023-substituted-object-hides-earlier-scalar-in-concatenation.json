@@ -1,0 +1,32 @@
+{
+  "spec": "HOCON.md#array-and-object-concatenation",
+  "rule": [
+    "array-and-object-concatenation.6",
+    "array-and-object-concatenation.2",
+    "substitutions.11"
+  ],
+  "why": "${x} is x's object {q:2}; the 5 it overrode is x's history, not its value, so { p = 1 } ${x} merges into {p:1, q:2}. The rule of duplicate-keys-and-object-merging/029 reached through concatenation instead of a duplicate key; typesafe/config 1.4.9 lets the 5 cut the merge and keeps only {q:2}",
+  "expect": {
+    "x": {
+      "q": 2
+    },
+    "a": {
+      "p": 1,
+      "q": 2
+    }
+  },
+  "resolve": true,
+  "java": "diverges",
+  "java_expect": {
+    "x": {
+      "q": 2
+    },
+    "a": {
+      "q": 2
+    }
+  },
+  "java_since": {
+    "version": "main",
+    "by": "lightbend/config#864"
+  }
+}

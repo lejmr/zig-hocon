@@ -1,0 +1,10 @@
+{
+  "spec": "HOCON.md#unchanged-from-json",
+  "rule": "unchanged-from-json.1",
+  "why": "files must be valid UTF-8, and that holds for the whole file: a byte that is never UTF-8 (0xFF) inside a comment makes the file invalid, although the comment's text is ignored. typesafe/config decodes it to U+FFFD and drops the comment.",
+  "error": "InvalidUtf8",
+  "java": "lenient",
+  "java_expect": {
+    "a": 1
+  }
+}

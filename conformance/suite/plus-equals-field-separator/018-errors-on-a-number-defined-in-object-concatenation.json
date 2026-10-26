@@ -1,0 +1,20 @@
+{
+  "spec": "HOCON.md#the--field-separator",
+  "rule": [
+    "the--field-separator.4",
+    "examples-of-self-referential-substitutions.3",
+    "array-and-object-concatenation.6"
+  ],
+  "why": "the error twin of 012: y.l += 2 is y.l = ${?y.l} [2] and looks back at the l = 1 the earlier concatenation merged in, and a number before an array is an error just as in the long form; typesafe/config drops the earlier value and starts a fresh [2]",
+  "error": "WrongType",
+  "resolve": true,
+  "java": "lenient",
+  "java_expect": {
+    "x": {},
+    "y": {
+      "l": [
+        2
+      ]
+    }
+  }
+}

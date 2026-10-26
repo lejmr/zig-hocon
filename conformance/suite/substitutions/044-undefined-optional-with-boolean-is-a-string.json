@@ -1,0 +1,17 @@
+{
+  "spec": "HOCON.md#substitutions",
+  "rule": [
+    "substitutions.24",
+    "substitutions.18",
+    "string-value-concatenation.7"
+  ],
+  "why": "true${?x} is a concatenation of two parts, so it is value-concatenated to form a string (substitutions.24): the undefined optional becomes empty and true becomes \"true\" (string-value-concatenation.7); typesafe/config instead drops the undefined part and keeps the lone true as a boolean",
+  "expect": {
+    "a": "true"
+  },
+  "java": "diverges",
+  "java_expect": {
+    "a": true
+  },
+  "resolve": true
+}
