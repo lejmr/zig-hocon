@@ -11,6 +11,7 @@ import importlib.util
 import json
 import logging
 import os
+import re
 import socket
 import urllib.error
 import urllib.request
@@ -77,6 +78,12 @@ _AS_PYHOCON: dict[str, type[ConfigException]] = {
 
 _T = TypeVar("_T")
 
+# A number by pyhocon's grammar, and one by JSON's: libhocon reads a text
+# of the first that is not the second (0024, .54) as text, pyhocon as the
+# number. One JSON has is quoted in the document, and stays text.
+_PYHOCON_NUMBER = re.compile(r"-?(\d*\.\d+|\d+(\.\d+)?)([eE][+-]?\d+)?")
+_JSON_NUMBER = re.compile(r"-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?")
+
 
 def _call(read: Callable[[], _T]) -> _T:
     """``read()``, its error in pyhocon's class."""
@@ -93,8 +100,11 @@ def _call(read: Callable[[], _T]) -> _T:
 
 
 def _typed(value: Any) -> Any:
-    """A value from libhocon's JSON as pyhocon has it: ``30s`` a duration."""
+    """A value from libhocon's JSON as pyhocon has it: ``30s`` a duration,
+    ``0024`` the number 24."""
     if isinstance(value, str):
+        if _PYHOCON_NUMBER.fullmatch(value) and not _JSON_NUMBER.fullmatch(value):
+            return int(value) if value.lstrip("-").isdigit() else float(value)
         return duration(value)
     if isinstance(value, list):
         return [_typed(v) for v in value]
