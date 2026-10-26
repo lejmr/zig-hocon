@@ -49,9 +49,9 @@ Everything of pyhocon's public API is there: `ConfigFactory.parse_file` (with `e
 
 Two tests hold it against the newest pyhocon on every change: [test_pyhocon_signatures.py](tests/test_pyhocon_signatures.py) has every public name of pyhocon's modules, with the same parameters, and [test_pyhocon_compat.py](tests/test_pyhocon_compat.py) reads documents with both and compares the values, their types and the converter's output. Each difference by design is in them with its reason.
 
-Values have pyhocon's types: `30s` is a `timedelta`, or with python-dateutil installed a `relativedelta`, as pyhocon makes it; months and years need dateutil there too. One difference: a quoted `"30s"` is a duration as well, where pyhocon keeps it text.
+Values have pyhocon's types: `30s` is a `timedelta`, or with python-dateutil installed a `relativedelta`, as pyhocon makes it; months and years need dateutil there too. A number pyhocon reads where JSON has none is that number, as in pyhocon: `0024` is 24, `.54` and `-.5` are 0.5 and -0.5. One difference: quoted, `"30s"` is a duration as well and `"01234"` the number 1234, where pyhocon keeps them text; `"8080"` or `"0.5"` stays text.
 
-The measure is pyhocon's own test suite with the import swapped: 272 of its 308 tests pass. Of the 36 that do not, 35 are a config that reads differently by the spec (Step 3) or the class of a syntax error:
+The measure is pyhocon's own test suite with the import swapped: 273 of its 308 tests pass. Of the 35 that do not, 34 are a config that reads differently by the spec (Step 3) or the class of a syntax error:
 
 | tests | what pyhocon does |
 |---|---|
@@ -59,7 +59,7 @@ The measure is pyhocon's own test suite with the import swapped: 272 of its 308 
 | 9 | flattens `x += [3, 4]` into `x`; by the spec it appends the list as one element |
 | 6 | `include` inside a list, `include glob(…)` and `include package(…)`, its own extensions |
 | 2 | resolves a self-reference typesafe/config refuses too: `x = [${x}, 2]` and an object that refers into itself |
-| 3 | accepts `.54`, and a backslash escape in an unquoted string: `abc\"test`, `abc\n` |
+| 2 | accepts a backslash escape in an unquoted string: `abc\"test`, `abc\n` |
 | 2 | includes a file named without an extension; the spec tries `.conf`, `.json` and `.properties` after the name |
 | 1 | reads `${?nope} 4` as the number 4; by the spec it is the text `" 4"` |
 
@@ -130,7 +130,7 @@ settings["db"]["host"]
 - **Durations and sizes are text until something asks** (not in `zig_hocon.pyhocon`, which has pyhocon's `timedelta`). pyhocon turns `30s` into a `timedelta` while it parses; here `as_dict()` has `"30s"`, and `get_duration` or the model converts it. With pydantic, a `BeforeValidator(zig_hocon.parse_duration)` on the field; [examples/durations-and-sizes](examples/durations-and-sizes) has it for pydantic and msgspec.
 - **A concatenation is a string.** `a = ${?nope}42` is `"42"` by the spec; pyhocon gives the number `42`. A model that wants an int converts it.
 - **An `include url(…)` gives up after 30 s.** pyhocon waits as long as `socket.setdefaulttimeout` says, by default for ever. Here `http_timeout=` on `parse_file` and `parse_string` sets it, and a server that does not answer in time is a `ConfigParseException` named `IncludeTimeout`.
-- **A leading zero keeps the text** (the getters not in `zig_hocon.pyhocon`, whose `get_int` and `get_float` read the text as pyhocon does). A value that begins with a digit begins with the number JSON reads there, and the rest is text, so `zip = 01234` is `"01234"` by the spec; pyhocon gives the number 1234. An IP address, a version or a UUID is text as written, as in pyhocon. So is a value that begins with `-` and no number, `-foo` or `-Xmx2g`, and a fraction JSON has no number for: `.5` and `-.5` are the text `".5"` and `"-.5"`, where pyhocon gives 0.5 and -0.5. Text becomes a number only by the JSON rules, so `get_int("zip")` on `01234` and `get_float` on `-.5` raise `ConfigWrongTypeException`, where pyhocon gives 1234 and -0.5: write `zip = "01234"` and read it with `get_string`, or `-0.5`.
+- **A leading zero keeps the text** (not in `zig_hocon.pyhocon`, which reads such a number as pyhocon does). A value that begins with a digit begins with the number JSON reads there, and the rest is text, so `zip = 01234` is `"01234"` by the spec; pyhocon gives the number 1234. An IP address, a version or a UUID is text as written, as in pyhocon. So is a value that begins with `-` and no number, `-foo` or `-Xmx2g`, and a fraction JSON has no number for: `.5` and `-.5` are the text `".5"` and `"-.5"`, where pyhocon gives 0.5 and -0.5. Text becomes a number only by the JSON rules, so `get_int("zip")` on `01234` and `get_float` on `-.5` raise `ConfigWrongTypeException`, where pyhocon gives 1234 and -0.5: write `zip = "01234"` and read it with `get_string`, or `-0.5`.
 - **`+=` appends one element.** `x += [3, 4]` after `x = [1, 2]` is `[1, 2, [3, 4]]`, as `x = ${?x} [[3, 4]]` is; pyhocon gives `[1, 2, 3, 4]`. To extend a list with another, `x = ${x} [3, 4]`.
 - **Strict syntax.** The other inputs in the table under *No silent guesses* are errors now. They are rare, and each error says where to look.
 

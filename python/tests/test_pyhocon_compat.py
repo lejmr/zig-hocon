@@ -24,6 +24,8 @@ CASES = {
     "unquoted text": "owl = the owl hoots at midnight",
     # text since 0.5.3, as the spec has it; it was an error and an xfail here
     "-Xmx unquoted": "opts = [-Xmx1g]",
+    "numbers JSON has not": "a = 0024\nb = -0024\nc = 007.5\nd = 01e2\ne = .54\nf = -.5\ng = [00, 1]",
+    "quoted numbers": 'port = "8080"\nratio = "0.5"\nbig = "1e3"',
     "quoted text": 'owl = "hoot, hoot"\nempty = ""',
     "escapes": r'a = "tab\there"' + "\n" + r'b = "quote \" and \\ slash"',
     "multiline text": 'poem = """the owl\nflew home"""',
@@ -67,6 +69,7 @@ CASES = {
     # what the spec reads otherwise
     "quoted duration": differs('a = "30s"', 'a quoted "30s" is a duration here too: libhocon\'s JSON has no quotes left'),
     "+= appends one element": differs("a = [1]\na += [2, 3]", "by the spec += appends the list as one element"),
+    "quoted leading zero": differs('zip = "01234"', "a number pyhocon reads where JSON has none is one quoted too: libhocon's JSON has no quotes left"),
     "optional substitution then text": differs("a = ${?nope} 4", 'by the spec it is the text " 4", pyhocon the number 4'),
     "duration then text": differs("a = 5 ms foo", "pyhocon makes '0:00:00.005000foo' of it"),
     "bool then text": differs("a = true love", "pyhocon makes 'Truelove' of it; by the spec it is 'true love'"),
