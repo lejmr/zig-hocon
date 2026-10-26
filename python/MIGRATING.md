@@ -3,7 +3,7 @@
 This guide moves a project from pyhocon to zig_hocon. There are two ways:
 
 - **`zig_hocon.pyhocon`, a change of import.** pyhocon's API as pyhocon 0.3.63 has it: the same modules, names, arguments and output, the tree an `OrderedDict` you can `put` into and `pop` from. The section below says what it covers and what it does not.
-- **`zig_hocon`, the package's own API.** Typed getters on a document that stays in the library until one asks, and no tree in Python at all. Steps 1 and 2 are in that section.
+- **The zig_hocon way.** Typed getters on a document that stays in the library until one asks, and no tree in Python at all. Steps 1 and 2 are in that section.
 
 `zig_hocon` reads a config by the spec, which in a few places is not how pyhocon reads it: Step 3. `zig_hocon.pyhocon` reads pyhocon's own syntax as pyhocon does, and the rest by the spec. The checklist at the end finds every place to look at.
 
@@ -69,7 +69,7 @@ The one left is `ConfigTree.resolve()`, which is not there. Nor are a few things
 
 The whole document is in Python, as in pyhocon, so it is a little slower than `zig_hocon`, still far from pyhocon: a 5 KB config in 0.3 ms (pyhocon 29 ms), 10 MB in 0.38 s (pyhocon 68 s), against 0.2 ms and 0.13 s for `zig_hocon`.
 
-## The package's own API: zig_hocon
+## The zig_hocon way
 
 Steps 1 and 2 replace the calls. Step 3 is where a config reads differently by the spec; with `zig_hocon.pyhocon`, only that step applies.
 
