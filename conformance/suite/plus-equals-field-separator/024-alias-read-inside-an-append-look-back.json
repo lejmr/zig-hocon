@@ -1,0 +1,27 @@
+{
+  "spec": "HOCON.md#the--field-separator",
+  "rule": [
+    "self-referential-substitutions.4",
+    "examples-of-self-referential-substitutions.22",
+    "examples-of-self-referential-substitutions.27"
+  ],
+  "why": "e's last value reaches e again through c, so it is self-referential and looks back at the first e += ${?c}, whose own ${?c} leads back to e and is nonexistent: c is [] there, and keeps it, as a substitution is resolved once, so e is [[]]. Or c is an alias for the final e, every optional on the cycle nonexistent: [] both (also_valid), as in self-referential-examples/035 and 065",
+  "expect": {
+    "e": [
+      []
+    ],
+    "c": []
+  },
+  "resolve": true,
+  "java": "diverges",
+  "also_valid": [
+    {
+      "e": [],
+      "c": []
+    }
+  ],
+  "java_expect": {
+    "c": [],
+    "e": []
+  }
+}

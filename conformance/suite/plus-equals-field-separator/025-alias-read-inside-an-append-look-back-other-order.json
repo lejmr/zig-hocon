@@ -1,0 +1,27 @@
+{
+  "spec": "HOCON.md#the--field-separator",
+  "rule": [
+    "self-referential-substitutions.4",
+    "examples-of-self-referential-substitutions.22",
+    "examples-of-self-referential-substitutions.27"
+  ],
+  "why": "as 024 with c written first: c is [], e is [[]], or [] both (also_valid)",
+  "expect": {
+    "c": [],
+    "e": [
+      []
+    ]
+  },
+  "resolve": true,
+  "java": "diverges",
+  "also_valid": [
+    {
+      "e": [],
+      "c": []
+    }
+  ],
+  "java_expect": {
+    "c": [],
+    "e": []
+  }
+}
