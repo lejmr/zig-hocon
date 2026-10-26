@@ -7,6 +7,8 @@ directory): its arguments and messages over libhocon's parser."""
 
 import codecs
 import contextlib
+import functools
+import importlib
 import importlib.util
 import json
 import logging
@@ -21,6 +23,7 @@ from typing import Any, Literal, TypeVar, cast, overload
 from .. import config_parser as _core
 from .. import config_tree as _core_tree
 from ..exceptions import ConfigException, ConfigMissingException, ConfigParseException, ConfigSubstitutionException, ConfigWrongTypeException
+from ._source import written_spec_way
 from .config_tree import ConfigInclude, ConfigList, ConfigQuotedString, ConfigSubstitution, ConfigTree, ConfigUnquotedString, ConfigValues, NoneValue, quoted
 from .period_parser import duration
 
@@ -85,13 +88,35 @@ _PYHOCON_NUMBER = re.compile(r"-?(\d*\.\d+|\d+(\.\d+)?)([eE][+-]?\d+)?")
 _JSON_NUMBER = re.compile(r"-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?")
 
 
+@functools.cache
+def _syntax_error() -> type[ConfigParseException]:
+    """With pyparsing installed, as it is beside pyhocon, a syntax error is
+    pyparsing's ParseException and ParseSyntaxException too, which pyhocon
+    raises; ``line`` stays zig_hocon's number, ``lineno`` and ``col`` are
+    pyparsing's."""
+    try:
+        pp = importlib.import_module("pyparsing")
+    except ImportError:
+        return ConfigParseException
+
+    def init(self: Any, message: str) -> None:
+        ConfigParseException.__init__(self, message)
+        # pyparsing's own __init__ takes the message for the parsed text
+        self.args, self.pstr, self.loc, self.msg = (message,), "", 0, message
+
+    namespace = {"__init__": init, "__module__": __name__, "lineno": property(lambda self: self.line), "col": property(lambda self: self.column)}
+    return cast(type[ConfigParseException], type("ConfigParseException", (ConfigParseException, pp.ParseException, pp.ParseSyntaxException), namespace))
+
+
 def _call(read: Callable[[], _T]) -> _T:
     """``read()``, its error in pyhocon's class."""
     try:
         return read()
     except ConfigException as e:
         cls = _AS_PYHOCON.get(e.name or "")
-        if cls is None:
+        if cls is None and type(e) is ConfigParseException and "Include" not in (e.name or ""):
+            cls = _syntax_error()
+        if cls is None or cls is ConfigParseException:
             raise
         # the message alone: OSError takes more arguments as errno and strerror
         err = cls(str(e))
@@ -149,6 +174,10 @@ def _read(parse: Callable[[bool], _core_tree.ConfigTree], resolve: bool, unresol
     return as_written(_call(lambda: parse(False).to_hocon()))
 
 
+def _spec_way(text: str, basedir: Path | None) -> str:
+    return written_spec_way(text, None if basedir is None else os.fspath(basedir), ConfigParser.resolve_package_path)
+
+
 class ConfigFactory:
     """Reads a document, as pyhocon's ``ConfigFactory``. ``${NAME}`` that is
     not in the document is looked up in ``os.environ``."""
@@ -177,10 +206,12 @@ class ConfigFactory:
                 raise
             logger.warning("Cannot include file %s. File does not exist or cannot be read.", filename)
             return []
+        basedir = os.path.dirname(filename)
+        text = _spec_way(content, basedir)
         # A UTF-8 file is read again by libhocon, for its name in an error.
-        if codecs.lookup(encoding).name == "utf-8":
+        if text == content and codecs.lookup(encoding).name == "utf-8":
             return _read(lambda r: _core.ConfigFactory.parse_file(filename, resolve=r), resolve, unresolved_value)
-        return cls.parse_string(content, os.path.dirname(filename), resolve, unresolved_value)
+        return _read(lambda r: _core.ConfigFactory.parse_string(text, basedir=basedir, resolve=r), resolve, unresolved_value)
 
     @overload
     @classmethod
@@ -209,14 +240,16 @@ class ConfigFactory:
             if required:
                 raise
             return []
-        return _read(lambda r: _core.ConfigFactory.parse_string(content, resolve=r), resolve, unresolved_value)
+        text = _spec_way(content, None)
+        return _read(lambda r: _core.ConfigFactory.parse_string(text, resolve=r), resolve, unresolved_value)
 
     @classmethod
     def parse_string(cls, content: str, basedir: Path | None = None, resolve: bool = True, unresolved_value: Any = DEFAULT_SUBSTITUTION) -> ConfigTree:
         """HOCON text; an include in it is found in ``basedir``, by default
         the working directory, as pyhocon finds it."""
         where = os.getcwd() if basedir is None else basedir
-        return _read(lambda r: _core.ConfigFactory.parse_string(content, basedir=where, resolve=r), resolve, unresolved_value)
+        text = _spec_way(content, basedir)
+        return _read(lambda r: _core.ConfigFactory.parse_string(text, basedir=where, resolve=r), resolve, unresolved_value)
 
     @classmethod
     def from_dict(cls, dictionary: Mapping[str, Any], root: bool = False) -> Any:
