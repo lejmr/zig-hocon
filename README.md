@@ -48,7 +48,7 @@ The rest of this page reads these two files.
 
 ## Why zig-hocon
 
-- **Correct.** Passes all 523 tests in the [conformance suite](https://htmlpreview.github.io/?https://github.com/lejmr/zig-hocon/blob/main/conformance/report.html), one test for each sentence of the spec.
+- **Correct.** Passes all 528 tests in the [conformance suite](https://htmlpreview.github.io/?https://github.com/lejmr/zig-hocon/blob/main/conformance/report.html), one test for each sentence of the spec.
 - **Your schema is a Zig struct.** HOCON is only what sits on disk; the struct says what it holds, with defaults, optionals, enums, durations and sizes.
 - **Fast.** A 10 MB config in a quarter of a second.\*
 - **Clear errors.** File, line, column and a caret, also for a value of the wrong type.
@@ -210,13 +210,13 @@ b.step("check-config", "Check the config against Config").dependOn(&check.step);
 
 | implementation | against the spec | against typesafe/config 1.4.9 |
 |---|---|---|
-| Java <sub>typesafe/config 1.4.9</sub> | 85.5% (447/523) | 100% (523/523) |
-| hocon2 <sub>hocon2 0.6.3</sub> | 73.8% (386/523) | 68.5% (358/523) |
-| pulse-pyhocon <sub>pulse-pyhocon 0.2.1</sub> | 60.6% (317/523) | 57.2% (299/523) |
-| py.hocon <sub>hocon-parser 1.14.2 (Python)</sub> | 76.1% (398/523) | 74.0% (387/523) |
-| pyhocon <sub>pyhocon 0.3.63</sub> | 66.2% (346/523) | 62.0% (324/523) |
-| rs.hocon <sub>hocon-parser 1.14.2 (Rust)</sub> | 76.1% (398/523) | 73.4% (384/523) |
-| zig-hocon <sub>zig-hocon code@0044d2a</sub> | 100% (523/523) | 85.5% (447/523) |
+| Java <sub>typesafe/config 1.4.9</sub> | 84.8% (448/528) | 100% (528/528) |
+| hocon2 <sub>hocon2 0.6.3</sub> | 73.1% (386/528) | 67.8% (358/528) |
+| pulse-pyhocon <sub>pulse-pyhocon 0.2.1</sub> | 60.0% (317/528) | 56.6% (299/528) |
+| py.hocon <sub>hocon-parser 1.14.2 (Python)</sub> | 75.4% (398/528) | 73.3% (387/528) |
+| pyhocon <sub>pyhocon 0.3.63</sub> | 65.5% (346/528) | 61.7% (326/528) |
+| rs.hocon <sub>hocon-parser 1.14.2 (Rust)</sub> | 75.4% (398/528) | 72.7% (384/528) |
+| zig-hocon <sub>zig-hocon code@8a58cb5</sub> | 100% (528/528) | 84.8% (448/528) |
 
 The table keeps the best parsers; the others measured, and why they are not in it: [conformance/README.md](conformance/README.md#not-in-the-table).
 

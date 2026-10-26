@@ -47,8 +47,28 @@ pub const Files = struct {
 };
 
 /// One step of the way down from a file's root, kept on the stack while the
-/// value below it is built: an include needs the whole way as a path.
-pub const Frame = struct { parent: ?*const Frame, key: Key };
+/// value below it is built: an include needs the whole way as a path. A
+/// list element is a step no key names (`element`): the way starts again
+/// there, at the n-th list element from the document root (`Ref.flags.anchor`).
+pub const Frame = struct { parent: ?*const Frame, key: Key, element: bool = false };
+
+/// The keys from where the way starts down to `frame`: this file's root, or
+/// the innermost list element above it. Its anchor, as `Ref.flags.anchor`
+/// counts it: `ctx.anchor` from the file's root, the element's own number
+/// from an element, as long as it fits.
+pub fn wayDown(gpa: std.mem.Allocator, ctx: Context, frame: ?*const Frame) Error!struct { keys: []const Key, scope: []const Key, anchor: u5 } {
+    var keys: std.ArrayList(Key) = .empty;
+    var step = frame;
+    const from_element = while (step) |s| : (step = s.parent) {
+        if (s.element) break true;
+        try keys.append(gpa, s.key);
+    } else false;
+    // The frames came innermost first.
+    std.mem.reverse(Key, keys.items);
+    if (!from_element) return .{ .keys = keys.items, .scope = ctx.scope, .anchor = ctx.anchor };
+    if (ctx.elements > std.math.maxInt(u5)) return error.UnsupportedInclude;
+    return .{ .keys = keys.items, .scope = &.{}, .anchor = @intCast(ctx.elements) };
+}
 
 /// What building a value needs to know about the file it comes from, so an
 /// `include` has somewhere to look. The default is a document read from a
@@ -71,6 +91,12 @@ pub const Context = struct {
     scope: []const Key = &.{},
     /// The keys from this file's root down to the object being built.
     frame: ?*const Frame = null,
+    /// How many list elements are around the value being built, from the
+    /// document root, through every include.
+    elements: usize = 0,
+    /// Where this file's `scope` starts, as `Ref.flags.anchor`: 0 the
+    /// document root, n the n-th list element from it.
+    anchor: u5 = 0,
     /// The files of the document, and this one's index among them.
     files: ?*Files = null,
     file: u16 = 0,
@@ -130,7 +156,12 @@ pub fn fromNode(gpa: std.mem.Allocator, node: Node, ctx: Context) Error!Value {
         .array => blk: {
             var members: std.ArrayList(Value) = .empty;
             for (node.children) |object| {
-                const val = try Value.fromNode(gpa, object, ctx);
+                // No key names an element, so a way down starts again there.
+                const frame: Frame = .{ .parent = ctx.frame, .key = .{ .value = "" }, .element = true };
+                var inner = ctx;
+                inner.frame = &frame;
+                inner.elements = ctx.elements + 1;
+                const val = try Value.fromNode(gpa, object, inner);
                 try members.append(gpa, val);
             }
             break :blk .{ .array = try members.toOwnedSlice(gpa) };

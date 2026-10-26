@@ -1,0 +1,19 @@
+{
+  "spec": "HOCON.md#include-semantics-substitution",
+  "rule": [
+    "include-semantics-substitution.1",
+    "include-syntax.6"
+  ],
+  "why": "a substitution in an included file is looked up first relative to the included file's root, here the list element, so ${y} finds y = 1 next to it; the spec makes no exception for a list",
+  "expect": {
+    "a": [
+      {
+        "x": 1,
+        "y": 1
+      }
+    ]
+  },
+  "resolve": true,
+  "java": "unsupported",
+  "java_error": "Parse"
+}

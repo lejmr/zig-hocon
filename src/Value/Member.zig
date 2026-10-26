@@ -47,19 +47,24 @@ pub fn fromNode(gpa: std.mem.Allocator, node: Node, ctx: Value.Context) Error!Me
     const frame: Value.Frame = .{ .parent = ctx.frame, .key = key };
     var inner = ctx;
     inner.frame = &frame;
+    // `a += b` puts b in a list, so a way down inside b starts at that
+    // element, as in any list (`Value.Frame`).
+    const element: Value.Frame = .{ .parent = &frame, .key = .{ .value = "" }, .element = true };
+    if (node.kind == .append) {
+        inner.frame = &element;
+        inner.elements = ctx.elements + 1;
+    }
     const value = try Value.fromNode(gpa, node.children[1], inner);
     if (node.kind != .append) return .{ .key = key, .value = value };
 
     // `a += b` is `a = ${?a} [b]`, where `a` is the field's whole path: the
-    // include's scope, then the keys from the file's root down to this one.
-    var keys: std.ArrayList(Key) = .empty;
-    var step: ?*const Value.Frame = &frame;
-    while (step) |s| : (step = s.parent) try keys.append(gpa, s.key);
-    std.mem.reverse(Key, keys.items);
+    // include's scope, then the keys from the file's root down to this one;
+    // in a list element, the keys from the element down (`Value.wayDown`).
+    const way = try Value.wayDown(gpa, ctx, &frame);
     const self_ref: Ref = .{
-        .path = try std.mem.concat(gpa, Key, &.{ ctx.scope, keys.items }),
-        .flags = .{ .optional = true, .append = true },
-        .scope_len = @intCast(ctx.scope.len),
+        .path = try std.mem.concat(gpa, Key, &.{ way.scope, way.keys }),
+        .flags = .{ .optional = true, .append = true, .anchor = way.anchor },
+        .scope_len = @intCast(way.scope.len),
         .file = ctx.file,
         .pos = @intCast(node.pos),
     };

@@ -31,7 +31,10 @@ flags: packed struct(u8) {
     /// Made by `a += b` and looking up `a` itself, so it can be written
     /// as `+=` again.
     append: bool = false,
-    _: u5 = 0,
+    /// Where `path` starts: 0 the document root, n the n-th list element
+    /// from it, for a `+=` or an included file inside one, where no key
+    /// can name what the path starts at (spec L1010, L745).
+    anchor: u5 = 0,
 },
 /// A u8, so that `file` fits too: Ref stays 24 bytes and Value 32. More keys
 /// than that above an include are refused where the scope is made.
@@ -54,6 +57,7 @@ pub fn from(self: Ref, path: []const Key) Ref {
     var copy = self;
     copy.path = path;
     copy.scope_len = 0;
+    copy.flags.anchor = 0;
     if (path.len != self.path.len) copy.flags.append = false;
     return copy;
 }
@@ -77,6 +81,7 @@ pub fn fromNode(gpa: std.mem.Allocator, node: Node, ctx: Value.Context) Error!Re
         .flags = .{
             .optional = if (node.kind == .subst_optional) true else false,
             .list = std.mem.eql(u8, node.value, "[]"),
+            .anchor = ctx.anchor,
         },
         .scope_len = @intCast(ctx.scope.len),
         .file = ctx.file,

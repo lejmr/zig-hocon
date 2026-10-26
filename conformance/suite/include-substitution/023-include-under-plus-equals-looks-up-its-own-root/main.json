@@ -1,0 +1,19 @@
+{
+  "spec": "HOCON.md#include-semantics-substitution",
+  "rule": [
+    "include-semantics-substitution.1",
+    "the--field-separator.2"
+  ],
+  "why": "as 022 with the object appended by +=: its root is the element, and ${y} finds y = 1 there",
+  "expect": {
+    "a": [
+      {
+        "x": 1,
+        "y": 1
+      }
+    ]
+  },
+  "resolve": true,
+  "java": "unsupported",
+  "java_error": "Parse"
+}
