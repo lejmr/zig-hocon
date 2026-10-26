@@ -64,6 +64,10 @@ cycles: usize = 0,
 // Optionals being followed, each as how many places were being visited when
 // it began: a cycle closed past one runs through it (`resolveOptional`).
 optionals: std.ArrayList(usize) = .empty,
+// The last path `lookup` followed ended at the field being resolved, the
+// innermost one: a self-reference, which looked back at the layers below it
+// (`seen`, `resolveOptional`).
+looked_back: bool = false,
 // The one of `optionals` a cycle is unwinding to.
 breaking: ?usize = null,
 // The lowest place in `visiting` a cycle closed at, while the innermost
@@ -315,6 +319,7 @@ noinline fn resolveOptional(state: *Resolver, r: Ref, on_top: bool) Error!?Value
         if (state.closed == null or o < state.closed.?) state.closed = o;
     };
     const val = state.followRef(r, on_top) catch |err| {
+        state.looked_back = false;
         if (err != error.SubstitutionCycle or state.breaking != mark) return err;
         state.breaking = null;
         state.err_pos.* = err_pos;
@@ -323,6 +328,14 @@ noinline fn resolveOptional(state: *Resolver, r: Ref, on_top: bool) Error!?Value
         state.cycles += 1;
         return null;
     };
+    // A self-reference that found a value below is not on the cycle: that
+    // value is what the field held before (spec L767), written there, and the
+    // cycle closed through an optional in it, which is nonexistent instead.
+    // `f += ${?b}`, `b = x${?f}`, `b += 1`: b's look-back is "x", and `+=`
+    // onto it an error (L731), whichever field is resolved first.
+    const looked_back = state.looked_back;
+    state.looked_back = false;
+    if (val != null and looked_back) return val;
     if (state.closed) |closed| if (closed < start) {
         state.cycles += 1;
         return null;
@@ -433,6 +446,8 @@ fn follow(state: *Resolver, ref: Ref, path: []const Key) Error!Found {
     };
     // An optional that found nothing leaves no field: not in the document.
     // Unless it hit a cycle on the way, then the field is just gone.
+    const looked_back = state.looked_back;
+    defer state.looked_back = looked_back;
     const cycles = state.cycles;
     const val = try state.resolveTarget(target, ref, true) orelse
         return if (state.cycles > cycles) .gone else .absent;
@@ -570,13 +585,18 @@ fn lookup(state: *Resolver, ref: Ref, path: []const Key) Error!Place {
         // nothing there it is as if the path were not in the document
         // (spec L767), so it reads the variable; a cycle on the way is gone.
         const before = state.cycles;
+        state.looked_back = false;
         current = try state.seen(current, ref, false) orelse
             return if (state.cycles > before) .gone else .absent;
+        state.looked_back = false;
         if (try state.throughAlias(ref, current, path[k..])) |found| return found;
         if (current.* == .ref or current.* == .pending or current.* == .stack) {
             const cycles = state.cycles;
-            const val = try state.resolveTarget(current, ref, false) orelse
+            const val = try state.resolveTarget(current, ref, false) orelse {
+                state.looked_back = false;
                 return if (state.cycles > cycles) .gone else .absent;
+            };
+            state.looked_back = false;
             if (waits(val)) return .waits;
         }
         if (current.* != .object) return .absent;
@@ -589,6 +609,7 @@ fn lookup(state: *Resolver, ref: Ref, path: []const Key) Error!Place {
         }
         current = members.value_ptr.get(key.value) orelse return .absent;
     }
+    // `seen` says whether this last step looked back (`looked_back`).
     const before = state.cycles;
     const place = try state.seen(current, ref, true) orelse
         return if (state.cycles > before) .gone else .absent;

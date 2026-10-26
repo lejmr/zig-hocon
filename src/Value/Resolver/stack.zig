@@ -279,6 +279,10 @@ fn mergeable(layers: []const Value) bool {
 // `whole`: the path ends at the place, rather than going on through it.
 pub fn seen(state: *Resolver, place: *Value, ref: Ref, whole: bool) Error!?*Value {
     const gpa = state.gpa;
+    // Whether what it returns is the innermost field's layers below, looked
+    // back at: `looked_back`, false on every other way out.
+    state.looked_back = false;
+    const innermost = state.fields.items.len;
     var i = state.fields.items.len;
     while (i > 0) {
         i -= 1;
@@ -378,7 +382,12 @@ pub fn seen(state: *Resolver, place: *Value, ref: Ref, whole: bool) Error!?*Valu
                 state.fields.items[i].progress = .done;
             },
         }
-        return try state.placeFor(state.fields.items[i].merged orelse return null);
+        const merged = state.fields.items[i].merged orelse {
+            state.looked_back = false;
+            return null;
+        };
+        state.looked_back = i + 1 == innermost;
+        return try state.placeFor(merged);
     }
     return place;
 }
