@@ -35,6 +35,13 @@ const n = @import("build.zig").n;
 
 const Resolver = @This();
 
+// A `${?…}` as written: its path, which an included file has a copy of with
+// its own scope, and where it is.
+const RefAt = struct { path: usize, file: u16, pos: u32 };
+fn refAt(r: Ref) RefAt {
+    return .{ .path = @intFromPtr(r.path.ptr), .file = r.file, .pos = r.pos };
+}
+
 pub const Error = error{ Unresolved, SubstitutionCycle } || @import("../Value.zig").Error;
 pub const Env = environment.Env;
 
@@ -68,6 +75,14 @@ optionals: std.ArrayList(usize) = .empty,
 // innermost one: a self-reference, which looked back at the layers below it
 // (`seen`, `resolveOptional`).
 looked_back: bool = false,
+// Optionals that led back to the field they stand in (Rule R in
+// docs/resolver.md), by where they are written: nonexistent, also when they
+// are resolved again later, outside the cycle, a substitution being resolved
+// once (spec L884). A field a required ref on the cycle stopped is resolved
+// again, and would find them otherwise (`resolveOptional`). With each, the
+// place the cycle closed at: met again while that place is being resolved,
+// it is followed as any other.
+nonexistent: std.AutoHashMapUnmanaged(RefAt, *Value) = .empty,
 // The one of `optionals` a cycle is unwinding to.
 breaking: ?usize = null,
 // The lowest place in `visiting` a cycle closed at, while the innermost
@@ -133,6 +148,7 @@ fn deinit(state: *Resolver) void {
     state.targets.deinit(gpa);
     state.fields.deinit(gpa);
     state.optionals.deinit(gpa);
+    state.nonexistent.deinit(gpa);
     state.again.deinit(gpa);
     state.walked.deinit(gpa);
     state.vanished.deinit(gpa);
@@ -306,6 +322,13 @@ pub fn resolveRef(state: *Resolver, r: Ref, on_top: bool) Error!?Value {
 // refers to itself then it's as if it referred to a nonexistent value"), so
 // `f = ${?a.t}x`, `a = ${?y}${?f}` is `f = "x"` whichever field goes first.
 noinline fn resolveOptional(state: *Resolver, r: Ref, on_top: bool) Error!?Value {
+    // Outside the cycle it was found on, it stays nonexistent; while the
+    // place that cycle closed at is being resolved again, following it
+    // finds the cycle anew, and self-references their layers below.
+    if (state.nonexistent.get(refAt(r))) |place| if (state.visitingAt(place) == null) {
+        state.cycles += 1;
+        return null;
+    };
     const mark = state.optionals.items.len;
     const start = state.visiting.items.len;
     try state.optionals.append(state.gpa, start);
@@ -338,6 +361,7 @@ noinline fn resolveOptional(state: *Resolver, r: Ref, on_top: bool) Error!?Value
     if (val != null and looked_back) return val;
     if (state.closed) |closed| if (closed < start) {
         state.cycles += 1;
+        try state.nonexistent.put(state.gpa, refAt(r), state.visiting.items[closed]);
         return null;
     };
     return val;
