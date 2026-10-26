@@ -83,7 +83,7 @@ flowchart TD
 ```
 
 - A `Field` on the `fields` stack says what a path that reaches the field meanwhile finds: the layers below it, or the merged object (`seen`, view 5).
-- `mergeable`: an object on top merges with what is below only when that is an object or looks back. A concatenation with a list in it is a list or an error, never an object, so an object over it hides it, unevaluated (L384, L778).
+- `mergeable`: an object on top merges with what is below only when that is an object or looks back. A concatenation with a list or text in it is a list, text or an error, never an object, so an object over it hides it, unevaluated (L384, L778).
 - `vanished` remembers a field that resolved to nothing, and whether a cycle made it so: resolved again later, with the cycle over, it would find something, and the result would depend on which field went first.
 
 ## 4 · resolveRef: one ${…}
@@ -167,4 +167,5 @@ flowchart TD
 
 - A cycle is found in two places: `seen`, when a path reaches a field being resolved, and `resolveTarget`, when a ref points at a place in `visiting`, or, at the end of its path (`whole`), at an object a place in `visiting` is in. A field that refers to the object it is in is the cycle of L688–691: `a { b = ${a} }`.
 - It is broken in three ways: by looking down (`seen` with layers below the field), by resolving anew (`again`, `walkAgain`), or by an optional, which then finds nothing (`breaking`, `closed`, `resolveOptional`).
+- A ref that reaches a field being resolved *came round* to it only through another field a ref led to (`targets`), or one resolved after it outside its value (`cameRound`); from inside the field's own value, an include there, it did not. An optional that reaches a field busy looking back at its layers, or an object holding one, is that look-back's business and finds nothing alone (`lookingBack`, `lookingBackIn`): `b.c += ${y}`, `b.c += 2`, `y = [1, ${?b}]` keeps `[[1], 2]`.
 - What was resolved inside a look-back is that substitution's value (`walked`, `field.again`): a substitution is resolved once (L884, L886), so the result does not depend on which field went first.

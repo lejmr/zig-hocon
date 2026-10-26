@@ -2,6 +2,12 @@
 
 What changed for someone using zig-hocon: the Zig package, the `hocon` command line tool, libhocon for C and the `zig-hocon` Python package, which are released together under one version. The technical detail is in the commits each release links to.
 
+## [Unreleased]
+
+### Fixed
+
+- Optional substitutions on a cycle resolve the same whichever field comes first, as the spec has it, where v0.5.3 dropped or kept them by the order of the lines, and in two cases lost a value: `b.c += ${y}`, `b.c += 2`, `y = [1, ${?b}]` is `b.c = [[1], 2]` again, and `f = x${?a}`, `f = { z = 3 }`, `a = ${?f}` keeps `a`, since text under an object is hidden and never evaluated, as a list is. An include inside an object concatenated with an optional, `k = { include "x" } ${?y}`, no longer reports a cycle. Found by a bug hunt on v0.5.3.
+
 ## [0.5.3] - 2026-10-26
 
 ### Changed
