@@ -259,6 +259,12 @@ pub noinline fn resolvePending(state: *Resolver, parts: []const Part, element: b
     // `.keep`: from the first part that waits on, the parts join
     // later. These are them: what joined before it, then each one.
     var kept: std.ArrayList(Part) = .empty;
+    // The buffer's items or text, while it grows in place (below); left to
+    // the arena the values live in once it is anything else.
+    var list: std.ArrayList(Value) = .empty;
+    var text: std.ArrayList(u8) = .empty;
+    var grown_list = false;
+    var grown_text = false;
     for (parts) |part| {
         state.element_next = element and part.value == .object;
         const val = try state.resolveValue(part.value) orelse continue;
@@ -274,6 +280,8 @@ pub noinline fn resolvePending(state: *Resolver, parts: []const Part, element: b
             // fails anyway. A gap takes the shape of what comes next.
             if (buffer) |b| if (b.isGap()) {
                 buffer = null;
+                grown_list = false;
+                grown_text = false;
             };
             continue;
         }
@@ -282,6 +290,37 @@ pub noinline fn resolvePending(state: *Resolver, parts: []const Part, element: b
         if (buffer) |*ebuffer| {
             // Text starts after a gap, as in fromNode.
             if (ebuffer.isGap()) start = part.pos;
+            // A list or text joined onto one of its kind grows in place:
+            // `${x} ${x} …` copies each part once, not the whole so far
+            // each time.
+            if (ebuffer.* == .array and val == .array) {
+                if (!grown_list) {
+                    list = .empty;
+                    try list.appendSlice(gpa, ebuffer.array);
+                    grown_list = true;
+                }
+                try list.appendSlice(gpa, val.array);
+                ebuffer.array = list.items;
+                continue;
+            }
+            if (ebuffer.* == .scalar and val == .scalar) {
+                if (!grown_text) {
+                    text = .empty;
+                    try text.appendSlice(gpa, ebuffer.scalar.value);
+                    grown_text = true;
+                }
+                // As `update` joins them: where the text starts, which is
+                // not at a gap in front of it, and a gap onto a gap is one.
+                const from = if (ebuffer.isGap()) val.scalar else ebuffer.scalar;
+                const quoted = !(ebuffer.isGap() and val.isGap());
+                try text.appendSlice(gpa, val.scalar.value);
+                ebuffer.scalar = .{ .value = text.items, .quoted = quoted, .file = from.file, .pos = from.pos };
+                continue;
+            }
+            // A gap onto a list or an object leaves it as it is.
+            if ((ebuffer.* == .array or ebuffer.* == .object) and val.isGap()) continue;
+            grown_list = false;
+            grown_text = false;
             // The part that does not fit onto what came before it.
             ebuffer.update(gpa, val) catch |err| {
                 state.err_pos.* = part.pos;
@@ -290,6 +329,8 @@ pub noinline fn resolvePending(state: *Resolver, parts: []const Part, element: b
         } else {
             buffer = val;
             start = part.pos;
+            grown_list = false;
+            grown_text = false;
         }
     }
     if (kept.items.len > 0) return .{ .pending = try kept.toOwnedSlice(gpa) };
@@ -909,4 +950,26 @@ test "resolve.a cycle breaks only where its look-back stays one value" {
     try expectResolveError("a = ${p}\np = 1\np = ${a}x\np = ${a}x", error.SubstitutionCycle);
     try expectResolved("v { n = { x = ${a} } }\na = { n = { h = 0 } }\na = ${v}", "{\"v\":{\"n\":{\"x\":{\"n\":{\"h\":0}}}},\"a\":{\"n\":{\"h\":0,\"x\":{\"n\":{\"h\":0}}}}}");
     try expectResolved("v = { x = ${?a} }\nr = null\nr = ${v}\na = null\na = ${r}", "{\"v\":{\"x\":null},\"r\":{\"x\":null},\"a\":{\"x\":null}}");
+}
+
+test "a long concatenation of substitutions joins in linear memory" {
+    // `${x} ${x} …` 3000 times, a list and text: joined one part onto the
+    // whole so far each time, it needs ~150 MB; growing in place, little.
+    const count = 3000;
+    for ([_][]const u8{ "[1]", "ab" }) |x| {
+        var src: std.ArrayList(u8) = .empty;
+        defer src.deinit(testing.allocator);
+        try src.print(testing.allocator, "x = {s}\na =", .{x});
+        for (0..count) |_| try src.appendSlice(testing.allocator, " ${x}");
+        try src.append(testing.allocator, 0);
+        const text = src.items[0 .. src.items.len - 1 :0];
+
+        const buf = try testing.allocator.alloc(u8, 32 << 20);
+        defer testing.allocator.free(buf);
+        var fixed = std.heap.FixedBufferAllocator.init(buf);
+        var arena = std.heap.ArenaAllocator.init(fixed.allocator());
+        defer arena.deinit();
+        const json = try resolvedJson(arena.allocator(), text);
+        try testing.expect(json.len > count);
+    }
 }
