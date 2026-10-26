@@ -1317,7 +1317,10 @@ test "diagnostics.Unresolved self-reference" {
         \\a = ${a}
         \\    ^ Unresolved
         ,
-        \\mood = ${mood} wombat
+        // A bare ref below an object may be one, so it is evaluated. With
+        // text next to it, `${mood} wombat`, it would be text, which the
+        // object hides unevaluated (spec L776, as a list is).
+        \\mood = ${mood}
         \\       ^ Unresolved
         \\mood = { grumpy = true }
         ,

@@ -44,6 +44,9 @@ gpa: Allocator,
 root: *Value,
 // Places we are resolving right now, so a = ${b}, b = ${a} ends
 visiting: std.ArrayList(*Value) = .empty,
+// The places in `visiting` a ref led to (`resolveTarget`, `throughAlias`),
+// rather than the walk: where a ref that reaches a field came round through another one.
+targets: std.ArrayList(*Value) = .empty,
 // Fields whose top value is being resolved right now, innermost last.
 // A path that reaches one of them does not see the field (see `seen`).
 fields: std.ArrayList(stack.Field) = .empty,
@@ -123,6 +126,7 @@ pub fn resolve(self: *Value, gpa: Allocator, env: Env, err_pos: *?Pos) Error!voi
 fn deinit(state: *Resolver) void {
     const gpa = state.gpa;
     state.visiting.deinit(gpa);
+    state.targets.deinit(gpa);
     state.fields.deinit(gpa);
     state.optionals.deinit(gpa);
     state.again.deinit(gpa);
@@ -459,7 +463,13 @@ fn resolveTarget(state: *Resolver, target: *Value, ref: Ref, whole: bool) Error!
         // back round (spec L697: the lookup document is an ancestor).
         if (place == target or (whole and holds(target.*, place))) {
             if (ref.flags.optional) {
-                state.closeAt(i);
+                // Into a field that is looking back at its layers below, it
+                // is that look-back's business, not a way back round to the
+                // field (as in `seen`): `b.c += ${y}`, `b.c += 2`,
+                // `y = [1, ${?b}]` is `b.c = [[1], 2]`.
+                if (lookingBackIn(state, target)) {
+                    state.cycles += 1;
+                } else state.closeAt(i);
                 return null;
             }
             // A field on the cycle that can look back breaks it first
@@ -474,6 +484,8 @@ fn resolveTarget(state: *Resolver, target: *Value, ref: Ref, whole: bool) Error!
     }
     try state.visiting.append(gpa, target);
     defer _ = state.visiting.pop();
+    try state.targets.append(gpa, target);
+    defer _ = state.targets.pop();
 
     return try state.resolveField(target);
 }
@@ -518,6 +530,15 @@ fn holds(value: Value, place: *Value) bool {
             if (item == place or holds(item.*, place)) return true;
         },
         else => {},
+    }
+    return false;
+}
+
+// Whether `target`, or a field in it, is busy looking back at its layers below.
+fn lookingBackIn(state: *Resolver, target: *Value) bool {
+    for (state.fields.items) |f| {
+        if (f.progress != .busy) continue;
+        if (f.place == target or holds(target.*, f.place)) return true;
     }
     return false;
 }
@@ -585,6 +606,8 @@ fn throughAlias(state: *Resolver, ref: Ref, place: *Value, rest: []const Key) Er
     const gpa = state.gpa;
     try state.visiting.append(gpa, place);
     defer _ = state.visiting.pop();
+    try state.targets.append(gpa, place);
+    defer _ = state.targets.pop();
     // The alias's path is from the document root, whatever `ref` starts at.
     var from_root = ref;
     from_root.flags.anchor = 0;
