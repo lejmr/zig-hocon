@@ -84,6 +84,9 @@ vanished: std.AutoHashMapUnmanaged(*Value, bool) = .empty,
 // name an element, so below it they count afresh (`resolveTarget`).
 elements: std.ArrayList(*Value) = .empty,
 element_base: usize = 0,
+// The value resolved next is a list element, or an object part of one: the
+// object that a `+=` or an include in it is anchored at (`resolveValue`).
+element_next: bool = false,
 // Where a path that is not in the document is looked up.
 env: Env,
 // Where the error points; written once, where the error starts.
@@ -153,6 +156,8 @@ const Found = union(enum) {
 // frame of the recursion, and a deep document would run out of stack sooner.
 pub fn resolveValue(state: *Resolver, value: Value) Error!?Value {
     const gpa = state.gpa;
+    const element = state.element_next;
+    state.element_next = false;
     const level: usize = if (value == .array or value == .object) 1 else 0;
     state.depth += level;
     defer state.depth -= level;
@@ -165,13 +170,23 @@ pub fn resolveValue(state: *Resolver, value: Value) Error!?Value {
         .array => |items| {
             var values: std.ArrayList(Value) = .empty;
             for (items) |*item| {
+                // One entry per element; an object in it puts itself there.
                 try state.elements.append(gpa, item);
                 defer _ = state.elements.pop();
+                state.element_next = true;
                 if (try state.resolveValue(item.*)) |val| try values.append(gpa, val);
             }
             return .{ .array = try values.toOwnedSlice(gpa) };
         },
         .object => |members| {
+            // A list element, or an object part of one: where a path
+            // anchored at the element starts. Its own place, sharing the
+            // members, so a field in it is the same field.
+            if (element) {
+                const anchor = try gpa.create(Value);
+                anchor.* = value;
+                state.elements.items[state.elements.items.len - 1] = anchor;
+            }
             var resolved: std.ArrayList(Member) = .empty;
             for (members) |*m| {
                 // A member is being resolved too, so a ref that leads back to
@@ -198,14 +213,17 @@ pub fn resolveValue(state: *Resolver, value: Value) Error!?Value {
             return .{ .object = out };
         },
         .ref => |r| return try state.resolveRef(r, false),
-        .pending => |parts| return try state.resolvePending(parts),
+        .pending => |parts| return try state.resolvePending(parts, element),
         // Only a field holds one, and a field is resolved by `resolveField`.
         .stack => unreachable,
     }
 }
 
 // A concatenation's value: its parts, resolved and joined.
-pub noinline fn resolvePending(state: *Resolver, parts: []const Part) Error!?Value {
+//
+// `element`: the concatenation is a list element, so an object among its
+// parts is what a `+=` or an include in that object is anchored at.
+pub noinline fn resolvePending(state: *Resolver, parts: []const Part, element: bool) Error!?Value {
     const gpa = state.gpa;
     // Same as concat in fromNode, just now refs have values
     var buffer: ?Value = null;
@@ -214,6 +232,7 @@ pub noinline fn resolvePending(state: *Resolver, parts: []const Part) Error!?Val
     // later. These are them: what joined before it, then each one.
     var kept: std.ArrayList(Part) = .empty;
     for (parts) |part| {
+        state.element_next = element and part.value == .object;
         const val = try state.resolveValue(part.value) orelse continue;
         if (kept.items.len > 0) try kept.append(gpa, .{ .value = val, .pos = part.pos });
         if (waits(val) or (buffer != null and waitsInList(buffer.?, val))) {
