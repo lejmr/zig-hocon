@@ -1,6 +1,6 @@
 # Stage 5 findings
 
-4 divergences · 30 defective cases · 66 uncovered sentences
+2 divergences · 30 defective cases · 65 uncovered sentences
 
 What the validation pass turned up and did **not** fix. The divergences it was confident about are already in the sidecars; everything below is work, not record.
 
@@ -22,9 +22,6 @@ The three directories map honestly onto lines 110-140: the comments section is c
 
 **Divergences marked in the sidecars**
 
-- `unchanged-from-json/009-leading-zero-run-is-text` — **diverges** _(expect left at java's value — unresolved under the tie-break rule)_
-  - spec: "allowed number formats matches JSON" (line 120) — JSON's grammar forbids a zero followed by further digits, so `01` is not a valid number literal.
-  - java: Accepts it: the tokenizer collects `01`, Long.parseLong succeeds, and the value comes out as the number 1. Recorded expect was {"a": 1}, which contradicts the sentence quoted in `why`.
 - `omit-root-braces/006-array-root-unaffected` — **unsupported**
   - spec: "JSON documents must have an array or object at the root" and the wrap only fires "if the file does not begin with a square bracket or curly brace" (lines 130, 134-136) — a file starting with `[` is left unwrapped and is a valid array-rooted document, so `[1, 2, 3]` is the array [1,2,3].
   - java: Has no array-rooted config at all: parsing succeeds internally but the Config API rejects the document with a WrongType error (LIST rather than OBJECT).
@@ -73,19 +70,12 @@ The duplicate-keys-and-object-merging directory maps faithfully and completely o
 
 The section maps to the spec faithfully: all seventeen cases quote sentences that are actually in lines 240-287, and sixteen of them record values that follow from those sentences, including the error cases for '@', backslash, '!' and the raw control character in a quoted string. One real divergence exists (012, `-foo`, where java's number-parse fallback produces a string the spec forbids, now marked `"java": "diverges"` with the oracle value kept since the spec names no outcome for the failure), one case claims a token structure its output cannot show (006), and the digit-initial half of the "may not begin with" rule is uncovered.
 
-**Divergences marked in the sidecars**
-
-- `conformance/unquoted-strings/012-hyphen-before-a-letter-is-text.conf` — **diverges** _(expect left at java's value — unresolved under the tie-break rule)_
-  - spec: "An unquoted string may not _begin_ with the digits 0-9 or with a hyphen (`-`, 0x002D) ... The initial number character, plus any valid-in-JSON number characters that follow it, must be parsed as a number value." For `a = -foo` the initial number character is a lone `-` with no number characters after it; `-` is not a number, and no reading of the spec makes the result a string starting with a hyphen.
-  - java: typesafe/config gathers `-`, fails to parse it as a number, and falls back to emitting it as unquoted text, which then concatenates with `foo` into the string "-foo" -- a string that begins with a hyphen.
-
 **Cases that are wrong about the spec** — the case, not the implementation
 
 - 006-truefoo-parses-as-true-then-foo: the input cannot isolate the rule its `why` quotes. `why` claims `truefoo` parses as the boolean token `true` followed by the unquoted string `foo`, but the expect is the string "truefoo", which is exactly what a single unquoted string would also produce -- the spec itself concedes this in the same paragraph ("this distinction doesn't matter much because of value concatenation"). typesafe/config in fact tokenises the whole run as one unquoted text and only compares the completed token against true/false/null, so it does NOT do what the `why` describes, yet the recorded value is identical. The case pins the output, not the parse it claims to pin; the `why` should be reworded to claim only the observable result.
 
 **Uncovered normative sentences**
 
-- "An unquoted string may not _begin_ with the digits 0-9" -- no case covers a digit-initial sequence whose number parse fails (e.g. `a = 1.2.3` or `a = 1x2`). 008 (`10.0bar`) only covers the case where the leading run IS a valid number. This is the digit-side twin of the hyphen divergence in 012 and is where java's number-parse fallback to unquoted text shows again; it is the most valuable uncovered sentence in the range. _(covered since by 025-digit-initial-non-number-is-text)_
 - "forbidden characters: ... or whitespace" -- whitespace is listed as a forbidden character, but no case pins that whitespace ends an unquoted string (the covered forbidden chars are only '@', '\\', '!', '#'). Hard to isolate because `a = foo bar` becomes a value concatenation, but the list member is currently untested here.
 - "its initial characters do not parse as `true`, `false`, `null`, or a number" -- only the `true` arm is exercised (006). No case starts a token with `false` or `null` (e.g. `a = nullfoo`, `a = falsefoo`).
 
