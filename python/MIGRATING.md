@@ -3,7 +3,7 @@
 This guide moves a project from pyhocon to zig_hocon. There are two ways:
 
 - **`zig_hocon.pyhocon`, a change of import.** pyhocon's API as pyhocon 0.3.63 has it: the same modules, names, arguments and output, the tree an `OrderedDict` you can `put` into and `pop` from. The section below says what it covers and what it does not.
-- **`zig_hocon`, the package's own API.** Typed getters on a document that stays in the library until one asks, and no tree in Python at all: Steps 1 and 2.
+- **`zig_hocon`, the package's own API.** Typed getters on a document that stays in the library until one asks, and no tree in Python at all. Steps 1 and 2 are in that section.
 
 `zig_hocon` reads a config by the spec, which in a few places is not how pyhocon reads it: Step 3. `zig_hocon.pyhocon` reads pyhocon's own syntax as pyhocon does, and the rest by the spec. The checklist at the end finds every place to look at.
 
@@ -69,7 +69,11 @@ The one left is `ConfigTree.resolve()`, which is not there. Nor are a few things
 
 The whole document is in Python, as in pyhocon, so it is a little slower than `zig_hocon`, still far from pyhocon: a 5 KB config in 0.3 ms (pyhocon 29 ms), 10 MB in 0.38 s (pyhocon 68 s), against 0.2 ms and 0.13 s for `zig_hocon`.
 
-## Step 1: imports
+## The package's own API: zig_hocon
+
+Steps 1 and 2 replace the calls. Step 3 is where a config reads differently by the spec; with `zig_hocon.pyhocon`, only that step applies.
+
+### Step 1: imports
 
 | pyhocon | zig_hocon |
 |---|---|
@@ -84,7 +88,7 @@ The whole document is in Python, as in pyhocon, so it is a little slower than `z
 
 The exception names are the same: `ConfigException`, `ConfigMissingException` (also a `KeyError`), `ConfigSubstitutionException`, `ConfigWrongTypeException` (also a `ValueError`), plus `ConfigParseException` for text that is not valid HOCON.
 
-## Step 2: what needs code
+### Step 2: what needs code
 
 **The tree is not a dict.** pyhocon's `ConfigTree` is an `OrderedDict`, so `conf["db"]["host"]`, `"db" in conf`, `for key in conf`, `dict(conf)` and `json.dumps(conf)` work on it. Here the values stay in the library until a getter asks; take a dict where you need one:
 
@@ -109,7 +113,7 @@ settings["db"]["host"]
 
 `parse_file` takes everything after the path by keyword, so `parse_file(path, "utf-8")` fails loudly instead of meaning something else.
 
-## Step 3: configs that read differently
+### Step 3: configs that read differently
 
 - **`include package(...)` is not supported** (in `zig_hocon.pyhocon` it is). It is pyhocon's own extension, not HOCON, and zig_hocon reports it as an error (`UnexpectedToken` where `package` starts). Include the file by its path instead, relative to the file that includes it:
 
