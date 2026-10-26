@@ -27,12 +27,12 @@ observable parse behaviour.
 | 521 | Paths as keys | `paths-as-keys` | ✅ 11 cases |
 | 574 | Substitutions | `substitutions` | ✅ 40 cases |
 | 653 | Self-referential substitutions | `self-referential-substitutions` | ✅ 7 cases |
-| 719 | The += field separator | `plus-equals-field-separator` | ✅ 14 cases |
+| 719 | The += field separator | `plus-equals-field-separator` | ✅ 16 cases |
 | 738 | Examples of self-referential substitutions | `self-referential-examples` | ✅ 54 cases |
 | 893 | List values from environment variables | `list-values-from-environment-variables` | ✅ 6 cases |
 | 921 | Include syntax | `include-syntax` | ✅ 15 cases |
 | 982 | Include semantics: merging | `include-merging` | ✅ 19 cases |
-| 1008 | Include semantics: substitution | `include-substitution` | ✅ 21 cases |
+| 1008 | Include semantics: substitution | `include-substitution` | ✅ 24 cases |
 | 1051 | Include semantics: missing and required files | `include-missing-and-required` | ✅ 6 cases |
 | 1074 | Include semantics: file formats and extensions | `include-file-formats` | ✅ 23 cases |
 | 1109 | Include semantics: locating resources | `include-locating` | ✅ 5 cases |

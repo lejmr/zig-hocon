@@ -5,11 +5,11 @@
   "mode": "java",
   "java_version": "1.4.9",
   "command": "conformance/adapters/oracle.sh hocon-py",
-  "ran_at": "2026-10-26T05:34:51Z",
-  "suite_digest": "27b3ade83f163aad",
-  "total": 523,
-  "passed": 324,
-  "percent": 62.0,
+  "ran_at": "2026-10-26T06:10:24Z",
+  "suite_digest": "c475479caf282723",
+  "total": 528,
+  "passed": 326,
+  "percent": 61.7,
   "sections": {
     "array-and-object-concatenation": {
       "total": 22,
@@ -60,8 +60,8 @@
       "passed": 6
     },
     "include-substitution": {
-      "total": 21,
-      "passed": 9
+      "total": 24,
+      "passed": 11
     },
     "include-syntax": {
       "total": 15,
@@ -100,7 +100,7 @@
       "passed": 3
     },
     "plus-equals-field-separator": {
-      "total": 14,
+      "total": 16,
       "passed": 0
     },
     "self-referential-examples": {
@@ -334,6 +334,9 @@
     "include-substitution/019-null-at-fixed-up-path-is-found/main.conf": "fail",
     "include-substitution/020-include-two-objects-deep-is-fixed-up/main.conf": "fail",
     "include-substitution/021-env-var-in-a-file-included-inside-plus-equals/main.conf": "fail",
+    "include-substitution/022-include-in-a-list-element-looks-up-its-own-root/main.conf": "pass",
+    "include-substitution/023-include-under-plus-equals-looks-up-its-own-root/main.conf": "pass",
+    "include-substitution/024-include-in-a-list-element-before-the-including-root/main.conf": "fail",
     "include-syntax/001-include-later-in-key-is-literal.conf": "pass",
     "include-syntax/002-include-as-object-value-is-string.conf": "pass",
     "include-syntax/003-include-as-array-element-is-string.conf": "pass",
@@ -448,6 +451,8 @@
     "plus-equals-field-separator/012-appends-to-a-list-defined-in-object-concatenation.conf": "fail",
     "plus-equals-field-separator/013-appends-after-a-substituted-object.conf": "fail",
     "plus-equals-field-separator/014-appends-twice-after-null-replaced-by-object.conf": "fail",
+    "plus-equals-field-separator/015-plus-equals-onto-a-scalar-in-a-list-element.conf": "fail",
+    "plus-equals-field-separator/016-plus-equals-in-a-list-element-sees-the-earlier-value.conf": "fail",
     "self-referential-examples/001-isolated-self-reference-is-an-error.conf": "pass",
     "self-referential-examples/002-self-reference-resolves-to-earlier-merged-value.conf": "pass",
     "self-referential-examples/003-self-reference-before-any-value-is-undefined.conf": "pass",
@@ -699,6 +704,9 @@
     "include-substitution/011-optional-reference-falls-back-too/main.conf": "{\"common\":{\"x\":{},\"a\":0},\"x\":{\"y\":0}}",
     "include-substitution/014-unrelated-key-does-not-change-the-result/main.conf": "{\"common\":{\"x\":{},\"a\":0},\"x\":{\"y\":0},\"zzz\":{}}",
     "include-substitution/021-env-var-in-a-file-included-inside-plus-equals/main.conf": "{\"k\":{\"a\":{\"x\":\"norwegian-blue\"}}}",
+    "include-substitution/022-include-in-a-list-element-looks-up-its-own-root/main.conf": "rejected",
+    "include-substitution/023-include-under-plus-equals-looks-up-its-own-root/main.conf": "rejected",
+    "include-substitution/024-include-in-a-list-element-before-the-including-root/main.conf": "{\"a\":[{\"x\":2,\"y\":1}],\"y\":2}",
     "key-value-separator/007-object-after-omitted-separator-concatenates.conf": "rejected",
     "key-value-separator/008-substitution-after-omitted-separator-concatenates.conf": "rejected",
     "omit-root-braces/006-array-root-unaffected.conf": "[1,2,3]",
@@ -715,6 +723,7 @@
     "plus-equals-field-separator/011-appends-deep-inside-object-concatenation.conf": "{\"x\":{\"a\":{\"b\":{\"c\":[1]}}},\"top\":{\"a\":{\"b\":{\"c\":2}}}}",
     "plus-equals-field-separator/012-appends-to-a-list-defined-in-object-concatenation.conf": "{\"x\":{},\"y\":{\"l\":3}}",
     "plus-equals-field-separator/014-appends-twice-after-null-replaced-by-object.conf": "{\"c\":{\"x\":2}}",
+    "plus-equals-field-separator/016-plus-equals-in-a-list-element-sees-the-earlier-value.conf": "{\"a\":[{\"b\":2}]}",
     "self-referential-examples/015-list-hidden-by-substituted-object-is-never-evaluated.conf": "{\"wrapper\":{},\"replacement\":{}}",
     "self-referential-examples/021-hidden-list-does-not-depend-on-key-order.conf": "{\"w\":{\"x\":1},\"r\":{\"x\":1},\"zzz\":1}",
     "self-referential-examples/027-self-reference-inside-object-concatenation.conf": "{\"d\":{\"x\":[0]},\"c\":{\"x\":[0,1,2]}}",
@@ -1768,6 +1777,14 @@
       "java": "unsupported"
     },
     {
+      "case": "include-substitution/024-include-in-a-list-element-before-the-including-root/main.conf",
+      "spec": "HOCON.md#include-semantics-substitution",
+      "rule": "relative to the included file's root first: ${y} is the element's y = 1, not the including file's y = 2",
+      "expected": "rejected",
+      "got": "{\"a\":[{\"x\":2,\"y\":1}],\"y\":2}",
+      "java": "unsupported"
+    },
+    {
       "case": "include-syntax/013-newlines-between-include-and-name/main.conf",
       "spec": "HOCON.md#include-syntax",
       "rule": "any amount of whitespace, newlines included, may stand between include and the resource name",
@@ -2317,6 +2334,21 @@
       "java": "diverges"
     },
     {
+      "case": "plus-equals-field-separator/015-plus-equals-onto-a-scalar-in-a-list-element.conf",
+      "spec": "HOCON.md#the--field-separator",
+      "rule": "the self-reference in b += 2 refers to the b it overrides in the same object, 1, and += onto a value that is not a list is an error, in a list element as anywhere",
+      "expected": "rejected",
+      "got": "{\"a\":[{\"b\":2}]}"
+    },
+    {
+      "case": "plus-equals-field-separator/016-plus-equals-in-a-list-element-sees-the-earlier-value.conf",
+      "spec": "HOCON.md#the--field-separator",
+      "rule": "the self-reference in b += 2 refers to the b it overrides in the same object, [1]: b is [1, 2], in a list element as anywhere. typesafe/config refuses an include or a self-reference inside a list",
+      "expected": "rejected",
+      "got": "{\"a\":[{\"b\":2}]}",
+      "java": "unsupported"
+    },
+    {
       "case": "self-referential-examples/015-list-hidden-by-substituted-object-is-never-evaluated.conf",
       "spec": "HOCON.md#examples-of-self-referential-substitutions",
       "rule": "a list merges with nothing, so any later value hides it and it is never evaluated; that the hiding object arrives through ${replacement} changes nothing, since the substitution is required and so either resolves or fails on its own. typesafe/config evaluates the hidden list (lightbend/config#865)",
@@ -2754,7 +2786,7 @@
         "a": "null bar"
       },
       "got": {
-        "a": "<pyhocon.config_tree.NoneValue object at 0x1033ec710>bar"
+        "a": "<pyhocon.config_tree.NoneValue object at 0x10142d550>bar"
       }
     },
     {
