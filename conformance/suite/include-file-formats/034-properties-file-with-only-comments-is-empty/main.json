@@ -1,0 +1,11 @@
+{
+  "spec": "HOCON.md#include-semantics-file-formats-and-extensions",
+  "rule": [
+    "java-properties-mapping.1",
+    "include-semantics-file-formats-and-extensions.6"
+  ],
+  "why": "Java properties parse as a one-level map from string keys to string values (L1451); a file with no key in it, only comments and blank lines, is the empty map, and including it adds nothing",
+  "expect": {
+    "a": 1
+  }
+}
