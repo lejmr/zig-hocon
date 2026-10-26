@@ -1,15 +1,15 @@
 {
   "suite": "hocon-conformance",
   "implementation": "zig-hocon",
-  "version": "zig-hocon code@3be508f",
+  "version": "zig-hocon code@0044d2a",
   "mode": "java",
   "java_version": "1.4.9",
   "command": "conformance/adapters/zig-hocon.sh",
-  "ran_at": "2026-10-25T21:12:07Z",
-  "suite_digest": "f3f68ca84ecb35b3",
-  "total": 506,
-  "passed": 436,
-  "percent": 86.2,
+  "ran_at": "2026-10-26T05:35:33Z",
+  "suite_digest": "27b3ade83f163aad",
+  "total": 523,
+  "passed": 447,
+  "percent": 85.5,
   "sections": {
     "array-and-object-concatenation": {
       "total": 22,
@@ -60,7 +60,7 @@
       "passed": 6
     },
     "include-substitution": {
-      "total": 20,
+      "total": 21,
       "passed": 17
     },
     "include-syntax": {
@@ -104,11 +104,11 @@
       "passed": 7
     },
     "self-referential-examples": {
-      "total": 39,
-      "passed": 32
+      "total": 54,
+      "passed": 43
     },
     "self-referential-substitutions": {
-      "total": 6,
+      "total": 7,
       "passed": 6
     },
     "size-in-bytes-format": {
@@ -333,6 +333,7 @@
     "include-substitution/018-substitution-in-a-merge-stack-is-fixed-up/main.conf": "pass",
     "include-substitution/019-null-at-fixed-up-path-is-found/main.conf": "pass",
     "include-substitution/020-include-two-objects-deep-is-fixed-up/main.conf": "pass",
+    "include-substitution/021-env-var-in-a-file-included-inside-plus-equals/main.conf": "fail",
     "include-syntax/001-include-later-in-key-is-literal.conf": "pass",
     "include-syntax/002-include-as-object-value-is-string.conf": "pass",
     "include-syntax/003-include-as-array-element-is-string.conf": "pass",
@@ -486,12 +487,28 @@
     "self-referential-examples/037-alias-defined-before-the-look-back.conf": "pass",
     "self-referential-examples/038-object-refers-forward-through-an-alias.conf": "pass",
     "self-referential-examples/039-optional-in-a-two-step-cycle-is-missing.conf": "pass",
+    "self-referential-examples/040-optional-back-to-its-own-object-in-a-concatenation.conf": "pass",
+    "self-referential-examples/041-optional-back-to-its-own-object-makes-no-field.conf": "pass",
+    "self-referential-examples/042-optional-on-a-cycle-through-another-field.conf": "fail",
+    "self-referential-examples/043-two-optionals-on-one-cycle.conf": "pass",
+    "self-referential-examples/044-optional-on-a-cycle-makes-no-field.conf": "fail",
+    "self-referential-examples/045-optional-in-a-concatenation-on-a-cycle.conf": "pass",
+    "self-referential-examples/046-plus-equals-of-an-optional-on-a-cycle.conf": "pass",
+    "self-referential-examples/047-path-into-a-self-referential-field-looks-back.conf": "pass",
+    "self-referential-examples/048-alias-in-a-list-looks-back.conf": "pass",
+    "self-referential-examples/049-alias-written-twice-looks-forward.conf": "pass",
+    "self-referential-examples/050-optional-path-into-itself-is-nonexistent.conf": "pass",
+    "self-referential-examples/051-hidden-list-concatenation-is-never-evaluated.conf": "pass",
+    "self-referential-examples/052-hidden-list-concatenation-with-an-undefined-path.conf": "fail",
+    "self-referential-examples/053-hidden-list-concatenation-makes-no-cycle.conf": "fail",
+    "self-referential-examples/054-look-back-inside-a-list-element.conf": "pass",
     "self-referential-substitutions/001-path-builds-on-older-value.conf": "pass",
     "self-referential-substitutions/002-self-referential-concatenation.conf": "pass",
     "self-referential-substitutions/003-object-containing-self-reference-is-not-self-referential.conf": "pass",
     "self-referential-substitutions/004-array-containing-self-reference-is-not-self-referential.conf": "pass",
     "self-referential-substitutions/006-self-referential-array-concatenation.conf": "pass",
     "self-referential-substitutions/007-plus-equals-of-the-parent-object.conf": "pass",
+    "self-referential-substitutions/008-object-field-referring-to-its-object-stays-a-cycle.conf": "fail",
     "size-in-bytes-format/001-bare-number-is-bytes.conf": "pass",
     "size-in-bytes-format/002-single-byte-spellings.conf": "pass",
     "size-in-bytes-format/003-powers-of-ten-suffixes.conf": "pass",
@@ -681,6 +698,7 @@
     "include-substitution/009-undefined-optional-at-fixed-up-path-falls-back/main.conf": "{\"common\":{\"x\":{},\"a\":0},\"x\":{\"y\":0}}",
     "include-substitution/011-optional-reference-falls-back-too/main.conf": "{\"common\":{\"x\":{},\"a\":0},\"x\":{\"y\":0}}",
     "include-substitution/014-unrelated-key-does-not-change-the-result/main.conf": "{\"common\":{\"x\":{},\"a\":0},\"x\":{\"y\":0},\"zzz\":{}}",
+    "include-substitution/021-env-var-in-a-file-included-inside-plus-equals/main.conf": "{\"k\":{\"a\":[{\"x\":\"norwegian-blue\"}]}}",
     "key-value-separator/007-object-after-omitted-separator-concatenates.conf": "{\"a\":{\"m\":2,\"n\":1}}",
     "key-value-separator/008-substitution-after-omitted-separator-concatenates.conf": "{\"x\":{\"p\":1},\"a\":{\"m\":2,\"p\":1}}",
     "omit-root-braces/006-array-root-unaffected.conf": "[1,2,3]",
@@ -705,6 +723,11 @@
     "self-referential-examples/030-concatenated-object-sees-its-own-field.conf": "{\"x\":{\"n\":1},\"top\":{\"n\":2,\"seen\":2}}",
     "self-referential-examples/032-field-hidden-inside-object-concatenation.conf": "{\"base\":{},\"child\":{\"foo\":\"x\"}}",
     "self-referential-examples/036-alias-path-read-inside-a-look-back.conf": "{\"p\":\"x\",\"a\":\"x\"}",
+    "self-referential-examples/042-optional-on-a-cycle-through-another-field.conf": "{\"o\":{\"h\":0},\"a\":{\"n\":{\"h\":0}},\"b\":{\"n\":{\"h\":0}}}",
+    "self-referential-examples/044-optional-on-a-cycle-makes-no-field.conf": "{\"a\":{\"t\":1},\"y\":{\"t\":1}}",
+    "self-referential-examples/052-hidden-list-concatenation-with-an-undefined-path.conf": "{\"wrapper\":{\"a\":1}}",
+    "self-referential-examples/053-hidden-list-concatenation-makes-no-cycle.conf": "{\"x\":{\"b\":true},\"k\":[{\"b\":true}]}",
+    "self-referential-substitutions/008-object-field-referring-to-its-object-stays-a-cycle.conf": "rejected",
     "string-value-concatenation/010-object-then-scalar-drops-the-scalar.conf": "rejected",
     "string-value-concatenation/011-array-then-scalar-drops-the-scalar.conf": "rejected",
     "string-value-concatenation/014-array-then-unquoted-text-without-space.conf": "rejected",
@@ -1125,6 +1148,14 @@
       "java": "unsupported"
     },
     {
+      "case": "include-substitution/021-env-var-in-a-file-included-inside-plus-equals/main.conf",
+      "spec": "HOCON.md#include-semantics-substitution",
+      "rule": "${?CONFORMANCE_PARROT} is in no document, so it reads the environment variable, also in a file included into an object that += appends; typesafe/config refuses an include in a list value",
+      "expected": "rejected",
+      "got": "{\"k\":{\"a\":[{\"x\":\"norwegian-blue\"}]}}",
+      "java": "unsupported"
+    },
+    {
       "case": "key-value-separator/007-object-after-omitted-separator-concatenates.conf",
       "spec": "HOCON.md#key-value-separator",
       "rule": "leaving out the separator before { changes nothing about the value: a { m = 2 } { n = 1 } is a : { m = 2 } { n = 1 }, two objects concatenated into one; typesafe/config and pyhocon read only the first object and reject the second",
@@ -1437,6 +1468,65 @@
       "expected": "rejected",
       "got": "{\"base\":{},\"child\":{\"foo\":\"x\"}}",
       "java": "unsupported"
+    },
+    {
+      "case": "self-referential-examples/042-optional-on-a-cycle-through-another-field.conf",
+      "spec": "HOCON.md#examples-of-self-referential-substitutions",
+      "rule": "${?b} leads back to a.n through b = ${a}, so it is nonexistent and a.n is {h: 0}; b is a, and o is a.n, the same value everywhere. typesafe/config reports b's ${a} as unresolved",
+      "expected": "rejected",
+      "got": "{\"o\":{\"h\":0},\"a\":{\"n\":{\"h\":0}},\"b\":{\"n\":{\"h\":0}}}",
+      "java": "unsupported"
+    },
+    {
+      "case": "self-referential-examples/044-optional-on-a-cycle-makes-no-field.conf",
+      "spec": "HOCON.md#examples-of-self-referential-substitutions",
+      "rule": "as 043 without the x: ${?a.t} leads back to f, so it is nonexistent and f is not created; ${?f} leads back to a and is nonexistent too, so a is {t: 1}. typesafe/config gives f = 1 here, though in 043 it reads ${?a.t} as nonexistent",
+      "expected": {
+        "a": {
+          "t": 1
+        },
+        "f": 1,
+        "y": {
+          "t": 1
+        }
+      },
+      "got": {
+        "a": {
+          "t": 1
+        },
+        "y": {
+          "t": 1
+        }
+      },
+      "java": "diverges"
+    },
+    {
+      "case": "self-referential-examples/052-hidden-list-concatenation-with-an-undefined-path.conf",
+      "spec": "HOCON.md#examples-of-self-referential-substitutions",
+      "rule": "${nope} [1] is a list or an error whatever ${nope} is, so the object hides it and it is never evaluated (\"no matter what ${does-not-exist} resolves to\"): no error. A lone ${nope} could be an object, and is evaluated",
+      "expected": "rejected",
+      "got": "{\"wrapper\":{\"a\":1}}",
+      "java": "unsupported"
+    },
+    {
+      "case": "self-referential-examples/053-hidden-list-concatenation-makes-no-cycle.conf",
+      "spec": "HOCON.md#examples-of-self-referential-substitutions",
+      "rule": "x's hidden list concatenation is never evaluated, so there is no cycle and k looks forward: x is {b: true}, k is [{b: true}]",
+      "expected": "rejected",
+      "got": "{\"x\":{\"b\":true},\"k\":[{\"b\":true}]}",
+      "java": "unsupported"
+    },
+    {
+      "case": "self-referential-substitutions/008-object-field-referring-to-its-object-stays-a-cycle.conf",
+      "spec": "HOCON.md#self-referential-substitutions",
+      "rule": "${?r} is undefined, so the previous value of v.x remains, ${v}: a field referring to the object it is in, the a : { b : ${a} } the spec names an unbreakable cycle. typesafe/config sets the field aside and reads v as {}",
+      "expected": {
+        "v": {
+          "x": {}
+        }
+      },
+      "got": "rejected (exit 1)",
+      "java": "lenient"
     },
     {
       "case": "string-value-concatenation/010-object-then-scalar-drops-the-scalar.conf",
