@@ -5,10 +5,10 @@
   "mode": "java",
   "java_version": "1.4.9",
   "command": "conformance/adapters/oracle.sh hocon-java",
-  "ran_at": "2026-10-26T07:25:13Z",
-  "suite_digest": "a19487267d239165",
-  "total": 552,
-  "passed": 552,
+  "ran_at": "2026-10-26T17:15:05Z",
+  "suite_digest": "a4365362889553e4",
+  "total": 573,
+  "passed": 573,
   "percent": 100.0,
   "sections": {
     "array-and-object-concatenation": {
@@ -60,8 +60,8 @@
       "passed": 6
     },
     "include-substitution": {
-      "total": 25,
-      "passed": 25
+      "total": 28,
+      "passed": 28
     },
     "include-syntax": {
       "total": 16,
@@ -100,16 +100,16 @@
       "passed": 7
     },
     "plus-equals-field-separator": {
-      "total": 21,
-      "passed": 21
+      "total": 29,
+      "passed": 29
     },
     "self-referential-examples": {
-      "total": 58,
-      "passed": 58
+      "total": 67,
+      "passed": 67
     },
     "self-referential-substitutions": {
-      "total": 7,
-      "passed": 7
+      "total": 8,
+      "passed": 8
     },
     "size-in-bytes-format": {
       "total": 5,
@@ -347,6 +347,9 @@
     "include-substitution/023-include-under-plus-equals-looks-up-its-own-root/main.conf": "pass",
     "include-substitution/024-include-in-a-list-element-before-the-including-root/main.conf": "pass",
     "include-substitution/025-plus-equals-with-nothing-at-fixed-up-path-falls-back/main.conf": "pass",
+    "include-substitution/026-include-in-an-object-concatenated-with-an-optional/main.conf": "pass",
+    "include-substitution/027-plus-equals-falling-back-onto-text-is-an-error/main.conf": "pass",
+    "include-substitution/028-optional-self-reference-falling-back-to-the-root/main.conf": "pass",
     "include-syntax/001-include-later-in-key-is-literal.conf": "pass",
     "include-syntax/002-include-as-object-value-is-string.conf": "pass",
     "include-syntax/003-include-as-array-element-is-string.conf": "pass",
@@ -470,6 +473,14 @@
     "plus-equals-field-separator/019-appends-twice-by-path-after-number-replaced-by-object.conf": "pass",
     "plus-equals-field-separator/020-appends-to-a-numerically-indexed-object.conf": "pass",
     "plus-equals-field-separator/021-appends-through-a-substituted-object.conf": "pass",
+    "plus-equals-field-separator/022-required-element-stays-when-an-inner-optional-breaks-the-cycle.conf": "pass",
+    "plus-equals-field-separator/023-required-element-stays-when-an-inner-optional-breaks-the-cycle-other-order.conf": "pass",
+    "plus-equals-field-separator/024-alias-read-inside-an-append-look-back.conf": "pass",
+    "plus-equals-field-separator/025-alias-read-inside-an-append-look-back-other-order.conf": "pass",
+    "plus-equals-field-separator/026-two-fields-appending-each-other-optionally.conf": "pass",
+    "plus-equals-field-separator/027-two-fields-appending-each-other-optionally-other-order.conf": "pass",
+    "plus-equals-field-separator/028-number-and-list-appending-each-other-optionally.conf": "pass",
+    "plus-equals-field-separator/029-number-and-list-appending-each-other-optionally-other-order.conf": "pass",
     "self-referential-examples/001-isolated-self-reference-is-an-error.conf": "pass",
     "self-referential-examples/002-self-reference-resolves-to-earlier-merged-value.conf": "pass",
     "self-referential-examples/003-self-reference-before-any-value-is-undefined.conf": "pass",
@@ -528,6 +539,15 @@
     "self-referential-examples/056-list-over-scalar-hidden-by-literal-object.conf": "pass",
     "self-referential-examples/057-optionals-leading-back-to-each-other-are-both-missing.conf": "pass",
     "self-referential-examples/058-object-field-read-inside-a-look-back.conf": "pass",
+    "self-referential-examples/059-alias-read-inside-a-layer-under-an-object.conf": "pass",
+    "self-referential-examples/060-alias-read-inside-a-layer-under-an-object-other-order.conf": "pass",
+    "self-referential-examples/061-text-under-an-object-is-never-evaluated.conf": "pass",
+    "self-referential-examples/062-text-under-an-object-is-never-evaluated-other-order.conf": "pass",
+    "self-referential-examples/063-optional-alias-of-a-list-on-a-cycle-is-nonexistent.conf": "pass",
+    "self-referential-examples/064-optional-alias-of-a-list-on-a-cycle-is-nonexistent-other-order.conf": "pass",
+    "self-referential-examples/065-alias-read-inside-a-concatenation-look-back.conf": "pass",
+    "self-referential-examples/066-alias-read-inside-a-concatenation-look-back-other-order.conf": "pass",
+    "self-referential-examples/067-text-concatenation-under-an-object-is-never-evaluated.conf": "pass",
     "self-referential-substitutions/001-path-builds-on-older-value.conf": "pass",
     "self-referential-substitutions/002-self-referential-concatenation.conf": "pass",
     "self-referential-substitutions/003-object-containing-self-reference-is-not-self-referential.conf": "pass",
@@ -535,6 +555,7 @@
     "self-referential-substitutions/006-self-referential-array-concatenation.conf": "pass",
     "self-referential-substitutions/007-plus-equals-of-the-parent-object.conf": "pass",
     "self-referential-substitutions/008-object-field-referring-to-its-object-stays-a-cycle.conf": "pass",
+    "self-referential-substitutions/009-optional-over-a-field-referring-to-its-object.conf": "pass",
     "size-in-bytes-format/001-bare-number-is-bytes.conf": "pass",
     "size-in-bytes-format/002-single-byte-spellings.conf": "pass",
     "size-in-bytes-format/003-powers-of-ten-suffixes.conf": "pass",
@@ -735,6 +756,8 @@
     "include-substitution/023-include-under-plus-equals-looks-up-its-own-root/main.conf": "rejected",
     "include-substitution/024-include-in-a-list-element-before-the-including-root/main.conf": "rejected",
     "include-substitution/025-plus-equals-with-nothing-at-fixed-up-path-falls-back/main.conf": "{\"a\":[1],\"k\":{\"a\":[2]}}",
+    "include-substitution/027-plus-equals-falling-back-onto-text-is-an-error/main.conf": "{\"a\":\"\",\"k\":{\"a\":[3]}}",
+    "include-substitution/028-optional-self-reference-falling-back-to-the-root/main.conf": "{\"a\":{},\"b\":{}}",
     "key-value-separator/007-object-after-omitted-separator-concatenates.conf": "rejected",
     "key-value-separator/008-substitution-after-omitted-separator-concatenates.conf": "rejected",
     "omit-root-braces/006-array-root-unaffected.conf": "rejected",
@@ -756,6 +779,12 @@
     "plus-equals-field-separator/018-errors-on-a-number-defined-in-object-concatenation.conf": "{\"x\":{},\"y\":{\"l\":[2]}}",
     "plus-equals-field-separator/019-appends-twice-by-path-after-number-replaced-by-object.conf": "{\"a\":{\"b\":[\"y\"]}}",
     "plus-equals-field-separator/021-appends-through-a-substituted-object.conf": "{\"a\":{\"c\":[2],\"e\":3},\"x\":{\"e\":3}}",
+    "plus-equals-field-separator/024-alias-read-inside-an-append-look-back.conf": "{\"c\":[],\"e\":[]}",
+    "plus-equals-field-separator/025-alias-read-inside-an-append-look-back-other-order.conf": "{\"c\":[],\"e\":[]}",
+    "plus-equals-field-separator/026-two-fields-appending-each-other-optionally.conf": "{\"a\":[[]],\"b\":[]}",
+    "plus-equals-field-separator/027-two-fields-appending-each-other-optionally-other-order.conf": "{\"a\":[[]],\"b\":[]}",
+    "plus-equals-field-separator/028-number-and-list-appending-each-other-optionally.conf": "{\"c\":[1],\"d\":1}",
+    "plus-equals-field-separator/029-number-and-list-appending-each-other-optionally-other-order.conf": "{\"c\":[1],\"d\":1}",
     "self-referential-examples/015-list-hidden-by-substituted-object-is-never-evaluated.conf": "rejected",
     "self-referential-examples/021-hidden-list-does-not-depend-on-key-order.conf": "rejected",
     "self-referential-examples/027-self-reference-inside-object-concatenation.conf": "rejected",
@@ -772,7 +801,15 @@
     "self-referential-examples/056-list-over-scalar-hidden-by-literal-object.conf": "rejected",
     "self-referential-examples/057-optionals-leading-back-to-each-other-are-both-missing.conf": "{\"a\":[[]],\"b\":[]}",
     "self-referential-examples/058-object-field-read-inside-a-look-back.conf": "rejected",
+    "self-referential-examples/059-alias-read-inside-a-layer-under-an-object.conf": "{\"a\":3,\"f\":{\"z\":3}}",
+    "self-referential-examples/060-alias-read-inside-a-layer-under-an-object-other-order.conf": "{\"a\":3,\"f\":{\"z\":3}}",
+    "self-referential-examples/063-optional-alias-of-a-list-on-a-cycle-is-nonexistent.conf": "{\"c\":[],\"d\":[]}",
+    "self-referential-examples/064-optional-alias-of-a-list-on-a-cycle-is-nonexistent-other-order.conf": "{\"c\":[],\"d\":[]}",
+    "self-referential-examples/065-alias-read-inside-a-concatenation-look-back.conf": "{\"c\":\"xy\",\"e\":\"xy\"}",
+    "self-referential-examples/066-alias-read-inside-a-concatenation-look-back-other-order.conf": "{\"c\":\"xy\",\"e\":\"xy\"}",
+    "self-referential-examples/067-text-concatenation-under-an-object-is-never-evaluated.conf": "{\"a\":{\"helper\":0,\"y\":1},\"r\":{\"y\":1}}",
     "self-referential-substitutions/008-object-field-referring-to-its-object-stays-a-cycle.conf": "{\"v\":{\"x\":{}}}",
+    "self-referential-substitutions/009-optional-over-a-field-referring-to-its-object.conf": "{\"b\":{},\"n\":{\"a\":{}}}",
     "string-value-concatenation/010-object-then-scalar-drops-the-scalar.conf": "{\"a\":{\"b\":1}}",
     "string-value-concatenation/011-array-then-scalar-drops-the-scalar.conf": "{\"a\":[1,2]}",
     "string-value-concatenation/014-array-then-unquoted-text-without-space.conf": "{\"x\":[1]}",
