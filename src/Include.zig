@@ -463,6 +463,9 @@ fn fromProperties(gpa: Allocator, source: []const u8) values.Error!Value {
         }
         current.text = text;
     }
+    // No key at all, an empty file or only comments: an empty map (spec
+    // L1451), no root that is not an object.
+    if (root.children.count() == 0) return .{ .object = &.{} };
     return propertyToValue(gpa, root);
 }
 
