@@ -284,6 +284,9 @@ class _Scan:
 def written_spec_way(text: str, basedir: str | None, package_path: Callable[[str], str]) -> str:
     """``text`` with pyhocon's syntax written the spec's way; includes are
     found in ``basedir``, a ``package(…)`` by ``package_path``."""
+    # most documents have none of it, and are not scanned
+    if "+=" not in text and "include" not in text and "\\" not in text:
+        return text
     scan = _Scan(text, basedir, package_path)
     try:
         scan.document()
