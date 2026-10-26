@@ -28,7 +28,7 @@ observable parse behaviour.
 | 574 | Substitutions | `substitutions` | ✅ 41 cases |
 | 653 | Self-referential substitutions | `self-referential-substitutions` | ✅ 8 cases |
 | 719 | The += field separator | `plus-equals-field-separator` | ✅ 29 cases |
-| 738 | Examples of self-referential substitutions | `self-referential-examples` | ✅ 67 cases |
+| 738 | Examples of self-referential substitutions | `self-referential-examples` | ✅ 77 cases |
 | 893 | List values from environment variables | `list-values-from-environment-variables` | ✅ 6 cases |
 | 921 | Include syntax | `include-syntax` | ✅ 16 cases |
 | 982 | Include semantics: merging | `include-merging` | ✅ 19 cases |

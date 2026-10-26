@@ -4,11 +4,11 @@
   "version": "typesafe/config 1.4.9",
   "mode": "spec",
   "command": "conformance/adapters/oracle.sh hocon-java",
-  "ran_at": "2026-10-26T17:14:04Z",
-  "suite_digest": "a4365362889553e4",
-  "total": 573,
-  "passed": 469,
-  "percent": 81.8,
+  "ran_at": "2026-10-26T20:33:05Z",
+  "suite_digest": "6016265ebddf11c8",
+  "total": 583,
+  "passed": 475,
+  "percent": 81.5,
   "sections": {
     "array-and-object-concatenation": {
       "total": 23,
@@ -103,8 +103,8 @@
       "passed": 13
     },
     "self-referential-examples": {
-      "total": 67,
-      "passed": 49
+      "total": 77,
+      "passed": 55
     },
     "self-referential-substitutions": {
       "total": 8,
@@ -547,6 +547,16 @@
     "self-referential-examples/065-alias-read-inside-a-concatenation-look-back.conf": "pass",
     "self-referential-examples/066-alias-read-inside-a-concatenation-look-back-other-order.conf": "pass",
     "self-referential-examples/067-text-concatenation-under-an-object-is-never-evaluated.conf": "fail",
+    "self-referential-examples/068-field-written-twice-seen-again-is-resolved-as-a-field.conf": "pass",
+    "self-referential-examples/069-required-undefined-in-a-field-written-twice-seen-again.conf": "pass",
+    "self-referential-examples/070-look-back-keeps-text-below-plus-equals-onto-it-fails.conf": "pass",
+    "self-referential-examples/071-look-back-keeps-text-below-plus-equals-onto-it-fails-other-order.conf": "pass",
+    "self-referential-examples/072-look-back-keeps-text-below-plus-equals-optional-fails.conf": "pass",
+    "self-referential-examples/073-look-back-keeps-text-below-plus-equals-optional-fails-other-order.conf": "pass",
+    "self-referential-examples/074-optional-nonexistent-on-a-cycle-stays-so-outside-it.conf": "fail",
+    "self-referential-examples/075-optional-nonexistent-on-a-cycle-stays-so-outside-it-other-order.conf": "fail",
+    "self-referential-examples/076-optional-into-an-object-holding-a-field-being-resolved.conf": "fail",
+    "self-referential-examples/077-optional-into-an-object-holding-a-field-being-resolved-other-order.conf": "fail",
     "self-referential-substitutions/001-path-builds-on-older-value.conf": "pass",
     "self-referential-substitutions/002-self-referential-concatenation.conf": "pass",
     "self-referential-substitutions/003-object-containing-self-reference-is-not-self-referential.conf": "pass",
@@ -807,6 +817,10 @@
     "self-referential-examples/065-alias-read-inside-a-concatenation-look-back.conf": "{\"c\":\"xy\",\"e\":\"xy\"}",
     "self-referential-examples/066-alias-read-inside-a-concatenation-look-back-other-order.conf": "{\"c\":\"xy\",\"e\":\"xy\"}",
     "self-referential-examples/067-text-concatenation-under-an-object-is-never-evaluated.conf": "{\"a\":{\"helper\":0,\"y\":1},\"r\":{\"y\":1}}",
+    "self-referential-examples/074-optional-nonexistent-on-a-cycle-stays-so-outside-it.conf": "rejected",
+    "self-referential-examples/075-optional-nonexistent-on-a-cycle-stays-so-outside-it-other-order.conf": "rejected",
+    "self-referential-examples/076-optional-into-an-object-holding-a-field-being-resolved.conf": "rejected",
+    "self-referential-examples/077-optional-into-an-object-holding-a-field-being-resolved-other-order.conf": "rejected",
     "self-referential-substitutions/008-object-field-referring-to-its-object-stays-a-cycle.conf": "{\"v\":{\"x\":{}}}",
     "self-referential-substitutions/009-optional-over-a-field-referring-to-its-object.conf": "{\"b\":{},\"n\":{\"a\":{}}}",
     "string-value-concatenation/010-object-then-scalar-drops-the-scalar.conf": "{\"a\":{\"b\":1}}",
@@ -2231,6 +2245,66 @@
         }
       },
       "java": "diverges"
+    },
+    {
+      "case": "self-referential-examples/074-optional-nonexistent-on-a-cycle-stays-so-outside-it.conf",
+      "spec": "HOCON.md#examples-of-self-referential-substitutions",
+      "rule": "e's ${?f.k} leads back to e through f's ${e}, and f's ${?e} back to f through e's ${?f.k}: both are nonexistent (L716) whichever field is resolved first, so e is [y] and f is ${e}, [y]. A substitution is resolved once (L884-886): f's ${?e}, found nonexistent while e was resolved, stays nonexistent when f is resolved afterwards. typesafe/config calls the cycle an error",
+      "expected": {
+        "e": [
+          "y"
+        ],
+        "f": [
+          "y"
+        ]
+      },
+      "got": "rejected (exit 1)",
+      "java": "unsupported"
+    },
+    {
+      "case": "self-referential-examples/075-optional-nonexistent-on-a-cycle-stays-so-outside-it-other-order.conf",
+      "spec": "HOCON.md#examples-of-self-referential-substitutions",
+      "rule": "074 with f first: e is [y] and f is [y] again",
+      "expected": {
+        "e": [
+          "y"
+        ],
+        "f": [
+          "y"
+        ]
+      },
+      "got": "rejected (exit 1)",
+      "java": "unsupported"
+    },
+    {
+      "case": "self-referential-examples/076-optional-into-an-object-holding-a-field-being-resolved.conf",
+      "spec": "HOCON.md#examples-of-self-referential-substitutions",
+      "rule": "b.k.k's ${?e} leads to e.k, whose ${?b} leads back into b, the object holding b.k.k: both optionals are on the cycle and nonexistent (L716), so e.k is no field and e is {}, and b.k.k is ${?d} appended to nothing, []. Whichever field is resolved first (077). typesafe/config concatenates e's {} with the list and fails",
+      "expected": {
+        "b": {
+          "k": {
+            "k": []
+          }
+        },
+        "e": {}
+      },
+      "got": "rejected (exit 1)",
+      "java": "unsupported"
+    },
+    {
+      "case": "self-referential-examples/077-optional-into-an-object-holding-a-field-being-resolved-other-order.conf",
+      "spec": "HOCON.md#examples-of-self-referential-substitutions",
+      "rule": "076 with b first: e is {} and b.k.k is [] again",
+      "expected": {
+        "b": {
+          "k": {
+            "k": []
+          }
+        },
+        "e": {}
+      },
+      "got": "rejected (exit 1)",
+      "java": "unsupported"
     },
     {
       "case": "self-referential-substitutions/008-object-field-referring-to-its-object-stays-a-cycle.conf",

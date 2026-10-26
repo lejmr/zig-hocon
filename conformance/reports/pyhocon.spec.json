@@ -4,11 +4,11 @@
   "version": "pyhocon 0.3.63",
   "mode": "spec",
   "command": "conformance/adapters/oracle.sh hocon-py",
-  "ran_at": "2026-10-26T17:18:23Z",
-  "suite_digest": "a4365362889553e4",
-  "total": 573,
-  "passed": 355,
-  "percent": 62.0,
+  "ran_at": "2026-10-26T20:16:43Z",
+  "suite_digest": "6016265ebddf11c8",
+  "total": 583,
+  "passed": 358,
+  "percent": 61.4,
   "sections": {
     "array-and-object-concatenation": {
       "total": 23,
@@ -103,8 +103,8 @@
       "passed": 0
     },
     "self-referential-examples": {
-      "total": 67,
-      "passed": 32
+      "total": 77,
+      "passed": 35
     },
     "self-referential-substitutions": {
       "total": 8,
@@ -547,6 +547,16 @@
     "self-referential-examples/065-alias-read-inside-a-concatenation-look-back.conf": "fail",
     "self-referential-examples/066-alias-read-inside-a-concatenation-look-back-other-order.conf": "fail",
     "self-referential-examples/067-text-concatenation-under-an-object-is-never-evaluated.conf": "fail",
+    "self-referential-examples/068-field-written-twice-seen-again-is-resolved-as-a-field.conf": "fail",
+    "self-referential-examples/069-required-undefined-in-a-field-written-twice-seen-again.conf": "pass",
+    "self-referential-examples/070-look-back-keeps-text-below-plus-equals-onto-it-fails.conf": "fail",
+    "self-referential-examples/071-look-back-keeps-text-below-plus-equals-onto-it-fails-other-order.conf": "fail",
+    "self-referential-examples/072-look-back-keeps-text-below-plus-equals-optional-fails.conf": "pass",
+    "self-referential-examples/073-look-back-keeps-text-below-plus-equals-optional-fails-other-order.conf": "pass",
+    "self-referential-examples/074-optional-nonexistent-on-a-cycle-stays-so-outside-it.conf": "fail",
+    "self-referential-examples/075-optional-nonexistent-on-a-cycle-stays-so-outside-it-other-order.conf": "fail",
+    "self-referential-examples/076-optional-into-an-object-holding-a-field-being-resolved.conf": "fail",
+    "self-referential-examples/077-optional-into-an-object-holding-a-field-being-resolved-other-order.conf": "fail",
     "self-referential-substitutions/001-path-builds-on-older-value.conf": "pass",
     "self-referential-substitutions/002-self-referential-concatenation.conf": "pass",
     "self-referential-substitutions/003-object-containing-self-reference-is-not-self-referential.conf": "pass",
@@ -807,6 +817,10 @@
     "self-referential-examples/065-alias-read-inside-a-concatenation-look-back.conf": "rejected",
     "self-referential-examples/066-alias-read-inside-a-concatenation-look-back-other-order.conf": "rejected",
     "self-referential-examples/067-text-concatenation-under-an-object-is-never-evaluated.conf": "rejected",
+    "self-referential-examples/074-optional-nonexistent-on-a-cycle-stays-so-outside-it.conf": "rejected",
+    "self-referential-examples/075-optional-nonexistent-on-a-cycle-stays-so-outside-it-other-order.conf": "rejected",
+    "self-referential-examples/076-optional-into-an-object-holding-a-field-being-resolved.conf": "rejected",
+    "self-referential-examples/077-optional-into-an-object-holding-a-field-being-resolved-other-order.conf": "rejected",
     "self-referential-substitutions/008-object-field-referring-to-its-object-stays-a-cycle.conf": "rejected",
     "self-referential-substitutions/009-optional-over-a-field-referring-to-its-object.conf": "rejected",
     "string-value-concatenation/010-object-then-scalar-drops-the-scalar.conf": "rejected",
@@ -3091,6 +3105,99 @@
       "java": "diverges"
     },
     {
+      "case": "self-referential-examples/068-field-written-twice-seen-again-is-resolved-as-a-field.conf",
+      "spec": "HOCON.md#examples-of-self-referential-substitutions",
+      "rule": "d.z is written twice, ${?a.k} then += ${?c}. Resolving a walks f, then d, and d.z is reached again from inside a's own look-back (L767): it is still a field with two layers, resolved as one, not a value. ${?a.k} leads back to d.z through a, f and d, so it is nonexistent (L716), ${?c} too, and d.z is []; a is [] with f appended (L731)",
+      "expected": {
+        "a": [
+          {
+            "z": []
+          }
+        ],
+        "d": {
+          "z": []
+        },
+        "f": {
+          "z": []
+        }
+      },
+      "got": "rejected (exit 1)"
+    },
+    {
+      "case": "self-referential-examples/070-look-back-keeps-text-below-plus-equals-onto-it-fails.conf",
+      "spec": "HOCON.md#examples-of-self-referential-substitutions",
+      "rule": "b += 1 is b = ${?b} [1], its ${?b} looking back at b's layer below, x${?f} (L767). That look-back is not on the cycle through f, whose ${?b} is the optional that led back to its own field and is nonexistent (L716), so it finds \"x\", text, and += onto a value that is no list is an error (L731), whichever field is resolved first (071)",
+      "expected": "rejected",
+      "got": "{\"f\":1,\"b\":1}"
+    },
+    {
+      "case": "self-referential-examples/071-look-back-keeps-text-below-plus-equals-onto-it-fails-other-order.conf",
+      "spec": "HOCON.md#examples-of-self-referential-substitutions",
+      "rule": "070 with f last: b's look-back finds \"x\" again, and += onto it is an error (L731)",
+      "expected": "rejected",
+      "got": "{\"b\":1,\"f\":1}"
+    },
+    {
+      "case": "self-referential-examples/074-optional-nonexistent-on-a-cycle-stays-so-outside-it.conf",
+      "spec": "HOCON.md#examples-of-self-referential-substitutions",
+      "rule": "e's ${?f.k} leads back to e through f's ${e}, and f's ${?e} back to f through e's ${?f.k}: both are nonexistent (L716) whichever field is resolved first, so e is [y] and f is ${e}, [y]. A substitution is resolved once (L884-886): f's ${?e}, found nonexistent while e was resolved, stays nonexistent when f is resolved afterwards. typesafe/config calls the cycle an error",
+      "expected": {
+        "e": [
+          "y"
+        ],
+        "f": [
+          "y"
+        ]
+      },
+      "got": "rejected (exit 1)",
+      "java": "unsupported"
+    },
+    {
+      "case": "self-referential-examples/075-optional-nonexistent-on-a-cycle-stays-so-outside-it-other-order.conf",
+      "spec": "HOCON.md#examples-of-self-referential-substitutions",
+      "rule": "074 with f first: e is [y] and f is [y] again",
+      "expected": {
+        "e": [
+          "y"
+        ],
+        "f": [
+          "y"
+        ]
+      },
+      "got": "rejected (exit 1)",
+      "java": "unsupported"
+    },
+    {
+      "case": "self-referential-examples/076-optional-into-an-object-holding-a-field-being-resolved.conf",
+      "spec": "HOCON.md#examples-of-self-referential-substitutions",
+      "rule": "b.k.k's ${?e} leads to e.k, whose ${?b} leads back into b, the object holding b.k.k: both optionals are on the cycle and nonexistent (L716), so e.k is no field and e is {}, and b.k.k is ${?d} appended to nothing, []. Whichever field is resolved first (077). typesafe/config concatenates e's {} with the list and fails",
+      "expected": {
+        "b": {
+          "k": {
+            "k": []
+          }
+        },
+        "e": {}
+      },
+      "got": "rejected (exit 1)",
+      "java": "unsupported"
+    },
+    {
+      "case": "self-referential-examples/077-optional-into-an-object-holding-a-field-being-resolved-other-order.conf",
+      "spec": "HOCON.md#examples-of-self-referential-substitutions",
+      "rule": "076 with b first: e is {} and b.k.k is [] again",
+      "expected": {
+        "b": {
+          "k": {
+            "k": []
+          }
+        },
+        "e": {}
+      },
+      "got": "rejected (exit 1)",
+      "java": "unsupported"
+    },
+    {
       "case": "self-referential-substitutions/007-plus-equals-of-the-parent-object.conf",
       "spec": "HOCON.md#self-referential-substitutions",
       "rule": "a += ${o} is a = ${?a} [${o}], self-referential through ${?a}; the cycle through ${o} is broken by looking back, with o's a at its earlier value []: o = {a: [{a: []}]}, the implementation the spec sketches",
@@ -3229,7 +3336,7 @@
         "a": "null bar"
       },
       "got": {
-        "a": "<pyhocon.config_tree.NoneValue object at 0x105d24e90>bar"
+        "a": "<pyhocon.config_tree.NoneValue object at 0x7f4509541400>bar"
       }
     },
     {

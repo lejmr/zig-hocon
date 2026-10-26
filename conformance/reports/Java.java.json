@@ -5,10 +5,10 @@
   "mode": "java",
   "java_version": "1.4.9",
   "command": "conformance/adapters/oracle.sh hocon-java",
-  "ran_at": "2026-10-26T17:15:05Z",
-  "suite_digest": "a4365362889553e4",
-  "total": 573,
-  "passed": 573,
+  "ran_at": "2026-10-26T20:32:06Z",
+  "suite_digest": "6016265ebddf11c8",
+  "total": 583,
+  "passed": 583,
   "percent": 100.0,
   "sections": {
     "array-and-object-concatenation": {
@@ -104,8 +104,8 @@
       "passed": 29
     },
     "self-referential-examples": {
-      "total": 67,
-      "passed": 67
+      "total": 77,
+      "passed": 77
     },
     "self-referential-substitutions": {
       "total": 8,
@@ -548,6 +548,16 @@
     "self-referential-examples/065-alias-read-inside-a-concatenation-look-back.conf": "pass",
     "self-referential-examples/066-alias-read-inside-a-concatenation-look-back-other-order.conf": "pass",
     "self-referential-examples/067-text-concatenation-under-an-object-is-never-evaluated.conf": "pass",
+    "self-referential-examples/068-field-written-twice-seen-again-is-resolved-as-a-field.conf": "pass",
+    "self-referential-examples/069-required-undefined-in-a-field-written-twice-seen-again.conf": "pass",
+    "self-referential-examples/070-look-back-keeps-text-below-plus-equals-onto-it-fails.conf": "pass",
+    "self-referential-examples/071-look-back-keeps-text-below-plus-equals-onto-it-fails-other-order.conf": "pass",
+    "self-referential-examples/072-look-back-keeps-text-below-plus-equals-optional-fails.conf": "pass",
+    "self-referential-examples/073-look-back-keeps-text-below-plus-equals-optional-fails-other-order.conf": "pass",
+    "self-referential-examples/074-optional-nonexistent-on-a-cycle-stays-so-outside-it.conf": "pass",
+    "self-referential-examples/075-optional-nonexistent-on-a-cycle-stays-so-outside-it-other-order.conf": "pass",
+    "self-referential-examples/076-optional-into-an-object-holding-a-field-being-resolved.conf": "pass",
+    "self-referential-examples/077-optional-into-an-object-holding-a-field-being-resolved-other-order.conf": "pass",
     "self-referential-substitutions/001-path-builds-on-older-value.conf": "pass",
     "self-referential-substitutions/002-self-referential-concatenation.conf": "pass",
     "self-referential-substitutions/003-object-containing-self-reference-is-not-self-referential.conf": "pass",
@@ -808,6 +818,10 @@
     "self-referential-examples/065-alias-read-inside-a-concatenation-look-back.conf": "{\"c\":\"xy\",\"e\":\"xy\"}",
     "self-referential-examples/066-alias-read-inside-a-concatenation-look-back-other-order.conf": "{\"c\":\"xy\",\"e\":\"xy\"}",
     "self-referential-examples/067-text-concatenation-under-an-object-is-never-evaluated.conf": "{\"a\":{\"helper\":0,\"y\":1},\"r\":{\"y\":1}}",
+    "self-referential-examples/074-optional-nonexistent-on-a-cycle-stays-so-outside-it.conf": "rejected",
+    "self-referential-examples/075-optional-nonexistent-on-a-cycle-stays-so-outside-it-other-order.conf": "rejected",
+    "self-referential-examples/076-optional-into-an-object-holding-a-field-being-resolved.conf": "rejected",
+    "self-referential-examples/077-optional-into-an-object-holding-a-field-being-resolved-other-order.conf": "rejected",
     "self-referential-substitutions/008-object-field-referring-to-its-object-stays-a-cycle.conf": "{\"v\":{\"x\":{}}}",
     "self-referential-substitutions/009-optional-over-a-field-referring-to-its-object.conf": "{\"b\":{},\"n\":{\"a\":{}}}",
     "string-value-concatenation/010-object-then-scalar-drops-the-scalar.conf": "{\"a\":{\"b\":1}}",
