@@ -48,7 +48,7 @@ The rest of this page reads these two files.
 
 ## Why zig-hocon
 
-- **Correct.** Passes all 528 tests in the [conformance suite](https://htmlpreview.github.io/?https://github.com/lejmr/zig-hocon/blob/main/conformance/report.html), one test for each sentence of the spec.
+- **Correct.** Passes all 530 tests in the [conformance suite](https://htmlpreview.github.io/?https://github.com/lejmr/zig-hocon/blob/main/conformance/report.html), one test for each sentence of the spec.
 - **Your schema is a Zig struct.** HOCON is only what sits on disk; the struct says what it holds, with defaults, optionals, enums, durations and sizes.
 - **Fast.** A 10 MB config in a quarter of a second.\*
 - **Clear errors.** File, line, column and a caret, also for a value of the wrong type.
