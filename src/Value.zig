@@ -59,6 +59,7 @@ pub const Value = union(enum) {
     pub const Files = build.Files;
     pub const Frame = build.Frame;
     pub const Context = build.Context;
+    pub const wayDown = build.wayDown;
 
     pub const fromNode = build.fromNode;
     pub const update = merge.update;

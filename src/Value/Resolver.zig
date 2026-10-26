@@ -78,6 +78,12 @@ walked: std.AutoHashMapUnmanaged(*Value, Value) = .empty,
 // made it so is over, would find something (`resolveField`). True when a
 // cycle made it so: the field is in the document, never a variable.
 vanished: std.AutoHashMapUnmanaged(*Value, bool) = .empty,
+// The list elements the walk is in, outermost first, from `element_base`
+// on: where a ref anchored at the n-th one starts (`Ref.flags.anchor`). A
+// place a path from the document root reaches is in no list, as no path can
+// name an element, so below it they count afresh (`resolveTarget`).
+elements: std.ArrayList(*Value) = .empty,
+element_base: usize = 0,
 // Where a path that is not in the document is looked up.
 env: Env,
 // Where the error points; written once, where the error starts.
@@ -119,6 +125,7 @@ fn deinit(state: *Resolver) void {
     state.again.deinit(gpa);
     state.walked.deinit(gpa);
     state.vanished.deinit(gpa);
+    state.elements.deinit(gpa);
     state.kept.deinit(gpa);
     var it = state.index.valueIterator();
     while (it.next()) |members| members.deinit(gpa);
@@ -157,8 +164,10 @@ pub fn resolveValue(state: *Resolver, value: Value) Error!?Value {
         .scalar => return value,
         .array => |items| {
             var values: std.ArrayList(Value) = .empty;
-            for (items) |item| {
-                if (try state.resolveValue(item)) |val| try values.append(gpa, val);
+            for (items) |*item| {
+                try state.elements.append(gpa, item);
+                defer _ = state.elements.pop();
+                if (try state.resolveValue(item.*)) |val| try values.append(gpa, val);
             }
             return .{ .array = try values.toOwnedSlice(gpa) };
         },
@@ -327,10 +336,12 @@ noinline fn followRef(state: *Resolver, r: Ref, on_top: bool) Error!?Value {
     var found = try state.follow(r, path);
     // From an included file: nothing found with the scope in front,
     // so try the path as written.
-    if ((found == .absent or found == .gone) and r.scope_len > 0) {
+    // From a list element too, unless it is a `+=` there, which only looks
+    // at what its own field held.
+    if ((found == .absent or found == .gone) and (r.scope_len > 0 or (r.flags.anchor > 0 and !r.flags.append))) {
         const scoped = found;
         path = r.path[r.scope_len..];
-        found = try state.follow(r, path);
+        found = try state.follow(r.from(path), path);
         // A cycle is in the document: no variable for it.
         if (found == .absent and scoped == .gone) found = .gone;
     }
@@ -406,6 +417,19 @@ fn follow(state: *Resolver, ref: Ref, path: []const Key) Error!Found {
 // within themselves (spec L815).
 fn resolveTarget(state: *Resolver, target: *Value, ref: Ref, whole: bool) Error!?Value {
     const gpa = state.gpa;
+    // The lists around the target: from the document root none, so the ones
+    // below it count afresh; from a list element, that element and the ones
+    // around it, not the ones the walk went on into from there.
+    const base = state.element_base;
+    defer state.element_base = base;
+    var below: []*Value = &.{};
+    if (ref.flags.anchor == 0) {
+        state.element_base = state.elements.items.len;
+    } else if (base + ref.flags.anchor < state.elements.items.len) {
+        below = try gpa.dupe(*Value, state.elements.items[base + ref.flags.anchor ..]);
+        state.elements.shrinkRetainingCapacity(base + ref.flags.anchor);
+    }
+    defer state.elements.appendSliceAssumeCapacity(below);
     for (state.visiting.items, 0..) |place, i| {
         // A ref to a place being resolved, or to an object it is in, comes
         // back round (spec L697: the lookup document is an ancestor).
@@ -487,7 +511,11 @@ fn looksBackAt(state: *Resolver, place: *Value) bool {
 // with `x = 1` has no `x.y` in the document.
 fn lookup(state: *Resolver, ref: Ref, path: []const Key) Error!Place {
     const gpa = state.gpa;
+    // From the list element the path starts at, if it is anchored at one.
     var current = state.root;
+    const anchor = ref.flags.anchor;
+    if (anchor > 0 and state.element_base + anchor <= state.elements.items.len)
+        current = state.elements.items[state.element_base + anchor - 1];
     for (path, 0..) |key, k| {
         // A field that refers to itself sees the layers below it. With
         // nothing there it is as if the path were not in the document
@@ -526,13 +554,17 @@ fn lookup(state: *Resolver, ref: Ref, path: []const Key) Error!Place {
 fn throughAlias(state: *Resolver, ref: Ref, place: *Value, rest: []const Key) Error!?Place {
     if (state.env == .keep) return null;
     const alias = aliasOf(place.*) orelse return null;
+    if (alias.flags.anchor > 0) return null;
     if (alias.flags.optional or alias.flags.append or alias.scope_len > 0) return null;
     // Resolving it already, it is a cycle, which `resolveTarget` says.
     for (state.visiting.items) |p| if (p == place) return null;
     const gpa = state.gpa;
     try state.visiting.append(gpa, place);
     defer _ = state.visiting.pop();
-    return try state.lookup(ref, try std.mem.concat(gpa, Key, &.{ alias.path, rest }));
+    // The alias's path is from the document root, whatever `ref` starts at.
+    var from_root = ref;
+    from_root.flags.anchor = 0;
+    return try state.lookup(from_root, try std.mem.concat(gpa, Key, &.{ alias.path, rest }));
 }
 
 // The ref an alias is: `a = ${p}`, also written more than once, which merges
@@ -741,6 +773,19 @@ test "resolve.a look-back that refers to its own object" {
     try expectResolveError("a { b = ${a} }", error.SubstitutionCycle);
     try expectResolveError("o { a = [], a += ${o}, c = ${o} }", error.SubstitutionCycle);
 }
+// plus-equals-field-separator/015-016 · java ⚠️ (refuses += in a list) ·
+// pyhocon ✗ · spec ✓ — `+=` in an object in a list looks at the value it
+// overrides in that object (L745), not at a path from the root that cannot
+// name the element: no earlier value is a new list, a list is appended to,
+// anything else is an error, and a root key of the same name is not seen.
+test "resolve.+= in a list element sees the value it overrides there" {
+    try expectResolved("a = [ { b = [1], b += 2 } ]", "{\"a\":[{\"b\":[1,2]}]}");
+    try expectResolved("a = [ { b += 2 } ]", "{\"a\":[{\"b\":[2]}]}");
+    try expectResolved("b = [7]\na = [ { b += 2 } ]", "{\"b\":[7],\"a\":[{\"b\":[2]}]}");
+    try expectResolved("a = [ [ { b = [1], b += 2 } ] ]", "{\"a\":[[{\"b\":[1,2]}]]}");
+    try expectResolveError("a = [ { b = 1, b += 2 } ]", error.UnsupportedConcatenation);
+}
+
 // self-referential-examples/040, 043, 045–048 · java ✓ (all but the `f =
 // ${?a.t}` row, where it gives f = 1) · spec ✓ — the same lines in either
 // order give the same values: an optional that leads back to its own field is

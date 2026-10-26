@@ -215,6 +215,8 @@ fn loadFile(gpa: Allocator, io: std.Io, path: []const u8, ctx: Value.Context) va
         .dir = std.fs.path.dirname(path) orelse "",
         .stack = try std.mem.concat(gpa, []const u8, &.{ ctx.stack, &.{id} }),
         .scope = try scopeOf(gpa, ctx),
+        .elements = ctx.elements,
+        .anchor = (try Value.wayDown(gpa, ctx, ctx.frame)).anchor,
         .files = ctx.files,
         .file = try addFile(gpa, ctx, path, source),
     };
@@ -301,6 +303,8 @@ fn loadUrl(gpa: Allocator, io: std.Io, url: []const u8, ctx: Value.Context) valu
         .http_timeout = ctx.http_timeout,
         .stack = try std.mem.concat(gpa, []const u8, &.{ ctx.stack, &.{url} }),
         .scope = try scopeOf(gpa, ctx),
+        .elements = ctx.elements,
+        .anchor = (try Value.wayDown(gpa, ctx, ctx.frame)).anchor,
         .files = ctx.files,
         .file = try addFile(gpa, ctx, url, fetched.source),
     };
@@ -328,15 +332,9 @@ fn formatOfPath(path: []const u8) Format {
 /// Where the keys of a file included from `ctx` sit in the whole document.
 /// Substitutions in it get this in front of their path (see `Value.Ref`).
 fn scopeOf(gpa: Allocator, ctx: Value.Context) values.Error![]const Key {
-    var keys: std.ArrayList(Key) = .empty;
-    var frame = ctx.frame;
-    while (frame) |f| {
-        try keys.append(gpa, f.key);
-        frame = f.parent;
-    }
-    // The frames came innermost first.
-    std.mem.reverse(Key, keys.items);
-    const scope = try std.mem.concat(gpa, Key, &.{ ctx.scope, keys.items });
+    // From the innermost list element, if there is one (`Value.wayDown`).
+    const way = try Value.wayDown(gpa, ctx, ctx.frame);
+    const scope = try std.mem.concat(gpa, Key, &.{ way.scope, way.keys });
     if (scope.len > std.math.maxInt(u8)) return error.UnsupportedInclude;
     return scope;
 }
@@ -1141,6 +1139,21 @@ fn expectWithEnv(files: []const Fixture, vars: []const [2][]const u8, want: []co
 // for a vanished field outside an include (see Value/Resolver/env.zig, "env.a field that
 // vanished"). An earlier rule kept it the document's; that depended on the
 // order of the fields.
+// include-substitution/022-024 · java ⚠️ (refuses an include in a list) ·
+// pyhocon ✗ · spec ✓ — a file included into a list element has the element as
+// its root, so its refs look there first and then at the document root, as
+// for any include (L1010): under `+=` too, and in a list two deep, where they
+// look at the inner element.
+test "include.a file included into a list element looks up its own root" {
+    const child: Fixture = .{ .path = "child.conf", .text = "x = ${y}\ny = 1" };
+    try expectJson(&.{ .{ .path = "main.conf", .text = "a = [ { include \"child.conf\" } ]" }, child }, "{\"a\":[{\"x\":1,\"y\":1}]}");
+    try expectJson(&.{ .{ .path = "main.conf", .text = "a += { include \"child.conf\" }" }, child }, "{\"a\":[{\"x\":1,\"y\":1}]}");
+    try expectJson(&.{ .{ .path = "main.conf", .text = "a = [ { include \"child.conf\" } ]\ny = 2" }, child }, "{\"a\":[{\"x\":1,\"y\":1}],\"y\":2}");
+    try expectJson(&.{ .{ .path = "main.conf", .text = "a = [ [ { k { include \"child.conf\" } } ] ]" }, child }, "{\"a\":[[{\"k\":{\"x\":1,\"y\":1}}]]}");
+    // Nothing there: the document root, as written.
+    try expectJson(&.{ .{ .path = "main.conf", .text = "y = 5\na = [ { include \"other.conf\" } ]" }, .{ .path = "other.conf", .text = "x = ${y}" } }, "{\"y\":5,\"a\":[{\"x\":5}]}");
+}
+
 test "include.env: a self-reference with nothing below reads the variable, a vanished field too" {
     const plus: []const Fixture = &.{
         .{ .path = "main.conf", .text = "s { include \"inc.conf\" }" },
