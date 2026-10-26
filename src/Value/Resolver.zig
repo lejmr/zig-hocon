@@ -482,13 +482,7 @@ fn resolveTarget(state: *Resolver, target: *Value, ref: Ref, whole: bool) Error!
         // back round (spec L697: the lookup document is an ancestor).
         if (place == target or (whole and holds(target.*, place))) {
             if (ref.flags.optional) {
-                // Into a field that is looking back at its layers below, it
-                // is that look-back's business, not a way back round to the
-                // field (as in `seen`): `b.c += ${y}`, `b.c += 2`,
-                // `y = [1, ${?b}]` is `b.c = [[1], 2]`.
-                if (lookingBackIn(state, target)) {
-                    state.cycles += 1;
-                } else state.closeAt(i);
+                state.closeAt(i);
                 return null;
             }
             // A field on the cycle that can look back breaks it first
@@ -549,15 +543,6 @@ fn holds(value: Value, place: *Value) bool {
             if (item == place or holds(item.*, place)) return true;
         },
         else => {},
-    }
-    return false;
-}
-
-// Whether `target`, or a field in it, is busy looking back at its layers below.
-fn lookingBackIn(state: *Resolver, target: *Value) bool {
-    for (state.fields.items) |f| {
-        if (f.progress != .busy) continue;
-        if (f.place == target or holds(target.*, f.place)) return true;
     }
     return false;
 }
