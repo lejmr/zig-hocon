@@ -332,7 +332,13 @@ pub fn seen(state: *Resolver, place: *Value, ref: Ref, whole: bool) Error!?*Valu
                         state.err_pos.* = ref.at();
                         return Error.SubstitutionCycle;
                     }
-                    state.closeAt(at);
+                    // Inside the field's own look-back, a layer above this one
+                    // busy, it is that look-back's business, not a way back
+                    // round to it: `x = … { n += 1 } …`, `x = ${?x.q} {}`.
+                    const looking_back = for (state.fields.items[0..i]) |f| {
+                        if (f.place == place and f.progress == .busy) break true;
+                    } else false;
+                    if (looking_back) state.cycles += 1 else state.closeAt(at);
                 }
                 const below = field.below;
                 // An object that hides the layers under it: the path goes
