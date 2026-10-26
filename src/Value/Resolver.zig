@@ -202,7 +202,11 @@ pub fn resolveValue(state: *Resolver, value: Value) Error!?Value {
                 if (state.again.items.len > 0 and looksBackAt(state, &m.value)) {
                     const ref = state.again.items[state.again.items.len - 1].ref;
                     const seen_as = try state.seen(&m.value, ref, false) orelse continue;
-                    if (try state.resolveValue(seen_as.*)) |val| try resolved.append(gpa, .{ .key = m.key, .value = val });
+                    // What it is seen as may be the field itself, or the field
+                    // anew (`seen`), written more than once: a field, resolved
+                    // as one, never a value.
+                    const val = if (seen_as.* == .stack) try state.resolveField(seen_as) else try state.resolveValue(seen_as.*);
+                    if (val) |x| try resolved.append(gpa, .{ .key = m.key, .value = x });
                     continue;
                 }
                 if (try state.resolveField(&m.value)) |val| {
