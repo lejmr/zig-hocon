@@ -134,6 +134,17 @@ def at_least(version, since):
         return version == "main"
     return [int(x) for x in version.split(".")] >= [int(x) for x in since.split(".")]
 
+def same(got, want):
+    """JSON equality without Python's: true is not 1, and a list or an object
+    holding one is not the same as one holding the other."""
+    if isinstance(got, bool) or isinstance(want, bool):
+        return type(got) is type(want) and got == want
+    if isinstance(got, dict) and isinstance(want, dict):
+        return got.keys() == want.keys() and all(same(got[k], want[k]) for k in got)
+    if isinstance(got, list) and isinstance(want, list):
+        return len(got) == len(want) and all(map(same, got, want))
+    return got == want
+
 records = [r for r in pathlib.Path(os.environ["RESULTS"]).read_text(errors="replace").split("\036") if r]
 
 sections, failures, verdicts, outputs, passed = {}, [], {}, {}, 0
@@ -167,7 +178,7 @@ for record in records:
     else:
         try:
             got_value = json.loads(out)
-            ok, got = got_value == want or got_value in also, got_value
+            ok, got = any(same(got_value, w) for w in [want] + also), got_value
         except json.JSONDecodeError:
             ok, got = False, out.strip()[:200]
 
