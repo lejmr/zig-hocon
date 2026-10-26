@@ -2,8 +2,8 @@
 
 This guide moves a project from pyhocon to zig_hocon. There are two ways:
 
-- **`zig_hocon.pyhocon`, a change of import.** pyhocon's API as pyhocon 0.3.63 has it: the same modules, names, arguments and output, the tree an `OrderedDict` you can `put` into and `pop` from. The section below says what it covers and what it does not.
-- **`zig_hocon`, the package's own API.** Typed getters on a document that stays in the library until one asks, and no tree in Python at all: Steps 1 and 2.
+- **The short way: `zig_hocon.pyhocon`, a change of import.** pyhocon's API as pyhocon 0.3.63 has it: the same modules, names, arguments and output, the tree an `OrderedDict` you can `put` into and `pop` from. Its section says what it covers and what it does not.
+- **The native way: `zig_hocon`, the package's own API.** Typed getters on a document that stays in the library until one asks, and no tree in Python at all, in three steps.
 
 `zig_hocon` reads a config by the spec, which in a few places is not how pyhocon reads it: Step 3. `zig_hocon.pyhocon` reads pyhocon's own syntax as pyhocon does, and the rest by the spec. The checklist at the end finds every place to look at.
 
@@ -78,7 +78,11 @@ Where the spec has the answer, it reads by the spec, also around pyhocon's synta
 
 The whole document is in Python, as in pyhocon, so it is a little slower than `zig_hocon`, still far from pyhocon: a 5 KB config in 0.3 ms (pyhocon 29 ms), 10 MB in 0.4 s (pyhocon 68 s), against 0.12 ms and 0.13 s for `zig_hocon`. A document with `+=`, an include or a backslash is rewritten in Python first, which takes about four times as long.
 
-## Step 1: imports
+## The native way: zig_hocon
+
+The package's own API: the document stays in libhocon, and a typed getter or `as_dict()` takes what it needs from it. It is the fastest way, and the one that reads every config by the spec. Steps 1 and 2 change the code, Step 3 lists the configs that read differently.
+
+### Step 1: imports
 
 | pyhocon | zig_hocon |
 |---|---|
@@ -93,7 +97,7 @@ The whole document is in Python, as in pyhocon, so it is a little slower than `z
 
 The exception names are the same: `ConfigException`, `ConfigMissingException` (also a `KeyError`), `ConfigSubstitutionException`, `ConfigWrongTypeException` (also a `ValueError`), plus `ConfigParseException` for text that is not valid HOCON.
 
-## Step 2: what needs code
+### Step 2: what needs code
 
 **The tree is not a dict.** pyhocon's `ConfigTree` is an `OrderedDict`, so `conf["db"]["host"]`, `"db" in conf`, `for key in conf`, `dict(conf)` and `json.dumps(conf)` work on it. Here the values stay in the library until a getter asks; take a dict where you need one:
 
@@ -118,7 +122,7 @@ settings["db"]["host"]
 
 `parse_file` takes everything after the path by keyword, so `parse_file(path, "utf-8")` fails loudly instead of meaning something else.
 
-## Step 3: configs that read differently
+### Step 3: configs that read differently
 
 - **`include package(...)` is not supported** (in `zig_hocon.pyhocon` it is). It is pyhocon's own extension, not HOCON, and zig_hocon reports it as an error (`UnexpectedToken` where `package` starts). Include the file by its path instead, relative to the file that includes it:
 
@@ -145,7 +149,7 @@ Everything else (variables, includes, merging) reads the same, except where pyho
 
 ## Checklist
 
-With `zig_hocon.pyhocon`, only Step 3 applies. With `zig_hocon`, run this over the code that uses pyhocon; each hit is a row in Step 2 or 3:
+With `zig_hocon.pyhocon`, only the differences in its section apply. With `zig_hocon`, run this over the code that uses pyhocon; each hit is a row in Step 2 or 3:
 
 ```sh
 grep -rnE "pyhocon|include package|as_plain_ordered_dict|get_list|with_fallback|from_dict|parse_URL|HOCONConverter|\.put\(|\.pop\(|conf\[" .

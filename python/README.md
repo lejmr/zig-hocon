@@ -112,7 +112,7 @@ Path("deploy.conf").write_text(ConfigFactory.parse_file("app.conf", env=KEEP).to
 from zig_hocon.pyhocon import ConfigFactory   # was: from pyhocon import ConfigFactory
 ```
 
-**The package's own API** has the same `ConfigFactory`, getters and exception names, without a tree in Python: `conf.as_dict()` when you need one, a typed getter or an `include` where pyhocon has `get`, `with_fallback` or `put`.
+**The native way**, the package's own API, has the same `ConfigFactory`, getters and exception names, without a tree in Python: `conf.as_dict()` when you need one, a typed getter or an `include` where pyhocon has `get`, `with_fallback` or `put`.
 
 The core reads a config by the spec, and in a few places pyhocon reads it otherwise:
 
