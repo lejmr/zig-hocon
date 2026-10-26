@@ -102,8 +102,17 @@ for k, v in json.load(open(sys.argv[1])).get("env", {}).items():
     if any(c.isspace() for c in k + v): sys.exit("env value with whitespace in " + sys.argv[1])
     print(k + "=" + v)' "${case_file%.conf}.json") || exit 1
     fi
+    # a directory case that names @CASE_DIR@ runs from a copy where it is that
+    # copy's absolute directory (suite.materialize)
+    run_file=$case_file
+    case "$case_file" in */main.conf)
+        if grep -rqF '@CASE_DIR@' "$(dirname "$case_file")"; then
+            run_file=$(python3 -c 'import pathlib, sys; sys.path.insert(0, sys.argv[1]); import suite; print(suite.materialize(pathlib.Path(sys.argv[2]), cleanup=False))' "$DIR/../maintaining" "$case_file")
+        fi ;;
+    esac
     if out=$(env -i PATH="$PATH" HOME="$HOME" ${HOCON_BIN:+HOCON_BIN="$HOCON_BIN"} ${HOCON_JAVA_VERSION:+HOCON_JAVA_VERSION="$HOCON_JAVA_VERSION"} \
-        $vars "$@" "$case_file" 2>/dev/null); then status=0; else status=$?; fi
+        $vars "$@" "$run_file" 2>/dev/null); then status=0; else status=$?; fi
+    [ "$run_file" = "$case_file" ] || rm -rf "$(dirname "$run_file")"
     printf '%s\037%s\037%s\036' "$case_file" "$status" "$out" >> "$RESULTS"
 done
 

@@ -1,0 +1,9 @@
+{
+  "spec": "HOCON.md#include-semantics-file-formats-and-extensions",
+  "rule": [
+    "include-semantics-file-formats-and-extensions.7",
+    "include-semantics-locating-resources.9"
+  ],
+  "why": "for a URL, file: included, only the exact URL is used and no extension is tried: inc does not exist, though inc.conf beside it does, so the include finds nothing and, not required, adds nothing",
+  "expect": {}
+}
