@@ -36,84 +36,104 @@ _EXTENSIONS = (".conf", ".json", ".properties")
 
 
 class _GiveUp(Exception):
-    pass
+    """Raised anywhere the scan is unsure of the text: the whole document is
+    then left as written, which is always safe, as libhocon reads it by the
+    spec or reports what is wrong with it."""
 
 
 class Rewrite:
-    """One document's rewrite, and the temporary files of the included ones,
-    removed by ``close()``. ``includes=False`` leaves every include to
-    libhocon."""
+    """What ConfigFactory uses: rewrites one document, and every file it
+    includes that needs it, for libhocon to read.
+
+    libhocon reads files itself, so an included file with pyhocon's syntax
+    is written, rewritten, into a temporary file, and the include points
+    there; libhocon then includes it as the spec has it. ``read()`` names
+    the original file in an error from a temporary one, and ``close()``
+    removes them. ``includes=False`` leaves every include as written, for a
+    document with no directory of its own (``parse_URL``)."""
 
     def __init__(self, package_path: Callable[[str], str], includes: bool = True) -> None:
         self.package_path = package_path
         self.includes = includes
         self._tmp: str | None = None
-        # a temporary file, as a path and as a URL, and the file it stands for
-        self._originals: dict[str, str] = {}
+        # each temporary file and the file it stands for
+        self._written: list[tuple[str, str]] = []
 
     def close(self) -> None:
         if self._tmp is not None:
             shutil.rmtree(self._tmp, ignore_errors=True)
 
     def text(self, text: str, basedir: str | None) -> str:
-        """``text`` written the spec's way; includes are found in ``basedir``."""
-        # most documents have none of it, and are not scanned
-        if "+=" not in text and "include" not in text and "\\" not in text:
-            return text
-        scan = _Scan(self, text, basedir, ())
-        try:
-            scan.document()
-        except _GiveUp:
-            return text
-        return scan.edited()
+        """``text`` rewritten; its includes are found in ``basedir``."""
+        scan = _scanned(self, text, basedir, ())
+        return text if scan is None else scan.edited()
 
     def file(self, path: str, content: str) -> str:
-        """The file to read for the one at ``path``: itself, or its text
-        written the spec's way in a temporary file."""
-        if "+=" not in content and "include" not in content and "\\" not in content:
-            return path
-        scan = _Scan(self, content, os.path.dirname(path), (os.path.abspath(path),))
-        try:
-            scan.document()
-        except _GiveUp:
-            return path
-        return self.written(path, scan.edited()) if scan.changed else path
+        """The file to read for the one at ``path``, whose text is
+        ``content``: itself, or a temporary file with the text rewritten."""
+        scan = _scanned(self, content, os.path.dirname(path), (os.path.abspath(path),))
+        return path if scan is None or not scan.changed else self.written(path, scan.edited())
 
     def written(self, path: str, text: str) -> str:
-        """``text`` in a temporary file named as ``path``."""
+        """``text`` in a new temporary file with the name of ``path``."""
         if self._tmp is None:
             self._tmp = tempfile.mkdtemp(prefix="zig_hocon-pyhocon-")
-        tmp = os.path.join(self._tmp, str(len(self._originals) // 2), os.path.basename(path))
+        tmp = os.path.join(self._tmp, str(len(self._written)), os.path.basename(path))
         os.makedirs(os.path.dirname(tmp))
         with open(tmp, "w", encoding="utf-8") as fd:
             fd.write(text)
-        self._originals[tmp] = path
-        self._originals[pathlib.Path(tmp).as_uri()] = path
+        self._written.append((tmp, path))
         return tmp
 
     def read(self, parse: Callable[[], _T]) -> _T:
-        """``parse()``, an error in a temporary file named by the file it
-        stands for."""
+        """``parse()``; an error in a temporary file names the original."""
         try:
             return parse()
         except ConfigException as e:
-            for tmp, path in self._originals.items():
-                if e.file is not None and tmp in e.file:
-                    e.file = e.file.replace(tmp, path)
-                e.args = (str(e.args[0]).replace(tmp, path), *e.args[1:])
+            for tmp, path in self._written:
+                # libhocon writes the path with / on Windows too, or as a URL
+                for name in (tmp, tmp.replace("\\", "/"), pathlib.Path(tmp).as_uri()):
+                    e.file = None if e.file is None else e.file.replace(name, path)
+                    e.args = (str(e.args[0]).replace(name, path), *e.args[1:])
             if isinstance(getattr(e, "msg", None), str):
                 # pyparsing's copy of the message
                 setattr(e, "msg", str(e.args[0]))  # noqa: B010
             raise
 
 
+def _scanned(rewrite: Rewrite, text: str, basedir: str | None, chain: tuple[str, ...], always: bool = False) -> "_Scan | None":
+    """``text`` scanned, None when the scan gives up, or unless ``always``
+    when there is nothing to rewrite in it."""
+    # most documents have none of it, and are not scanned
+    if not always and "+=" not in text and "include" not in text and "\\" not in text:
+        return None
+    scan = _Scan(rewrite, text, basedir, chain)
+    try:
+        scan.document()
+    except _GiveUp:
+        return None
+    return scan
+
+
 class _Scan:
+    """One text, walked once from the start to find what to rewrite.
+
+    It knows just enough HOCON for that: where a key ends (for ``+=``, whose
+    path it needs, hence ``prefix``), an include, an unquoted run, and how
+    to skip strings, substitutions and comments. Each method takes the
+    index it starts at and returns the index it ended at. What it finds is
+    recorded in ``edits`` as (start, end, new text), in order, and
+    ``edited()`` puts the text together with them. Anything else it does
+    not understand raises _GiveUp.
+
+    ``chain`` is the files this text is included from, itself last, so an
+    include cycle gives up. A file not read where it lies (a temporary file,
+    elements put into a list) has its includes named by absolute path."""
+
     def __init__(self, rewrite: Rewrite, text: str, basedir: str | None, chain: tuple[str, ...]) -> None:
         self.rewrite = rewrite
         self.text = text
         self.basedir = basedir
-        # the files around this text, it the last: one not read where it is
-        # names the files it includes absolute
         self.chain = chain
         self.edits: list[tuple[int, int, str]] = []
         # an edit pyhocon's syntax asks for, not only an absolute path
@@ -343,8 +363,9 @@ class _Scan:
             self.edit(i, end, ", ".join(parts), changed)
         return end
 
-    def scan_of(self, path: str) -> "_Scan | None":
-        """The file at ``path`` scanned, None when it cannot be."""
+    def scan_of(self, path: str, always: bool = False) -> "_Scan | None":
+        """The file at ``path`` scanned, as ``_scanned()``; None when it is
+        not UTF-8 too."""
         if os.path.abspath(path) in self.chain:
             raise _GiveUp
         try:
@@ -352,12 +373,7 @@ class _Scan:
                 content = fd.read()
         except UnicodeDecodeError:
             return None
-        scan = _Scan(self.rewrite, content, os.path.dirname(path), (*self.chain, os.path.abspath(path)))
-        try:
-            scan.document()
-        except _GiveUp:
-            return None
-        return scan
+        return _scanned(self.rewrite, content, os.path.dirname(path), (*self.chain, os.path.abspath(path)), always)
 
     def elements_of(self, paths: list[str], required: bool) -> str:
         """The elements of the lists in ``paths``, an object as one."""
@@ -367,7 +383,7 @@ class _Scan:
                 if required:
                     raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), p)
                 continue
-            scan = self.scan_of(p)
+            scan = self.scan_of(p, always=True)
             if scan is None:
                 raise _GiveUp
             if scan.root == "list":

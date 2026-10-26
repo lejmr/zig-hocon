@@ -91,10 +91,12 @@ _JSON_NUMBER = re.compile(r"-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?")
 
 @functools.cache
 def _syntax_error() -> type[ConfigParseException]:
-    """With pyparsing installed, as it is beside pyhocon, a syntax error is
-    pyparsing's ParseException and ParseSyntaxException too, which pyhocon
-    raises; ``line`` stays zig_hocon's number, ``lineno`` and ``col`` are
-    pyparsing's."""
+    """The class of a syntax error. With pyparsing installed, as it is beside
+    pyhocon, it is pyparsing's ParseException and ParseSyntaxException too,
+    which pyhocon raises, so an ``except`` written for pyhocon catches it.
+    pyparsing is no dependency of zig-hocon, so the class is made here, once,
+    when it is first needed. ``line`` stays zig_hocon's line number;
+    ``lineno`` and ``col`` give it under pyparsing's names."""
     try:
         pp = importlib.import_module("pyparsing")
     except ImportError:
@@ -183,7 +185,12 @@ def _rewrite(includes: bool = True) -> contextlib.closing[Rewrite]:
 
 class ConfigFactory:
     """Reads a document, as pyhocon's ``ConfigFactory``. ``${NAME}`` that is
-    not in the document is looked up in ``os.environ``."""
+    not in the document is looked up in ``os.environ``.
+
+    How: Rewrite (``_source.py``) writes pyhocon's syntax the spec's way,
+    libhocon parses and resolves the text, and its JSON becomes a
+    ConfigTree, each value with pyhocon's type (``_typed``). ``_call`` gives
+    an error pyhocon's class."""
 
     @overload
     @classmethod
