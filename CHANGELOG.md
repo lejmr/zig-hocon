@@ -10,10 +10,8 @@ What changed for someone using zig-hocon: the Zig package, the `hocon` command l
 
 ### Fixed
 
+- Python: `ConfigFactory.parse_string(0)` read a buffer of zeros and gave an empty config; text or bytes only now, anything else a `TypeError`. `get_duration` and `parse_duration` past about 292 years gave a `timedelta` cut down to that, where the library cannot hold more in nanoseconds; that is a `ConfigWrongTypeException` named `Overflow` now. `python/MIGRATING.md` lists the getters that are stricter than pyhocon's, and what `if conf:` means.
 - Python: the wheels have `py.typed`, which `pip install python/` had and the release wheels did not, so a type checker reads the package's types.
-
-### Fixed
-
 - An include whose file cannot be read reports why: `include url("http://…")` with a host past 255 bytes no longer aborts the process (`NameTooLong`), `HTTP://` is fetched like `http://`, a path through a file (`x.conf/y.conf`) is a missing include and so ignored, and a symlink to itself is `SymLinkLoop`, not an include cycle that is not there.
 - `d.z += 5` reached again through a field that copies `d`, `d { z = ${?a.k} }`, `a += ${d}`, appended 5 twice, `[5, 5]`, when `d` was written before `a`, while the copy in `a` held `[5]`; it is `[5]` in every order, as the spec has it.
 - Optional substitutions on a cycle resolve the same whichever field comes first, as the spec has it, where v0.5.3 dropped or kept them by the order of the lines, and in two cases lost a value: `b.c += ${y}`, `b.c += 2`, `y = [1, ${?b}]` is `b.c = [[1], 2]` again, and `f = x${?a}`, `f = { z = 3 }`, `a = ${?f}` keeps `a`, since text under an object is hidden and never evaluated, as a list is. An include inside an object concatenated with an optional, `k = { include "x" } ${?y}`, no longer reports a cycle. Found by a bug hunt on v0.5.3.

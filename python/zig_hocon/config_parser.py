@@ -127,5 +127,6 @@ class ConfigFactory:
     ) -> ConfigTree:
         """HOCON text; an include in it is found in ``basedir``, and without
         one is an error."""
-        data = content.encode("utf-8", "surrogatepass") if isinstance(content, str) else bytes(content)
+        # Bytes or text only: bytes(0) would be an empty buffer, and parse.
+        data = content.encode("utf-8", "surrogatepass") if isinstance(content, str) else bytes(memoryview(content))
         return _parse(lib.hocon_parse_string, [data, len(data)], env, resolve, basedir, http_timeout, None)

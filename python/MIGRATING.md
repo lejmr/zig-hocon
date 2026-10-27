@@ -106,6 +106,22 @@ settings = conf.as_dict()
 settings["db"]["host"]
 ```
 
+**Truth and equality are the object's.** `if conf:` is true for any tree, an empty one too, and `conf == other` asks whether they are the same object: pyhocon's dict was false when empty and equal by content. Ask `conf.as_dict()` for either. Neither raises, so look for them by hand.
+
+**Getters read only what is that type**, as typesafe/config's do (`zig_hocon.pyhocon` keeps pyhocon's):
+
+| on | pyhocon | zig_hocon |
+|---|---|---|
+| `null`, `get_string("a")` | `None` | `ConfigMissingException`; with a default, the default |
+| `1.0` or `1e3`, `get_int` | 1, 1000 | `ConfigWrongTypeException` |
+| `true`, `get_int` or `get_float` | 1, 1.0 | `ConfigWrongTypeException` |
+| `" 5 "`, `get_int` | 5 | `ConfigWrongTypeException` |
+| `True`, `Yes`, `get_bool` | `True` | `ConfigWrongTypeException`; `true`, `yes`, `on` are booleans |
+| an object or a list, `get_string` | its `str()` | `ConfigWrongTypeException` |
+| a duration past about 292 years, `get_duration` | the `timedelta` | `ConfigWrongTypeException` named `Overflow` |
+
+**A thread needs 4 MiB of stack** for a document nested near the limit of 500: the parse recurses in the library, and on a smaller stack it ends the process, as `hocon.h` says for C. Python's default thread stack is enough; a server that shrinks it (`threading.stack_size`, musl's 128 KiB) should parse on a thread of its own size.
+
 **Methods that are not there**, and what does the job:
 
 | pyhocon | instead |

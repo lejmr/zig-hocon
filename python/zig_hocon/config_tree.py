@@ -57,6 +57,9 @@ def _path_bytes(full: str) -> bytes:
     return _capi.c_string(full.encode("utf-8", "surrogatepass"))
 
 
+_I64_MAX = 2**63 - 1
+
+
 def _timedelta(ns: int) -> datetime.timedelta:
     seconds, rest = divmod(ns, 1_000_000_000)
     return datetime.timedelta(seconds=seconds, microseconds=rest / 1000)
@@ -193,10 +196,17 @@ class ConfigTree:
     def get_duration(self, path: str, default: _T) -> datetime.timedelta | _T: ...
     def get_duration(self, path: str, default: Any = _NO_DEFAULT) -> Any:
         """``30s``, ``2 minutes``; a number alone is milliseconds. A timedelta,
-        to the nearest microsecond."""
+        to the nearest microsecond. Past about 292 years, which the library's
+        nanoseconds in 64 bits do not hold, a ConfigWrongTypeException named
+        ``Overflow``."""
         out = ctypes.c_int64()
         found, value = self._get(lib.hocon_get_duration_ns, path, [out], "a duration", default)
-        return _timedelta(out.value) if found else value
+        if not found:
+            return value
+        # The library saturates there: a timedelta of 292 years would be wrong.
+        if out.value in (_I64_MAX, -_I64_MAX - 1):
+            raise ConfigWrongTypeException(f"{self._full(path) or 'the document'}: a duration past 292 years", name="Overflow")
+        return _timedelta(out.value)
 
     @overload
     def get_bytes(self, path: str) -> int: ...
