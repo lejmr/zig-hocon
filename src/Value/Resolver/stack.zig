@@ -124,8 +124,14 @@ pub fn resolveStack(state: *Resolver, place: *Value, layers: []const Value) Erro
             const field = state.fields.pop().?;
             // What it was resolved to in there is its value: a substitution
             // is resolved once (spec L884), so `a` is 1 whichever field goes
-            // first.
-            if (field.again) |again| switch (again.*) {
+            // first. That is the whole field's value: not for the layers
+            // below a layer of it that looks back at them, which would then
+            // hold their own top too (`d.z += 5` appended twice,
+            // plus-equals-field-separator/030).
+            const below_one = for (state.fields.items) |f| {
+                if (f.place == place) break true;
+            } else false;
+            if (field.again) |again| if (!below_one) switch (again.*) {
                 .ref, .pending, .stack => {},
                 else => return again.*,
             };
