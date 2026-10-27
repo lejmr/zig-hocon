@@ -2,6 +2,16 @@
 
 What changed for someone using zig-hocon: the Zig package, the `hocon` command line tool, libhocon for C and the `zig-hocon` Python package, which are released together under one version. The technical detail is in the commits each release links to.
 
+## [Unreleased]
+
+### Fixed
+- An include whose file cannot be read reports why: `include url("http://…")` with a host past 255 bytes no longer aborts the process (`NameTooLong`), `HTTP://` is fetched like `http://`, a path through a file (`x.conf/y.conf`) is a missing include and so ignored, and a symlink to itself is `SymLinkLoop`, not an include cycle that is not there.
+- `d.z += 5` reached again through a field that copies `d`, `d { z = ${?a.k} }`, `a += ${d}`, appended 5 twice, `[5, 5]`, when `d` was written before `a`, while the copy in `a` held `[5]`; it is `[5]` in every order, as the spec has it.
+
+- Optional substitutions on a cycle resolve the same whichever field comes first, as the spec has it, where v0.5.3 dropped or kept them by the order of the lines, and in two cases lost a value: `b.c += ${y}`, `b.c += 2`, `y = [1, ${?b}]` is `b.c = [[1], 2]` again, and `f = x${?a}`, `f = { z = 3 }`, `a = ${?f}` keeps `a`, since text under an object is hidden and never evaluated, as a list is. An include inside an object concatenated with an optional, `k = { include "x" } ${?y}`, no longer reports a cycle. Found by a bug hunt on v0.5.3.
+- Four regressions in that change, found by a bug hunt on it, are fixed. A field written twice and reached again from inside a look-back, `d { z = ${?a.k} }`, `d.z += ${?c}`, `a : []`, `a += ${f}`, `f = ${d}`, crashed with `reached unreachable code` and resolves again, as typesafe/config has it; an undefined `${b}` in such a field, a crash already in v0.5.3, is the `Unresolved` error. `f += ${?b}`, `b = x${?f}`, `b += 1` dropped b's text and gave `b = [1]`, and is the error `+=` onto text is, whichever line comes first. `e = [${?f.k}y]`, `f = ${?e}${e}` and `e.k : ${?b}`, `b.k { k = ${?e}, k += ${?d} }` resolve the same in either order: an optional found to lead back to its own field stays nonexistent when it is met again. Ten new conformance cases, all 583 pass.
+- A value concatenating many substitutions, `a = ${x} ${x} …`, resolves in memory linear in its length: 16 000 one-element lists took 3.9 GB and now take 18 MB, 32 000 strings 2.95 GB and now 24 MB.
+
 ## [0.5.3] - 2026-10-26
 
 ### Changed

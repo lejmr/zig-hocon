@@ -1,0 +1,27 @@
+{
+  "spec": "HOCON.md#examples-of-self-referential-substitutions",
+  "rule": [
+    "string-value-concatenation.1",
+    "duplicate-keys-and-object-merging.8"
+  ],
+  "why": "${r}x has text in it, so it is text or an error, never an object (L384): the object over it hides it, and it is never evaluated (L776), although r is an object and the concatenation would be an error. typesafe/config merges r into a",
+  "expect": {
+    "a": {
+      "helper": 0
+    },
+    "r": {
+      "y": 1
+    }
+  },
+  "resolve": true,
+  "java": "diverges",
+  "java_expect": {
+    "a": {
+      "helper": 0,
+      "y": 1
+    },
+    "r": {
+      "y": 1
+    }
+  }
+}

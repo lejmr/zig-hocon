@@ -1,0 +1,20 @@
+{
+  "spec": "HOCON.md#examples-of-self-referential-substitutions",
+  "rule": [
+    "self-referential-substitutions.4",
+    "self-referential-substitutions.13",
+    "examples-of-self-referential-substitutions.27"
+  ],
+  "why": "e's ${?f.k} leads back to e through f's ${e}, and f's ${?e} back to f through e's ${?f.k}: both are nonexistent (L716) whichever field is resolved first, so e is [y] and f is ${e}, [y]. A substitution is resolved once (L884-886): f's ${?e}, found nonexistent while e was resolved, stays nonexistent when f is resolved afterwards. typesafe/config calls the cycle an error",
+  "expect": {
+    "e": [
+      "y"
+    ],
+    "f": [
+      "y"
+    ]
+  },
+  "resolve": true,
+  "java": "unsupported",
+  "java_error": "UnresolvedSubstitution"
+}

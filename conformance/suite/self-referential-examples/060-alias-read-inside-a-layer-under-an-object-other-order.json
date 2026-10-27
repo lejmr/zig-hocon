@@ -1,0 +1,30 @@
+{
+  "spec": "HOCON.md#examples-of-self-referential-substitutions",
+  "rule": [
+    "self-referential-substitutions.4",
+    "examples-of-self-referential-substitutions.22",
+    "examples-of-self-referential-substitutions.27"
+  ],
+  "why": "as 059 with a written first: a is no field, or 3 (also_valid)",
+  "expect": {
+    "f": {
+      "z": 3
+    }
+  },
+  "resolve": true,
+  "java": "diverges",
+  "also_valid": [
+    {
+      "f": {
+        "z": 3
+      },
+      "a": 3
+    }
+  ],
+  "java_expect": {
+    "a": 3,
+    "f": {
+      "z": 3
+    }
+  }
+}

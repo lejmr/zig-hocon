@@ -1,0 +1,11 @@
+{
+  "spec": "HOCON.md#examples-of-self-referential-substitutions",
+  "rule": [
+    "the--field-separator.4",
+    "examples-of-self-referential-substitutions.6",
+    "self-referential-substitutions.13"
+  ],
+  "why": "as 070 with b += ${?d}: += appends the list [] even when the element is nonexistent, and appending a list to the text x below is an error (L731, L636). Resolving f first must not drop b's layer below",
+  "error": "WrongType",
+  "resolve": true
+}

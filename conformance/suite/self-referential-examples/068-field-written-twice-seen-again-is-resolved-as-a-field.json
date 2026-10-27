@@ -1,0 +1,23 @@
+{
+  "spec": "HOCON.md#examples-of-self-referential-substitutions",
+  "rule": [
+    "self-referential-substitutions.4",
+    "self-referential-substitutions.13",
+    "the--field-separator.5"
+  ],
+  "why": "d.z is written twice, ${?a.k} then += ${?c}. Resolving a walks f, then d, and d.z is reached again from inside a's own look-back (L767): it is still a field with two layers, resolved as one, not a value. ${?a.k} leads back to d.z through a, f and d, so it is nonexistent (L716), ${?c} too, and d.z is []; a is [] with f appended (L731)",
+  "expect": {
+    "a": [
+      {
+        "z": []
+      }
+    ],
+    "d": {
+      "z": []
+    },
+    "f": {
+      "z": []
+    }
+  },
+  "resolve": true
+}

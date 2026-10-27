@@ -1,0 +1,22 @@
+{
+  "spec": "HOCON.md#the--field-separator",
+  "rule": [
+    "self-referential-substitutions.4",
+    "self-referential-substitutions.13",
+    "substitutions.17",
+    "unquoted-strings.9"
+  ],
+  "why": "as 028 with c written first: c is [], d is \"1\"",
+  "expect": {
+    "c": [],
+    "d": "1"
+  },
+  "resolve": true,
+  "java": "diverges",
+  "java_expect": {
+    "c": [
+      1
+    ],
+    "d": 1
+  }
+}

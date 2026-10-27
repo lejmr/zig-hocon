@@ -1,0 +1,24 @@
+{
+  "spec": "HOCON.md#the--field-separator",
+  "rule": [
+    "the--field-separator.2",
+    "self-referential-substitutions.13",
+    "examples-of-self-referential-substitutions.27"
+  ],
+  "why": "d.z += 5 is d.z = ${?d.z} [5], its ${?d.z} looking back at d.z's layer below, ${?a.k} (L719-745). That optional leads to a, whose a += ${d} leads back to d.z, so it is nonexistent (L716) and d.z is [5]. a copies d, so a is [{z: [5]}]: a substitution is resolved once (L884), and d.z is one value, the same in d and in a's copy of it, whichever field is resolved first",
+  "expect": {
+    "d": {
+      "z": [
+        5
+      ]
+    },
+    "a": [
+      {
+        "z": [
+          5
+        ]
+      }
+    ]
+  },
+  "resolve": true
+}

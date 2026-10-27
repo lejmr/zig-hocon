@@ -4,11 +4,11 @@
   "version": "typesafe/config 1.4.9",
   "mode": "spec",
   "command": "conformance/adapters/oracle.sh hocon-java",
-  "ran_at": "2026-10-26T07:24:14Z",
-  "suite_digest": "a19487267d239165",
-  "total": 552,
-  "passed": 458,
-  "percent": 83.0,
+  "ran_at": "2026-10-27T21:11:37Z",
+  "suite_digest": "2752bb3bb30b03fc",
+  "total": 586,
+  "passed": 478,
+  "percent": 81.6,
   "sections": {
     "array-and-object-concatenation": {
       "total": 23,
@@ -55,12 +55,12 @@
       "passed": 18
     },
     "include-missing-and-required": {
-      "total": 6,
-      "passed": 6
+      "total": 7,
+      "passed": 7
     },
     "include-substitution": {
-      "total": 25,
-      "passed": 17
+      "total": 28,
+      "passed": 18
     },
     "include-syntax": {
       "total": 16,
@@ -99,15 +99,15 @@
       "passed": 7
     },
     "plus-equals-field-separator": {
-      "total": 21,
-      "passed": 9
+      "total": 31,
+      "passed": 15
     },
     "self-referential-examples": {
-      "total": 58,
-      "passed": 43
+      "total": 77,
+      "passed": 55
     },
     "self-referential-substitutions": {
-      "total": 7,
+      "total": 8,
       "passed": 6
     },
     "size-in-bytes-format": {
@@ -321,6 +321,7 @@
     "include-missing-and-required/004-required-missing-is-error/main.conf": "pass",
     "include-missing-and-required/005-required-file-missing-is-error/main.conf": "pass",
     "include-missing-and-required/006-required-present-is-included/main.conf": "pass",
+    "include-missing-and-required/007-file-on-the-way-is-a-missing-include/main.conf": "pass",
     "include-substitution/001-substitution-relativized-to-include-scope/main.conf": "pass",
     "include-substitution/002-relativized-path-sees-later-redefinition/main.conf": "pass",
     "include-substitution/003-original-path-tried-as-fallback/main.conf": "pass",
@@ -346,6 +347,9 @@
     "include-substitution/023-include-under-plus-equals-looks-up-its-own-root/main.conf": "fail",
     "include-substitution/024-include-in-a-list-element-before-the-including-root/main.conf": "fail",
     "include-substitution/025-plus-equals-with-nothing-at-fixed-up-path-falls-back/main.conf": "fail",
+    "include-substitution/026-include-in-an-object-concatenated-with-an-optional/main.conf": "pass",
+    "include-substitution/027-plus-equals-falling-back-onto-text-is-an-error/main.conf": "fail",
+    "include-substitution/028-optional-self-reference-falling-back-to-the-root/main.conf": "fail",
     "include-syntax/001-include-later-in-key-is-literal.conf": "pass",
     "include-syntax/002-include-as-object-value-is-string.conf": "pass",
     "include-syntax/003-include-as-array-element-is-string.conf": "pass",
@@ -469,6 +473,16 @@
     "plus-equals-field-separator/019-appends-twice-by-path-after-number-replaced-by-object.conf": "fail",
     "plus-equals-field-separator/020-appends-to-a-numerically-indexed-object.conf": "pass",
     "plus-equals-field-separator/021-appends-through-a-substituted-object.conf": "fail",
+    "plus-equals-field-separator/022-required-element-stays-when-an-inner-optional-breaks-the-cycle.conf": "pass",
+    "plus-equals-field-separator/023-required-element-stays-when-an-inner-optional-breaks-the-cycle-other-order.conf": "pass",
+    "plus-equals-field-separator/024-alias-read-inside-an-append-look-back.conf": "pass",
+    "plus-equals-field-separator/025-alias-read-inside-an-append-look-back-other-order.conf": "pass",
+    "plus-equals-field-separator/026-two-fields-appending-each-other-optionally.conf": "fail",
+    "plus-equals-field-separator/027-two-fields-appending-each-other-optionally-other-order.conf": "fail",
+    "plus-equals-field-separator/028-number-and-list-appending-each-other-optionally.conf": "fail",
+    "plus-equals-field-separator/029-number-and-list-appending-each-other-optionally-other-order.conf": "fail",
+    "plus-equals-field-separator/030-append-reached-again-through-a-list-appends-once.conf": "pass",
+    "plus-equals-field-separator/031-append-reached-again-through-a-list-appends-once-other-order.conf": "pass",
     "self-referential-examples/001-isolated-self-reference-is-an-error.conf": "pass",
     "self-referential-examples/002-self-reference-resolves-to-earlier-merged-value.conf": "pass",
     "self-referential-examples/003-self-reference-before-any-value-is-undefined.conf": "pass",
@@ -527,6 +541,25 @@
     "self-referential-examples/056-list-over-scalar-hidden-by-literal-object.conf": "fail",
     "self-referential-examples/057-optionals-leading-back-to-each-other-are-both-missing.conf": "fail",
     "self-referential-examples/058-object-field-read-inside-a-look-back.conf": "fail",
+    "self-referential-examples/059-alias-read-inside-a-layer-under-an-object.conf": "pass",
+    "self-referential-examples/060-alias-read-inside-a-layer-under-an-object-other-order.conf": "pass",
+    "self-referential-examples/061-text-under-an-object-is-never-evaluated.conf": "pass",
+    "self-referential-examples/062-text-under-an-object-is-never-evaluated-other-order.conf": "pass",
+    "self-referential-examples/063-optional-alias-of-a-list-on-a-cycle-is-nonexistent.conf": "fail",
+    "self-referential-examples/064-optional-alias-of-a-list-on-a-cycle-is-nonexistent-other-order.conf": "fail",
+    "self-referential-examples/065-alias-read-inside-a-concatenation-look-back.conf": "pass",
+    "self-referential-examples/066-alias-read-inside-a-concatenation-look-back-other-order.conf": "pass",
+    "self-referential-examples/067-text-concatenation-under-an-object-is-never-evaluated.conf": "fail",
+    "self-referential-examples/068-field-written-twice-seen-again-is-resolved-as-a-field.conf": "pass",
+    "self-referential-examples/069-required-undefined-in-a-field-written-twice-seen-again.conf": "pass",
+    "self-referential-examples/070-look-back-keeps-text-below-plus-equals-onto-it-fails.conf": "pass",
+    "self-referential-examples/071-look-back-keeps-text-below-plus-equals-onto-it-fails-other-order.conf": "pass",
+    "self-referential-examples/072-look-back-keeps-text-below-plus-equals-optional-fails.conf": "pass",
+    "self-referential-examples/073-look-back-keeps-text-below-plus-equals-optional-fails-other-order.conf": "pass",
+    "self-referential-examples/074-optional-nonexistent-on-a-cycle-stays-so-outside-it.conf": "fail",
+    "self-referential-examples/075-optional-nonexistent-on-a-cycle-stays-so-outside-it-other-order.conf": "fail",
+    "self-referential-examples/076-optional-into-an-object-holding-a-field-being-resolved.conf": "fail",
+    "self-referential-examples/077-optional-into-an-object-holding-a-field-being-resolved-other-order.conf": "fail",
     "self-referential-substitutions/001-path-builds-on-older-value.conf": "pass",
     "self-referential-substitutions/002-self-referential-concatenation.conf": "pass",
     "self-referential-substitutions/003-object-containing-self-reference-is-not-self-referential.conf": "pass",
@@ -534,6 +567,7 @@
     "self-referential-substitutions/006-self-referential-array-concatenation.conf": "pass",
     "self-referential-substitutions/007-plus-equals-of-the-parent-object.conf": "pass",
     "self-referential-substitutions/008-object-field-referring-to-its-object-stays-a-cycle.conf": "fail",
+    "self-referential-substitutions/009-optional-over-a-field-referring-to-its-object.conf": "fail",
     "size-in-bytes-format/001-bare-number-is-bytes.conf": "pass",
     "size-in-bytes-format/002-single-byte-spellings.conf": "pass",
     "size-in-bytes-format/003-powers-of-ten-suffixes.conf": "pass",
@@ -734,6 +768,8 @@
     "include-substitution/023-include-under-plus-equals-looks-up-its-own-root/main.conf": "rejected",
     "include-substitution/024-include-in-a-list-element-before-the-including-root/main.conf": "rejected",
     "include-substitution/025-plus-equals-with-nothing-at-fixed-up-path-falls-back/main.conf": "{\"a\":[1],\"k\":{\"a\":[2]}}",
+    "include-substitution/027-plus-equals-falling-back-onto-text-is-an-error/main.conf": "{\"a\":\"\",\"k\":{\"a\":[3]}}",
+    "include-substitution/028-optional-self-reference-falling-back-to-the-root/main.conf": "{\"a\":{},\"b\":{}}",
     "key-value-separator/007-object-after-omitted-separator-concatenates.conf": "rejected",
     "key-value-separator/008-substitution-after-omitted-separator-concatenates.conf": "rejected",
     "omit-root-braces/006-array-root-unaffected.conf": "rejected",
@@ -755,6 +791,12 @@
     "plus-equals-field-separator/018-errors-on-a-number-defined-in-object-concatenation.conf": "{\"x\":{},\"y\":{\"l\":[2]}}",
     "plus-equals-field-separator/019-appends-twice-by-path-after-number-replaced-by-object.conf": "{\"a\":{\"b\":[\"y\"]}}",
     "plus-equals-field-separator/021-appends-through-a-substituted-object.conf": "{\"a\":{\"c\":[2],\"e\":3},\"x\":{\"e\":3}}",
+    "plus-equals-field-separator/024-alias-read-inside-an-append-look-back.conf": "{\"c\":[],\"e\":[]}",
+    "plus-equals-field-separator/025-alias-read-inside-an-append-look-back-other-order.conf": "{\"c\":[],\"e\":[]}",
+    "plus-equals-field-separator/026-two-fields-appending-each-other-optionally.conf": "{\"a\":[[]],\"b\":[]}",
+    "plus-equals-field-separator/027-two-fields-appending-each-other-optionally-other-order.conf": "{\"a\":[[]],\"b\":[]}",
+    "plus-equals-field-separator/028-number-and-list-appending-each-other-optionally.conf": "{\"c\":[1],\"d\":1}",
+    "plus-equals-field-separator/029-number-and-list-appending-each-other-optionally-other-order.conf": "{\"c\":[1],\"d\":1}",
     "self-referential-examples/015-list-hidden-by-substituted-object-is-never-evaluated.conf": "rejected",
     "self-referential-examples/021-hidden-list-does-not-depend-on-key-order.conf": "rejected",
     "self-referential-examples/027-self-reference-inside-object-concatenation.conf": "rejected",
@@ -771,7 +813,19 @@
     "self-referential-examples/056-list-over-scalar-hidden-by-literal-object.conf": "rejected",
     "self-referential-examples/057-optionals-leading-back-to-each-other-are-both-missing.conf": "{\"a\":[[]],\"b\":[]}",
     "self-referential-examples/058-object-field-read-inside-a-look-back.conf": "rejected",
+    "self-referential-examples/059-alias-read-inside-a-layer-under-an-object.conf": "{\"a\":3,\"f\":{\"z\":3}}",
+    "self-referential-examples/060-alias-read-inside-a-layer-under-an-object-other-order.conf": "{\"a\":3,\"f\":{\"z\":3}}",
+    "self-referential-examples/063-optional-alias-of-a-list-on-a-cycle-is-nonexistent.conf": "{\"c\":[],\"d\":[]}",
+    "self-referential-examples/064-optional-alias-of-a-list-on-a-cycle-is-nonexistent-other-order.conf": "{\"c\":[],\"d\":[]}",
+    "self-referential-examples/065-alias-read-inside-a-concatenation-look-back.conf": "{\"c\":\"xy\",\"e\":\"xy\"}",
+    "self-referential-examples/066-alias-read-inside-a-concatenation-look-back-other-order.conf": "{\"c\":\"xy\",\"e\":\"xy\"}",
+    "self-referential-examples/067-text-concatenation-under-an-object-is-never-evaluated.conf": "{\"a\":{\"helper\":0,\"y\":1},\"r\":{\"y\":1}}",
+    "self-referential-examples/074-optional-nonexistent-on-a-cycle-stays-so-outside-it.conf": "rejected",
+    "self-referential-examples/075-optional-nonexistent-on-a-cycle-stays-so-outside-it-other-order.conf": "rejected",
+    "self-referential-examples/076-optional-into-an-object-holding-a-field-being-resolved.conf": "rejected",
+    "self-referential-examples/077-optional-into-an-object-holding-a-field-being-resolved-other-order.conf": "rejected",
     "self-referential-substitutions/008-object-field-referring-to-its-object-stays-a-cycle.conf": "{\"v\":{\"x\":{}}}",
+    "self-referential-substitutions/009-optional-over-a-field-referring-to-its-object.conf": "{\"b\":{},\"n\":{\"a\":{}}}",
     "string-value-concatenation/010-object-then-scalar-drops-the-scalar.conf": "{\"a\":{\"b\":1}}",
     "string-value-concatenation/011-array-then-scalar-drops-the-scalar.conf": "{\"a\":[1,2]}",
     "string-value-concatenation/014-array-then-unquoted-text-without-space.conf": "{\"x\":[1]}",
@@ -1409,6 +1463,30 @@
       "java": "diverges"
     },
     {
+      "case": "include-substitution/027-plus-equals-falling-back-onto-text-is-an-error/main.conf",
+      "spec": "HOCON.md#include-semantics-substitution",
+      "rule": "a += 3 in child.conf looks for k.a first, which is not there, then for a from the root (L1010, as in 025): the text \"\", and += onto a value that is no list is an error (L731). typesafe/config treats the include's a as unrelated to the root's",
+      "expected": "rejected",
+      "got": "{\"a\":\"\",\"k\":{\"a\":[3]}}",
+      "java": "lenient"
+    },
+    {
+      "case": "include-substitution/028-optional-self-reference-falling-back-to-the-root/main.conf",
+      "spec": "HOCON.md#include-semantics-substitution",
+      "rule": "b = ${?b} in child.conf has nothing below it at a.b, so it is as if a.b were not in the document, and the path is looked up from the root next (L1010, as in 025): b is {}, and so is a.b. typesafe/config drops a.b",
+      "expected": {
+        "a": {
+          "b": {}
+        },
+        "b": {}
+      },
+      "got": {
+        "a": {},
+        "b": {}
+      },
+      "java": "diverges"
+    },
+    {
       "case": "key-value-separator/007-object-after-omitted-separator-concatenates.conf",
       "spec": "HOCON.md#key-value-separator",
       "rule": "leaving out the separator before { changes nothing about the value: a { m = 2 } { n = 1 } is a : { m = 2 } { n = 1 }, two objects concatenated into one; typesafe/config and pyhocon read only the first object and reject the second",
@@ -1814,6 +1892,70 @@
       "java": "diverges"
     },
     {
+      "case": "plus-equals-field-separator/026-two-fields-appending-each-other-optionally.conf",
+      "spec": "HOCON.md#the--field-separator",
+      "rule": "a's ${?b} leads back to a through b's ${?a}, and the other way round, so each is nonexistent (L716) whichever field is resolved first: both lists are empty, as for the list form in self-referential-examples/057. typesafe/config keeps the one it met second",
+      "expected": {
+        "a": [],
+        "b": []
+      },
+      "got": {
+        "a": [
+          []
+        ],
+        "b": []
+      },
+      "java": "diverges"
+    },
+    {
+      "case": "plus-equals-field-separator/027-two-fields-appending-each-other-optionally-other-order.conf",
+      "spec": "HOCON.md#the--field-separator",
+      "rule": "as 026 with b written first: both []",
+      "expected": {
+        "b": [],
+        "a": []
+      },
+      "got": {
+        "a": [
+          []
+        ],
+        "b": []
+      },
+      "java": "diverges"
+    },
+    {
+      "case": "plus-equals-field-separator/028-number-and-list-appending-each-other-optionally.conf",
+      "spec": "HOCON.md#the--field-separator",
+      "rule": "d's ${?c} leads back to d through c's ${?d}, and the other way round, so both are nonexistent (L716): d is 1 next to nothing, the string \"1\" (substitutions/039), and c is []. typesafe/config resolves c's ${?d} to the number",
+      "expected": {
+        "d": "1",
+        "c": []
+      },
+      "got": {
+        "c": [
+          1
+        ],
+        "d": 1
+      },
+      "java": "diverges"
+    },
+    {
+      "case": "plus-equals-field-separator/029-number-and-list-appending-each-other-optionally-other-order.conf",
+      "spec": "HOCON.md#the--field-separator",
+      "rule": "as 028 with c written first: c is [], d is \"1\"",
+      "expected": {
+        "c": [],
+        "d": "1"
+      },
+      "got": {
+        "c": [
+          1
+        ],
+        "d": 1
+      },
+      "java": "diverges"
+    },
+    {
       "case": "self-referential-examples/015-list-hidden-by-substituted-object-is-never-evaluated.conf",
       "spec": "HOCON.md#examples-of-self-referential-substitutions",
       "rule": "a list merges with nothing, so any later value hides it and it is never evaluated; that the hiding object arrives through ${replacement} changes nothing, since the substitution is required and so either resolves or fails on its own. typesafe/config evaluates the hidden list (lightbend/config#865)",
@@ -2059,11 +2201,128 @@
       "java": "unsupported"
     },
     {
+      "case": "self-referential-examples/063-optional-alias-of-a-list-on-a-cycle-is-nonexistent.conf",
+      "spec": "HOCON.md#examples-of-self-referential-substitutions",
+      "rule": "d's ${?c} leads back to d through c, and c's ${?d} back to c through d, so both are nonexistent (L716) whichever field is resolved first: d is [] and c, an optional with nothing behind it, is no field. typesafe/config keeps c as []",
+      "expected": {
+        "d": []
+      },
+      "got": {
+        "c": [],
+        "d": []
+      },
+      "java": "diverges"
+    },
+    {
+      "case": "self-referential-examples/064-optional-alias-of-a-list-on-a-cycle-is-nonexistent-other-order.conf",
+      "spec": "HOCON.md#examples-of-self-referential-substitutions",
+      "rule": "as 063 with c written first: d is [], c is no field",
+      "expected": {
+        "d": []
+      },
+      "got": {
+        "c": [],
+        "d": []
+      },
+      "java": "diverges"
+    },
+    {
+      "case": "self-referential-examples/067-text-concatenation-under-an-object-is-never-evaluated.conf",
+      "spec": "HOCON.md#examples-of-self-referential-substitutions",
+      "rule": "${r}x has text in it, so it is text or an error, never an object (L384): the object over it hides it, and it is never evaluated (L776), although r is an object and the concatenation would be an error. typesafe/config merges r into a",
+      "expected": {
+        "a": {
+          "helper": 0
+        },
+        "r": {
+          "y": 1
+        }
+      },
+      "got": {
+        "a": {
+          "helper": 0,
+          "y": 1
+        },
+        "r": {
+          "y": 1
+        }
+      },
+      "java": "diverges"
+    },
+    {
+      "case": "self-referential-examples/074-optional-nonexistent-on-a-cycle-stays-so-outside-it.conf",
+      "spec": "HOCON.md#examples-of-self-referential-substitutions",
+      "rule": "e's ${?f.k} leads back to e through f's ${e}, and f's ${?e} back to f through e's ${?f.k}: both are nonexistent (L716) whichever field is resolved first, so e is [y] and f is ${e}, [y]. A substitution is resolved once (L884-886): f's ${?e}, found nonexistent while e was resolved, stays nonexistent when f is resolved afterwards. typesafe/config calls the cycle an error",
+      "expected": {
+        "e": [
+          "y"
+        ],
+        "f": [
+          "y"
+        ]
+      },
+      "got": "rejected (exit 1)",
+      "java": "unsupported"
+    },
+    {
+      "case": "self-referential-examples/075-optional-nonexistent-on-a-cycle-stays-so-outside-it-other-order.conf",
+      "spec": "HOCON.md#examples-of-self-referential-substitutions",
+      "rule": "074 with f first: e is [y] and f is [y] again",
+      "expected": {
+        "e": [
+          "y"
+        ],
+        "f": [
+          "y"
+        ]
+      },
+      "got": "rejected (exit 1)",
+      "java": "unsupported"
+    },
+    {
+      "case": "self-referential-examples/076-optional-into-an-object-holding-a-field-being-resolved.conf",
+      "spec": "HOCON.md#examples-of-self-referential-substitutions",
+      "rule": "b.k.k's ${?e} leads to e.k, whose ${?b} leads back into b, the object holding b.k.k: both optionals are on the cycle and nonexistent (L716), so e.k is no field and e is {}, and b.k.k is ${?d} appended to nothing, []. Whichever field is resolved first (077). typesafe/config concatenates e's {} with the list and fails",
+      "expected": {
+        "b": {
+          "k": {
+            "k": []
+          }
+        },
+        "e": {}
+      },
+      "got": "rejected (exit 1)",
+      "java": "unsupported"
+    },
+    {
+      "case": "self-referential-examples/077-optional-into-an-object-holding-a-field-being-resolved-other-order.conf",
+      "spec": "HOCON.md#examples-of-self-referential-substitutions",
+      "rule": "076 with b first: e is {} and b.k.k is [] again",
+      "expected": {
+        "b": {
+          "k": {
+            "k": []
+          }
+        },
+        "e": {}
+      },
+      "got": "rejected (exit 1)",
+      "java": "unsupported"
+    },
+    {
       "case": "self-referential-substitutions/008-object-field-referring-to-its-object-stays-a-cycle.conf",
       "spec": "HOCON.md#self-referential-substitutions",
       "rule": "${?r} is undefined, so the previous value of v.x remains, ${v}: a field referring to the object it is in, the a : { b : ${a} } the spec names an unbreakable cycle. typesafe/config sets the field aside and reads v as {}",
       "expected": "rejected",
       "got": "{\"v\":{\"x\":{}}}",
+      "java": "lenient"
+    },
+    {
+      "case": "self-referential-substitutions/009-optional-over-a-field-referring-to-its-object.conf",
+      "spec": "HOCON.md#self-referential-substitutions",
+      "rule": "n.a's ${?b} leads back to n.a through b = ${n.a}, so it is nonexistent (L716), and what is left of n.a is ${n}, a field referring to the object it is in: a cycle no look-back breaks (L688-691, as in 008). typesafe/config gives {} for both",
+      "expected": "rejected",
+      "got": "{\"b\":{},\"n\":{\"a\":{}}}",
       "java": "lenient"
     },
     {

@@ -1,0 +1,11 @@
+{
+  "spec": "HOCON.md#examples-of-self-referential-substitutions",
+  "rule": [
+    "substitutions.14",
+    "self-referential-substitutions.4",
+    "the--field-separator.2"
+  ],
+  "why": "c.a is written twice, ${f} then += ${b}, and is reached again through f's ${?d} while it is being resolved. Whatever the optionals on the way come to, c.a's += needs ${b}, which is not in the document: an undefined ${b} is an error (L627), never left out",
+  "error": "UnresolvedSubstitution",
+  "resolve": true
+}

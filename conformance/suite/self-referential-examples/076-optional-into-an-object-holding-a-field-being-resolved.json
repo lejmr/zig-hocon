@@ -1,0 +1,20 @@
+{
+  "spec": "HOCON.md#examples-of-self-referential-substitutions",
+  "rule": [
+    "self-referential-substitutions.4",
+    "self-referential-substitutions.13",
+    "the--field-separator.5"
+  ],
+  "why": "b.k.k's ${?e} leads to e.k, whose ${?b} leads back into b, the object holding b.k.k: both optionals are on the cycle and nonexistent (L716), so e.k is no field and e is {}, and b.k.k is ${?d} appended to nothing, []. Whichever field is resolved first (077). typesafe/config concatenates e's {} with the list and fails",
+  "expect": {
+    "b": {
+      "k": {
+        "k": []
+      }
+    },
+    "e": {}
+  },
+  "resolve": true,
+  "java": "unsupported",
+  "java_error": "WrongType"
+}

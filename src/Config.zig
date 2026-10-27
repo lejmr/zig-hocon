@@ -128,7 +128,7 @@ pub const Config = struct {
             noPlace(options, err);
             return err;
         };
-        const full_path = std.fs.path.resolve(allocator, &.{path}) catch |err| {
+        const full_path = Include.fileId(allocator, io, path) catch |err| {
             noPlace(options, err);
             return err;
         };

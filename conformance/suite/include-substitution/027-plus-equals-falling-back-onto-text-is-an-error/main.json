@@ -1,0 +1,19 @@
+{
+  "spec": "HOCON.md#include-semantics-substitution",
+  "rule": [
+    "include-semantics-substitution.1",
+    "the--field-separator.4"
+  ],
+  "why": "a += 3 in child.conf looks for k.a first, which is not there, then for a from the root (L1010, as in 025): the text \"\", and += onto a value that is no list is an error (L731). typesafe/config treats the include's a as unrelated to the root's",
+  "error": "UnsupportedConcatenation",
+  "resolve": true,
+  "java": "lenient",
+  "java_expect": {
+    "a": "",
+    "k": {
+      "a": [
+        3
+      ]
+    }
+  }
+}

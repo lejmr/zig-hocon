@@ -1,0 +1,11 @@
+{
+  "spec": "HOCON.md#examples-of-self-referential-substitutions",
+  "rule": [
+    "the--field-separator.4",
+    "examples-of-self-referential-substitutions.6",
+    "self-referential-substitutions.13"
+  ],
+  "why": "b += 1 is b = ${?b} [1], its ${?b} looking back at b's layer below, x${?f} (L767). That look-back is not on the cycle through f, whose ${?b} is the optional that led back to its own field and is nonexistent (L716), so it finds \"x\", text, and += onto a value that is no list is an error (L731), whichever field is resolved first (071)",
+  "error": "WrongType",
+  "resolve": true
+}

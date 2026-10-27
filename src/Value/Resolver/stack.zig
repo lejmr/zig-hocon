@@ -124,8 +124,14 @@ pub fn resolveStack(state: *Resolver, place: *Value, layers: []const Value) Erro
             const field = state.fields.pop().?;
             // What it was resolved to in there is its value: a substitution
             // is resolved once (spec L884), so `a` is 1 whichever field goes
-            // first.
-            if (field.again) |again| switch (again.*) {
+            // first. That is the whole field's value: not for the layers
+            // below a layer of it that looks back at them, which would then
+            // hold their own top too (`d.z += 5` appended twice,
+            // plus-equals-field-separator/030).
+            const below_one = for (state.fields.items) |f| {
+                if (f.place == place) break true;
+            } else false;
+            if (field.again) |again| if (!below_one) switch (again.*) {
                 .ref, .pending, .stack => {},
                 else => return again.*,
             };
@@ -262,9 +268,11 @@ fn mergeable(layers: []const Value) bool {
     const top = layers[layers.len - 1];
     // With a list in it a concatenation is a list or an error, never an
     // object (spec L384), so an object over it hides it, and it is never
-    // evaluated (L778): `c = [1] ${x}`, `c = { a = 1 }`.
+    // evaluated (L778): `c = [1] ${x}`, `c = { a = 1 }`. With text in it,
+    // more than the space between parts, it is text or an error.
     if (top == .pending) for (top.pending) |part| {
         if (part.value == .array) return false;
+        if (part.value == .scalar and !part.value.isGap()) return false;
     };
     return top == .object or looksBack(top);
 }
@@ -277,6 +285,10 @@ fn mergeable(layers: []const Value) bool {
 // `whole`: the path ends at the place, rather than going on through it.
 pub fn seen(state: *Resolver, place: *Value, ref: Ref, whole: bool) Error!?*Value {
     const gpa = state.gpa;
+    // Whether what it returns is the innermost field's layers below, looked
+    // back at: `looked_back`, false on every other way out.
+    state.looked_back = false;
+    const innermost = state.fields.items.len;
     var i = state.fields.items.len;
     while (i > 0) {
         i -= 1;
@@ -292,7 +304,27 @@ pub fn seen(state: *Resolver, place: *Value, ref: Ref, whole: bool) Error!?*Valu
             // finds nothing, as it did, and so does a path going on through
             // the field: an include's ref inside the field's own value looks
             // there first, and on to the environment.
-            .done => if (whole and field.merged == null and i + 1 < state.fields.items.len and !ref.flags.optional) {
+            .done => if (whole and field.merged == null and cameRound(state, i)) {
+                // Come round again once a field after it has looked back:
+                // resolved anew in that look-back, as in `.todo` below.
+                // `c = ${e}`, `e = x${?c}`, `e = ${e}y${?c}`: c is "x".
+                if (field.again == null and looksBackAfter(state, i)) {
+                    const again = try gpa.create(Value);
+                    again.* = place.*;
+                    field.again = again;
+                    return again;
+                }
+                // An optional one is on the cycle too: it, and an optional
+                // that led here from the field, are nonexistent (spec L716),
+                // `a += ${?b}`, `b += ${?a}` is two empty lists. Inside the
+                // field's own look-back, only it: `c += ${y}`, `c += 2`,
+                // `y = [1, ${?c}]` is `c = [[1], 2]`, as for `.busy`.
+                if (ref.flags.optional) {
+                    if (lookingBack(state, i)) {
+                        state.cycles += 1;
+                    } else if (state.visitingAt(place)) |at| state.closeAt(at);
+                    return null;
+                }
                 state.markBreaking(state.visitingAt(place) orelse 0);
                 state.err_pos.* = ref.at();
                 return Error.SubstitutionCycle;
@@ -312,7 +344,7 @@ pub fn seen(state: *Resolver, place: *Value, ref: Ref, whole: bool) Error!?*Valu
                 return Error.SubstitutionCycle;
             },
             .todo => {
-                if (field.below.len == 0 and i + 1 < state.fields.items.len) {
+                if (field.below.len == 0 and cameRound(state, i)) {
                     // `a = ${p}`, `p = 1`, `p = ${a}x`, from a: the cycle came
                     // round through p, which has a value below to look back at,
                     // so it breaks there (spec L659): a is resolved anew, and in
@@ -335,10 +367,7 @@ pub fn seen(state: *Resolver, place: *Value, ref: Ref, whole: bool) Error!?*Valu
                     // Inside the field's own look-back, a layer above this one
                     // busy, it is that look-back's business, not a way back
                     // round to it: `x = … { n += 1 } …`, `x = ${?x.q} {}`.
-                    const looking_back = for (state.fields.items[0..i]) |f| {
-                        if (f.place == place and f.progress == .busy) break true;
-                    } else false;
-                    if (looking_back) state.cycles += 1 else state.closeAt(at);
+                    if (lookingBack(state, i)) state.cycles += 1 else state.closeAt(at);
                 }
                 const below = field.below;
                 // An object that hides the layers under it: the path goes
@@ -359,15 +388,68 @@ pub fn seen(state: *Resolver, place: *Value, ref: Ref, whole: bool) Error!?*Valu
                 state.fields.items[i].progress = .done;
             },
         }
-        return try state.placeFor(state.fields.items[i].merged orelse return null);
+        const merged = state.fields.items[i].merged orelse {
+            state.looked_back = false;
+            return null;
+        };
+        state.looked_back = i + 1 == innermost;
+        return try state.placeFor(merged);
     }
     return place;
+}
+
+// Whether a ref that reaches the i-th field came round to it through another
+// field: one resolved after it that is not in its value, or any a ref led to
+// after it, `c = ${?d}`, `d = [${?c}]`. A field in its value the walk went on
+// to is not: an include there looks its paths up through it.
+fn cameRound(state: *Resolver, i: usize) bool {
+    const place = state.fields.items[i].place;
+    for (state.fields.items[i + 1 ..]) |later| {
+        if (later.place != place and !within(place.*, later.place)) return true;
+    }
+    const at = state.visitingAt(place) orelse return false;
+    for (state.targets.items) |t| {
+        if (t != place and (state.visitingAt(t) orelse 0) > at) return true;
+    }
+    return false;
+}
+
+// Whether `place` is in `value`, unresolved as it is: in its layers, the parts
+// of a concatenation, a list or an object.
+fn within(value: Value, place: *Value) bool {
+    switch (value) {
+        .object => |members| for (members) |*m| {
+            if (&m.value == place or within(m.value, place)) return true;
+        },
+        .array => |items| for (items) |*item| {
+            if (item == place or within(item.*, place)) return true;
+        },
+        .stack => |layers| for (layers) |layer| {
+            if (within(layer, place)) return true;
+        },
+        .pending => |parts| for (parts) |part| {
+            if (within(part.value, place)) return true;
+        },
+        else => {},
+    }
+    return false;
+}
+
+// Whether a layer above the i-th field is busy looking back at the layers below
+// it: a ref that reaches the field is that look-back's business, not a way back
+// round to the field.
+fn lookingBack(state: *Resolver, i: usize) bool {
+    const place = state.fields.items[i].place;
+    for (state.fields.items[0..i]) |f| {
+        if (f.place == place and f.progress == .busy) return true;
+    }
+    return false;
 }
 
 // Whether a field resolved after the i-th one looks back at layers below it.
 fn looksBackAfter(state: *Resolver, i: usize) bool {
     for (state.fields.items[i + 1 ..]) |later| {
-        if (later.below.len > 0 and later.object == null and later.progress == .todo) return true;
+        if (later.below.len > 0 and later.object == null and later.progress != .busy) return true;
     }
     return false;
 }

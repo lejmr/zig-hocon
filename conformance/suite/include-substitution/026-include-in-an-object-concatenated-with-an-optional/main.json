@@ -1,0 +1,18 @@
+{
+  "spec": "HOCON.md#include-semantics-substitution",
+  "rule": [
+    "include-semantics-substitution.1",
+    "substitutions.15"
+  ],
+  "why": "${y} in child.conf is looked up as b.c.y first, which is not there, then as y from the root (L1010): 1. The path passes b, whose value is being resolved, but it comes from inside that value, not round through another field, so it is no cycle; ${?nope} is undefined and leaves the object",
+  "expect": {
+    "b": {
+      "c": {
+        "n": 1
+      },
+      "q": 1
+    },
+    "y": 1
+  },
+  "resolve": true
+}

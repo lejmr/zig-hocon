@@ -1,0 +1,17 @@
+{
+  "spec": "HOCON.md#examples-of-self-referential-substitutions",
+  "rule": [
+    "duplicate-keys-and-object-merging.8",
+    "string-value-concatenation.1"
+  ],
+  "why": "as 061 with a written first: a is f's object",
+  "expect": {
+    "a": {
+      "z": 3
+    },
+    "f": {
+      "z": 3
+    }
+  },
+  "resolve": true
+}

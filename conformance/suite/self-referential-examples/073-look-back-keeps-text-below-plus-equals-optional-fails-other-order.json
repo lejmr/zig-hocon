@@ -1,0 +1,11 @@
+{
+  "spec": "HOCON.md#examples-of-self-referential-substitutions",
+  "rule": [
+    "the--field-separator.4",
+    "examples-of-self-referential-substitutions.6",
+    "self-referential-substitutions.13"
+  ],
+  "why": "072 with f last: the same error (L731)",
+  "error": "WrongType",
+  "resolve": true
+}

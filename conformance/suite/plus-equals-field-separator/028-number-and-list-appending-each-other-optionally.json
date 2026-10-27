@@ -1,0 +1,22 @@
+{
+  "spec": "HOCON.md#the--field-separator",
+  "rule": [
+    "self-referential-substitutions.4",
+    "self-referential-substitutions.13",
+    "substitutions.17",
+    "unquoted-strings.9"
+  ],
+  "why": "d's ${?c} leads back to d through c's ${?d}, and the other way round, so both are nonexistent (L716): d is 1 next to nothing, the string \"1\" (substitutions/039), and c is []. typesafe/config resolves c's ${?d} to the number",
+  "expect": {
+    "d": "1",
+    "c": []
+  },
+  "resolve": true,
+  "java": "diverges",
+  "java_expect": {
+    "c": [
+      1
+    ],
+    "d": 1
+  }
+}

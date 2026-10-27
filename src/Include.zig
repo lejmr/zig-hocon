@@ -203,17 +203,30 @@ fn checkCycle(ctx: Value.Context, id: []const u8) error{IncludeCycle}!void {
     }
 }
 
+/// What the cycle check knows a file by: the file itself, through every
+/// symlink, so `a/../b.conf`, `b.conf` and `loop/b.conf` with `loop` pointing
+/// at `.` are one file. The name resolved where there is no such file.
+pub fn fileId(gpa: Allocator, io: std.Io, path: []const u8) Allocator.Error![]const u8 {
+    // `..` first by the name, as the name means it, even past a directory
+    // that is not there: `sub/../b.conf` is `b.conf`.
+    const resolved = try std.fs.path.resolve(gpa, &.{path});
+    return std.Io.Dir.cwd().realPathFileAlloc(io, resolved, gpa) catch |err| switch (err) {
+        error.OutOfMemory => return error.OutOfMemory,
+        else => return resolved,
+    };
+}
+
 /// Reads one file and turns it into an object; null when it does not exist.
 fn loadFile(gpa: Allocator, io: std.Io, path: []const u8, ctx: Value.Context) values.Error!?Value {
-    // `a/../b.conf` and `b.conf` are the same file as far as a cycle goes.
-    const id = try std.fs.path.resolve(gpa, &.{path});
+    const id = try fileId(gpa, io, path);
     try checkCycle(ctx, id);
 
     // Everything read lives as long as the document: values point into the text.
     const source = std.Io.Dir.cwd().readFileAllocOptions(io, path, gpa, .limited(max_file_size), .of(u8), 0) catch |err| switch (err) {
-        error.FileNotFound => return null,
-        // The system gave up on a symlink loop before our own depth limit did.
-        error.SymLinkLoop => return error.IncludeCycle,
+        // A file on the way, `x.conf/y.conf`, is no directory: nothing there.
+        // Other errors are not a missing file (spec L1069): a directory, a
+        // symlink to itself, no permission are reported, by their own names.
+        error.FileNotFound, error.NotDir => return null,
         else => return err,
     };
 
@@ -300,7 +313,13 @@ fn fetch(gpa: Allocator, io: std.Io, uri: std.Uri) values.Error!?Fetched {
 /// Fetches one URL and turns the answer into an object; null when it is not there.
 fn loadUrl(gpa: Allocator, io: std.Io, url: []const u8, ctx: Value.Context) values.Error!?Value {
     try checkCycle(ctx, url);
-    const uri = try std.Uri.parse(url);
+    var uri = try std.Uri.parse(url);
+    // A scheme is the same in any case (RFC 3986, section 3.1), `HTTP://`
+    // too; std's client knows only the lowercase one.
+    uri.scheme = try std.ascii.allocLowerString(gpa, uri.scheme);
+    // std's lookup assumes a host of at most 255 bytes, and panics past it
+    // (RFC 1035, section 2.3.4); refused here as a name too long.
+    if (uri.host) |host| if ((try host.toRawMaybeAlloc(gpa)).len > std.Io.net.HostName.max_len) return error.NameTooLong;
     const fetched = try fetchWithTimeout(gpa, io, uri, ctx.http_timeout) orelse return null;
 
     // What the server says the file is wins over what its name looks like.
@@ -625,6 +644,54 @@ test "include.url() and classpath() refuse what they cannot follow" {
 test "include.url() without a scheme is InvalidUrl" {
     try testing.expectError(error.InvalidUrl, Config.parseFromSlice(Value, testing.allocator, "include url(\"x.conf\")", .{}));
     try testing.expectError(error.InvalidUrl, Config.parseFromSlice(Value, testing.allocator, "include required(url(\"x.conf\"))", .{}));
+}
+
+// java – · pyhocon – · spec – — RFC 1035 allows a host name of 255 bytes, and std's
+// lookup assumes no more: past it the URL is refused before any lookup, as a file
+// name too long is, and the parse never panics.
+test "include.a host name longer than DNS allows is NameTooLong" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+    const host = "a" ** 300;
+    for ([_][]const u8{ "include url(\"http://{s}/x.conf\")", "include \"https://{s}/x.conf\"" }) |form| {
+        const text = try std.mem.replaceOwned(u8, a, form, "{s}", host);
+        try testing.expectError(error.NameTooLong, parseFixtures(a, &.{.{ .path = "main.conf", .text = text }}));
+    }
+}
+
+// include-missing-and-required/007 · java ✓ · pyhocon – · spec ✓ (L1053) — a file on
+// the way where a directory should be, `file.conf/x.conf`: nothing is there, so a
+// plain include is a missing file, and `required` says it is not found.
+test "include.a file on the way to an include is a missing file" {
+    try expectJson(&.{
+        .{ .path = "main.conf", .text = "a = 1\ninclude \"file.conf/x.conf\"" },
+        .{ .path = "file.conf", .text = "x = 1" },
+    }, "{\"a\":1}");
+    try expectError(&.{
+        .{ .path = "main.conf", .text = "include required(\"file.conf/x.conf\")" },
+        .{ .path = "file.conf", .text = "x = 1" },
+    }, error.IncludeNotFound);
+}
+
+// java ✗ (ignores it) · pyhocon – · spec ✓ (L1069: other IO errors are not ignored) —
+// a symlink to itself is no file and no include cycle: the parse ends with the
+// system's own error for it, not with a cycle the user would look for in the files.
+test "include.a symlink to itself is SymLinkLoop" {
+    var tmp = testing.tmpDir(.{});
+    defer tmp.cleanup();
+    try tmp.dir.symLink(testing.io, "loop.conf", "loop.conf", .{});
+    try tmp.dir.writeFile(testing.io, .{ .sub_path = "main.conf", .data = "a = 1\ninclude \"loop.conf\"" });
+
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+    const main = try std.fmt.allocPrint(arena.allocator(), ".zig-cache/tmp/{s}/main.conf", .{tmp.sub_path});
+    const result = Config.parseFromFileLeaky(Value, arena.allocator(), testing.io, main, .{});
+    // Windows names it no better than Unexpected (REPARSE_POINT_NOT_RESOLVED);
+    // what counts is that it is an error, and not a cycle.
+    if (builtin.os.tag == .windows) {
+        if (result) |_| return error.TestExpectedError else |err| try testing.expect(err != error.IncludeCycle);
+    } else try testing.expectError(error.SymLinkLoop, result);
 }
 
 // spec L1111–1116 · java ✓ · pyhocon ✓ for foo:bar.conf (both read it as a file
@@ -1528,6 +1595,10 @@ test "include.http" {
     const a = arena.allocator();
     // Merged in place, and the relative include went back to the server.
     try testing.expectEqualStrings("{\"base\":1,\"inner\":2,\"deep\":3}", try includeUrl(a, port, "/base.conf"));
+
+    // A scheme in any case is the same scheme (RFC 3986, section 3.1).
+    const upper = try std.fmt.allocPrint(a, "include url(\"HTTP://127.0.0.1:{d}/base.conf\")", .{port});
+    try testing.expectEqualStrings("{\"base\":1,\"inner\":2,\"deep\":3}", try parseFixtures(a, &.{.{ .path = "main.conf", .text = upper }}));
 
     // a bare string with the scheme is the same include
     const bare = try std.fmt.allocPrint(a, "before = 0\ninclude \"http://127.0.0.1:{d}/sub/x.conf\"\nafter = 4", .{port});

@@ -1,0 +1,18 @@
+{
+  "spec": "HOCON.md#self-referential-substitutions",
+  "rule": [
+    "self-referential-substitutions.13",
+    "self-referential-substitutions.9",
+    "self-referential-substitutions.11"
+  ],
+  "why": "n.a's ${?b} leads back to n.a through b = ${n.a}, so it is nonexistent (L716), and what is left of n.a is ${n}, a field referring to the object it is in: a cycle no look-back breaks (L688-691, as in 008). typesafe/config gives {} for both",
+  "error": "SubstitutionCycle",
+  "resolve": true,
+  "java": "lenient",
+  "java_expect": {
+    "b": {},
+    "n": {
+      "a": {}
+    }
+  }
+}

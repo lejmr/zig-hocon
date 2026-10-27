@@ -35,6 +35,13 @@ const n = @import("build.zig").n;
 
 const Resolver = @This();
 
+// A `${?…}` as written: its path, which an included file has a copy of with
+// its own scope, and where it is.
+const RefAt = struct { path: usize, file: u16, pos: u32 };
+fn refAt(r: Ref) RefAt {
+    return .{ .path = @intFromPtr(r.path.ptr), .file = r.file, .pos = r.pos };
+}
+
 pub const Error = error{ Unresolved, SubstitutionCycle } || @import("../Value.zig").Error;
 pub const Env = environment.Env;
 
@@ -44,6 +51,9 @@ gpa: Allocator,
 root: *Value,
 // Places we are resolving right now, so a = ${b}, b = ${a} ends
 visiting: std.ArrayList(*Value) = .empty,
+// The places in `visiting` a ref led to (`resolveTarget`, `throughAlias`),
+// rather than the walk: where a ref that reaches a field came round through another one.
+targets: std.ArrayList(*Value) = .empty,
 // Fields whose top value is being resolved right now, innermost last.
 // A path that reaches one of them does not see the field (see `seen`).
 fields: std.ArrayList(stack.Field) = .empty,
@@ -61,6 +71,18 @@ cycles: usize = 0,
 // Optionals being followed, each as how many places were being visited when
 // it began: a cycle closed past one runs through it (`resolveOptional`).
 optionals: std.ArrayList(usize) = .empty,
+// The last path `lookup` followed ended at the field being resolved, the
+// innermost one: a self-reference, which looked back at the layers below it
+// (`seen`, `resolveOptional`).
+looked_back: bool = false,
+// Optionals that led back to the field they stand in (Rule R in
+// docs/resolver.md), by where they are written: nonexistent, also when they
+// are resolved again later, outside the cycle, a substitution being resolved
+// once (spec L884). A field a required ref on the cycle stopped is resolved
+// again, and would find them otherwise (`resolveOptional`). With each, the
+// place the cycle closed at: met again while that place is being resolved,
+// it is followed as any other.
+nonexistent: std.AutoHashMapUnmanaged(RefAt, *Value) = .empty,
 // The one of `optionals` a cycle is unwinding to.
 breaking: ?usize = null,
 // The lowest place in `visiting` a cycle closed at, while the innermost
@@ -123,8 +145,10 @@ pub fn resolve(self: *Value, gpa: Allocator, env: Env, err_pos: *?Pos) Error!voi
 fn deinit(state: *Resolver) void {
     const gpa = state.gpa;
     state.visiting.deinit(gpa);
+    state.targets.deinit(gpa);
     state.fields.deinit(gpa);
     state.optionals.deinit(gpa);
+    state.nonexistent.deinit(gpa);
     state.again.deinit(gpa);
     state.walked.deinit(gpa);
     state.vanished.deinit(gpa);
@@ -198,7 +222,11 @@ pub fn resolveValue(state: *Resolver, value: Value) Error!?Value {
                 if (state.again.items.len > 0 and looksBackAt(state, &m.value)) {
                     const ref = state.again.items[state.again.items.len - 1].ref;
                     const seen_as = try state.seen(&m.value, ref, false) orelse continue;
-                    if (try state.resolveValue(seen_as.*)) |val| try resolved.append(gpa, .{ .key = m.key, .value = val });
+                    // What it is seen as may be the field itself, or the field
+                    // anew (`seen`), written more than once: a field, resolved
+                    // as one, never a value.
+                    const val = if (seen_as.* == .stack) try state.resolveField(seen_as) else try state.resolveValue(seen_as.*);
+                    if (val) |x| try resolved.append(gpa, .{ .key = m.key, .value = x });
                     continue;
                 }
                 if (try state.resolveField(&m.value)) |val| {
@@ -231,6 +259,12 @@ pub noinline fn resolvePending(state: *Resolver, parts: []const Part, element: b
     // `.keep`: from the first part that waits on, the parts join
     // later. These are them: what joined before it, then each one.
     var kept: std.ArrayList(Part) = .empty;
+    // The buffer's items or text, while it grows in place (below); left to
+    // the arena the values live in once it is anything else.
+    var list: std.ArrayList(Value) = .empty;
+    var text: std.ArrayList(u8) = .empty;
+    var grown_list = false;
+    var grown_text = false;
     for (parts) |part| {
         state.element_next = element and part.value == .object;
         const val = try state.resolveValue(part.value) orelse continue;
@@ -246,6 +280,8 @@ pub noinline fn resolvePending(state: *Resolver, parts: []const Part, element: b
             // fails anyway. A gap takes the shape of what comes next.
             if (buffer) |b| if (b.isGap()) {
                 buffer = null;
+                grown_list = false;
+                grown_text = false;
             };
             continue;
         }
@@ -254,6 +290,37 @@ pub noinline fn resolvePending(state: *Resolver, parts: []const Part, element: b
         if (buffer) |*ebuffer| {
             // Text starts after a gap, as in fromNode.
             if (ebuffer.isGap()) start = part.pos;
+            // A list or text joined onto one of its kind grows in place:
+            // `${x} ${x} …` copies each part once, not the whole so far
+            // each time.
+            if (ebuffer.* == .array and val == .array) {
+                if (!grown_list) {
+                    list = .empty;
+                    try list.appendSlice(gpa, ebuffer.array);
+                    grown_list = true;
+                }
+                try list.appendSlice(gpa, val.array);
+                ebuffer.array = list.items;
+                continue;
+            }
+            if (ebuffer.* == .scalar and val == .scalar) {
+                if (!grown_text) {
+                    text = .empty;
+                    try text.appendSlice(gpa, ebuffer.scalar.value);
+                    grown_text = true;
+                }
+                // As `update` joins them: where the text starts, which is
+                // not at a gap in front of it, and a gap onto a gap is one.
+                const from = if (ebuffer.isGap()) val.scalar else ebuffer.scalar;
+                const quoted = !(ebuffer.isGap() and val.isGap());
+                try text.appendSlice(gpa, val.scalar.value);
+                ebuffer.scalar = .{ .value = text.items, .quoted = quoted, .file = from.file, .pos = from.pos };
+                continue;
+            }
+            // A gap onto a list or an object leaves it as it is.
+            if ((ebuffer.* == .array or ebuffer.* == .object) and val.isGap()) continue;
+            grown_list = false;
+            grown_text = false;
             // The part that does not fit onto what came before it.
             ebuffer.update(gpa, val) catch |err| {
                 state.err_pos.* = part.pos;
@@ -262,6 +329,8 @@ pub noinline fn resolvePending(state: *Resolver, parts: []const Part, element: b
         } else {
             buffer = val;
             start = part.pos;
+            grown_list = false;
+            grown_text = false;
         }
     }
     if (kept.items.len > 0) return .{ .pending = try kept.toOwnedSlice(gpa) };
@@ -294,6 +363,13 @@ pub fn resolveRef(state: *Resolver, r: Ref, on_top: bool) Error!?Value {
 // refers to itself then it's as if it referred to a nonexistent value"), so
 // `f = ${?a.t}x`, `a = ${?y}${?f}` is `f = "x"` whichever field goes first.
 noinline fn resolveOptional(state: *Resolver, r: Ref, on_top: bool) Error!?Value {
+    // Outside the cycle it was found on, it stays nonexistent; while the
+    // place that cycle closed at is being resolved again, following it
+    // finds the cycle anew, and self-references their layers below.
+    if (state.nonexistent.get(refAt(r))) |place| if (state.visitingAt(place) == null) {
+        state.cycles += 1;
+        return null;
+    };
     const mark = state.optionals.items.len;
     const start = state.visiting.items.len;
     try state.optionals.append(state.gpa, start);
@@ -307,6 +383,7 @@ noinline fn resolveOptional(state: *Resolver, r: Ref, on_top: bool) Error!?Value
         if (state.closed == null or o < state.closed.?) state.closed = o;
     };
     const val = state.followRef(r, on_top) catch |err| {
+        state.looked_back = false;
         if (err != error.SubstitutionCycle or state.breaking != mark) return err;
         state.breaking = null;
         state.err_pos.* = err_pos;
@@ -315,8 +392,17 @@ noinline fn resolveOptional(state: *Resolver, r: Ref, on_top: bool) Error!?Value
         state.cycles += 1;
         return null;
     };
+    // A self-reference that found a value below is not on the cycle: that
+    // value is what the field held before (spec L767), written there, and the
+    // cycle closed through an optional in it, which is nonexistent instead.
+    // `f += ${?b}`, `b = x${?f}`, `b += 1`: b's look-back is "x", and `+=`
+    // onto it an error (L731), whichever field is resolved first.
+    const looked_back = state.looked_back;
+    state.looked_back = false;
+    if (val != null and looked_back) return val;
     if (state.closed) |closed| if (closed < start) {
         state.cycles += 1;
+        try state.nonexistent.put(state.gpa, refAt(r), state.visiting.items[closed]);
         return null;
     };
     return val;
@@ -425,6 +511,8 @@ fn follow(state: *Resolver, ref: Ref, path: []const Key) Error!Found {
     };
     // An optional that found nothing leaves no field: not in the document.
     // Unless it hit a cycle on the way, then the field is just gone.
+    const looked_back = state.looked_back;
+    defer state.looked_back = looked_back;
     const cycles = state.cycles;
     const val = try state.resolveTarget(target, ref, true) orelse
         return if (state.cycles > cycles) .gone else .absent;
@@ -474,6 +562,8 @@ fn resolveTarget(state: *Resolver, target: *Value, ref: Ref, whole: bool) Error!
     }
     try state.visiting.append(gpa, target);
     defer _ = state.visiting.pop();
+    try state.targets.append(gpa, target);
+    defer _ = state.targets.pop();
 
     return try state.resolveField(target);
 }
@@ -545,13 +635,18 @@ fn lookup(state: *Resolver, ref: Ref, path: []const Key) Error!Place {
         // nothing there it is as if the path were not in the document
         // (spec L767), so it reads the variable; a cycle on the way is gone.
         const before = state.cycles;
+        state.looked_back = false;
         current = try state.seen(current, ref, false) orelse
             return if (state.cycles > before) .gone else .absent;
+        state.looked_back = false;
         if (try state.throughAlias(ref, current, path[k..])) |found| return found;
         if (current.* == .ref or current.* == .pending or current.* == .stack) {
             const cycles = state.cycles;
-            const val = try state.resolveTarget(current, ref, false) orelse
+            const val = try state.resolveTarget(current, ref, false) orelse {
+                state.looked_back = false;
                 return if (state.cycles > cycles) .gone else .absent;
+            };
+            state.looked_back = false;
             if (waits(val)) return .waits;
         }
         if (current.* != .object) return .absent;
@@ -564,6 +659,7 @@ fn lookup(state: *Resolver, ref: Ref, path: []const Key) Error!Place {
         }
         current = members.value_ptr.get(key.value) orelse return .absent;
     }
+    // `seen` says whether this last step looked back (`looked_back`).
     const before = state.cycles;
     const place = try state.seen(current, ref, true) orelse
         return if (state.cycles > before) .gone else .absent;
@@ -585,6 +681,8 @@ fn throughAlias(state: *Resolver, ref: Ref, place: *Value, rest: []const Key) Er
     const gpa = state.gpa;
     try state.visiting.append(gpa, place);
     defer _ = state.visiting.pop();
+    try state.targets.append(gpa, place);
+    defer _ = state.targets.pop();
     // The alias's path is from the document root, whatever `ref` starts at.
     var from_root = ref;
     from_root.flags.anchor = 0;
@@ -852,4 +950,26 @@ test "resolve.a cycle breaks only where its look-back stays one value" {
     try expectResolveError("a = ${p}\np = 1\np = ${a}x\np = ${a}x", error.SubstitutionCycle);
     try expectResolved("v { n = { x = ${a} } }\na = { n = { h = 0 } }\na = ${v}", "{\"v\":{\"n\":{\"x\":{\"n\":{\"h\":0}}}},\"a\":{\"n\":{\"h\":0,\"x\":{\"n\":{\"h\":0}}}}}");
     try expectResolved("v = { x = ${?a} }\nr = null\nr = ${v}\na = null\na = ${r}", "{\"v\":{\"x\":null},\"r\":{\"x\":null},\"a\":{\"x\":null}}");
+}
+
+test "a long concatenation of substitutions joins in linear memory" {
+    // `${x} ${x} …` 3000 times, a list and text: joined one part onto the
+    // whole so far each time, it needs ~150 MB; growing in place, little.
+    const count = 3000;
+    for ([_][]const u8{ "[1]", "ab" }) |x| {
+        var src: std.ArrayList(u8) = .empty;
+        defer src.deinit(testing.allocator);
+        try src.print(testing.allocator, "x = {s}\na =", .{x});
+        for (0..count) |_| try src.appendSlice(testing.allocator, " ${x}");
+        try src.append(testing.allocator, 0);
+        const text = src.items[0 .. src.items.len - 1 :0];
+
+        const buf = try testing.allocator.alloc(u8, 32 << 20);
+        defer testing.allocator.free(buf);
+        var fixed = std.heap.FixedBufferAllocator.init(buf);
+        var arena = std.heap.ArenaAllocator.init(fixed.allocator());
+        defer arena.deinit();
+        const json = try resolvedJson(arena.allocator(), text);
+        try testing.expect(json.len > count);
+    }
 }
