@@ -686,7 +686,12 @@ test "include.a symlink to itself is SymLinkLoop" {
     var arena = std.heap.ArenaAllocator.init(testing.allocator);
     defer arena.deinit();
     const main = try std.fmt.allocPrint(arena.allocator(), ".zig-cache/tmp/{s}/main.conf", .{tmp.sub_path});
-    try testing.expectError(error.SymLinkLoop, Config.parseFromFileLeaky(Value, arena.allocator(), testing.io, main, .{}));
+    const result = Config.parseFromFileLeaky(Value, arena.allocator(), testing.io, main, .{});
+    // Windows names it no better than Unexpected (REPARSE_POINT_NOT_RESOLVED);
+    // what counts is that it is an error, and not a cycle.
+    if (builtin.os.tag == .windows) {
+        if (result) |_| return error.TestExpectedError else |err| try testing.expect(err != error.IncludeCycle);
+    } else try testing.expectError(error.SymLinkLoop, result);
 }
 
 // spec L1111–1116 · java ✓ · pyhocon ✓ for foo:bar.conf (both read it as a file
