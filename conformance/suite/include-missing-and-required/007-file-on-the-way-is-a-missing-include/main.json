@@ -1,0 +1,9 @@
+{
+  "spec": "HOCON.md#include-semantics-missing-files-and-required-files",
+  "rule": "include-semantics-missing-files-and-required-files.1",
+  "why": "file.conf is a file, not a directory, so there is no file at file.conf/x.conf: the included file does not exist and the include is silently ignored",
+  "expect": {
+    "a": 1,
+    "b": 2
+  }
+}
