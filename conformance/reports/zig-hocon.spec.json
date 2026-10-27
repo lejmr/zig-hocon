@@ -1,13 +1,13 @@
 {
   "suite": "hocon-conformance",
   "implementation": "zig-hocon",
-  "version": "zig-hocon code@015f995",
+  "version": "zig-hocon code@03a7b67",
   "mode": "spec",
   "command": "conformance/adapters/zig-hocon.sh",
-  "ran_at": "2026-10-26T20:53:52Z",
-  "suite_digest": "6016265ebddf11c8",
-  "total": 583,
-  "passed": 583,
+  "ran_at": "2026-10-27T21:20:24Z",
+  "suite_digest": "2752bb3bb30b03fc",
+  "total": 586,
+  "passed": 586,
   "percent": 100.0,
   "sections": {
     "array-and-object-concatenation": {
@@ -55,8 +55,8 @@
       "passed": 19
     },
     "include-missing-and-required": {
-      "total": 6,
-      "passed": 6
+      "total": 7,
+      "passed": 7
     },
     "include-substitution": {
       "total": 28,
@@ -99,8 +99,8 @@
       "passed": 7
     },
     "plus-equals-field-separator": {
-      "total": 29,
-      "passed": 29
+      "total": 31,
+      "passed": 31
     },
     "self-referential-examples": {
       "total": 77,
@@ -321,6 +321,7 @@
     "include-missing-and-required/004-required-missing-is-error/main.conf": "pass",
     "include-missing-and-required/005-required-file-missing-is-error/main.conf": "pass",
     "include-missing-and-required/006-required-present-is-included/main.conf": "pass",
+    "include-missing-and-required/007-file-on-the-way-is-a-missing-include/main.conf": "pass",
     "include-substitution/001-substitution-relativized-to-include-scope/main.conf": "pass",
     "include-substitution/002-relativized-path-sees-later-redefinition/main.conf": "pass",
     "include-substitution/003-original-path-tried-as-fallback/main.conf": "pass",
@@ -480,6 +481,8 @@
     "plus-equals-field-separator/027-two-fields-appending-each-other-optionally-other-order.conf": "pass",
     "plus-equals-field-separator/028-number-and-list-appending-each-other-optionally.conf": "pass",
     "plus-equals-field-separator/029-number-and-list-appending-each-other-optionally-other-order.conf": "pass",
+    "plus-equals-field-separator/030-append-reached-again-through-a-list-appends-once.conf": "pass",
+    "plus-equals-field-separator/031-append-reached-again-through-a-list-appends-once-other-order.conf": "pass",
     "self-referential-examples/001-isolated-self-reference-is-an-error.conf": "pass",
     "self-referential-examples/002-self-reference-resolves-to-earlier-merged-value.conf": "pass",
     "self-referential-examples/003-self-reference-before-any-value-is-undefined.conf": "pass",

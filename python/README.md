@@ -36,7 +36,7 @@ The rest of this page reads these two files.
 
 ## Why zig-hocon
 
-- **Correct.** Passes all 583 tests in the [conformance suite](https://htmlpreview.github.io/?https://github.com/lejmr/zig-hocon/blob/main/conformance/report.html), one test for each sentence of the spec.
+- **Correct.** Passes all 586 tests in the [conformance suite](https://htmlpreview.github.io/?https://github.com/lejmr/zig-hocon/blob/main/conformance/report.html), one test for each sentence of the spec.
 - **Fast.** Orders of magnitude faster than what Python usually has.\*
 - **Clear errors.** File, line, column, and a caret under the mistake.
 - **No dependencies.** A thin ctypes layer over one bundled library.

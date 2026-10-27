@@ -4,11 +4,11 @@
   "version": "pyhocon 0.3.63",
   "mode": "spec",
   "command": "conformance/adapters/oracle.sh hocon-py",
-  "ran_at": "2026-10-26T20:16:43Z",
-  "suite_digest": "6016265ebddf11c8",
-  "total": 583,
-  "passed": 358,
-  "percent": 61.4,
+  "ran_at": "2026-10-27T21:16:27Z",
+  "suite_digest": "2752bb3bb30b03fc",
+  "total": 586,
+  "passed": 359,
+  "percent": 61.3,
   "sections": {
     "array-and-object-concatenation": {
       "total": 23,
@@ -55,8 +55,8 @@
       "passed": 15
     },
     "include-missing-and-required": {
-      "total": 6,
-      "passed": 6
+      "total": 7,
+      "passed": 7
     },
     "include-substitution": {
       "total": 28,
@@ -99,7 +99,7 @@
       "passed": 3
     },
     "plus-equals-field-separator": {
-      "total": 29,
+      "total": 31,
       "passed": 0
     },
     "self-referential-examples": {
@@ -321,6 +321,7 @@
     "include-missing-and-required/004-required-missing-is-error/main.conf": "pass",
     "include-missing-and-required/005-required-file-missing-is-error/main.conf": "pass",
     "include-missing-and-required/006-required-present-is-included/main.conf": "pass",
+    "include-missing-and-required/007-file-on-the-way-is-a-missing-include/main.conf": "pass",
     "include-substitution/001-substitution-relativized-to-include-scope/main.conf": "fail",
     "include-substitution/002-relativized-path-sees-later-redefinition/main.conf": "fail",
     "include-substitution/003-original-path-tried-as-fallback/main.conf": "pass",
@@ -480,6 +481,8 @@
     "plus-equals-field-separator/027-two-fields-appending-each-other-optionally-other-order.conf": "fail",
     "plus-equals-field-separator/028-number-and-list-appending-each-other-optionally.conf": "fail",
     "plus-equals-field-separator/029-number-and-list-appending-each-other-optionally-other-order.conf": "fail",
+    "plus-equals-field-separator/030-append-reached-again-through-a-list-appends-once.conf": "fail",
+    "plus-equals-field-separator/031-append-reached-again-through-a-list-appends-once-other-order.conf": "fail",
     "self-referential-examples/001-isolated-self-reference-is-an-error.conf": "pass",
     "self-referential-examples/002-self-reference-resolves-to-earlier-merged-value.conf": "pass",
     "self-referential-examples/003-self-reference-before-any-value-is-undefined.conf": "pass",
@@ -2636,6 +2639,60 @@
       "java": "diverges"
     },
     {
+      "case": "plus-equals-field-separator/030-append-reached-again-through-a-list-appends-once.conf",
+      "spec": "HOCON.md#the--field-separator",
+      "rule": "d.z += 5 is d.z = ${?d.z} [5], its ${?d.z} looking back at d.z's layer below, ${?a.k} (L719-745). That optional leads to a, whose a += ${d} leads back to d.z, so it is nonexistent (L716) and d.z is [5]. a copies d, so a is [{z: [5]}]: a substitution is resolved once (L884), and d.z is one value, the same in d and in a's copy of it, whichever field is resolved first",
+      "expected": {
+        "d": {
+          "z": [
+            5
+          ]
+        },
+        "a": [
+          {
+            "z": [
+              5
+            ]
+          }
+        ]
+      },
+      "got": {
+        "d": {
+          "z": 5
+        },
+        "a": {
+          "z": 5
+        }
+      }
+    },
+    {
+      "case": "plus-equals-field-separator/031-append-reached-again-through-a-list-appends-once-other-order.conf",
+      "spec": "HOCON.md#the--field-separator",
+      "rule": "as the case before with a written first: d.z is [5] and a is [{z: [5]}]",
+      "expected": {
+        "d": {
+          "z": [
+            5
+          ]
+        },
+        "a": [
+          {
+            "z": [
+              5
+            ]
+          }
+        ]
+      },
+      "got": {
+        "a": {
+          "z": 5
+        },
+        "d": {
+          "z": 5
+        }
+      }
+    },
+    {
       "case": "self-referential-examples/016-object-hidden-by-substituted-scalar-is-never-evaluated.conf",
       "spec": "HOCON.md#examples-of-self-referential-substitutions",
       "rule": "${replacement} resolves to 42, a non-object, so the earlier object is hidden and never evaluated, as with the literal in 005 (typesafe/config 1.4.5 evaluated it)",
@@ -3336,7 +3393,7 @@
         "a": "null bar"
       },
       "got": {
-        "a": "<pyhocon.config_tree.NoneValue object at 0x7f4509541400>bar"
+        "a": "<pyhocon.config_tree.NoneValue object at 0x10194fb90>bar"
       }
     },
     {
