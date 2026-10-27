@@ -24,7 +24,6 @@ from typing import Any, Literal, TypeVar, cast, overload
 from .. import config_parser as _core
 from .. import config_tree as _core_tree
 from ..exceptions import ConfigException, ConfigMissingException, ConfigParseException, ConfigSubstitutionException, ConfigWrongTypeException
-from ._source import Rewrite
 from .config_tree import ConfigInclude, ConfigList, ConfigQuotedString, ConfigSubstitution, ConfigTree, ConfigUnquotedString, ConfigValues, NoneValue, quoted
 from .period_parser import duration
 
@@ -179,16 +178,23 @@ def _read(parse: Callable[[bool], _core_tree.ConfigTree], resolve: bool, unresol
     return as_written(_call(lambda: parse(False).to_hocon()))
 
 
-def _rewrite(includes: bool = True) -> contextlib.closing[Rewrite]:
-    return contextlib.closing(Rewrite(ConfigParser.resolve_package_path, includes))
+# pyhocon's include of a file in an installed package, which HOCON has not.
+_PACKAGE = re.compile(r'(include\s+(?:required\(\s*)?)package\(\s*("(?:[^"\\]|\\.)*")\s*\)')
+
+
+def _packages(text: str) -> str:
+    """``text`` with ``include package("pkg:file.conf")`` naming the file by its
+    path in the installed package, for libhocon to include as any file."""
+    # ponytail: only in the text read here, not in a file it includes; that
+    # would need the file rewritten, or an include hook in libhocon.
+    return _PACKAGE.sub(lambda m: m.group(1) + json.dumps(ConfigParser.resolve_package_path(json.loads(m.group(2)))), text)
 
 
 class ConfigFactory:
     """Reads a document, as pyhocon's ``ConfigFactory``. ``${NAME}`` that is
     not in the document is looked up in ``os.environ``.
 
-    How: Rewrite (``_source.py``) writes pyhocon's syntax the spec's way,
-    libhocon parses and resolves the text, and its JSON becomes a
+    How: libhocon parses and resolves the text, and its JSON becomes a
     ConfigTree, each value with pyhocon's type (``_typed``). ``_call`` gives
     an error pyhocon's class."""
 
@@ -217,13 +223,11 @@ class ConfigFactory:
             logger.warning("Cannot include file %s. File does not exist or cannot be read.", filename)
             return []
         basedir = os.path.dirname(filename)
-        with _rewrite() as rewrite:
-            # A UTF-8 file is read again by libhocon, for its name in an error.
-            if codecs.lookup(encoding).name == "utf-8":
-                path = rewrite.file(os.fspath(filename), content)
-                return rewrite.read(lambda: _read(lambda r: _core.ConfigFactory.parse_file(path, resolve=r), resolve, unresolved_value))
-            text = rewrite.text(content, basedir)
-            return rewrite.read(lambda: _read(lambda r: _core.ConfigFactory.parse_string(text, basedir=basedir, resolve=r), resolve, unresolved_value))
+        text = _packages(content)
+        # A UTF-8 file as written is read again by libhocon, for its name in an error.
+        if text == content and codecs.lookup(encoding).name == "utf-8":
+            return _read(lambda r: _core.ConfigFactory.parse_file(filename, resolve=r), resolve, unresolved_value)
+        return _read(lambda r: _core.ConfigFactory.parse_string(text, basedir=basedir, resolve=r), resolve, unresolved_value)
 
     @overload
     @classmethod
@@ -252,19 +256,15 @@ class ConfigFactory:
             if required:
                 raise
             return []
-        # it has no directory: its includes are libhocon's, which refuses them
-        with _rewrite(includes=False) as rewrite:
-            text = rewrite.text(content, None)
-            return _read(lambda r: _core.ConfigFactory.parse_string(text, resolve=r), resolve, unresolved_value)
+        # it has no directory: libhocon refuses an include in it
+        return _read(lambda r: _core.ConfigFactory.parse_string(content, resolve=r), resolve, unresolved_value)
 
     @classmethod
     def parse_string(cls, content: str, basedir: Path | None = None, resolve: bool = True, unresolved_value: Any = DEFAULT_SUBSTITUTION) -> ConfigTree:
         """HOCON text; an include in it is found in ``basedir``, by default
         the working directory, as pyhocon finds it."""
         where = os.getcwd() if basedir is None else basedir
-        with _rewrite() as rewrite:
-            text = rewrite.text(content, None if basedir is None else os.fspath(basedir))
-            return rewrite.read(lambda: _read(lambda r: _core.ConfigFactory.parse_string(text, basedir=where, resolve=r), resolve, unresolved_value))
+        return _read(lambda r: _core.ConfigFactory.parse_string(_packages(content), basedir=where, resolve=r), resolve, unresolved_value)
 
     @classmethod
     def from_dict(cls, dictionary: Mapping[str, Any], root: bool = False) -> Any:

@@ -54,9 +54,9 @@ CASES = {
     "self reference append": "a = [1]\na = ${a} [2]",
     # pyhocon's += is x = ${?x} v, as its parser reads it; the spec's appends v
     # as one element, so zig_hocon.pyhocon writes it pyhocon's way
-    "+= extends a list": "a = [1]\na += [2, 3]",
-    "+= onto text": "a = abc\na += def\nb += def",
-    "+= onto an object": "a { x = 1 }\na += { y = 2 }\nb += { z = 3 }",
+    "+= extends a list": differs("a = [1]\na += [2, 3]", "+= is the spec's, one element appended: [1, [2, 3]]; pyhocon extends the list"),
+    "+= onto text": differs("a = abc\na += def\nb += def", "+= onto text is an error by the spec; pyhocon goes on after it with a space"),
+    "+= onto an object": differs("a { x = 1 }\na += { y = 2 }\nb += { z = 3 }", "+= onto an object is an error by the spec; pyhocon merges"),
     "object merge by substitution": "base { x = 1 }\nfull = ${base} { y = 2 }",
     "forward reference": "b = ${a}\na = 7",
     "text concatenation": "a = owl\nb = ${a} hoots",
