@@ -650,9 +650,19 @@ def test_pyhocon_s_includes(tmp_path, monkeypatch):
     (pkg / "__init__.py").write_text("")
     (pkg / "nest.conf").write_text("hoot = true")
     monkeypatch.syspath_prepend(str(tmp_path))
-    c = ConfigParser.parse('include "d/*.conf"\ninclude "plain"\ninclude package("owl_pkg:nest.conf")', str(tmp_path))
+    c = ConfigParser.parse('include "plain"\ninclude package("owl_pkg:nest.conf")', str(tmp_path))
     assert c == {"hoot": True}
-    assert conf('a { include "d/*.nothing" }\ninclude file("nowhere")', basedir=str(tmp_path)) == {"a": {}}
+    assert conf('a { include file("nowhere") }', basedir=str(tmp_path)) == {"a": {}}
+    # A glob is a file name like any other. Where a name may hold a *, there is
+    # no such file, and a missing include is nothing; Windows' names may not,
+    # and an error of the system's other than a missing file is reported.
+    for text in ['include "d/*.conf"', 'a { include "d/*.nothing" }']:
+        if sys.platform == "win32":
+            with pytest.raises(exceptions.ConfigParseException) as e:
+                conf(text, basedir=str(tmp_path))
+            assert e.value.name == "BadPathName"
+        else:
+            assert conf(text, basedir=str(tmp_path)) in ({}, {"a": {}})
     assert ConfigFactory.parse_file(str(tmp_path / "d" / "b.conf")) == {"y": 2, "l": [[2]]}
     (tmp_path / "top.conf").write_text('include "plain"')
     assert ConfigFactory.parse_file(str(tmp_path / "top.conf")) == {}

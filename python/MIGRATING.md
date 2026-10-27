@@ -59,7 +59,7 @@ What pyhocon reads its own way and this module reads by the spec:
 |---|---|---|
 | `x += [3, 4]` after `x = [1, 2]` | `[1, 2, 3, 4]` | `[1, 2, [3, 4]]`; write `x = ${x} [3, 4]` |
 | `x += def` onto text, `x += { b = 2 }` onto an object | goes on after the text, merges | an error |
-| `include "conf.d/*.conf"` | every file the glob finds | nothing (no file of that name); include them one by one |
+| `include "conf.d/*.conf"` | every file the glob finds | nothing, as a missing file, and on Windows an error (`BadPathName`); include them one by one |
 | `include "f"` with a file named `f` | that file | `f.conf`, `f.json`, `f.properties`; name the extension |
 | an include in a list | the included list's elements | an error |
 | `abc\"d` unquoted | `abc"d` | an error |
