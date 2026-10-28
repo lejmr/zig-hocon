@@ -223,8 +223,16 @@ class ConfigTree(OrderedDict[str, Any]):
         ``null``."""
         value = self.get(key, default)
         try:
+            if isinstance(value, str):
+                # A number the spec keeps as written, ``0024``, ``-.5`` or
+                # ``01e2``: the one Python reads in it, cut to a whole one, as
+                # pyhocon's parser made a number of it first.
+                try:
+                    return int(value)
+                except ValueError:
+                    return int(float(value))
             return int(value) if value is not None else None
-        except (TypeError, ValueError):
+        except (TypeError, ValueError, OverflowError):
             raise ConfigException(f"{key} has type '{type(value).__name__}' rather than 'int'", name="WrongType") from None
 
     def get_float(self, key: str, default: Any = UndefinedKey) -> float | None:

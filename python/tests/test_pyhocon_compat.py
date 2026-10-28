@@ -129,3 +129,16 @@ def test_text_keeps_its_leading_zeros_and_units(monkeypatch):
         merged = tree.with_fallback(module.ConfigFactory.parse_string("y = 2"))
         assert _typed(merged.get("code")) == ("str", "00123")
         assert _typed(merged.get("wait")) == ("timedelta", datetime.timedelta(seconds=30))
+
+
+# pyhocon ✓: get_int and get_float read a number the spec keeps as text, as
+# pyhocon does, from what Python makes of the text
+def test_number_getters_read_text_as_pyhocon():
+    text = "a = 0024\nb = -0024\nc = 007.5\nd = 01e2\ne = .54\nf = -.5\ng = 1.5\nh = 7"
+    want, got = pyhocon.ConfigFactory.parse_string(text), compat.ConfigFactory.parse_string(text)
+    for key in "abcdefgh":
+        assert _typed(got.get_int(key)) == _typed(want.get_int(key)), key
+        assert _typed(got.get_float(key)) == _typed(want.get_float(key)), key
+    for bad in ["a = owl", "a = inf"]:
+        with pytest.raises(compat.exceptions.ConfigException):
+            compat.ConfigFactory.parse_string(bad).get_int("a")
