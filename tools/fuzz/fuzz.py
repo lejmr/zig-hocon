@@ -25,6 +25,11 @@ On every case that zig accepts, its HOCON export is parsed again by zig and by
 java and must give the same JSON. A zig exit that is neither 0 nor 1, or a
 run past TIMEOUT seconds, is a finding of its own.
 
+With --no-java, java is not run, and only what zig shows on its own is a
+finding: a crash, a hang, a broken equivalence, an export that reads back
+otherwise. CI runs it so (.github/workflows/fuzz.yml), with --fail-on-crash:
+exit 1 when zig crashed or hung.
+
 Findings go to <out>/findings.jsonl, one per line, and counts to <out>/stats.json.
 Comparison: key order never matters, numbers compare by value, errors compare
 only as "rejected", never by class.
@@ -606,8 +611,12 @@ def build(engine, seed, batch, i):
     return files, [], v
 
 
+# The findings that compare with java, left out with --no-java.
+WITH_JAVA = {"diff", "json-java", "meta-java", "roundtrip-java"}
+
+
 def run_batch(args):
-    engine, seed, batch, n = args
+    engine, seed, batch, n, no_java = args
     work = pathlib.Path(tempfile.mkdtemp(prefix="hocon-fuzz-"))
     findings, stats = [], {"cases": 0, "zig": 0, "java": 0, "zig_ok": 0, "java_ok": 0}
     try:
@@ -638,9 +647,10 @@ def run_batch(args):
                     zig[cid, "x"] = h
         java_jobs = [(cid, label, d) for cid, label, d in jobs] + [
             (cid, "x", work / cid.rsplit("-", 1)[1] / "x") for cid, label, d in jobs if (cid, "x") in zig and zig[cid, "x"][0] != "crash" and (work / cid.rsplit("-", 1)[1] / "x").exists()]
-        jav = dict(zip([(c, l) for c, l, _ in java_jobs], run_java([d / "main.conf" for _, _, d in java_jobs])))
+        java_out = [("skip", None)] * len(java_jobs) if no_java else run_java([d / "main.conf" for _, _, d in java_jobs])
+        jav = dict(zip([(c, l) for c, l, _ in java_jobs], java_out))
         stats["zig"] += len(zig)
-        stats["java"] += len(jav)
+        stats["java"] += 0 if no_java else len(jav)
         for cid, (files, variants, expected) in meta.items():
             stats["cases"] += 1
             za, ja = zig[cid, "a"], jav[cid, "a"]
@@ -676,6 +686,8 @@ def run_batch(args):
                     findings.append(dict(base, kind="roundtrip-java", zig=za, java_x=jav[cid, "x"], export=text))
     finally:
         shutil.rmtree(work, ignore_errors=True)
+    if no_java:
+        findings = [x for x in findings if x["kind"] not in WITH_JAVA]
     return findings, stats
 
 
@@ -696,6 +708,8 @@ def main(argv):
     ap.add_argument("--size", type=int, default=300)
     ap.add_argument("--jobs", type=int, default=os.cpu_count())
     ap.add_argument("--out")
+    ap.add_argument("--no-java", action="store_true", help="zig alone: crashes, hangs, its own equivalences and exports")
+    ap.add_argument("--fail-on-crash", action="store_true", help="exit 1 when zig crashed or hung")
     a = ap.parse_args(argv)
     if a.engine == "replay":
         init_worker()
@@ -708,7 +722,9 @@ def main(argv):
     total = {}
     n = 0
     with Pool(a.jobs, initializer=init_worker) as pool, open(out / "findings.jsonl", "w") as f:
-        for findings, stats in pool.imap_unordered(run_batch, [(a.engine, a.seed, b, a.size) for b in range(a.batches)]):
+        crashed = 0
+        for findings, stats in pool.imap_unordered(run_batch, [(a.engine, a.seed, b, a.size, a.no_java) for b in range(a.batches)]):
+            crashed += sum(x["kind"] in ("zig-crash", "zig-hang") for x in findings)
             for x in findings:
                 f.write(json.dumps(x, ensure_ascii=False) + "\n")
             n += len(findings)
@@ -716,9 +732,10 @@ def main(argv):
                 total[k] = total.get(k, 0) + v
             f.flush()
     total["findings"] = n
+    total["crashed"] = crashed
     (out / "stats.json").write_text(json.dumps(total, indent=1))
     print(json.dumps(total))
-    return 0
+    return 1 if a.fail_on_crash and crashed else 0
 
 
 if __name__ == "__main__":
