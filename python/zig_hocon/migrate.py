@@ -265,9 +265,19 @@ def main(argv: list[str] | None = None) -> int:
     except (OSError, ValueError) as e:
         print(e, file=sys.stderr)
         return 2
+    # Nothing checked is no green: a path that is not there, or a directory
+    # with no file the glob names, is an error.
+    missing = [name for name in args.paths if not os.path.exists(name)]
+    if missing:
+        print(f"migrate: no such file or directory: {', '.join(missing)}", file=sys.stderr)
+        return 2
+    entry_points = _entry_points(args.paths, args.glob, args.all)
+    if not entry_points:
+        print(f"migrate: no {args.glob} file in {', '.join(args.paths)} to check; --glob names others", file=sys.stderr)
+        return 2
     pyhocon = _Pyhocon()
     try:
-        results = [_check(path, pyhocon) for path in _entry_points(args.paths, args.glob, args.all)]
+        results = [_check(path, pyhocon) for path in entry_points]
     finally:
         pyhocon.close()
     total = sum(map(_differences, results))

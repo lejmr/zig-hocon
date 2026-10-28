@@ -182,9 +182,13 @@ def test_the_reading_process(tmp_path):
     assert not worker.is_alive()
 
 
-def test_a_directory_with_no_config(tmp_path, capsys):
-    code, out = run(capsys, tmp_path)
-    assert code == 0 and out == "0 differences in 0 files.\n"
+# nothing checked is no green: exit 2, and why
+def test_nothing_to_check(tmp_path, capsys):
+    (tmp_path / "a.hocon").write_text("a = 1")
+    assert migrate.main([str(tmp_path)]) == 2
+    assert "no *.conf file in" in capsys.readouterr().err
+    assert migrate.main([str(tmp_path / "nowhere.conf"), str(tmp_path)]) == 2
+    assert "no such file or directory: " in capsys.readouterr().err
 
 
 # pyhocon's process ended under it: that file says so, and the next is read
@@ -196,5 +200,6 @@ def test_pyhocon_s_process_ends(tmp_path):
     pyhocon.process.kill()
     pyhocon.process.join()
     assert pyhocon.read(tmp_path / "a.conf") == (None, "pyhocon's process ended on it")
+    pyhocon.close()
     assert pyhocon.read(tmp_path / "a.conf") == ({"a": 1}, None)
     pyhocon.close()

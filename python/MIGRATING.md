@@ -126,7 +126,7 @@ Each config is read by pyhocon and by `zig_hocon`, with the same environment (`-
 - `≠` another value, or a key only one of them has, with the getter's error where there is one.
 - `!` one of them fails, with the error and its place; when both fail (`· both fail`), say on a `${…}` the environment has no value for, it is no difference.
 
-A directory is its `*.conf` files (`--glob` for others), without those another file includes: they are checked through the file that includes them, as they often cannot be read alone. `--all` checks every file and shows what is the same, and `--json` gives the same tree as JSON. It exits 0 when everything is the same, 1 when not, 2 when it cannot run, so it can wait in CI for the day it is green. pyhocon is no dependency of zig-hocon; the tool imports it.
+A directory is its `*.conf` files (`--glob` for others), without those another file includes: they are checked through the file that includes them, as they often cannot be read alone. `--all` checks every file and shows what is the same, and `--json` gives the same tree as JSON. It exits 0 when everything is the same, 1 when not, 2 when it cannot run or finds no config to check, a path that is not there or a directory with no file `--glob` names, so it can wait in CI for the day it is green. pyhocon is no dependency of zig-hocon; the tool imports it.
 
 In the code, each place that uses pyhocon's API is a row in Step 2 or 3:
 
