@@ -31,6 +31,9 @@ classifiers = [
     "Typing :: Typed",
 ]
 
+[project.scripts]
+zig-hocon-migrate = "zig_hocon.migrate:cli"
+
 [project.urls]
 Homepage = "https://github.com/lejmr/zig-hocon"
 Source = "https://github.com/lejmr/zig-hocon/tree/main/python"

@@ -115,10 +115,10 @@ Code that reads through `ConfigFactory` and the typed getters changes its import
 - **Strict syntax.** Input pyhocon quietly accepted, such as `a..b = 1` or `a = b:c`, is an error with its line and column.
 - **No `include package(...)`.** It is pyhocon's own; include by path.
 
-To see what would change in your own configs, read them with both: with pyhocon installed beside zig-hocon 0.6.0 or later (`pip install -U zig-hocon`; an older one answers `migrate` with `unrecognized arguments`),
+To see what would change in your own configs, read them with both: with pyhocon installed beside zig-hocon 0.6.0 or later (`pip install -U zig-hocon`; an older one has no `zig-hocon-migrate`),
 
 ```sh
-python -m zig_hocon migrate conf/ --env-file prod.env --fallback reference.conf
+zig-hocon-migrate conf/ --env-file prod.env --fallback reference.conf
 ```
 
 reads every config in `conf/` with each, with the same environment (and over `reference.conf`, as `conf.with_fallback(reference)` in your loader), and shows where they differ as the config's tree: `≈` another type that a getter reads the same, `≠` another value, `!` one of them fails. It exits 1 when anything differs, so it can wait in CI for the day it is green; once you rewrite the configs for zig-hocon, `--before main` has pyhocon read them as they are on `main`, against the new ones on zig-hocon. [MIGRATING.md](MIGRATING.md#checklist) has the flags for a loader, an environment per deployment and reviewed differences.

@@ -376,3 +376,24 @@ def test_colours(tmp_path, monkeypatch, capsys):
     monkeypatch.setattr(sys.stdout, "isatty", lambda: True, raising=False)
     monkeypatch.setenv("NO_COLOR", "1")
     assert "\033[" not in run(capsys, tmp_path / "a.conf")[1]
+
+
+# pip install zig-hocon puts zig-hocon-migrate on the path: the same check
+def test_the_command(tmp_path, capsys):
+    import importlib.metadata
+
+    (tmp_path / "a.conf").write_text("n = 01")
+    monkey = sys.argv
+    try:
+        sys.argv = ["zig-hocon-migrate", str(tmp_path / "a.conf")]
+        assert migrate.cli() == 1
+    finally:
+        sys.argv = monkey
+    assert "≠ n" in capsys.readouterr().out
+    try:
+        dist = importlib.metadata.distribution("zig-hocon")
+    except importlib.metadata.PackageNotFoundError:
+        return
+    # python/ on the path, perhaps with an egg-info pip left there, is no install
+    if "site-packages" in str(dist.locate_file("zig_hocon")):
+        assert [(e.name, e.value) for e in dist.entry_points if e.group == "console_scripts"] == [("zig-hocon-migrate", "zig_hocon.migrate:cli")]
