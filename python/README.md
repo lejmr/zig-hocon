@@ -114,6 +114,14 @@ Change the import: `ConfigFactory`, the getters and the exception names are the 
 - **Strict syntax.** Input pyhocon quietly accepted, such as `a..b = 1` or `a = b:c`, is an error with its line and column.
 - **No `include package(...)`.** It is pyhocon's own; include by path.
 
+To see what would change in your own configs, read them with both: with pyhocon installed beside zig-hocon,
+
+```sh
+python -m zig_hocon.migrate conf/ --env-file prod.env
+```
+
+reads every config in `conf/` with each, with the same environment, and shows where they differ as the config's tree: `≈` another type that a getter reads the same, `≠` another value, `!` one of them fails. It exits 1 when anything differs, so it can wait in CI for the day it is green.
+
 The [migration guide](https://github.com/lejmr/zig-hocon/blob/main/python/MIGRATING.md) has every difference, with what to write instead.
 
 ## Into a model

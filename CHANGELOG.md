@@ -4,6 +4,11 @@ What changed for someone using zig-hocon: the Zig package, the `hocon` command l
 
 ## [Unreleased]
 
+### Added
+
+- Python: `python -m zig_hocon.migrate conf/` reads each config with pyhocon and with zig-hocon, with the same environment, and shows where they differ as the config's tree: another type a getter reads the same, another value, or one of them failing. A directory is its entry points; it exits 1 when anything differs, for CI, and `--json` gives the tree as JSON.
+- Python: MIGRATING.md says that `x += [3, 4]` appends the list as one element, by the spec, where pyhocon extends the list; it said `+=` reads the same.
+
 ### Fixed
 - A NUL or another control character in unquoted text was written back by `to_hocon` / `hocon --hocon` as it was, and a NUL ended the text for C and Python: `motd = hello<NUL>world` lost every key after it. Such text is written quoted now, the character escaped (`"hello\u0000world"`).
 - A parse through libhocon (C, Python) sets SIGIO and SIGPIPE only while it fetches an `http(s)` include, which needs them, and puts back the handlers from before when the last such parse ends: a handler the program set, Python's `signal.signal(SIGIO, …)` among them, stays its own.

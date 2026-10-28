@@ -91,30 +91,45 @@ settings["db"]["host"]
 - **A concatenation is a string.** `a = ${?nope}42` is `"42"` by the spec; pyhocon gives the number `42`. A model that wants an int converts it.
 - **An `include url(…)` gives up after 30 s.** pyhocon waits as long as `socket.setdefaulttimeout` says, by default for ever. Here `http_timeout=` on `parse_file` and `parse_string` sets it, and a server that does not answer in time is a `ConfigParseException` named `IncludeTimeout`.
 - **A leading zero keeps the text.** A value that begins with a digit begins with the number JSON reads there, and the rest is text, so `zip = 01234` is `"01234"` by the spec; pyhocon gives the number 1234. An IP address, a version or a UUID is text as written, as in pyhocon. So is a value that begins with `-` and no number, `-foo` or `-Xmx2g`, and a fraction JSON has no number for: `.5` and `-.5` are the text `".5"` and `"-.5"`, where pyhocon gives 0.5 and -0.5. Text becomes a number only by the JSON rules, so `get_int("zip")` on `01234` and `get_float` on `-.5` raise `ConfigWrongTypeException`, where pyhocon gives 1234 and -0.5: write `zip = "01234"` and read it with `get_string`, or `-0.5`.
+- **`+=` appends one element.** `x += [3, 4]` after `x = [1, 2]` is `[1, 2, [3, 4]]`, as `x = ${?x} [[3, 4]]` is; pyhocon gives `[1, 2, 3, 4]`. To extend a list with another, `x = ${x} [3, 4]`.
 - **Strict syntax.** The other inputs in the table under *No silent guesses* are errors now. They are rare, and each error says where to look.
 
-Everything else (variables, `+=`, includes, merging) reads the same, except where pyhocon breaks the spec; the conformance report lists those cases.
+Everything else (variables, includes, merging) reads the same, except where pyhocon breaks the spec; the conformance report lists those cases.
 
 ## Checklist
 
-Run this over the code that uses pyhocon; each hit is a row in Step 2 or 3:
+Read your configs with both, with pyhocon installed beside zig-hocon:
+
+```sh
+python -m zig_hocon.migrate conf/ --env-file prod.env
+```
+
+```
+conf/prod.conf
+  db
+    ≈ timeout   pyhocon datetime.timedelta(seconds=30)   zig-hocon '30s'
+        the same through conf.get_duration("db.timeout")
+    pool
+      ≠ size   pyhocon 24   zig-hocon '0024'
+          conf.get_int("db.pool.size") is an error: InvalidCharacter
+  ≠ tags   pyhocon [1, 2, 3, 4]   zig-hocon [1, 2, [3, 4]]
+      += appends one element, here a list; x = ${x} [...] extends it (MIGRATING.md, Step 3)
+
+  conf/prod.conf   3 differences
+  conf/test.conf   both fail
+3 differences in 1 file.
+```
+
+Each config is read by pyhocon and by `zig_hocon`, with the same environment (`--env-file`, `--env KEY=VALUE`), and what differs is shown as the config's tree:
+
+- `≈` another type that a getter reads the same: code that reads it with that getter, as most pyhocon code does, is not touched by it; `as_dict()` and a model are. The [examples](examples) show how a model reads a duration, with pydantic, msgspec and dataclasses.
+- `≠` another value, or a key only one of them has, with the getter's error where there is one.
+- `!` one of them fails, with the error and its place; when both fail (`· both fail`), say on a `${…}` the environment has no value for, it is no difference.
+
+A directory is its `*.conf` files (`--glob` for others), without those another file includes: they are checked through the file that includes them, as they often cannot be read alone. `--all` checks every file and shows what is the same, and `--json` gives the same tree as JSON. It exits 0 when everything is the same, 1 when not, 2 when it cannot run, so it can wait in CI for the day it is green. pyhocon is no dependency of zig-hocon; the tool imports it.
+
+In the code, each place that uses pyhocon's API is a row in Step 2 or 3:
 
 ```sh
 grep -rnE "pyhocon|include package|as_plain_ordered_dict|get_list|with_fallback|from_dict|parse_URL|HOCONConverter|\.put\(|\.pop\(|conf\[" .
 ```
-
-Then load each of your configs with both and compare. With both packages installed:
-
-```python
-import sys
-
-import pyhocon
-import zig_hocon
-
-for path in sys.argv[1:]:
-    old = pyhocon.ConfigFactory.parse_file(path).as_plain_ordered_dict()
-    new = zig_hocon.ConfigFactory.parse_file(path).as_dict()
-    print("same" if old == new else "DIFFERENT", path)
-```
-
-A duration shows as a difference by design: pyhocon has a `timedelta`, zig_hocon the text `"30s"`. The [examples](examples) show how a model reads it, with pydantic, msgspec and dataclasses.

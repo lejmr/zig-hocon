@@ -17,8 +17,8 @@ py=$tmp/venv/bin/python
 # The examples read into pydantic and msgspec, and msgspec has no build for
 # PyPy or a free-threaded Python: there only the package's tests run.
 case $version in
-    pypy* | *t) examples=no; uv pip install -q --python "$py" "$wheel" pytest ;;
-    *) examples=yes; uv pip install -q --python "$py" "$wheel" pytest pydantic msgspec ;;
+    pypy* | *t) examples=no; uv pip install -q --python "$py" "$wheel" pytest pyhocon ;;
+    *) examples=yes; uv pip install -q --python "$py" "$wheel" pytest pyhocon pydantic msgspec ;;
 esac
 
 # From elsewhere, so nothing imports python/zig_hocon by accident.
