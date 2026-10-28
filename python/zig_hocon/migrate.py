@@ -20,9 +20,13 @@ import logging
 import multiprocessing
 import os
 import re
+import subprocess
 import sys
-from pathlib import Path
+import tarfile
+import tempfile
+from collections.abc import Callable
 from multiprocessing.connection import Connection
+from pathlib import Path
 from typing import Any
 
 from .config_parser import ConfigFactory
@@ -185,11 +189,11 @@ def _read_with_pyhocon(conn: Connection) -> None:
     logging.disable(logging.WARNING)
     pyhocon = importlib.import_module("pyhocon")
     while (job := conn.recv()) is not None:
-        path, fallbacks = job
+        path, fallbacks, each = job
         try:
-            tree = pyhocon.ConfigFactory.parse_file(path, resolve=not fallbacks)
+            tree = pyhocon.ConfigFactory.parse_file(path, resolve=each or not fallbacks)
             for fallback in fallbacks:
-                tree = tree.with_fallback(pyhocon.ConfigFactory.parse_file(fallback, resolve=False), resolve=fallback == fallbacks[-1])
+                tree = tree.with_fallback(pyhocon.ConfigFactory.parse_file(fallback, resolve=each), resolve=fallback == fallbacks[-1])
             plain = tree.as_plain_ordered_dict()
             conn.send(((plain, _lenient(tree, plain, [])), None))
         except Exception as e:  # noqa: BLE001 - pyhocon fails with pyparsing's, its own and Python's errors
@@ -204,7 +208,7 @@ class _Pyhocon:
     def __init__(self) -> None:
         self.process: Any = None
 
-    def read(self, path: Path, fallbacks: list[str] = []) -> tuple[Any, str | None]:  # noqa: B006 - read, never changed
+    def read(self, path: Path, fallbacks: list[str] = [], each: bool = False) -> tuple[Any, str | None]:  # noqa: B006 - read, never changed
         if self.process is None:
             self.conn, child = multiprocessing.Pipe()
             self.process = multiprocessing.get_context("spawn").Process(target=_read_with_pyhocon, args=(child,), daemon=True)
@@ -213,7 +217,7 @@ class _Pyhocon:
             child.close()
         error = f"no answer in {_PYHOCON_SECONDS:g} s; pyhocon loops for ever on some configs"
         try:
-            self.conn.send((str(path), fallbacks))
+            self.conn.send((str(path), fallbacks, each))
             if self.conn.poll(_PYHOCON_SECONDS):
                 result: tuple[Any, str | None] = self.conn.recv()
                 return result
@@ -229,12 +233,14 @@ class _Pyhocon:
             self.process.join()
 
 
-def _check(path: Path, pyhocon: _Pyhocon, fallbacks: list[str] = []) -> dict[str, Any]:  # noqa: B006 - read, never changed
+def _check(path: Path, pyhocon: _Pyhocon, fallbacks: list[str] = [], each: bool = False, before: Callable[[str], str] = str) -> dict[str, Any]:  # noqa: B006 - read, never changed
     """One file read by both, over its fallbacks: its tree of nodes, or what
     each failed with. zig_hocon reads the fallbacks as includes before the
-    file, the last one first: the same merge, done by the parser."""
+    file, the last one first: the same merge, done by the parser. pyhocon
+    reads each file where ``before`` puts it, and with ``each`` resolves
+    each one before the merge."""
     out: dict[str, Any] = {"path": str(path)}
-    read, error = pyhocon.read(path, fallbacks)
+    read, error = pyhocon.read(Path(before(str(path))), [before(f) for f in fallbacks], each)
     if error is not None:
         out["pyhocon_error"] = error + ((_PLUS_ONE if fallbacks else _PLUS_EQUALS) if "'bool' object has no attribute 'count'" in error else "")
     try:
@@ -260,8 +266,9 @@ _PLUS_EQUALS = (
     " merges the files with with_fallback, --fallback reads them as it does"
 )
 _PLUS_ONE = (
-    "\n    pyhocon fails so on `x += a`, one element onto a list, however it is read:"
-    " while you compare, write `x = ${x} [a]`, which both read, so the rest shows"
+    "\n    pyhocon fails so on `x += a`, one element onto a list, and over a fallback on"
+    " `x = ${x} [a]` too: it cannot read this config. --before main has it read the config"
+    " as it is on main, against this one on zig_hocon"
 )
 
 
@@ -330,6 +337,21 @@ def _report(result: dict[str, Any], every: bool, getters: bool = False) -> list[
     return out
 
 
+def _checkout(rev: str) -> Callable[[str], str]:
+    """The files of the git repository here as they are at ``rev``, in a
+    directory of their own: where each path is there."""
+    top = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True, check=True).stdout.strip()
+    tar = subprocess.run(["git", "-C", top, "archive", "--format=tar", rev], capture_output=True, check=True).stdout
+    there = tempfile.mkdtemp(prefix="zig-hocon-migrate-")
+    with tarfile.open(fileobj=io.BytesIO(tar)) as files:
+        if hasattr(tarfile, "data_filter"):
+            files.extractall(there, filter="data")
+        else:  # pragma: no cover - a Python before the filter; git's own archive
+            files.extractall(there)  # noqa: S202
+    top = os.path.realpath(top)
+    return lambda path: os.path.join(there, os.path.relpath(os.path.realpath(path), top))
+
+
 def _unquoted(line: str) -> str:
     key, sep, value = line.partition("=")
     if len(value) >= 2 and value[0] == value[-1] and value[0] in "'\"":
@@ -374,6 +396,8 @@ def main(argv: list[str] | None = None) -> int:
         metavar="FILE",
         help="read each config over FILE, as conf.with_fallback(FILE) does; again for one under it",
     )
+    parser.add_argument("--resolve-each", action="store_true", help="pyhocon resolves each file before the merge, as a loader of parse_file(…) without resolve=False does")
+    parser.add_argument("--before", metavar="REV", help="pyhocon reads the configs as they are in git at REV (main), zig_hocon as they are now")
     parser.add_argument("--getters", action="store_true", help="≈ is no difference: for code that reads only through the getters")
     parser.add_argument(
         "--accept",
@@ -405,9 +429,14 @@ def main(argv: list[str] | None = None) -> int:
     if not entry_points:
         print(f"migrate: no {args.glob} file in {', '.join(args.paths)} to check; --glob names others", file=sys.stderr)
         return 2
+    try:
+        before = _checkout(args.before) if args.before else str
+    except (OSError, subprocess.CalledProcessError, tarfile.TarError) as e:
+        print(f"migrate: --before {args.before}: {e}", file=sys.stderr)
+        return 2
     pyhocon = _Pyhocon()
     try:
-        results = [_check(path, pyhocon, args.fallback) for path in entry_points]
+        results = [_check(path, pyhocon, args.fallback, args.resolve_each, before) for path in entry_points]
     finally:
         pyhocon.close()
     for result in results:

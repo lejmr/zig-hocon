@@ -74,6 +74,14 @@ class ConfigTree:
         self._doc = doc
         self._prefix = prefix
 
+    # A tree is read only, so a copy is the tree itself: copy.deepcopy(conf)
+    # in code from pyhocon works, where it failed on the library's handle.
+    def __copy__(self) -> "ConfigTree":
+        return self
+
+    def __deepcopy__(self, memo: dict[int, Any]) -> "ConfigTree":
+        return self
+
     def _full(self, path: str) -> str:
         """``path`` from the root. Whitespace around a path is no part of it,
         and joined to the prefix it would be inside a key."""

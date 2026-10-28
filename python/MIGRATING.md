@@ -133,7 +133,9 @@ exit ${status:-0}
 
 The values that matter most are the ones in no file here: production's environment from the secret store. zig_hocon reads a number or a boolean from it only as written, so `08`, ` 48`, `True` or `1` that started a service on pyhocon stop it now (`get_int`, `get_bool`). Export them once into an env file, `KEY=value` lines, and run `migrate` with it, or check them by hand before the switch.
 
-While you compare, write an append as `x = ${x} [a]`, not `x += a`: the spec reads both alike, but pyhocon fails on `x += a` with `AttributeError`, and a file it cannot read shows no other difference.
+A loader that reads each file resolved, `parse_file(…)` without `resolve=False`, before `with_fallback`, is `--resolve-each`: a `${…}` in the reference then keeps the value it had there, as such a loader gives.
+
+Once you rewrite a config for zig_hocon, pyhocon may not read it any more: `x += a` stops it with `AttributeError`, and over a fallback so does `x = ${x} [a]`. Compare it then with the config as it is on your main branch: `--before main` has pyhocon read the configs as git has them at `main`, and zig_hocon as they are now. That is the check a migration pull request wants in CI: what your service read before, against what it reads after.
 
 A difference you have reviewed and keep, `"0640"` your code reads with `get_string`, or a list of durations (`backoff = [1s, 5s]`, text in the list, where no getter reads an element), is `--accept storage.file_mode`: it is still shown, marked `(accepted)`, and no longer a difference. A path names one value, a list element (`tags[2]`) or everything below it (`storage`). With those, and `--getters` where durations and sizes go through the getters or your model's validators, the run can wait in CI for green.
 
@@ -141,7 +143,7 @@ A config your loader merges in code, `conf.with_fallback(reference)`, is read al
 
 A directory is its `*.conf` files (`--glob` for others), without those another file includes: they are checked through the file that includes them, as they often cannot be read alone. `--all` checks every file and shows what is the same, and `--json` gives the same tree as JSON. It exits 0 when everything is the same, 1 when not, 2 when it cannot run or compares nothing: a path that is not there, a directory with no file `--glob` names, or configs that each fail in both, so it can wait in CI for the day it is green. pyhocon is no dependency of zig-hocon; the tool imports it.
 
-In the code, each place that uses pyhocon's API is a row in Step 2 or 3:
+In the code, each place that uses pyhocon's API is a row in Step 2 or 3. The grep looks for the usual name, `conf`; look for the name your code gives the config too (`c["db"]`, `sorted(settings)`):
 
 ```sh
 grep -rnE "pyhocon|include package|as_plain_ordered_dict|get_list|with_fallback|from_dict|parse_URL|HOCONConverter|\.put\(|\.pop\(|\.get\(|conf\[| in conf\b|json\.dumps\(conf|\+= *\[" .

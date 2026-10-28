@@ -171,17 +171,17 @@ def test_the_reading_process(tmp_path):
     conn, child = multiprocessing.Pipe()
     worker = threading.Thread(target=migrate._read_with_pyhocon, args=(child,), daemon=True)
     worker.start()
-    conn.send((str(tmp_path / "a.conf"), []))
+    conn.send((str(tmp_path / "a.conf"), [], False))
     lenient = {"b.s": {"get_int": 8, "get_float": 8.0}, "b.n": {"get_string": None}}
     assert conn.poll(30) and conn.recv() == (({"a": 42, "b": {"s": "08", "n": None, "t": "owl"}}, lenient), None)
-    conn.send((str(tmp_path / "b.conf"), []))
+    conn.send((str(tmp_path / "b.conf"), [], False))
     assert conn.poll(30)
     value, error = conn.recv()
     assert value is None and "Exception" in error, error
     # over a fallback, as a loader merges them
     (tmp_path / "ref.conf").write_text("host = a\nport = 1")
     (tmp_path / "c.conf").write_text("host = b")
-    conn.send((str(tmp_path / "c.conf"), [str(tmp_path / "ref.conf")]))
+    conn.send((str(tmp_path / "c.conf"), [str(tmp_path / "ref.conf")], False))
     assert conn.poll(30) and conn.recv()[0][0] == {"host": "b", "port": 1}
     conn.send(None)
     worker.join(30)
@@ -301,7 +301,7 @@ def test_a_config_over_a_fallback(tmp_path, capsys):
     # with --fallback given, pyhocon's += failure is the one-element form
     (tmp_path / "conf" / "prod.conf").write_text("plugins += metrics\n")
     code, out = run(capsys, tmp_path / "conf", "--fallback", tmp_path / "reference.conf")
-    assert "write `x = ${x} [a]`" in out and "--fallback reads them" not in out
+    assert "--before main has it read the config" in out and "--fallback reads them" not in out
 
 
 # --getters: a value another type that a getter reads the same is no
@@ -327,3 +327,38 @@ def test_accepted_differences(tmp_path, capsys):
     assert out.endswith("0 differences in 0 files.\n")
     code, out = run(capsys, tmp_path / "a.conf", "--accept", "db.pool", "--accept", "mode", "--accept", "tags", "--accept", "oth")
     assert code == 1 and out.endswith("2 differences in 1 file.\n")
+
+
+# --resolve-each: a loader that resolves each file before with_fallback keeps
+# the old host in url; over resolve=False, and on zig_hocon, url follows it
+def test_a_loader_that_resolves_each_file(tmp_path, capsys):
+    (tmp_path / "reference.conf").write_text('host = a\nurl = "db://"${host}\n')
+    (tmp_path / "prod.conf").write_text("host = b\n")
+    code, out = run(capsys, tmp_path / "prod.conf", "--fallback", tmp_path / "reference.conf")
+    assert code == 0
+    code, out = run(capsys, tmp_path / "prod.conf", "--fallback", tmp_path / "reference.conf", "--resolve-each")
+    assert code == 1 and "≠ url   pyhocon 'db://a'   zig-hocon 'db://b'" in out
+
+
+# --before REV: pyhocon reads the configs as git has them at REV, zig_hocon as
+# they are now, so a config rewritten for zig_hocon is checked against the one
+# pyhocon read
+def test_before_and_after(tmp_path, monkeypatch, capsys):
+    import subprocess
+
+    def git(*args):
+        subprocess.run(["git", *args], cwd=tmp_path, check=True, capture_output=True)
+
+    git("init", "-q")
+    (tmp_path / "app.conf").write_text("plugins = [auth]\nplugins += [metrics]\n")
+    git("add", ".")
+    git("-c", "user.name=owl", "-c", "user.email=owl@example.org", "commit", "-q", "-m", "the night shift")
+    (tmp_path / "app.conf").write_text("plugins = [auth]\nplugins = ${plugins} [metrics]\n")
+    monkeypatch.chdir(tmp_path)
+    assert run(capsys, "app.conf")[0] == 0
+    code, out = run(capsys, "app.conf", "--before", "HEAD")
+    assert code == 0 and out.endswith("app.conf   same\n0 differences in 0 files.\n")
+    (tmp_path / "app.conf").write_text("plugins = [auth]\nplugins += [metrics]\n")
+    assert run(capsys, "app.conf", "--before", "HEAD")[0] == 1
+    assert migrate.main(["app.conf", "--before", "no-such-rev"]) == 2
+    assert "--before no-such-rev" in capsys.readouterr().err
