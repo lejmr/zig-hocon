@@ -2,6 +2,7 @@
 what differs shown as the config's tree."""
 
 import importlib.util
+import io
 import json
 import subprocess
 import sys
@@ -134,5 +135,15 @@ def test_without_pyhocon(monkeypatch, capsys):
 
 
 def test_python_m(conf):
-    run = subprocess.run([sys.executable, "-m", "zig_hocon.migrate", "--help"], capture_output=True, text=True, cwd=Path(migrate.__file__).parents[1])
+    run = subprocess.run([sys.executable, "-m", "zig_hocon.migrate", "--help"], capture_output=True, encoding="utf-8", cwd=Path(migrate.__file__).parents[1])
     assert run.returncode == 0 and "--env-file" in run.stdout
+
+
+# Windows writes a pipe or a file in its code page, which has no ≈ or ≠
+def test_the_marks_into_a_stream_of_another_code_page(tmp_path, monkeypatch):
+    (tmp_path / "a.conf").write_text("t = 30s")
+    out = io.TextIOWrapper(io.BytesIO(), encoding="cp1252")
+    monkeypatch.setattr(sys, "stdout", out)
+    assert migrate.main([str(tmp_path / "a.conf")]) == 1
+    out.flush()
+    assert "≈ t" in out.buffer.getvalue().decode("utf-8")
