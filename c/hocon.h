@@ -16,14 +16,16 @@
  *
  * A doc is used by one thread at a time; different docs need no locking.
  * Parsing, resolving and writing recurse once per level of nesting, up to
- * 500 levels: give the thread that calls in 4 MiB of stack (what a Debug
- * build needs at that depth), or a deep document can overflow it.
+ * 500 levels, on a thread of the library's own with 16 MiB of stack, which
+ * the call joins before it returns: a deeper document is HOCON_ERR_PARSE
+ * named TooDeep (HOCON_ERR_TOO_DEEP when written), on a thread of any stack.
  *
  * An http(s) include is fetched on two threads of the library's own, which
- * the parse joins before it returns. A parse sets SIGIO and SIGPIPE to a
- * handler that does nothing, and leaves them so: SIGIO wakes the fetch when
- * its time is up, and a write to a closed connection fails instead of
- * ending the process.
+ * the parse joins before it returns. While a parse fetches one, SIGIO and
+ * SIGPIPE are set to a handler that does nothing, and put back when the
+ * last parse that fetched has ended: SIGIO wakes the fetch when its time is
+ * up, and a write to a closed connection fails instead of ending the
+ * process. A parse that fetches none leaves them as they were.
  */
 #ifndef HOCON_H
 #define HOCON_H
