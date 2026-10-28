@@ -131,7 +131,8 @@ def test_parse_key(path, want):
     assert ConfigTree.parse_key(path) == want
 
 
-# pyhocon ✓ (get_int truncates 1.5, a default goes through the conversion)
+# pyhocon ✓ but for numbers, read as zig_hocon reads them (pyhocon: get_int of
+# 0.75 is 0); a default goes through the conversion
 @pytest.mark.parametrize(
     "method, path, want",
     [
@@ -139,7 +140,6 @@ def test_parse_key(path, want):
         ("get_string", "db.port", "5432"),
         ("get_string", "quiet", None),
         ("get_int", "db.port", 5432),
-        ("get_int", "ratio", 0),
         ("get_int", "quiet", None),
         ("get_float", "ratio", 0.75),
         ("get_float", "quiet", None),
@@ -168,7 +168,10 @@ def test_getters_from_text_and_defaults():
     [
         ("get_int", "e", "e has type 'str' rather than 'int'"),
         ("get_int", "f", "f has type 'list' rather than 'int'"),
+        ("get_int", "g", "g has type 'float' rather than 'int'"),
+        ("get_int", "h", "h has type 'bool' rather than 'int'"),
         ("get_float", "e", "e has type 'str' rather than 'float'"),
+        ("get_float", "h", "h has type 'bool' rather than 'float'"),
         ("get_bool", "e", "e does not translate to a Boolean value"),
         ("get_list", "e", "e has type 'str' rather than 'list'"),
         ("get_config", "e", "e has type 'str' rather than 'config'"),
@@ -176,7 +179,7 @@ def test_getters_from_text_and_defaults():
 )
 def test_getters_refuse(method, path, message):
     with pytest.raises(ConfigException, match=message):
-        getattr(conf("e = maybe\nf = [1]"), method)(path)
+        getattr(conf("e = maybe\nf = [1]\ng = 0.75\nh = true"), method)(path)
 
 
 # pyhocon ✗: an object with whole-number keys is a list by the spec, in the
@@ -820,3 +823,24 @@ def test_package_includes(tmp_path, monkeypatch):
     with pytest.raises(ConfigException) as e:
         conf('include classpath("owl.conf")')
     assert type(e.value) is exceptions.ConfigParseException and e.value.name == "UnsupportedInclude"
+
+
+# pyhocon ✓: put and pop on a document read with resolve=False hold when it
+# resolves, by resolve_substitutions or with_fallback; a value put there can
+# be what a ${…} waits for. A value JSON has not cannot go into its text.
+def test_put_and_pop_before_it_resolves():
+    c = ConfigFactory.parse_string("a = ${b}\nc = 2\nl = [1]", resolve=False)
+    c.put("b", 1)
+    c.put("l", [2], append=True)
+    c.put("o", ConfigTree(k="owl"))
+    ConfigParser.resolve_substitutions(c)
+    assert c == {"a": 1, "c": 2, "l": [1, 2], "b": 1, "o": {"k": "owl"}}
+    c = ConfigFactory.parse_string("a = ${?x}\nc = 2\nd = 3", resolve=False)
+    c.put("w", 5)
+    c.pop("c")
+    assert c.with_fallback(ConfigFactory.parse_string("x = 1")) == {"x": 1, "a": 1, "d": 3, "w": 5}
+    assert c.with_fallback(ConfigFactory.parse_string("x = ${y}", resolve=False), resolve=False).with_fallback(ConfigFactory.parse_string("y = 9")) == {"y": 9, "x": 9, "a": 9, "d": 3, "w": 5}
+    ConfigParser.resolve_substitutions(c)
+    assert c == {"d": 3, "w": 5}
+    with pytest.raises(TypeError):
+        ConfigFactory.parse_string("a = 1", resolve=False).put("wait", datetime.timedelta(seconds=30))

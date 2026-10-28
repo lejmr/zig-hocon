@@ -20,6 +20,16 @@ from ..exceptions import (
 if TYPE_CHECKING:
     from .config_parser import Path
 
+# The number a getter reads in text, as libhocon's does: JSON's.
+_JSON_INT = re.compile(r"-?(?:0|[1-9][0-9]*)")
+_JSON_NUMBER = re.compile(r"-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?")
+
+
+def _misread(value: Any) -> str:
+    """The name zig_hocon's getter gives a value that is no number."""
+    return "TypeMismatch" if isinstance(value, (dict, list)) else "InvalidCharacter"
+
+
 __all__ = [
     "ConfigInclude",
     "ConfigList",
@@ -102,6 +112,9 @@ class ConfigTree(OrderedDict[str, Any]):
         # name here hides a key of that name from `conf.name`.
         self._as_written: str | None = None
         self._unresolved = False
+        # what pop() took out of such a document, to take out of its text
+        # again when that is read again
+        self._popped: list[str] = []
         super().__init__(*args, **kwds)
 
     def _check_resolved(self) -> None:
@@ -132,7 +145,8 @@ class ConfigTree(OrderedDict[str, Any]):
             merged = as_written(a._hocon_text() + "\n" + b._hocon_text())
             a.clear()
             a.update(merged.items())
-            a._as_written, a._unresolved = merged._as_written, merged._unresolved
+            a._as_written, a._unresolved, a._popped = merged._as_written, merged._unresolved, []
+            a._pop_again(b._popped)
             return a
         for key, value in b.items():
             mine = OrderedDict.get(a, key)
@@ -173,6 +187,10 @@ class ConfigTree(OrderedDict[str, Any]):
         if isinstance(value, NoneValue):
             value = None
         path = self.parse_key(key)
+        # A document read with resolve=False is its text, read again when it
+        # resolves: the value goes after it, as a field written there would,
+        # so a ${…} in it can take it. One JSON has not is a TypeError here.
+        field = json.dumps(value.as_plain_ordered_dict() if isinstance(value, ConfigTree) else value) if self._as_written is not None else ""
         node = self
         for k in path[:-1]:
             child = OrderedDict.get(node, k)
@@ -194,6 +212,18 @@ class ConfigTree(OrderedDict[str, Any]):
             raise ConfigWrongTypeException(f"Cannot concatenate the list {key}: {value} to {before} of {type(before).__name__}", name="WrongType")
         else:
             node[last] = value
+        if self._as_written is not None:
+            extend = append and isinstance(value, list)
+            self._as_written += f"\n{key} = ${{?{key}}} {field}" if extend else f"\n{key} = {field}"
+
+    def _pop_again(self, keys: list[str]) -> None:
+        """Takes out of a document read again what pop() took out of it
+        before; when it has no values yet, when it has them."""
+        if self._unresolved:
+            self._popped += keys
+            return
+        for key in keys:
+            self.pop(key, None)
 
     def get(self, key: str, default: Any = UndefinedKey) -> Any:  # ty: ignore[invalid-method-override] - a path, as pyhocon has it
         """The value at ``key``; ``default`` when there is none, else
@@ -208,6 +238,8 @@ class ConfigTree(OrderedDict[str, Any]):
         path = self.parse_key(key)
         value = self._get(path)
         del self._get(path[:-1])[path[-1]]
+        if self._as_written is not None:
+            self._popped.append(key)
         return value
 
     def get_string(self, key: str, default: Any = UndefinedKey) -> str | None:
@@ -219,29 +251,27 @@ class ConfigTree(OrderedDict[str, Any]):
         return str(value).lower() if isinstance(value, bool) else str(value)
 
     def get_int(self, key: str, default: Any = UndefinedKey) -> int | None:
-        """``int()`` of the value: ``"5"`` is 5 and ``1.5`` is 1. None for
-        ``null``."""
+        """A whole number, also from text (``"5"``), as zig_hocon's getter
+        reads it, so a config reads the same in every language: ``1.5``,
+        ``0024`` or ``-.5`` is none. None for ``null``."""
         value = self.get(key, default)
-        try:
-            if isinstance(value, str):
-                # A number the spec keeps as written, ``0024``, ``-.5`` or
-                # ``01e2``: the one Python reads in it, cut to a whole one, as
-                # pyhocon's parser made a number of it first.
-                try:
-                    return int(value)
-                except ValueError:
-                    return int(float(value))
-            return int(value) if value is not None else None
-        except (TypeError, ValueError, OverflowError):
-            raise ConfigException(f"{key} has type '{type(value).__name__}' rather than 'int'", name="WrongType") from None
+        if isinstance(value, str) and _JSON_INT.fullmatch(value):
+            value = int(value)
+        if value is not None and type(value) is not int:
+            raise ConfigWrongTypeException(f"{key} has type '{type(value).__name__}' rather than 'int'", name=_misread(value))
+        if value is not None and not -(2**63) <= value < 2**63:
+            raise ConfigWrongTypeException(f"{key} does not fit in 64 bits", name="Overflow")
+        return value
 
     def get_float(self, key: str, default: Any = UndefinedKey) -> float | None:
-        """``float()`` of the value. None for ``null``."""
+        """A number, also from text (``"1.5"``), as zig_hocon's getter reads
+        it: ``0024`` or ``-.5`` is none. None for ``null``."""
         value = self.get(key, default)
-        try:
-            return float(value) if value is not None else None
-        except (TypeError, ValueError):
-            raise ConfigException(f"{key} has type '{type(value).__name__}' rather than 'float'", name="WrongType") from None
+        if isinstance(value, str) and _JSON_NUMBER.fullmatch(value):
+            value = float(value)
+        if value is not None and type(value) not in (int, float):
+            raise ConfigWrongTypeException(f"{key} has type '{type(value).__name__}' rather than 'float'", name=_misread(value))
+        return float(value) if value is not None else None
 
     def get_bool(self, key: str, default: Any = UndefinedKey) -> bool | None:
         """``true``/``yes``/``on`` and ``false``/``no``/``off``, in any case.
@@ -303,7 +333,10 @@ class ConfigTree(OrderedDict[str, Any]):
         # timedelta or the text "00123". A ${…} left to resolve needs the text.
         if fallback._as_written is None and self._as_written is None:
             return ConfigTree.merge_configs(copy.deepcopy(fallback), copy.deepcopy(self))
-        return ConfigFactory.parse_string(fallback._hocon_text() + "\n" + self._hocon_text(), None, resolve)
+        merged = ConfigFactory.parse_string(fallback._hocon_text() + "\n" + self._hocon_text(), None, resolve)
+        # ponytail: what was popped from `config` comes back from its text
+        merged._pop_again(self._popped)
+        return merged
 
     def as_plain_ordered_dict(self) -> "OrderedDict[str, Any]":
         """A deep copy as OrderedDicts and lists, keys without their quotes."""

@@ -10,6 +10,7 @@ import pytest
 pyhocon = pytest.importorskip("pyhocon")
 relativedelta = pytest.importorskip("dateutil.relativedelta").relativedelta
 
+import zig_hocon  # noqa: E402
 import zig_hocon.pyhocon as compat  # noqa: E402
 
 
@@ -131,14 +132,19 @@ def test_text_keeps_its_leading_zeros_and_units(monkeypatch):
         assert _typed(merged.get("wait")) == ("timedelta", datetime.timedelta(seconds=30))
 
 
-# pyhocon ✓: get_int and get_float read a number the spec keeps as text, as
-# pyhocon does, from what Python makes of the text
-def test_number_getters_read_text_as_pyhocon():
-    text = "a = 0024\nb = -0024\nc = 007.5\nd = 01e2\ne = .54\nf = -.5\ng = 1.5\nh = 7"
-    want, got = pyhocon.ConfigFactory.parse_string(text), compat.ConfigFactory.parse_string(text)
-    for key in "abcdefgh":
-        assert _typed(got.get_int(key)) == _typed(want.get_int(key)), key
-        assert _typed(got.get_float(key)) == _typed(want.get_float(key)), key
-    for bad in ["a = owl", "a = inf"]:
-        with pytest.raises(compat.exceptions.ConfigException):
-            compat.ConfigFactory.parse_string(bad).get_int("a")
+# pyhocon ✗: get_int and get_float read a number as zig_hocon's do, so a config
+# reads the same here as in Zig, C or zig_hocon; pyhocon reads 0024 and -.5
+# as numbers, truncates 1.5 for get_int and takes true for 1
+def test_number_getters_read_as_zig_hocon():
+    values = ['"5"', '"-0"', '"+5"', '" 5 "', '"5."', '"1e3"', '"2.0"', '"NaN"', "0024", "-.5", ".5", "007.5", "01e2"]
+    values += ["2.0", "1e3", "1e400", "true", "[1]", "9223372036854775807", "9223372036854775808", "-9223372036854775809"]
+    for value in values:
+        got, want = compat.ConfigFactory.parse_string(f"a = {value}"), zig_hocon.ConfigFactory.parse_string(f"a = {value}")
+        for getter in ("get_int", "get_float"):
+            results = []
+            for read in (getattr(got, getter), getattr(want, getter)):
+                try:
+                    results.append(_typed(read("a")))
+                except zig_hocon.ConfigWrongTypeException as e:
+                    results.append(e.name)
+            assert results[0] == results[1], (value, getter, results)

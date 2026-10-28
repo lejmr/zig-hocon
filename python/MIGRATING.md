@@ -2,14 +2,15 @@
 
 This guide moves a project from pyhocon to zig_hocon. There are two ways:
 
-- **The short way: `zig_hocon.pyhocon`, a change of import.** pyhocon's API as pyhocon 0.3.63 has it: the same modules, names, arguments and output, the tree an `OrderedDict` you can `put` into and `pop` from. Its section says what it covers and what it does not.
+- **The short way: `zig_hocon.pyhocon`, a change of import.** pyhocon's API as pyhocon 0.3.63 has it: the same modules, names and arguments, the tree an `OrderedDict` you can `put` into and `pop` from. Your code stays as it is; what the config gives it is what every zig-hocon reads. Its section says what it covers and what it does not.
 - **The native way: `zig_hocon`, the package's own API.** Typed getters on a document that stays in the library until one asks, and no tree in Python at all, in three steps.
 
-`zig_hocon` reads a config by the spec, which in a few places is not how pyhocon reads it: Step 3. `zig_hocon.pyhocon` reads pyhocon's own syntax as pyhocon does, and the rest by the spec. The checklist at the end finds every place to look at.
+Both read a config with the same core, by the spec, as the C library and a Zig program do: one config gives the same values, and the same errors, to a Python service on either module and to a C or Zig one beside it. In a few places that is not how pyhocon reads it; each is listed, with what to write instead. Of pyhocon's own syntax `zig_hocon.pyhocon` keeps its two includes, `package(…)` and a glob. The checklist at the end finds every place to look at.
 
 ## Why move
 
 - **Correct.** zig_hocon passes all 586 tests in the [conformance suite](https://htmlpreview.github.io/?https://github.com/lejmr/zig-hocon/blob/main/conformance/report.html), pyhocon 359.
+- **One config, every language.** `zig_hocon`, `zig_hocon.pyhocon`, the C library and a Zig program read a config with the same core: a value, a getter's number and an error are the same in each. A config shared by a Python service and a Zig or C one means one thing.
 - **Fast.** A 10 MB config loads in 0.3 s. pyhocon takes 68 s, and 867 s when the file has substitutions.
 - **No crash on a layered config.** A list from an included file, extended with `+=`, stops pyhocon 0.3.63 with an `AttributeError`:
 
@@ -45,13 +46,13 @@ from zig_hocon.pyhocon import ConfigFactory, ConfigTree, HOCONConverter
 from zig_hocon.pyhocon.exceptions import ConfigMissingException
 ```
 
-Everything of pyhocon's public API is there: `ConfigFactory.parse_file` (with `encoding` and `required`), `parse_string`, `parse_URL`, `from_dict`; the `ConfigTree` with `get`, the typed getters, `get_list`, `get_config`, `put`, `pop`, `with_fallback`, `merge_configs`, `as_plain_ordered_dict`, `conf["db.host"]` and `conf.db.host`; `ConfigParser.parse`, `resolve_substitutions` and `resolve_package_path`; `HOCONConverter` with its JSON, HOCON, YAML and .properties output to the character; `period_parser` and `period_serializer`; and pyhocon's command line as `python -m zig_hocon.pyhocon.tool`. The exceptions are zig_hocon's, so one `except` catches either module's.
+Everything of pyhocon's public API is there: `ConfigFactory.parse_file` (with `encoding` and `required`), `parse_string`, `parse_URL`, `from_dict`; the `ConfigTree` with `get`, the typed getters, `get_list`, `get_config`, `put`, `pop`, `with_fallback`, `merge_configs`, `as_plain_ordered_dict`, `conf["db.host"]` and `conf.db.host`; `ConfigParser.parse`, `resolve_substitutions` and `resolve_package_path`; `HOCONConverter` with its JSON, HOCON, YAML and .properties output in pyhocon's format; `period_parser` and `period_serializer`; and pyhocon's command line as `python -m zig_hocon.pyhocon.tool`. The exceptions are zig_hocon's, so one `except` catches either module's.
 
 Two tests hold it against the newest pyhocon on every change: [test_pyhocon_signatures.py](tests/test_pyhocon_signatures.py) has every public name of pyhocon's modules, with the same parameters, and [test_pyhocon_compat.py](tests/test_pyhocon_compat.py) reads documents with both and compares the values, their types and the converter's output. Each difference by design is in them with its reason.
 
-Values have the types the spec gives them: a number JSON reads is a number, everything else text, as the core reads it. A text stays exactly the text, quoted or not, from an environment variable too: `${ACCOUNT_ID}` with `012345678901` in it, `"0644"` and `"512m"` stay what they say. pyhocon turns an unquoted `30s` into a `timedelta` and an unquoted `0024` into 24; here they are the text `"30s"` and `"0024"`, and `zig_hocon.parse_duration` reads the first. `get_int` and `get_float` read a number in such text as pyhocon's do: `0024` is 24, `-.5` is -0.5, and `get_int` of `-.5` is 0. (The core's JSON does not say which values were quoted, so guessing pyhocon's types from it changed quoted and inherited text too; it is not done.)
+Values have the types the spec gives them: a number JSON reads is a number, everything else text, as the core reads it. A text stays exactly the text, quoted or not, from an environment variable too: `${ACCOUNT_ID}` with `012345678901` in it, `"0644"` and `"512m"` stay what they say. pyhocon turns an unquoted `30s` into a `timedelta` and an unquoted `0024` into 24; here they are the text `"30s"` and `"0024"`, and `zig_hocon.parse_duration` reads the first. `get_int` and `get_float` read a number as zig_hocon's getters do, JSON's, also in text: `"5"` is 5, and `0024`, `-.5`, and for `get_int` `1.5` or `true`, are a `ConfigWrongTypeException`, where pyhocon gives 24, -0.5, 1 and 1. The other getters are pyhocon's: `get_bool` takes `Yes` in any case, and `null` is None. (The core's JSON does not say which values were quoted, so guessing pyhocon's types from it changed quoted and inherited text too; it is not done.)
 
-The text itself is read by the spec, as `zig_hocon` reads it. Of pyhocon's own syntax two includes are there, in the text you parse (not in a file it includes): `include package("pkg:file.conf")`, the file in the installed package, and a glob, `include "conf.d/*.conf"`, each file it finds, in sorted order. With pyparsing installed, as it is beside pyhocon, a syntax error is pyparsing's `ParseException` and `ParseSyntaxException` too.
+The text itself is read by the spec, as `zig_hocon` reads it. Of pyhocon's own syntax two includes are there, in the text you parse (not in a file it includes): `include package("pkg:file.conf")`, the file in the installed package, and a glob, `include "conf.d/*.conf"`, each file it finds relative to the including file, in sorted order. A glob that finds nothing is a missing file, and on Windows, whose file names cannot hold a `*`, a `ConfigParseException` named `BadPathName`. With pyparsing installed, as it is beside pyhocon, a syntax error is pyparsing's `ParseException` and `ParseSyntaxException` too.
 
 What pyhocon reads its own way and this module reads by the spec:
 
@@ -59,10 +60,11 @@ What pyhocon reads its own way and this module reads by the spec:
 |---|---|---|
 | `timeout = 30s`, unquoted | a `timedelta` (`relativedelta` with dateutil) | the text `"30s"`; `zig_hocon.parse_duration` reads it |
 | `zip = 0024`, unquoted | 24 | the text `"0024"` |
+| `get_int` of `0024`, `1.5`, `true`; `get_float` of `-.5` | 24, 1, 1; -0.5 | `ConfigWrongTypeException`, as in zig_hocon |
 | `x += [3, 4]` after `x = [1, 2]` | `[1, 2, 3, 4]` | `[1, 2, [3, 4]]`; write `x = ${x} [3, 4]` |
 | `x += def` onto text, `x += { b = 2 }` onto an object | goes on after the text, merges | an error |
 | `include "f"` with a file named `f` | that file | `f.conf`, `f.json`, `f.properties`; name the extension |
-| an include in a list | the included list's elements | an error |
+| `[include "f.conf"]`, an include in a list | the included list's elements | the text `"include f.conf"` |
 | `abc\"d` unquoted | `abc"d` | an error |
 | `x = [${x}, 2]`, an object that refers into itself | a value | an error, as typesafe/config has it |
 | `a {} {b: 1}` | an error | the two objects merge |
@@ -72,6 +74,9 @@ The one left is `ConfigTree.resolve()`, which is not there. Nor are a few things
 
 - **A value with a `${…}` is no `ConfigValues`.** A document read with `resolve=False` has its values where it resolves on its own; where it does not, it has none until `with_fallback()` or `ConfigParser.resolve_substitutions()` gives it what it waits for, and reading it before is a `ConfigSubstitutionException`.
 - **`unresolved_value`** takes `DEFAULT_SUBSTITUTION`, `MANDATORY_SUBSTITUTION` and `NO_SUBSTITUTION`; `STR_SUBSTITUTION` and a value of your own are a `NotImplementedError`.
+- **pyhocon's includes only in the text you parse.** A `package(…)` or a glob in a file that is included is read by the spec, as a file of that name: nothing, or `BadPathName` on Windows. Include such files from the top file.
+- **A line that begins with pyhocon's include is taken for one** also inside a list or a `"""` string: there it becomes the include of the file it names, still text, but other text. Two regular expressions find these includes, not a parser.
+- **A tree read with `resolve=False` is its text** until it resolves: `put` adds the value to that text, so a `${…}` can take it, and a value JSON has not, such as a `timedelta`, is a `TypeError` there. What `pop` took out of the tree used as the fallback of `with_fallback` comes back from its text.
 - **`parse_URL`** reads a document with no `include` in it: one is an error, as it has no directory to be found in. pyhocon follows a `url(…)` include and leaves out the others with a warning.
 
 Where the spec has the answer, it reads by the spec, also around pyhocon's syntax:
@@ -79,7 +84,6 @@ Where the spec has the answer, it reads by the spec, also around pyhocon's synta
 - **`+=` of a number, a boolean or `null`** appends it: `x += 2` after `x = [1]` is `[1, 2]`, and after `x = 5` an error. pyhocon puts the value in place of `x`.
 - **An included file under an object** looks its `${…}` and `+=` up in that object first: `n { include "f.conf" }` with `z = ${y}` in it reads `n.y` before `y`. pyhocon reads `y` at the root.
 - **`include "f"`** with no file named `f` reads `f.conf`, `f.json` or `f.properties`; pyhocon includes nothing. Values from a `.properties` file are text, where pyhocon reads numbers and booleans.
-- **An object file included in a list** is one element; pyhocon gives its fields as `(key, value)` tuples.
 - **An include of a URL that cannot be reached** is a `ConfigParseException`; pyhocon leaves it out with a warning.
 
 The whole document is in Python, as in pyhocon, so it is a little slower than `zig_hocon`, still far from pyhocon: a 5 KB config in 0.3 ms (pyhocon 29 ms), 10 MB in 0.4 s (pyhocon 68 s), against 0.12 ms and 0.13 s for `zig_hocon`.
@@ -114,7 +118,7 @@ settings["db"]["host"]
 
 **Truth and equality are the object's.** `if conf:` is true for any tree, an empty one too, and `conf == other` asks whether they are the same object: pyhocon's dict was false when empty and equal by content. Ask `conf.as_dict()` for either. Neither raises, so look for them by hand.
 
-**Getters read only what is that type**, as typesafe/config's do (`zig_hocon.pyhocon` keeps pyhocon's):
+**Getters read only what is that type**, as typesafe/config's do (`zig_hocon.pyhocon` reads numbers as these getters do, and keeps pyhocon's other getters):
 
 | on | pyhocon | zig_hocon |
 |---|---|---|
@@ -163,7 +167,7 @@ settings["db"]["host"]
 - **Durations and sizes are text until something asks** (in `zig_hocon.pyhocon` too). pyhocon turns `30s` into a `timedelta` while it parses; here `as_dict()` has `"30s"`, and `get_duration` or the model converts it. With pydantic, a `BeforeValidator(zig_hocon.parse_duration)` on the field; [examples/durations-and-sizes](examples/durations-and-sizes) has it for pydantic and msgspec.
 - **A concatenation is a string.** `a = ${?nope}42` is `"42"` by the spec; pyhocon gives the number `42`. A model that wants an int converts it.
 - **An `include url(…)` gives up after 30 s.** pyhocon waits as long as `socket.setdefaulttimeout` says, by default for ever. Here `http_timeout=` on `parse_file` and `parse_string` sets it, and a server that does not answer in time is a `ConfigParseException` named `IncludeTimeout`.
-- **A leading zero keeps the text** (in `zig_hocon.pyhocon` too, whose `get_int` and `get_float` read the number in it as pyhocon's do). A value that begins with a digit begins with the number JSON reads there, and the rest is text, so `zip = 01234` is `"01234"` by the spec; pyhocon gives the number 1234. An IP address, a version or a UUID is text as written, as in pyhocon. So is a value that begins with `-` and no number, `-foo` or `-Xmx2g`, and a fraction JSON has no number for: `.5` and `-.5` are the text `".5"` and `"-.5"`, where pyhocon gives 0.5 and -0.5. Text becomes a number only by the JSON rules, so `get_int("zip")` on `01234` and `get_float` on `-.5` raise `ConfigWrongTypeException`, where pyhocon gives 1234 and -0.5: write `zip = "01234"` and read it with `get_string`, or `-0.5`.
+- **A leading zero keeps the text** (in `zig_hocon.pyhocon` too). A value that begins with a digit begins with the number JSON reads there, and the rest is text, so `zip = 01234` is `"01234"` by the spec; pyhocon gives the number 1234. An IP address, a version or a UUID is text as written, as in pyhocon. So is a value that begins with `-` and no number, `-foo` or `-Xmx2g`, and a fraction JSON has no number for: `.5` and `-.5` are the text `".5"` and `"-.5"`, where pyhocon gives 0.5 and -0.5. Text becomes a number only by the JSON rules, so `get_int("zip")` on `01234` and `get_float` on `-.5` raise `ConfigWrongTypeException`, where pyhocon gives 1234 and -0.5: write `zip = "01234"` and read it with `get_string`, or `-0.5`.
 - **`+=` appends one element**, in `zig_hocon.pyhocon` too. `x += [3, 4]` after `x = [1, 2]` is `[1, 2, [3, 4]]`, as `x = ${?x} [[3, 4]]` is; pyhocon gives `[1, 2, 3, 4]`. To extend a list with another, `x = ${x} [3, 4]`.
 - **Strict syntax.** The other inputs in the table under *No silent guesses* are errors now. They are rare, and each error says where to look.
 

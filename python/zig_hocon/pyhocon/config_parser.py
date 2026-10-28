@@ -321,8 +321,10 @@ class ConfigParser:
             if accept_unresolved:
                 return True
             raise
+        popped, config._popped = config._popped, []
         config.clear()
         config.update(tree.items())
         config._as_written = None
         config._unresolved = False
+        config._pop_again(popped)
         return False
