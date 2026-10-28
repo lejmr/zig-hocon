@@ -992,7 +992,11 @@ test "capi.a small stack reads as deep as any" {
         }
     };
     var result: anyerror!void = {};
-    const thread = try std.Thread.spawn(.{ .stack_size = 256 * 1024 }, Small.run, .{&result});
+    // 1 MiB: glibc takes a test binary's static TLS, large in Debug, from the
+    // stack, and refuses less (EINVAL); a Debug parse 499 deep needs about
+    // 4 MiB, so this still ends the process without the library's own thread.
+    // test_runtime.py runs the same on 256 KiB, through the release build.
+    const thread = try std.Thread.spawn(.{ .stack_size = 1024 * 1024 }, Small.run, .{&result});
     thread.join();
     try result;
 }
