@@ -1,7 +1,0 @@
-version = 1
-requires-python = ">=3.10"
-
-[[package]]
-name = "zig-hocon"
-version = "0.5.3"
-source = { editable = "." }
