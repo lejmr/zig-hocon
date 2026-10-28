@@ -54,7 +54,8 @@ settings["db"]["host"]
 
 | pyhocon | instead |
 |---|---|
-| `conf.get(path)`, `conf.get_list(path)` | a typed getter, or `functools.reduce(dict.__getitem__, path.split("."), conf.as_dict())` for a plain dotted path |
+| `conf.get(path)` | a typed getter: `get_string`, `get_int`, `get_duration`, … |
+| `conf.get_list(path)` | the list from the dict: `conf.as_dict()["features"]["plugins"]`, or `functools.reduce(dict.__getitem__, path.split("."), conf.as_dict())` for a dotted path; there is no list getter |
 | `conf.with_fallback(defaults)` | `include "defaults.conf"` at the top of the file: the same merge, done by the parser. For defaults that ship inside your package, build the includes in code: `ConfigFactory.parse_string(f'include required(file({json.dumps(str(defaults))}))\ninclude required(file({json.dumps(str(app))}))', basedir=app.parent)`; `basedir` is needed even for absolute paths, and `required` makes a missing file an error, where a plain include skips it: a `ConfigParseException` named `IncludeNotFound`, not the `FileNotFound` of `parse_file`. A `${…}` in the defaults sees the value the file sets over it (`url = "…${host}…"` with `host` overridden takes the new host), as the spec and typesafe/config resolve, and as pyhocon does over `resolve=False`; a loader that resolved each file first kept the old one. `migrate --fallback defaults.conf` reads your configs as such a loader does |
 | `conf.put(…)`, `conf.pop(…)` | change the dict from `as_dict()` |
 | `ConfigFactory.from_dict(d)` | `ConfigFactory.parse_string(json.dumps(d))`: JSON is HOCON |
