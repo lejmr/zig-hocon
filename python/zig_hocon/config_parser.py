@@ -24,10 +24,22 @@ KEEP = _Keep()
 """``env=KEEP``: a substitution the document cannot answer stays in it, for
 ``to_hocon()`` to write out and the machine it runs on to resolve."""
 
+
+class _Process:
+    """The default ``env``: os.environ as it is when the call reads it. Not
+    os.environ itself, whose repr is every variable and its value: help(),
+    pydoc and an IDE showed them, secrets too."""
+
+    def __repr__(self) -> str:
+        return "os.environ"
+
+
+_PROCESS = _Process()
+
 Path = str | bytes | os.PathLike[str] | os.PathLike[bytes]
 """A file name, as open() takes it."""
 
-Env = Mapping[str, str | bytes] | Mapping[bytes, str | bytes] | _Keep | None
+Env = Mapping[str, str | bytes] | Mapping[bytes, str | bytes] | _Keep | _Process | None
 """Where ``${NAME}`` looks when NAME is not in the document (``ConfigFactory``)."""
 
 Timeout = datetime.timedelta | float | None
@@ -60,6 +72,8 @@ def _options(env: Env, resolve: bool, include_dir: Path | None = None, http_time
     """The options, and what has to live as long as they are used."""
     opts = _capi.Options(size=ctypes.sizeof(_capi.Options), resolve=bool(resolve), http_timeout_ms=_milliseconds(http_timeout))
     entries = None
+    if env is _PROCESS:
+        env = os.environ
     if env is KEEP:
         opts.env = _capi.ENV_KEEP
     elif env is None:
@@ -115,12 +129,12 @@ class ConfigFactory:
     named ``IncludeTimeout``."""
 
     @staticmethod
-    def parse_file(path: Path, *, env: Env = os.environ, resolve: bool = True, http_timeout: Timeout = None) -> ConfigTree:
+    def parse_file(path: Path, *, env: Env = _PROCESS, resolve: bool = True, http_timeout: Timeout = None) -> ConfigTree:
         """The file at ``path``; its includes are found next to it."""
         return _parse(lib.hocon_parse_file, [_capi.c_string(os.fsencode(path))], env, resolve, None, http_timeout, os.fsdecode(path))
 
     @staticmethod
-    def parse_string(content: str | bytes, *, basedir: Path | None = None, env: Env = os.environ, resolve: bool = True, http_timeout: Timeout = None) -> ConfigTree:
+    def parse_string(content: str | bytes, *, basedir: Path | None = None, env: Env = _PROCESS, resolve: bool = True, http_timeout: Timeout = None) -> ConfigTree:
         """HOCON text; an include in it is found in ``basedir``, and without
         one is an error."""
         data = content.encode("utf-8", "surrogatepass") if isinstance(content, str) else bytes(content)

@@ -10,6 +10,7 @@ What changed for someone using zig-hocon: the Zig package, the `hocon` command l
 - Python: MIGRATING.md says that `x += [3, 4]` appends the list as one element, by the spec, where pyhocon extends the list; it said `+=` reads the same.
 
 ### Fixed
+- Python: `help()`, pydoc and an IDE showed the whole process environment, secrets too, in the signature of `ConfigFactory.parse_file` and `parse_string`, whose default `env` was `os.environ` itself. The default is now named `os.environ` and reads it at the call, as before.
 - A NUL or another control character in unquoted text was written back by `to_hocon` / `hocon --hocon` as it was, and a NUL ended the text for C and Python: `motd = hello<NUL>world` lost every key after it. Such text is written quoted now, the character escaped (`"hello\u0000world"`).
 - A parse through libhocon (C, Python) sets SIGIO and SIGPIPE only while it fetches an `http(s)` include, which needs them, and puts back the handlers from before when the last such parse ends: a handler the program set, Python's `signal.signal(SIGIO, …)` among them, stays its own.
 - A deep document on a thread with little stack, a Python thread or one of musl's 128 KiB, ended the process with SIGBUS or SIGSEGV before the limit of 500 levels: libhocon parses and writes on a thread of its own with 16 MiB of stack, so a deeper document is `TooDeep` on any thread, and one below the limit is read.

@@ -298,6 +298,10 @@ def test_a_config_over_a_fallback(tmp_path, capsys):
     code, out = run(capsys, tmp_path, "--fallback", tmp_path / "reference.conf", "--all")
     assert "reference.conf   " not in out and "= host, url" in out
     assert migrate.main([str(tmp_path / "conf"), "--fallback", str(tmp_path / "nowhere.conf")]) == 2
+    # with --fallback given, pyhocon's += failure is the one-element form
+    (tmp_path / "conf" / "prod.conf").write_text("plugins += metrics\n")
+    code, out = run(capsys, tmp_path / "conf", "--fallback", tmp_path / "reference.conf")
+    assert "write `x = ${x} [a]`" in out and "--fallback reads them" not in out
 
 
 # --getters: a value another type that a getter reads the same is no

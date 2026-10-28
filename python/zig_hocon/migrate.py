@@ -236,7 +236,7 @@ def _check(path: Path, pyhocon: _Pyhocon, fallbacks: list[str] = []) -> dict[str
     out: dict[str, Any] = {"path": str(path)}
     read, error = pyhocon.read(path, fallbacks)
     if error is not None:
-        out["pyhocon_error"] = error + (_PLUS_EQUALS if "'bool' object has no attribute 'count'" in error else "")
+        out["pyhocon_error"] = error + ((_PLUS_ONE if fallbacks else _PLUS_EQUALS) if "'bool' object has no attribute 'count'" in error else "")
     try:
         if fallbacks:
             files = [*reversed(fallbacks), str(path)]
@@ -253,10 +253,15 @@ def _check(path: Path, pyhocon: _Pyhocon, fallbacks: list[str] = []) -> dict[str
     return out
 
 
-# pyhocon's own bug, the one a layered config meets first.
+# pyhocon's own bug, the one a layered config meets first: without
+# --fallback, its files read alone; with it, an `x += a` it cannot read.
 _PLUS_EQUALS = (
     "\n    pyhocon fails so on `+=` onto a list from another file or object: when your loader"
     " merges the files with with_fallback, --fallback reads them as it does"
+)
+_PLUS_ONE = (
+    "\n    pyhocon fails so on `x += a`, one element onto a list, however it is read:"
+    " while you compare, write `x = ${x} [a]`, which both read, so the rest shows"
 )
 
 
