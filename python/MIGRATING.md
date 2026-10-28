@@ -81,7 +81,7 @@ Where the spec has the answer, it reads by the spec, also around pyhocon's synta
 - **An included file under an object** looks its `${…}` and `+=` up in that object first: `n { include "f.conf" }` with `z = ${y}` in it reads `n.y` before `y`. pyhocon reads `y` at the root.
 - **`include "f"`** with no file named `f` reads `f.conf`, `f.json` or `f.properties`; pyhocon includes nothing. Values from a `.properties` file are text, where pyhocon reads numbers and booleans.
 - **An object file included in a list** is one element; pyhocon gives its fields as `(key, value)` tuples.
-- **An include of a URL that cannot be reached** is a `ConfigParseException`; pyhocon leaves it out with a warning. A glob includes its files in sorted order, pyhocon in the file system's.
+- **An include of a URL that cannot be reached** is a `ConfigParseException`; pyhocon leaves it out with a warning.
 
 The whole document is in Python, as in pyhocon, so it is a little slower than `zig_hocon`, still far from pyhocon: a 5 KB config in 0.3 ms (pyhocon 29 ms), 10 MB in 0.4 s (pyhocon 68 s), against 0.12 ms and 0.13 s for `zig_hocon`.
 

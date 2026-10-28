@@ -117,7 +117,7 @@ from zig_hocon.pyhocon import ConfigFactory   # was: from pyhocon import ConfigF
 The core reads a config by the spec, and in a few places pyhocon reads it otherwise:
 
 - **Durations are text.** `30s` is `"30s"` until a getter or a model reads it, in `zig_hocon.pyhocon` too, where pyhocon makes it a `timedelta`.
-- **`+=` appends one element in the package's own API.** `x += [3, 4]` adds the list `[3, 4]` to `x`; `x = ${x} [3, 4]` extends it. `zig_hocon.pyhocon` has pyhocon's `+=`, which extends it.
+- **`+=` appends one element**, as the spec has it, in `zig_hocon.pyhocon` too: `x += [3, 4]` adds the list `[3, 4]` to `x`; `x = ${x} [3, 4]` extends it. pyhocon's `+=` extends it.
 - **Strict syntax.** Input pyhocon quietly accepted, such as `a..b = 1` or `a = b:c`, is an error with its line and column.
 - **No `include package(...)` in the package's own API.** It is pyhocon's own; `zig_hocon.pyhocon` has it.
 
