@@ -102,7 +102,7 @@ Path("deploy.conf").write_text(ConfigFactory.parse_file("app.conf", env=KEEP).to
 
 **Durations and sizes** have helpers with the same rules as the getters: `zig_hocon.parse_duration("30s")` gives a `timedelta`, `zig_hocon.parse_bytes("512MiB")` an int.
 
-**From the shell**, `hocon [--json] [--env=process|none|keep] app.conf` (pip installs the command; `python -m zig_hocon` is the same) prints the file resolved.
+**From the shell**, `python -m zig_hocon [--json] [--env=process|none|keep] app.conf` prints the file resolved.
 
 ## Coming from pyhocon
 
@@ -118,7 +118,7 @@ Code that reads through `ConfigFactory` and the typed getters changes its import
 To see what would change in your own configs, read them with both: with pyhocon installed beside zig-hocon 0.6.0 or later (`pip install -U zig-hocon`; an older one answers `migrate` with `unrecognized arguments`),
 
 ```sh
-hocon migrate conf/ --env-file prod.env --fallback reference.conf
+python -m zig_hocon migrate conf/ --env-file prod.env --fallback reference.conf
 ```
 
 reads every config in `conf/` with each, with the same environment (and over `reference.conf`, as `conf.with_fallback(reference)` in your loader), and shows where they differ as the config's tree: `≈` another type that a getter reads the same, `≠` another value, `!` one of them fails. It exits 1 when anything differs, so it can wait in CI for the day it is green; once you rewrite the configs for zig-hocon, `--before main` has pyhocon read them as they are on `main`, against the new ones on zig-hocon. [MIGRATING.md](MIGRATING.md#checklist) has the flags for a loader, an environment per deployment and reviewed differences.

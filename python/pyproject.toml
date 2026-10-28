@@ -31,9 +31,6 @@ classifiers = [
     "Typing :: Typed",
 ]
 
-[project.scripts]
-hocon = "zig_hocon.__main__:hocon"
-
 [project.urls]
 Homepage = "https://github.com/lejmr/zig-hocon"
 Source = "https://github.com/lejmr/zig-hocon/tree/main/python"

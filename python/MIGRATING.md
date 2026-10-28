@@ -95,10 +95,10 @@ Everything else (variables, includes, merging) reads the same, except where pyho
 
 ## Checklist
 
-Read your configs with both, with `hocon migrate` (or `python -m zig_hocon migrate`) and pyhocon installed beside zig-hocon 0.6.0 or later (`pip install -U zig-hocon`; an older one has no `migrate`, and answers it with `unrecognized arguments`):
+Read your configs with both, with pyhocon installed beside zig-hocon 0.6.0 or later (`pip install -U zig-hocon`; an older one has no `migrate`, and answers it with `unrecognized arguments`):
 
 ```sh
-hocon migrate conf/ --env-file prod.env
+python -m zig_hocon migrate conf/ --env-file prod.env
 ```
 
 ```
@@ -129,7 +129,7 @@ With an env file per environment, check each overlay with its own, one run per e
 
 ```sh
 for env in prod staging dev; do
-  hocon migrate "conf/$env.conf" --env-file "env/$env.env" --fallback reference.conf || status=1
+  python -m zig_hocon migrate "conf/$env.conf" --env-file "env/$env.env" --fallback reference.conf || status=1
 done
 exit ${status:-0}
 ```
