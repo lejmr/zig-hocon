@@ -120,7 +120,7 @@ It exits 0 when everything is the same, 1 when not, and 2 when it compares nothi
 | `--env-file FILE`, `--env KEY=VALUE` | the environment both read: the shell's, with these over it (`KEY=value` lines, `export` and quotes allowed, a later file over an earlier one); `env -i PATH="$PATH" zig-hocon-migrate …` starts from none |
 | `--before REV` | pyhocon reads the configs as git has them at `REV`, zig_hocon as they are now: the check a migration pull request wants, as a config rewritten for zig_hocon (`x += a`) often stops pyhocon |
 | `--getters` | `≈` is no difference, for code that reads such values through the getters or a model's validators |
-| `--accept PATH` | a difference you reviewed and keep: still shown, marked `(accepted)`, not counted, such as `"0640"` your code reads with `get_string`, or a list of durations, whose elements no getter reads; a path names a value, a list element (`tags[2]`) or everything below it |
+| `--accept PATH` | a difference you reviewed and keep: still shown, marked `(accepted)`, not counted, such as `"0640"` your code reads with `get_string`, or a list of durations, whose elements no getter reads; a path names a value, a list element (`tags[2]`) or everything below it, and one that names no difference is reported |
 | `--fallback FILE` | reads each config over `FILE`, as an old loader's `conf.with_fallback(FILE)`; `--resolve-each` for a loader that resolved each file before merging |
 | `--all`, `--json`, `--glob`, `--color` | every file and what is the same; the tree as JSON; the files of a directory (`*.conf`); colours (`auto`, `always`, `never`, and `NO_COLOR`) |
 

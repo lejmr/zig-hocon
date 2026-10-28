@@ -419,3 +419,14 @@ def test_the_plus_equals_hint_inside_a_block(tmp_path, capsys):
     code, out = run(capsys, tmp_path / "a.conf")
     assert "+= appends one element" in out
     assert "pyhocon kept only some of these" in out
+
+
+# an --accept that names no difference says so, as a typo or a pattern
+# (providers[*]) would otherwise accept nothing without a word
+def test_an_accept_that_names_nothing_says_so(tmp_path, capsys):
+    (tmp_path / "a.conf").write_text("mode = 0640\nlimit = 3")
+    code = migrate.main([str(tmp_path / "a.conf"), "--getters", "--accept", "mode", "--accept", "providers[*].timeout"])
+    err = capsys.readouterr().err
+    assert code == 0
+    assert "--accept providers[*].timeout names no difference" in err
+    assert "--accept mode " not in err

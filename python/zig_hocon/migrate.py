@@ -75,18 +75,20 @@ def _path(keys: list[Any]) -> str:
     return out
 
 
-def _accept(node: dict[str, Any], keys: list[Any], accepted: list[str]) -> None:
-    """Marks each difference at a path ``accepted`` names, or below one."""
+def _accept(node: dict[str, Any], keys: list[Any], accepted: list[str], used: set[str]) -> None:
+    """Marks each difference at a path ``accepted`` names, or below one, and puts that path in ``used``."""
     if node["kind"] == "object":
         for key, child in node["fields"].items():
-            _accept(child, [*keys, key], accepted)
+            _accept(child, [*keys, key], accepted, used)
     elif node["kind"] == "list":
         for i, child in enumerate(node["items"]):
-            _accept(child, [*keys, i], accepted)
+            _accept(child, [*keys, i], accepted, used)
     elif node["kind"] != "=":
         path = _path(keys)
-        if any(path == a or path.startswith((a + ".", a + "[")) for a in accepted):
+        hits = {a for a in accepted if path == a or path.startswith((a + ".", a + "["))}
+        if hits:
             node["accepted"] = True
+            used |= hits
 
 
 def _same(a: Any, b: Any) -> bool:
@@ -478,9 +480,14 @@ def main(argv: list[str] | None = None, prog: str = "python -m zig_hocon migrate
         results = [_check(path, pyhocon, args.fallback, args.resolve_each, before) for path in entry_points]
     finally:
         pyhocon.close()
+    used: set[str] = set()
     for result in results:
         if "tree" in result:
-            _accept(result["tree"], [], args.accept)
+            _accept(result["tree"], [], args.accept, used)
+    # a path with a typo, or a difference since fixed, would otherwise go unseen
+    for path in dict.fromkeys(args.accept):
+        if path not in used:
+            print(f"migrate: --accept {path} names no difference", file=sys.stderr)
     def differences(result: dict[str, Any]) -> int:
         return _differences(result, args.getters)
 
