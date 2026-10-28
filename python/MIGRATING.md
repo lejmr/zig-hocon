@@ -86,7 +86,7 @@ settings["db"]["host"]
   conf = ConfigFactory.parse_file(str(files("mypackage") / "defaults.conf"))
   ```
 
-- **Durations and sizes are text until something asks.** pyhocon turns `30s` into a `timedelta` while it parses; here `as_dict()` has `"30s"`, and `get_duration` or the model converts it. With pydantic, a `BeforeValidator(zig_hocon.parse_duration)` on the field; [examples/durations-and-sizes](examples/durations-and-sizes) has it for pydantic and msgspec.
+- **Durations and sizes are text until something asks.** pyhocon turns `30s` into a `timedelta` while it parses; here `as_dict()` has `"30s"`, and `get_duration` or the model converts it. With pydantic, a `BeforeValidator(zig_hocon.parse_duration)` on the field; [examples/durations-and-sizes](examples/durations-and-sizes) has it for pydantic and msgspec. A number alone is milliseconds to `parse_duration` (`"0.5"` is half a millisecond), so keep the validator on duration fields only: on a field typed `float | timedelta` pydantic may hand it a number meant as a float.
 - **A concatenation is a string.** `a = ${?nope}42` is `"42"` by the spec; pyhocon gives the number `42`. A model that wants an int converts it.
 - **An `include url(…)` gives up after 30 s.** pyhocon waits as long as `socket.setdefaulttimeout` says, by default for ever. Here `http_timeout=` on `parse_file` and `parse_string` sets it, and a server that does not answer in time is a `ConfigParseException` named `IncludeTimeout`.
 - **A leading zero keeps the text.** A value that begins with a digit begins with the number JSON reads there, and the rest is text, so `zip = 01234` is `"01234"` by the spec; pyhocon gives the number 1234. An IP address, a version or a UUID is text as written, as in pyhocon. So is a value that begins with `-` and no number, `-foo` or `-Xmx2g`, and a fraction JSON has no number for: `.5` and `-.5` are the text `".5"` and `"-.5"`, where pyhocon gives 0.5 and -0.5. Text becomes a number only by the JSON rules, so `get_int("zip")` on `01234` and `get_float` on `-.5` raise `ConfigWrongTypeException`, where pyhocon gives 1234 and -0.5: write `zip = "01234"` and read it with `get_string`, or `-0.5`.
@@ -97,7 +97,7 @@ Everything else (variables, includes, merging) reads the same, except where pyho
 
 ## Checklist
 
-Read your configs with both, with `zig-hocon-migrate` (pip installs it with zig-hocon; `python -m zig_hocon migrate` is the same) and pyhocon installed beside a zig-hocon that has `zig-hocon-migrate` (it came after 0.5.3: `pip install -U zig-hocon`):
+Read your configs with both, with `zig-hocon-migrate` (pip installs it with zig-hocon; `python -m zig_hocon migrate` is the same) and pyhocon installed beside zig-hocon (`pip install -U zig-hocon`; if `zig-hocon-migrate` is not there after it, your zig-hocon is older than the check):
 
 ```sh
 zig-hocon-migrate conf/ --env-file prod.env

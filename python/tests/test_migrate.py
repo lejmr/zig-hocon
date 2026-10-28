@@ -410,3 +410,12 @@ def test_null_against_absent(tmp_path, capsys):
     code, out = run(capsys, tmp_path / "a.conf")
     assert "≈ dsn" in out and "a getter reads both as missing" in out
     assert run(capsys, tmp_path / "a.conf", "--getters")[0] == 0
+
+
+# the += hint wherever zig-hocon nests a list pyhocon has none in, and where
+# pyhocon's own += kept only some elements (inside { }), it says so
+def test_the_plus_equals_hint_inside_a_block(tmp_path, capsys):
+    (tmp_path / "a.conf").write_text("cors { origins = [web, mobile] }\ncors { origins += [admin] }")
+    code, out = run(capsys, tmp_path / "a.conf")
+    assert "+= appends one element" in out
+    assert "pyhocon kept only some of these" in out
