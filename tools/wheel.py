@@ -1,8 +1,9 @@
 """Packs one wheel of zig_hocon: the Python files of python/zig_hocon/, the
-library zig built for one platform, and the metadata of python/pyproject.toml.
-`zig build wheels` runs it once per platform; nothing here needs pip.
+library zig built for one platform, the `hocon` CLI built for it, and the
+metadata of python/pyproject.toml. `zig build wheels` runs it once per
+platform; nothing here needs pip.
 
-    python3 tools/wheel.py <out.whl> <version> <tag>[.<tag>…] <library> <name in the package>
+    python3 tools/wheel.py <out.whl> <version> <tag>[.<tag>…] <library> <name in the package> <cli> <its name>
 
 The wheel is `py3-none-<platform>`: ctypes loads the library, so it holds no
 code of any one Python. Every file has the same date, so the same inputs make
@@ -16,7 +17,7 @@ import sys
 import tomllib
 import zipfile
 
-out, version, platform, library, lib_name = sys.argv[1:]
+out, version, platform, library, lib_name, cli, cli_name = sys.argv[1:]
 root = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 python = os.path.join(root, "python")
 
@@ -62,6 +63,10 @@ for file in sorted(os.listdir(package)):
             files.append((f"{name}/{file}", f.read(), False))
 with open(library, "rb") as f:
     files.append((f"{name}/{lib_name}", f.read(), True))
+# A file in <name>-<version>.data/scripts/ is one pip puts on the path, as it
+# is: the CLI, hocon or hocon.exe.
+with open(cli, "rb") as f:
+    files.append((f"{name}-{version}.data/scripts/{cli_name}", f.read(), True))
 with open(os.path.join(root, "LICENSE"), "rb") as f:
     files.append((f"{dist_info}/licenses/LICENSE", f.read(), False))
 files.append((f"{dist_info}/METADATA", "\n".join(metadata).encode(), False))

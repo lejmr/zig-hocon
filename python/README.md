@@ -49,6 +49,8 @@ The rest of this page reads these two files.
 pip install zig-hocon
 ```
 
+It puts two commands on the path: `hocon`, the zig-hocon command line tool built for your platform (`hocon --json app.conf`, `hocon get db.host app.conf`, `hocon diff a.conf b.conf`, `hocon check conf/*.conf`), and `zig-hocon-migrate`, the check of what changes from pyhocon.
+
 One wheel per platform, for every Python from 3.10 on, free-threaded builds and PyPy included: macOS (arm64, x86_64), Linux (x86_64, aarch64; glibc 2.17+ and musl) and Windows (x86_64). The import name is `zig_hocon`. Anywhere else, build it from source (below).
 
 Beta: the API can still change before 1.0. BSD-3-Clause.

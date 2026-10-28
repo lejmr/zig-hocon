@@ -135,6 +135,14 @@ pub fn build(b: *std.Build) void {
             .imports = &.{.{ .name = "hocon", .module = wheel_hocon }},
         }) });
         wheel_lib.bundle_ubsan_rt = false;
+        // The `hocon` CLI of the same platform: pip puts it on the path.
+        const wheel_cli = b.addExecutable(.{ .name = "hocon", .root_module = b.createModule(.{
+            .root_source_file = b.path("src/main.zig"),
+            .target = wheel_target,
+            .optimize = .ReleaseSafe,
+            .strip = true,
+            .imports = &.{.{ .name = "hocon", .module = wheel_hocon }},
+        }) });
 
         const file_name = b.fmt("zig_hocon-{s}-py3-none-{s}.whl", .{ version, tag });
         const pack = b.addSystemCommand(&.{ "python3", "tools/wheel.py" });
@@ -143,6 +151,8 @@ pub fn build(b: *std.Build) void {
         pack.addArgs(&.{ version, tag });
         pack.addFileArg(wheel_lib.getEmittedBin());
         pack.addArg(wheel_lib.out_filename);
+        pack.addFileArg(wheel_cli.getEmittedBin());
+        pack.addArg(wheel_cli.out_filename);
         // It reads python/ too, which zig does not track: packed every time.
         pack.has_side_effects = true;
         wheels_step.dependOn(&b.addInstallFileWithDir(wheel, .{ .custom = "wheels" }, file_name).step);

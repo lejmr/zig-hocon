@@ -25,8 +25,11 @@ esac
 cd "$tmp"
 "$py" -c 'import sys, zig_hocon; print(sys.version.split()[0], zig_hocon.__file__); assert "site-packages" in zig_hocon.__file__'
 "$py" -m pytest -q -p no:cacheprovider "$root/python/tests"
-# The command pip puts beside python (zig-hocon-migrate.exe on Windows).
+# The commands pip puts beside python (with .exe on Windows): the migration
+# check, and the CLI of this platform.
 "$(dirname "$py")/zig-hocon-migrate" --help >/dev/null
+printf 'owl = hoot\n' >"$tmp/owl.conf"
+[ "$("$(dirname "$py")/hocon" --json "$tmp/owl.conf")" = '{"owl":"hoot"}' ]
 if [ $examples = no ]; then
     echo "examples left out: no msgspec for Python $version"
     exit 0
