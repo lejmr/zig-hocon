@@ -224,6 +224,12 @@ The table keeps the best parsers; the others measured, and why they are not in i
 
 Every case, and what each implementation printed, is in **[the conformance report](https://htmlpreview.github.io/?https://github.com/lejmr/zig-hocon/blob/main/conformance/report.html)**. Any HOCON parser can be scored on it through a ten-line adapter: [conformance/README.md](conformance/README.md) shows how.
 
+## Status
+
+- **Beta until 1.0.** The API can still change; each change is in [CHANGELOG.md](CHANGELOG.md), and what a version may change is in [CONTRIBUTING.md](CONTRIBUTING.md#versions).
+- **One maintainer, held by tests.** Every change runs the 586 cases of the conformance suite, one for each sentence of the spec, the tests the C header and the Python package are held to, which only the maintainer edits, and a fuzzer over the parser.
+- **Yours to build.** Zig 0.16 and `zig build` give the library, libhocon for C and the command line tool; the suite says what a fork changed.
+
 ## What is in, what is out
 
 [docs/spec.md](docs/spec.md) goes through the spec section by section: what is done, how, and where it differs from typesafe/config. Not supported: `include classpath(…)`, and URL schemes other than http, https and file. Left out on purpose: the JVM conventions (properties mapping, system property overrides), and merging two loaded configs in code (`withFallback`), which an `include` in the file does.
