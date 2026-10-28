@@ -10,6 +10,7 @@ they are checked through the file that includes them, as they cannot be
 read alone. pyhocon is not a dependency; it is imported here."""
 
 import argparse
+import contextlib
 import datetime
 import glob
 import importlib
@@ -75,19 +76,21 @@ def _flat(items: list[Any]) -> list[Any]:
     return [x for item in items for x in (item if isinstance(item, list) else [item])]
 
 
-def _diff(old: Any, new: Any, keys: list[Any], tree: ConfigTree) -> dict[str, Any]:
+def _diff(old: Any, new: Any, keys: list[Any], tree: ConfigTree, lenient: dict[str, Any] | None = None) -> dict[str, Any]:
     """The node at ``keys``: an object or a list of nodes, or a value that is
-    the same (``=``), the same through a getter (``≈``) or not (``≠``)."""
+    the same (``=``), the same through a getter (``≈``) or not (``≠``).
+    ``lenient`` has what pyhocon's getters read in its text and nulls."""
+    lenient = lenient or {}
     if isinstance(old, dict) and isinstance(new, dict):
         fields = {}
         for key in [*old, *(k for k in new if k not in old)]:
             if key in old and key in new:
-                fields[key] = _diff(old[key], new[key], [*keys, key], tree)
+                fields[key] = _diff(old[key], new[key], [*keys, key], tree, lenient)
             else:
                 fields[key] = {"kind": "≠", **({"pyhocon": old[key]} if key in old else {}), **({"zig_hocon": new[key]} if key in new else {})}
         return {"kind": "object", "fields": fields}
     if isinstance(old, list) and isinstance(new, list) and len(old) == len(new) and not _same(old, new):
-        return {"kind": "list", "items": [_diff(o, n, [*keys, i], tree) for i, (o, n) in enumerate(zip(old, new))]}
+        return {"kind": "list", "items": [_diff(o, n, [*keys, i], tree, lenient) for i, (o, n) in enumerate(zip(old, new))]}
     node = {"kind": "≠", "pyhocon": old, "zig_hocon": new}
     if _same(old, new):
         # the same number, but get_string reads it as written: 1.10, 1e3
@@ -95,6 +98,12 @@ def _diff(old: Any, new: Any, keys: list[Any], tree: ConfigTree) -> dict[str, An
             text = tree.get_string(_path(keys))
             if text != str(old):
                 return {**node, "hint": f'conf.get_string({json.dumps(_path(keys))}) is "{text}", pyhocon\'s "{old}"'}
+        # the same text or null, which pyhocon's getters read where these do
+        # not: "08" and " 4" as numbers, "True" as a bool, null as None
+        read = {} if any(isinstance(k, int) for k in keys) else lenient.get(_path(keys), {})
+        misread = [_misread(tree, getter, _path(keys), want) for getter, want in read.items()]
+        if any(misread):
+            return {**node, "hint": "; ".join(m for m in misread if m)}
         return {"kind": "=", "value": new}
     want = _EPOCH + old - _EPOCH if type(old).__name__ == "relativedelta" else old
     getter = _GETTERS.get(type(want))
@@ -110,6 +119,37 @@ def _diff(old: Any, new: Any, keys: list[Any], tree: ConfigTree) -> dict[str, An
     return node
 
 
+def _misread(tree: ConfigTree, getter: str, path: str, want: Any) -> str:
+    """How zig-hocon's ``getter`` reads ``path`` where pyhocon's reads
+    ``want``; empty when alike."""
+    call = f"conf.{getter}({json.dumps(path)})"
+    try:
+        got = getattr(tree, getter)(path)
+    except ConfigException as e:
+        return f"{call} is an error: {e.name}, pyhocon's {want!r}"
+    return "" if _same(want, got) else f"{call} is {got!r}, pyhocon's {want!r}"
+
+
+def _lenient(tree: Any, plain: dict[str, Any], keys: list[str]) -> dict[str, Any]:
+    """In pyhocon's process: what its getters read in each text and each
+    null, by path. zig-hocon's read only numbers and booleans as written."""
+    out: dict[str, Any] = {}
+    for key, value in plain.items():
+        path = [*keys, key]
+        if isinstance(value, dict):
+            out.update(_lenient(tree, value, path))
+        elif value is None:
+            out[_path(path)] = {"get_string": None}
+        elif isinstance(value, str):
+            read = {}
+            for getter in ("get_int", "get_float", "get_bool"):
+                with contextlib.suppress(Exception):
+                    read[getter] = getattr(tree, getter)(_path(path))
+            if read:
+                out[_path(path)] = read
+    return out
+
+
 # How long pyhocon may take for one file.
 _PYHOCON_SECONDS = 30.0
 
@@ -122,7 +162,9 @@ def _read_with_pyhocon(conn: Connection) -> None:
     pyhocon = importlib.import_module("pyhocon")
     while (path := conn.recv()) is not None:
         try:
-            conn.send((pyhocon.ConfigFactory.parse_file(path).as_plain_ordered_dict(), None))
+            tree = pyhocon.ConfigFactory.parse_file(path)
+            plain = tree.as_plain_ordered_dict()
+            conn.send(((plain, _lenient(tree, plain, [])), None))
         except Exception as e:  # noqa: BLE001 - pyhocon fails with pyparsing's, its own and Python's errors
             conn.send((None, f"{type(e).__name__}: {e}"))
 
@@ -163,7 +205,7 @@ class _Pyhocon:
 def _check(path: Path, pyhocon: _Pyhocon) -> dict[str, Any]:
     """One file read by both: its tree of nodes, or what each failed with."""
     out: dict[str, Any] = {"path": str(path)}
-    old, error = pyhocon.read(path)
+    read, error = pyhocon.read(path)
     if error is not None:
         out["pyhocon_error"] = error
     try:
@@ -171,8 +213,9 @@ def _check(path: Path, pyhocon: _Pyhocon) -> dict[str, Any]:
     except ConfigException as e:
         out["zig_hocon_error"] = str(e)
         return out
-    if old is not None:
-        out["tree"] = _diff(old, tree.as_dict(), [], tree)
+    if read is not None:
+        old, lenient = read
+        out["tree"] = _diff(old, tree.as_dict(), [], tree, lenient)
     return out
 
 
@@ -299,6 +342,9 @@ def main(argv: list[str] | None = None) -> int:
     finally:
         pyhocon.close()
     total = sum(map(_differences, results))
+    compared = any("tree" in r for r in results)
+    if not total and not compared:
+        print("migrate: no config could be compared: each fails in both; --env-file gives a ${…} its value", file=sys.stderr)
     if args.json:
         print(json.dumps({"files": results, "differences": total}, default=repr, ensure_ascii=False, indent=2))
     else:
@@ -310,5 +356,5 @@ def main(argv: list[str] | None = None) -> int:
             print(f"  {result['path']}   {both or (f'{n} difference' + 's' * (n != 1) if n else 'same')}")
         files = sum(1 for r in results if _differences(r))
         print(f"{total} difference{'s' * (total != 1)} in {files} file{'s' * (files != 1)}.")
-    return 1 if total else 0
+    return 1 if total else 0 if compared else 2
 

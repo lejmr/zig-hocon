@@ -166,13 +166,14 @@ def test_the_reading_process(tmp_path):
     import multiprocessing
     import threading
 
-    (tmp_path / "a.conf").write_text("a = 0042")
+    (tmp_path / "a.conf").write_text('a = 0042\nb { s = "08", n = null, t = owl }')
     (tmp_path / "b.conf").write_text("a {} {b: 1}")
     conn, child = multiprocessing.Pipe()
     worker = threading.Thread(target=migrate._read_with_pyhocon, args=(child,), daemon=True)
     worker.start()
     conn.send(str(tmp_path / "a.conf"))
-    assert conn.poll(30) and conn.recv() == ({"a": 42}, None)
+    lenient = {"b.s": {"get_int": 8, "get_float": 8.0}, "b.n": {"get_string": None}}
+    assert conn.poll(30) and conn.recv() == (({"a": 42, "b": {"s": "08", "n": None, "t": "owl"}}, lenient), None)
     conn.send(str(tmp_path / "b.conf"))
     assert conn.poll(30)
     value, error = conn.recv()
@@ -196,12 +197,12 @@ def test_nothing_to_check(tmp_path, capsys):
 def test_pyhocon_s_process_ends(tmp_path):
     (tmp_path / "a.conf").write_text("a = 1")
     pyhocon = migrate._Pyhocon()
-    assert pyhocon.read(tmp_path / "a.conf") == ({"a": 1}, None)
+    assert pyhocon.read(tmp_path / "a.conf") == (({"a": 1}, {}), None)
     pyhocon.process.kill()
     pyhocon.process.join()
     assert pyhocon.read(tmp_path / "a.conf") == (None, "pyhocon's process ended on it")
     pyhocon.close()
-    assert pyhocon.read(tmp_path / "a.conf") == ({"a": 1}, None)
+    assert pyhocon.read(tmp_path / "a.conf") == (({"a": 1}, {}), None)
     pyhocon.close()
 
 
@@ -249,3 +250,26 @@ def test_env_files_later_wins(tmp_path, monkeypatch, capsys):
     assert (os.environ["OWL"], os.environ["BAT"]) == ("screech", "flap")
     run(capsys, tmp_path / "a.conf", "--env-file", tmp_path / "base.env", "--env-file", tmp_path / "prod.env", "--env", "OWL=whoo")
     assert os.environ["OWL"] == "whoo"
+
+
+# the same text or null, which pyhocon's getters read and these do not: from
+# the environment "08" and " 4" as numbers, "True" as a bool, and null as None
+def test_what_pyhocon_s_getters_read_in_text(tmp_path, monkeypatch, capsys):
+    (tmp_path / "a.conf").write_text('pool = ${POOL}\nworkers = ${WORKERS}\nbeta = ${BETA}\npassword = null\nname = "owl"\nport = "5432"\nok = yes')
+    for key, value in {"POOL": "08", "WORKERS": " 4", "BETA": "True"}.items():
+        monkeypatch.setenv(key, value)
+    code, out = run(capsys, tmp_path / "a.conf")
+    assert code == 1
+    assert 'conf.get_int("pool") is an error: InvalidCharacter, pyhocon\'s 8' in out
+    assert 'conf.get_int("workers") is an error: InvalidCharacter, pyhocon\'s 4' in out
+    assert 'conf.get_bool("beta") is an error: WrongType, pyhocon\'s True' in out or "conf.get_bool(\"beta\") is an error" in out
+    assert 'conf.get_string("password") is an error: Missing, pyhocon\'s None' in out
+    assert "≠ name" not in out and "≠ port" not in out and "≠ ok" not in out
+    assert out.endswith("4 differences in 1 file.\n")
+
+
+# nothing compared is no green either: each file fails in both
+def test_every_file_fails_in_both(tmp_path, capsys):
+    (tmp_path / "a.conf").write_text("a = ${NOT_SET_HERE_EITHER}")
+    assert migrate.main([str(tmp_path)]) == 2
+    assert "no config could be compared" in capsys.readouterr().err
