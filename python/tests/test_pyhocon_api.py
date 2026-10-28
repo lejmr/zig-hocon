@@ -676,11 +676,23 @@ def test_pyhocon_s_includes(tmp_path, monkeypatch):
     assert conf('a { include file("nowhere") }', basedir=str(tmp_path)) == {"a": {}}
     # pyhocon ✓: a glob includes each file it finds, in sorted order (pyhocon
     # in the file system's); one that finds none is a missing file, nothing,
-    # and under required() a FileNotFoundError
+    # and under required() a FileNotFoundError; Windows' names may not hold a
+    # *, and an error of the system's other than a missing file is reported
     assert conf('include "d/*.conf"', basedir=str(tmp_path)) == {"x": 1, "l": [1, [2]], "y": 2}
-    assert conf('a { include "d/*.nothing" }', basedir=str(tmp_path)) == {"a": {}}
-    with pytest.raises(FileNotFoundError):
-        conf('include required("d/*.nothing")', basedir=str(tmp_path))
+    for text in ['a { include "d/*.nothing" }', 'include required("d/*.nothing")']:
+        if sys.platform == "win32":
+            with pytest.raises(exceptions.ConfigParseException) as e:
+                conf(text, basedir=str(tmp_path))
+            assert e.value.name == "BadPathName"
+        elif "required" in text:
+            with pytest.raises(FileNotFoundError):
+                conf(text, basedir=str(tmp_path))
+        else:
+            assert conf(text, basedir=str(tmp_path)) == {"a": {}}
+    # a glob is read where the file is, also when the file is named relatively
+    (tmp_path / "top.conf").write_text('include "d/*.conf"')
+    monkeypatch.chdir(tmp_path.parent)
+    assert ConfigFactory.parse_file(f"{tmp_path.name}/top.conf") == {"x": 1, "l": [1, [2]], "y": 2}
     assert ConfigFactory.parse_file(str(tmp_path / "d" / "b.conf")) == {"y": 2, "l": [[2]]}
     (tmp_path / "top.conf").write_text('include "plain"')
     assert ConfigFactory.parse_file(str(tmp_path / "top.conf")) == {}

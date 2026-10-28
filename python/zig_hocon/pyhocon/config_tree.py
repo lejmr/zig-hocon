@@ -89,8 +89,8 @@ class ConfigTree(OrderedDict[str, Any]):
     and the getters take a path, ``db.host`` or ``a."b.c"``; ``conf.db.host``
     and ``conf["db.host"]`` are ``get`` too. A key with a path character in
     it is kept in quotes: ``"b.c"``. A value is a ConfigTree, a list, text,
-    a number, a bool or None, or a duration as pyhocon has it (``30s`` is
-    a timedelta); sizes are the text they are written as."""
+    a number, a bool or None, as the spec reads it: ``30s`` and ``512m``
+    are the text they are written as."""
 
     KEY_SEP = "."
 

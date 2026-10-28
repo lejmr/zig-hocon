@@ -178,7 +178,7 @@ def _includes(text: str, basedir: Path) -> str:
     # ponytail: only in the text read here, not in a file it includes; that
     # would need the file rewritten, or an include hook in libhocon.
     def glob_files(m: re.Match[str]) -> str:
-        found = sorted(glob.glob(os.path.join(basedir, json.loads(m.group(3))), recursive=True))
+        found = sorted(glob.glob(json.loads(m.group(3)), root_dir=basedir, recursive=True))
         if not found:
             return m.group(0)
         return "\n".join(f"include{m.group(1)}{m.group(2) or ''}{json.dumps(f)}{m.group(4) or ''}" for f in found)
