@@ -25,7 +25,6 @@ from .. import config_parser as _core
 from .. import config_tree as _core_tree
 from ..exceptions import ConfigException, ConfigMissingException, ConfigParseException, ConfigSubstitutionException, ConfigWrongTypeException
 from .config_tree import ConfigInclude, ConfigList, ConfigQuotedString, ConfigSubstitution, ConfigTree, ConfigUnquotedString, ConfigValues, NoneValue, quoted
-from .period_parser import duration
 
 # with the names pyhocon's module has from where it imports them
 __all__ = [
@@ -81,12 +80,6 @@ _AS_PYHOCON: dict[str, type[ConfigException]] = {
 
 _T = TypeVar("_T")
 
-# A number by pyhocon's grammar, and one by JSON's: libhocon reads a text
-# of the first that is not the second (0024, .54) as text, pyhocon as the
-# number. One JSON has is quoted in the document, and stays text.
-_PYHOCON_NUMBER = re.compile(r"-?(\d*\.\d+|\d+(\.\d+)?)([eE][+-]?\d+)?")
-_JSON_NUMBER = re.compile(r"-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?")
-
 
 @functools.cache
 def _syntax_error() -> type[ConfigParseException]:
@@ -128,20 +121,8 @@ def _call(read: Callable[[], _T]) -> _T:
         raise err from None
 
 
-def _typed(value: Any) -> Any:
-    """A value from libhocon's JSON as pyhocon has it: ``30s`` a duration,
-    ``0024`` the number 24."""
-    if isinstance(value, str):
-        if _PYHOCON_NUMBER.fullmatch(value) and not _JSON_NUMBER.fullmatch(value):
-            return int(value) if value.lstrip("-").isdigit() else float(value)
-        return duration(value)
-    if isinstance(value, list):
-        return [_typed(v) for v in value]
-    return value
-
-
 def _tree(pairs: list[tuple[str, Any]]) -> ConfigTree:
-    return ConfigTree((quoted(k), _typed(v)) for k, v in pairs)
+    return ConfigTree((quoted(k), v) for k, v in pairs)
 
 
 def _resolved(doc: _core_tree.ConfigTree) -> ConfigTree:
@@ -149,7 +130,7 @@ def _resolved(doc: _core_tree.ConfigTree) -> ConfigTree:
     if isinstance(value, list):
         # a document that is a list, as pyhocon gives it; typed as the
         # object a document nearly always is
-        return cast(ConfigTree, ConfigList(_typed(value)))
+        return cast(ConfigTree, ConfigList(value))
     value.root = True
     return cast(ConfigTree, value)
 
@@ -195,7 +176,8 @@ class ConfigFactory:
     not in the document is looked up in ``os.environ``.
 
     How: libhocon parses and resolves the text, and its JSON becomes a
-    ConfigTree, each value with pyhocon's type (``_typed``). ``_call`` gives
+    ConfigTree, each value with the type the spec gives it: a text stays
+    text, quoted or not, from an environment variable too. ``_call`` gives
     an error pyhocon's class."""
 
     @overload

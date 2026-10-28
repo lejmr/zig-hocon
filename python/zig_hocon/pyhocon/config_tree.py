@@ -4,7 +4,7 @@ values, read and changed by dotted paths, as pyhocon has it.
 Changed from pyhocon's config_tree.py (Apache-2.0, LICENSE in this
 directory): its methods, their conversions and messages."""
 
-import datetime
+import copy
 import json
 import re
 from collections import OrderedDict
@@ -16,7 +16,6 @@ from ..exceptions import (
     ConfigSubstitutionException,
     ConfigWrongTypeException,
 )
-from .period_serializer import is_timedelta_like
 
 if TYPE_CHECKING:
     from .config_parser import Path
@@ -85,27 +84,6 @@ def quoted(key: str) -> str:
     return f'"{key}"' if _HAS_SPECIAL(key) else key
 
 
-def _duration_text(value: Any) -> str:
-    """A duration as HOCON that reads back as the same one: milliseconds,
-    or microseconds below them, for a timedelta; a relativedelta in months or
-    microseconds, the units it keeps."""
-    if isinstance(value, datetime.timedelta):
-        us = value // datetime.timedelta(microseconds=1)
-        return f"{us // 1000} ms" if us % 1000 == 0 else f"{us} us"
-    months = value.years * 12 + value.months
-    us = (((value.days * 24 + value.hours) * 60 + value.minutes) * 60 + value.seconds) * 1_000_000 + value.microseconds
-    if months and us:
-        raise TypeError(f"{value!r} is not one HOCON duration")
-    return f"{months} months" if months else f"{us} us"
-
-
-def _json_value(value: Any) -> Any:
-    """A duration in a tree, as HOCON text that reads back as it."""
-    if is_timedelta_like(value):
-        return _duration_text(value)
-    raise TypeError(f"{type(value).__name__} is not a HOCON value")
-
-
 class ConfigTree(OrderedDict[str, Any]):
     """A document, or an object in one: an OrderedDict of its keys. ``get``
     and the getters take a path, ``db.host`` or ``a."b.c"``; ``conf.db.host``
@@ -139,7 +117,7 @@ class ConfigTree(OrderedDict[str, Any]):
         if self._as_written is not None:
             return self._as_written
         # JSON is HOCON; without its braces it is the fields of the root.
-        return json.dumps(self.as_plain_ordered_dict(), default=_json_value)[1:-1]
+        return json.dumps(self.as_plain_ordered_dict())[1:-1]
 
     @staticmethod
     def merge_configs(a: "ConfigTree", b: "ConfigTree", copy_trees: bool = False) -> "ConfigTree":
@@ -313,6 +291,10 @@ class ConfigTree(OrderedDict[str, Any]):
         from .config_parser import ConfigFactory
 
         fallback = config if isinstance(config, ConfigTree) else ConfigFactory.parse_file(config, resolve=False)
+        # Both resolved: merged here, so a value put() in keeps its type, a
+        # timedelta or the text "00123". A ${…} left to resolve needs the text.
+        if fallback._as_written is None and self._as_written is None:
+            return ConfigTree.merge_configs(copy.deepcopy(fallback), copy.deepcopy(self))
         return ConfigFactory.parse_string(fallback._hocon_text() + "\n" + self._hocon_text(), None, resolve)
 
     def as_plain_ordered_dict(self) -> "OrderedDict[str, Any]":

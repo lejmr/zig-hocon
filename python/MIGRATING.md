@@ -24,11 +24,11 @@ This guide moves a project from pyhocon to zig_hocon. There are two ways:
   ```
 
   zig_hocon gives `["auth", "metrics"]`.
-- **No silent guesses.** pyhocon accepts input the spec rejects and changes what you wrote. zig_hocon reports an error with its place:
+- **No silent guesses.** pyhocon accepts input the spec rejects, and changes what you wrote. zig_hocon reports such input as an error with its place, and keeps what you wrote as you wrote it:
 
   | input | pyhocon 0.3.63 | zig_hocon |
   |---|---|---|
-  | `a = [include "x"]` | `{"a": []}`, the element is gone | `{"a": ["include x"]}` |
+  | `a = [include "x"]` | `{"a": []}`, the element is gone | `{"a": ["include x"]}`: an include belongs in an object, in a list it is text |
   | `a..b = 1` | `{"a": {"b": 1}}` | error at 1:3 |
   | `a = b:c` | `{"a": "b:c"}` | error at 1:6 (`:` is reserved) |
   | `,a = b` | `{"a": "b"}` | error at 1:1 |
@@ -49,7 +49,7 @@ Everything of pyhocon's public API is there: `ConfigFactory.parse_file` (with `e
 
 Two tests hold it against the newest pyhocon on every change: [test_pyhocon_signatures.py](tests/test_pyhocon_signatures.py) has every public name of pyhocon's modules, with the same parameters, and [test_pyhocon_compat.py](tests/test_pyhocon_compat.py) reads documents with both and compares the values, their types and the converter's output. Each difference by design is in them with its reason.
 
-Values have pyhocon's types: `30s` is a `timedelta`, or with python-dateutil installed a `relativedelta`, as pyhocon makes it; months and years need dateutil there too. A number pyhocon reads where JSON has none is that number, as in pyhocon: `0024` is 24, `.54` and `-.5` are 0.54 and -0.5. One difference: quoted, `"30s"` is a duration as well and `"01234"` the number 1234, where pyhocon keeps them text; `"8080"` or `"0.5"` stays text.
+Values have the types the spec gives them: a number JSON reads is a number, everything else text, as the core reads it. A text stays exactly the text, quoted or not, from an environment variable too: `${ACCOUNT_ID}` with `012345678901` in it, `"0644"` and `"512m"` stay what they say. pyhocon turns an unquoted `30s` into a `timedelta` and an unquoted `0024` into 24; here they are the text `"30s"` and `"0024"`, and `zig_hocon.parse_duration` reads the first. (The core's JSON does not say which values were quoted, so guessing pyhocon's types from it changed quoted and inherited text too; it is not done.)
 
 The text itself is read by the spec, as `zig_hocon` reads it. Of pyhocon's own syntax one thing is there: `include package("pkg:file.conf")`, the file in the installed package, in the text you parse (not in a file it includes). With pyparsing installed, as it is beside pyhocon, a syntax error is pyparsing's `ParseException` and `ParseSyntaxException` too.
 
@@ -57,6 +57,8 @@ What pyhocon reads its own way and this module reads by the spec:
 
 | config | pyhocon | here |
 |---|---|---|
+| `timeout = 30s`, unquoted | a `timedelta` (`relativedelta` with dateutil) | the text `"30s"`; `zig_hocon.parse_duration` reads it |
+| `zip = 0024`, unquoted | 24 | the text `"0024"` |
 | `x += [3, 4]` after `x = [1, 2]` | `[1, 2, 3, 4]` | `[1, 2, [3, 4]]`; write `x = ${x} [3, 4]` |
 | `x += def` onto text, `x += { b = 2 }` onto an object | goes on after the text, merges | an error |
 | `include "conf.d/*.conf"` | every file the glob finds | nothing, as a missing file, and on Windows an error (`BadPathName`); include them one by one |
@@ -159,7 +161,7 @@ settings["db"]["host"]
   conf = ConfigFactory.parse_file(str(files("mypackage") / "defaults.conf"))
   ```
 
-- **Durations and sizes are text until something asks** (not in `zig_hocon.pyhocon`, which has pyhocon's `timedelta`). pyhocon turns `30s` into a `timedelta` while it parses; here `as_dict()` has `"30s"`, and `get_duration` or the model converts it. With pydantic, a `BeforeValidator(zig_hocon.parse_duration)` on the field; [examples/durations-and-sizes](examples/durations-and-sizes) has it for pydantic and msgspec.
+- **Durations and sizes are text until something asks** (in `zig_hocon.pyhocon` too). pyhocon turns `30s` into a `timedelta` while it parses; here `as_dict()` has `"30s"`, and `get_duration` or the model converts it. With pydantic, a `BeforeValidator(zig_hocon.parse_duration)` on the field; [examples/durations-and-sizes](examples/durations-and-sizes) has it for pydantic and msgspec.
 - **A concatenation is a string.** `a = ${?nope}42` is `"42"` by the spec; pyhocon gives the number `42`. A model that wants an int converts it.
 - **An `include url(…)` gives up after 30 s.** pyhocon waits as long as `socket.setdefaulttimeout` says, by default for ever. Here `http_timeout=` on `parse_file` and `parse_string` sets it, and a server that does not answer in time is a `ConfigParseException` named `IncludeTimeout`.
 - **A leading zero keeps the text** (not in `zig_hocon.pyhocon`, which reads such a number as pyhocon does). A value that begins with a digit begins with the number JSON reads there, and the rest is text, so `zip = 01234` is `"01234"` by the spec; pyhocon gives the number 1234. An IP address, a version or a UUID is text as written, as in pyhocon. So is a value that begins with `-` and no number, `-foo` or `-Xmx2g`, and a fraction JSON has no number for: `.5` and `-.5` are the text `".5"` and `"-.5"`, where pyhocon gives 0.5 and -0.5. Text becomes a number only by the JSON rules, so `get_int("zip")` on `01234` and `get_float` on `-.5` raise `ConfigWrongTypeException`, where pyhocon gives 1234 and -0.5: write `zip = "01234"` and read it with `get_string`, or `-0.5`.

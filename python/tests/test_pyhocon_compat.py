@@ -24,12 +24,14 @@ CASES = {
     "unquoted text": "owl = the owl hoots at midnight",
     # text since 0.5.3, as the spec has it; it was an error and an xfail here
     "-Xmx unquoted": "opts = [-Xmx1g]",
-    "numbers JSON has not": "a = 0024\nb = -0024\nc = 007.5\nd = 01e2\ne = .54\nf = -.5\ng = [00, 1]",
+    "numbers JSON has not": differs(
+        "a = 0024\nb = -0024\nc = 007.5\nd = 01e2\ne = .54\nf = -.5\ng = [00, 1]", "text by the spec, unquoted too; pyhocon reads numbers"
+    ),
     "quoted numbers": 'port = "8080"\nratio = "0.5"\nbig = "1e3"',
     "quoted text": 'owl = "hoot, hoot"\nempty = ""',
     "escapes": r'a = "tab\there"' + "\n" + r'b = "quote \" and \\ slash"',
     "multiline text": 'poem = """the owl\nflew home"""',
-    "unicode": "sova = \"hú hú\"\n\"klíč\" = ✓",
+    "unicode": 'sova = "hú hú"\n"klíč" = ✓',
     # objects and paths
     "nested objects": "burrow { depth = 3, owls { count = 2 } }",
     "dotted paths": "burrow.depth = 3\nburrow.owls.count = 2",
@@ -62,9 +64,9 @@ CASES = {
     "text concatenation": "a = owl\nb = ${a} hoots",
     "number then text": "a = 1 owl\nb = 2.5 owls fly",
     # durations
-    "durations": "a = 30s\nb = 10 weeks\nc = 3m\nd = 114 ms\ne = 1140000 ns",
-    "months and years": "a = 3mo\nb = 2 year",
-    "durations in lists": "a = [4 h, 5 ms]",
+    "durations": differs("a = 30s\nb = 10 weeks\nc = 3m\nd = 114 ms\ne = 1140000 ns", "a duration is its text by the spec; pyhocon makes one of it unquoted"),
+    "months and years": differs("a = 3mo\nb = 2 year", "a duration is its text by the spec; pyhocon makes one of it unquoted"),
+    "durations in lists": differs("a = [4 h, 5 ms]", "a duration is its text by the spec; pyhocon makes one of it unquoted"),
     "not durations": "a = 1.5 s\nb = -3 s\nc = 3 monthsx\nd = 5x",
     # errors in both, of their own classes
     "unclosed list": "a = [1, 2",
@@ -73,8 +75,8 @@ CASES = {
     "substitution cycle": "a = ${b}\nb = ${a}",
     # what the spec reads otherwise
     "+= in an object": differs("a { b { x = [1] } }\na { b { x += [2] } }", "pyhocon loses what x was in a nested object, [2]; here it is [1, 2]"),
-    "quoted duration": differs('a = "30s"', 'a quoted "30s" is a duration here too: libhocon\'s JSON has no quotes left'),
-    "quoted leading zero": differs('zip = "01234"', "a number pyhocon reads where JSON has none is one quoted too: libhocon's JSON has no quotes left"),
+    "quoted duration": 'a = "30s"',
+    "quoted leading zero": 'zip = "01234"',
     "optional substitution then text": differs("a = ${?nope} 4", 'by the spec it is the text " 4", pyhocon the number 4'),
     "duration then text": differs("a = 5 ms foo", "pyhocon makes '0:00:00.005000foo' of it"),
     "bool then text": differs("a = true love", "pyhocon makes 'Truelove' of it; by the spec it is 'true love'"),
@@ -108,3 +110,22 @@ def test_same_as_pyhocon(text):
         return
     for fmt in ["json", "hocon", "yaml", "properties"]:
         assert compat.HOCONConverter.convert(got, fmt) == pyhocon.HOCONConverter.convert(want, fmt), fmt
+
+
+# What a review found the type guessing broke: a text stays the text pyhocon
+# gives, from an environment variable or in quotes, also through with_fallback(),
+# and a value put() in keeps its type.
+def test_text_keeps_its_leading_zeros_and_units(monkeypatch):
+    monkeypatch.setenv("AWS_ACCOUNT_ID", "012345678901")
+    monkeypatch.setenv("DB_PASSWORD", "0042")
+    text = 'aws.account = ${AWS_ACCOUNT_ID}\ndb.password = ${DB_PASSWORD}\nmode = "0644"\nmem = "512m"\nport = "8080"'
+    want, got = pyhocon.ConfigFactory.parse_string(text), compat.ConfigFactory.parse_string(text)
+    assert _typed(got) == _typed(want)
+    assert got.get_string("aws.account") == "012345678901"
+    for module in (pyhocon, compat):
+        tree = module.ConfigFactory.parse_string("x = 1")
+        tree.put("code", "00123")
+        tree.put("wait", datetime.timedelta(seconds=30))
+        merged = tree.with_fallback(module.ConfigFactory.parse_string("y = 2"))
+        assert _typed(merged.get("code")) == ("str", "00123")
+        assert _typed(merged.get("wait")) == ("timedelta", datetime.timedelta(seconds=30))

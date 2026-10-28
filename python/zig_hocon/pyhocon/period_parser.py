@@ -44,12 +44,8 @@ _UNIT_OF = {n: unit for unit, spellings in (_UNITS | _DATEUTIL_UNITS).items() fo
 
 
 def duration(text: str) -> Any:
-    """``text`` as pyhocon reads a value: a duration when it is a whole
-    number and a unit, else ``text``.
-
-    ponytail: libhocon's JSON has no quotes left, so a quoted "30s" is a
-    duration too, where pyhocon keeps it text; hocon.h telling quoted from
-    unquoted would make it exact."""
+    """``text`` as pyhocon reads a duration: one when it is a whole number
+    and a unit, else ``text``."""
     m = (_DURATION if relativedelta is None else _DURATION_DATEUTIL).fullmatch(text)
     if m is None:
         return text

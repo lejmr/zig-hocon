@@ -52,9 +52,22 @@ def conf(text=DOC, **kw):
 
 # pyhocon ✓: the same names in the same modules
 def test_the_modules_are_pyhocon_s():
-    for name in ["ConfigFactory", "ConfigParser", "ConfigTree", "ConfigList", "UndefinedKey", "HOCONConverter", "ConfigInclude",
-                 "ConfigSubstitution", "ConfigUnquotedString", "ConfigValues", "ConfigException", "ConfigMissingException",
-                 "ConfigWrongTypeException", "ConfigSubstitutionException"]:
+    for name in [
+        "ConfigFactory",
+        "ConfigParser",
+        "ConfigTree",
+        "ConfigList",
+        "UndefinedKey",
+        "HOCONConverter",
+        "ConfigInclude",
+        "ConfigSubstitution",
+        "ConfigUnquotedString",
+        "ConfigValues",
+        "ConfigException",
+        "ConfigMissingException",
+        "ConfigWrongTypeException",
+        "ConfigSubstitutionException",
+    ]:
         assert hasattr(pyhocon, name)
     assert config_parser.ConfigFactory is ConfigFactory
     assert config_tree.ConfigTree is ConfigTree
@@ -246,7 +259,7 @@ def test_copies():
 
 # pyhocon ✓: the fallback's keys first, as two files one after the other
 def test_with_fallback():
-    c = conf("db.port = 6543\nurl = ${db.host}\":\"${db.port}", resolve=False)
+    c = conf('db.port = 6543\nurl = ${db.host}":"${db.port}', resolve=False)
     merged = c.with_fallback(conf())
     assert merged.get("url") == "burrow.example.org:6543"
     assert list(merged)[0] == "db"
@@ -270,59 +283,58 @@ def test_with_fallback_of_put_values():
     c = ConfigTree()
     c.put("wait", datetime.timedelta(seconds=2))
     assert c.with_fallback(ConfigTree()).get("wait") == datetime.timedelta(seconds=2)
+    # resolved trees merge as they are, as in pyhocon: any value stays
     c.put("owl", object())
-    with pytest.raises(TypeError, match="object is not a HOCON value"):
-        c.with_fallback(ConfigTree())
+    assert type(c.with_fallback(ConfigTree()).get("owl")) is object
 
 
-# pyhocon ✓: a whole number and a unit is a duration, a relativedelta with
-# dateutil (milliseconds a timedelta), in objects and lists too
+# pyhocon ✗ unquoted, ✓ quoted: a duration is its text, as the spec reads it;
+# zig_hocon.parse_duration converts one. pyhocon makes a relativedelta of the
+# unquoted ones. Guessing that here, from libhocon's JSON, where quoted and
+# unquoted look the same, made "512m" from a variable 512 minutes.
 @pytest.mark.parametrize(
     "text, value",
     [
-        ("30s", relativedelta(seconds=30)),
-        ("10 weeks", relativedelta(days=70)),
-        ("3m", relativedelta(minutes=3)),
-        ("3mo", relativedelta(months=3)),
-        ("2 year", relativedelta(years=2)),
-        ("1140000 ns", relativedelta(microseconds=1140)),
-        ("114 ms", datetime.timedelta(milliseconds=114)),
-        ("5  seconds", relativedelta(seconds=5)),
-        ("[4 h, 5 ms]", [relativedelta(hours=4), datetime.timedelta(milliseconds=5)]),
-        ("{ x = 2 h }", {"x": relativedelta(hours=2)}),
+        ("30s", "30s"),
+        ("10 weeks", "10 weeks"),
+        ("3m", "3m"),
+        ("3mo", "3mo"),
+        ("2 year", "2 year"),
+        ("1140000 ns", "1140000 ns"),
+        ("114 ms", "114 ms"),
+        ("5  seconds", "5  seconds"),
+        ("[4 h, 5 ms]", ["4 h", "5 ms"]),
+        ("{ x = 2 h }", {"x": "2 h"}),
         ("1.5 s", "1.5 s"),
         ("-3 s", "-3 s"),
         ("3 monthsx", "3 monthsx"),
-        # pyhocon ✗: it makes '0:00:00.005000foo' of it
         ("5 ms foo", "5 ms foo"),
-        # pyhocon ✗: quoted is text there; libhocon's JSON has no quotes left
-        ('"30s"', relativedelta(seconds=30)),
+        ('"30s"', "30s"),
     ],
 )
 def test_durations(text, value):
     assert conf("a = " + text)["a"] == value
 
 
-# pyhocon ✓: without dateutil a timedelta, and months and years are text
+# pyhocon ✓: without dateutil period_parser gives a timedelta, and months and
+# years are no duration
 def test_durations_without_dateutil(monkeypatch):
     monkeypatch.setattr(period_parser, "relativedelta", None)
-    c = conf("a = 30s\nb = 3mo\nc = [1 d]")
-    assert c["a"] == datetime.timedelta(seconds=30) and type(c["a"]) is datetime.timedelta
-    assert c["b"] == "3mo" and c["c"] == [datetime.timedelta(days=1)]
+    assert type(period_parser.parse_period("30s")) is datetime.timedelta
+    assert period_parser.parse_period("1 d") == datetime.timedelta(days=1)
+    with pytest.raises(ValueError):
+        period_parser.parse_period("3mo")
 
 
-# pyhocon ✓: a duration stays one through with_fallback, as pyhocon merges
-# trees; a relativedelta of months and days is no one HOCON duration.
-# pyhocon ⚠️: a timedelta below a millisecond comes back a relativedelta
+# pyhocon ✓: with_fallback() merges resolved trees as they are, as pyhocon
+# does, so what put() put in keeps its type, a relativedelta of months and days
+# too, and a duration read from the text stays its text
 def test_durations_through_with_fallback():
-    c = conf("a = 3mo\nb = 30s\nc = 114 ms\nd = 2 y")
+    c = conf("a = 3mo\nb = 30s")
     c.put("e", datetime.timedelta(microseconds=7))
-    merged = c.with_fallback(ConfigTree())
-    assert merged == {"a": relativedelta(months=3), "b": relativedelta(seconds=30), "c": datetime.timedelta(milliseconds=114),
-                      "d": relativedelta(years=2), "e": relativedelta(microseconds=7)}
     c.put("f", relativedelta(months=1, days=2))
-    with pytest.raises(TypeError, match="is not one HOCON duration"):
-        c.with_fallback(ConfigTree())
+    merged = c.with_fallback(ConfigTree())
+    assert merged == {"a": "3mo", "b": "30s", "e": datetime.timedelta(microseconds=7), "f": relativedelta(months=1, days=2)}
 
 
 # pyhocon ✓: period_parser and period_serializer, as pyhocon has them;
@@ -331,6 +343,7 @@ def test_period_modules():
     assert period_parser.period(3, "minutes") == relativedelta(minutes=3)
     assert period_parser.period(5, "milliseconds") == datetime.timedelta(milliseconds=5)
     assert period_parser.parse_period("10 weeks") == relativedelta(days=70)
+    assert period_parser.parse_period("1140000 ns") == relativedelta(microseconds=1140)
     with pytest.raises(ValueError, match="'owl' is not a duration"):
         period_parser.parse_period("owl")
     assert period_serializer.relative_delta_to_timedelta(relativedelta(hours=1, months=2)) == datetime.timedelta(hours=1)
@@ -339,7 +352,15 @@ def test_period_modules():
 
 # pyhocon ✓: checked against pyhocon 0.3.63's output
 def test_relativedeltas_converted():
-    c = conf("a = 7 h\nb = 3 m\nc = 12 d\nd = 3mo\ne = 112 micros")
+    c = ConfigTree()
+    for key, value in [
+        ("a", relativedelta(hours=7)),
+        ("b", relativedelta(minutes=3)),
+        ("c", relativedelta(days=12)),
+        ("d", relativedelta(months=3)),
+        ("e", relativedelta(microseconds=112)),
+    ]:
+        c.put(key, value)
     assert HOCONConverter.to_hocon(c) == "a = 7 hours\nb = 3 minutes\nc = 12 days\nd = 0 seconds\ne = 112 microseconds"
     assert HOCONConverter.to_json(c) == '{\n  "a": 25200000,\n  "b": 180000,\n  "c": 1036800000,\n  "d": 0,\n  "e": 0\n}'
 
@@ -695,8 +716,6 @@ def test_includes_in_a_list(tmp_path):
     assert conf('l = [include "http://example.invalid/x.conf"]') == {"l": ["include http://example.invalid/x.conf"]}
 
 
-
-
 def test_rewrite_of_included_files(tmp_path):
     # a cycle of includes, a file not in UTF-8 and one the rewrite cannot
     # follow are libhocon's to read or to report
@@ -705,7 +724,7 @@ def test_rewrite_of_included_files(tmp_path):
     with pytest.raises(ConfigException) as e:
         ConfigFactory.parse_file(str(tmp_path / "a.conf"))
     assert e.value.name == "IncludeCycle"
-    (tmp_path / "latin.conf").write_bytes(b"s = \"caf\xe9\"")
+    (tmp_path / "latin.conf").write_bytes(b's = "caf\xe9"')
     (tmp_path / "odd.conf").write_text('q = """x""""\nr = [1')
     with pytest.raises(ConfigException):
         conf('x += [1]\ninclude "latin.conf"', basedir=str(tmp_path))
