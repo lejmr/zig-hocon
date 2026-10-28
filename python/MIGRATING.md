@@ -51,7 +51,7 @@ Two tests hold it against the newest pyhocon on every change: [test_pyhocon_sign
 
 Values have the types the spec gives them: a number JSON reads is a number, everything else text, as the core reads it. A text stays exactly the text, quoted or not, from an environment variable too: `${ACCOUNT_ID}` with `012345678901` in it, `"0644"` and `"512m"` stay what they say. pyhocon turns an unquoted `30s` into a `timedelta` and an unquoted `0024` into 24; here they are the text `"30s"` and `"0024"`, and `zig_hocon.parse_duration` reads the first. (The core's JSON does not say which values were quoted, so guessing pyhocon's types from it changed quoted and inherited text too; it is not done.)
 
-The text itself is read by the spec, as `zig_hocon` reads it. Of pyhocon's own syntax one thing is there: `include package("pkg:file.conf")`, the file in the installed package, in the text you parse (not in a file it includes). With pyparsing installed, as it is beside pyhocon, a syntax error is pyparsing's `ParseException` and `ParseSyntaxException` too.
+The text itself is read by the spec, as `zig_hocon` reads it. Of pyhocon's own syntax two includes are there, in the text you parse (not in a file it includes): `include package("pkg:file.conf")`, the file in the installed package, and a glob, `include "conf.d/*.conf"`, each file it finds, in sorted order. With pyparsing installed, as it is beside pyhocon, a syntax error is pyparsing's `ParseException` and `ParseSyntaxException` too.
 
 What pyhocon reads its own way and this module reads by the spec:
 
@@ -61,7 +61,6 @@ What pyhocon reads its own way and this module reads by the spec:
 | `zip = 0024`, unquoted | 24 | the text `"0024"` |
 | `x += [3, 4]` after `x = [1, 2]` | `[1, 2, 3, 4]` | `[1, 2, [3, 4]]`; write `x = ${x} [3, 4]` |
 | `x += def` onto text, `x += { b = 2 }` onto an object | goes on after the text, merges | an error |
-| `include "conf.d/*.conf"` | every file the glob finds | nothing, as a missing file, and on Windows an error (`BadPathName`); include them one by one |
 | `include "f"` with a file named `f` | that file | `f.conf`, `f.json`, `f.properties`; name the extension |
 | an include in a list | the included list's elements | an error |
 | `abc\"d` unquoted | `abc"d` | an error |

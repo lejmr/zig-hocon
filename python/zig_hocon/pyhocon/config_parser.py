@@ -9,6 +9,7 @@ import codecs
 import contextlib
 import errno
 import functools
+import glob
 import importlib
 import importlib.util
 import json
@@ -159,16 +160,31 @@ def _read(parse: Callable[[bool], _core_tree.ConfigTree], resolve: bool, unresol
     return as_written(_call(lambda: parse(False).to_hocon()))
 
 
-# pyhocon's include of a file in an installed package, which HOCON has not.
-_PACKAGE = re.compile(r'(include\s+(?:required\(\s*)?)package\(\s*("(?:[^"\\]|\\.)*")\s*\)')
+# pyhocon's includes HOCON has not: a file in an installed package, and a glob.
+# An include is one where a line or an object starts; in a list, after a comma,
+# it is text by the spec, and stays so.
+_AT = r"(?:^|(?<=\{))[ \t]*"
+_PACKAGE = re.compile(_AT + r'(include\s+(?:required\(\s*)?)package\(\s*("(?:[^"\\]|\\.)*")\s*\)', re.MULTILINE)
+_GLOB = re.compile(_AT + r'include(\s+)(required\(\s*)?("(?:[^"\\]|\\.)*[*?](?:[^"\\]|\\.)*")(\s*\))?', re.MULTILINE)
 
 
-def _packages(text: str) -> str:
-    """``text`` with ``include package("pkg:file.conf")`` naming the file by its
-    path in the installed package, for libhocon to include as any file."""
+def _includes(text: str, basedir: Path) -> str:
+    """``text`` with pyhocon's includes naming the files libhocon reads: a
+    ``package("pkg:file.conf")`` the file in the installed package, a glob
+    each file it finds, in sorted order. A glob that finds none is left for
+    libhocon, which has no such file: nothing, or IncludeNotFound under
+    required()."""
+
     # ponytail: only in the text read here, not in a file it includes; that
     # would need the file rewritten, or an include hook in libhocon.
-    return _PACKAGE.sub(lambda m: m.group(1) + json.dumps(ConfigParser.resolve_package_path(json.loads(m.group(2)))), text)
+    def glob_files(m: re.Match[str]) -> str:
+        found = sorted(glob.glob(os.path.join(basedir, json.loads(m.group(3))), recursive=True))
+        if not found:
+            return m.group(0)
+        return "\n".join(f"include{m.group(1)}{m.group(2) or ''}{json.dumps(f)}{m.group(4) or ''}" for f in found)
+
+    text = _PACKAGE.sub(lambda m: m.group(1) + json.dumps(ConfigParser.resolve_package_path(json.loads(m.group(2)))), text)
+    return _GLOB.sub(glob_files, text)
 
 
 class ConfigFactory:
@@ -205,7 +221,7 @@ class ConfigFactory:
             logger.warning("Cannot include file %s. File does not exist or cannot be read.", filename)
             return []
         basedir = os.path.dirname(filename)
-        text = _packages(content)
+        text = _includes(content, basedir)
         # A UTF-8 file as written is read again by libhocon, for its name in an error.
         if text == content and codecs.lookup(encoding).name == "utf-8":
             return _read(lambda r: _core.ConfigFactory.parse_file(filename, resolve=r), resolve, unresolved_value)
@@ -246,7 +262,7 @@ class ConfigFactory:
         """HOCON text; an include in it is found in ``basedir``, by default
         the working directory, as pyhocon finds it."""
         where = os.getcwd() if basedir is None else basedir
-        return _read(lambda r: _core.ConfigFactory.parse_string(_packages(content), basedir=where, resolve=r), resolve, unresolved_value)
+        return _read(lambda r: _core.ConfigFactory.parse_string(_includes(content, where), basedir=where, resolve=r), resolve, unresolved_value)
 
     @classmethod
     def from_dict(cls, dictionary: Mapping[str, Any], root: bool = False) -> Any:
