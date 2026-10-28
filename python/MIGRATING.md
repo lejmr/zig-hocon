@@ -2,6 +2,8 @@
 
 This guide moves a project from pyhocon to zig_hocon. Code that reads through `ConfigFactory` and the typed getters changes its imports: those and the exception names are the same. Code that uses the tree as a dict, or `get`, `get_list`, `with_fallback`, `put` or `from_dict`, needs a few lines more (Step 2), and a config with `include package(...)` needs a change. Steps 1 to 3 cover all of it, and the checklist at the end finds every place to look at.
 
+**Before you switch, check your secret store.** zig_hocon reads a number or a boolean from the environment only as written: `08`, ` 48` or `True`, which pyhocon took, now stop a service at startup (`get_int`, `get_bool`), and this is the most common way a service does not start after the move. Export each deployment's environment into an env file, `KEY=value` lines, and run `zig-hocon-migrate` with it ([Checklist](#checklist)).
+
 ## Why move
 
 - **Correct.** zig_hocon passes all 586 tests in the [conformance suite](https://htmlpreview.github.io/?https://github.com/lejmr/zig-hocon/blob/main/conformance/report.html), pyhocon 359.
@@ -95,7 +97,7 @@ Everything else (variables, includes, merging) reads the same, except where pyho
 
 ## Checklist
 
-Read your configs with both, with `zig-hocon-migrate` (pip installs it with zig-hocon; `python -m zig_hocon migrate` is the same) and pyhocon installed beside zig-hocon 0.6.0 or later (`pip install -U zig-hocon`; an older one has no `zig-hocon-migrate`):
+Read your configs with both, with `zig-hocon-migrate` (pip installs it with zig-hocon; `python -m zig_hocon migrate` is the same) and pyhocon installed beside a zig-hocon that has `zig-hocon-migrate` (it came after 0.5.3: `pip install -U zig-hocon`):
 
 ```sh
 zig-hocon-migrate conf/ --env-file prod.env
@@ -128,10 +130,11 @@ Each config is read by pyhocon and by `zig_hocon`, with the same environment (`-
 With an env file per environment, check each overlay with its own, one run per environment:
 
 ```sh
+failed=0
 for env in prod staging dev; do
-  zig-hocon-migrate "conf/$env.conf" --env-file "env/$env.env" --fallback reference.conf || status=1
+  zig-hocon-migrate "conf/$env.conf" --env-file "env/$env.env" || failed=1
 done
-exit ${status:-0}
+test "$failed" = 0
 ```
 
 The values that matter most are the ones in no file here: production's environment from the secret store. zig_hocon reads a number or a boolean from it only as written, so `08`, ` 48` or `True` that started a service on pyhocon stop it now (`get_int`, `get_bool`); a traceback notes what it read, `found '08'` (Python 3.11 and later). A model reads them otherwise: a value from `${…}` of the environment is text by the spec, `"48"`, so keep the model's number and boolean fields lax, which read it, and know that pydantic then also takes `"08"` as 8, where `get_int` refuses it. Export them once into an env file, `KEY=value` lines, and run `migrate` with it, or check them by hand before the switch.
