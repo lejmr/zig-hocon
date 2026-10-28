@@ -115,7 +115,7 @@ Code that reads through `ConfigFactory` and the typed getters changes its import
 - **Strict syntax.** Input pyhocon quietly accepted, such as `a..b = 1` or `a = b:c`, is an error with its line and column.
 - **No `include package(...)`.** It is pyhocon's own; include by path.
 
-To see what would change in your own configs, read them with both: with pyhocon installed beside zig-hocon,
+To see what would change in your own configs, read them with both: with pyhocon installed beside zig-hocon 0.6.0 or later (`pip install -U zig-hocon`; an older one answers `migrate` with `unrecognized arguments`),
 
 ```sh
 python -m zig_hocon migrate conf/ --env-file prod.env --fallback reference.conf

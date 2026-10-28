@@ -95,7 +95,7 @@ Everything else (variables, includes, merging) reads the same, except where pyho
 
 ## Checklist
 
-Read your configs with both, with pyhocon installed beside zig-hocon:
+Read your configs with both, with pyhocon installed beside zig-hocon 0.6.0 or later (`pip install -U zig-hocon`; an older one has no `migrate`, and answers it with `unrecognized arguments`):
 
 ```sh
 python -m zig_hocon migrate conf/ --env-file prod.env
