@@ -111,15 +111,22 @@ fn load(doc: *Doc, path: ?[]const u8, text: []const u8, given: ?*const Options, 
     // (Include.fetchWithTimeout). The threads start with the first fetch, and
     // `deinit` joins them before the parse returns: none outlives the call, and
     // nothing is shared to start once for the library. The fetch that lost is
-    // woken with SIGIO, so `init` sets SIGIO and SIGPIPE to a handler that does
-    // nothing. Those stay set: put back after each parse, two parses on two
-    // threads would put back each other's, and a SIGIO with no handler ends
-    // the process on Linux.
+    // woken with SIGIO, so it needs SIGIO and SIGPIPE set to a handler that
+    // does nothing. `init` sets them, and they are put back at once: a parse
+    // that fetches nothing leaves them as they were. Before a fetch they are
+    // set again (setFetchSignals), and stay: put back after each parse, two
+    // parses on two threads would put back each other's, and a SIGIO with no
+    // handler ends the process on Linux. Two parses starting at once on two
+    // threads can leave them set too, as one puts back what the other set.
     var threaded: std.Io.Threaded = .init(gpa, .{});
-    threaded.have_signal_handler = false;
+    if (threaded.have_signal_handler) {
+        if (@TypeOf(threaded.old_sig_io) != void) std.posix.sigaction(.IO, &threaded.old_sig_io, null);
+        if (@TypeOf(threaded.old_sig_pipe) != void) std.posix.sigaction(.PIPE, &threaded.old_sig_pipe, null);
+        threaded.have_signal_handler = false;
+    }
     defer threaded.deinit();
     const io = threaded.io();
-    var parse_options: hocon.ParseOptions = .{ .diagnostics = diag, .env = env, .resolve = options.resolve, .files = &doc.files };
+    var parse_options: hocon.ParseOptions = .{ .diagnostics = diag, .env = env, .resolve = options.resolve, .files = &doc.files, .before_fetch = setFetchSignals };
     if (options.http_timeout_ms > 0) parse_options.http_timeout = .fromMilliseconds(options.http_timeout_ms);
     // The files keep the path they were named by, and the caller's may go.
     if (path) |p| return hocon.parseFromFileLeaky(hocon.Value, arena, io, try arena.dupe(u8, p), parse_options);
@@ -130,6 +137,17 @@ fn load(doc: *Doc, path: ?[]const u8, text: []const u8, given: ?*const Options, 
     const dir = options.include_dir orelse return hocon.parseFromSliceLeaky(hocon.Value, arena, source, parse_options);
     return hocon.parseFromSliceInDirLeaky(hocon.Value, arena, io, std.mem.span(dir), source, parse_options);
 }
+
+/// SIGIO and SIGPIPE to a handler that does nothing, as `std.Io.Threaded.init`
+/// sets them, for an `http(s)` include to be fetched (see `parse`).
+fn setFetchSignals() void {
+    if (std.posix.Sigaction == void) return;
+    const act: std.posix.Sigaction = .{ .handler = .{ .handler = doNothing }, .mask = std.posix.sigemptyset(), .flags = 0 };
+    if (std.posix.SIG != void and @hasField(std.posix.SIG, "IO")) std.posix.sigaction(.IO, &act, null);
+    if (std.posix.SIG != void and @hasField(std.posix.SIG, "PIPE")) std.posix.sigaction(.PIPE, &act, null);
+}
+
+fn doNothing(_: std.posix.SIG) callconv(.c) void {}
 
 /// The caller's options: the fields its `size` holds, and the defaults for
 /// the rest, which a program built against an older hocon.h does not know of.
@@ -846,6 +864,39 @@ test "capi.a file with an include" {
     defer hocon_free_string(json);
     try testing.expectEqualStrings("{\"port\":443,\"timeout\":\"30s\",\"plugins\":[\"auth\",\"metrics\"]}", std.mem.span(json));
 }
+
+// java – · pyhocon – · spec – — ours alone: a parse leaves SIGIO and SIGPIPE
+// as the program set them, a Python handler too; only a fetch of an http(s)
+// include sets them, which it needs (see `parse`).
+test "capi.signals are set only for a fetch" {
+    if (std.posix.Sigaction == void or !@hasField(std.posix.SIG, "IO")) return error.SkipZigTest;
+    const mine: std.posix.Sigaction = .{ .handler = .{ .handler = owlHoots }, .mask = std.posix.sigemptyset(), .flags = 0 };
+    var io_before: std.posix.Sigaction = undefined;
+    var pipe_before: std.posix.Sigaction = undefined;
+    std.posix.sigaction(.IO, &mine, &io_before);
+    defer std.posix.sigaction(.IO, &io_before, null);
+    std.posix.sigaction(.PIPE, &mine, &pipe_before);
+    defer std.posix.sigaction(.PIPE, &pipe_before, null);
+    const options: Options = .{ .env = .none, .include_dir = "." };
+    var now: std.posix.Sigaction = undefined;
+
+    const plain = "a = 1\ninclude \"no-such-burrow.conf\"";
+    hocon_free(hocon_parse_string(plain, plain.len, &options, null).?);
+    std.posix.sigaction(.IO, null, &now);
+    try testing.expectEqual(mine.handler.handler, now.handler.handler);
+    std.posix.sigaction(.PIPE, null, &now);
+    try testing.expectEqual(mine.handler.handler, now.handler.handler);
+
+    // nothing listens on port 1: the fetch fails at once, after the signals are set
+    const fetching = "include url(\"http://127.0.0.1:1/owl.conf\")";
+    if (hocon_parse_string(fetching, fetching.len, &options, null)) |doc| hocon_free(doc);
+    std.posix.sigaction(.IO, null, &now);
+    try testing.expect(now.handler.handler != mine.handler.handler);
+    std.posix.sigaction(.PIPE, null, &now);
+    try testing.expect(now.handler.handler != mine.handler.handler);
+}
+
+fn owlHoots(_: std.posix.SIG) callconv(.c) void {}
 
 // A parse that failed with no place in the file is the file not read only
 // when it failed reading it; a read error with a place is an include's.

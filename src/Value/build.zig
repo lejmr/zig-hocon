@@ -86,6 +86,8 @@ pub const Context = struct {
     base_url: ?[]const u8 = null,
     /// How long a fetch may take (see `ParseOptions`).
     http_timeout: std.Io.Duration = Include.default_http_timeout,
+    /// Called before each fetch (see `ParseOptions`).
+    before_fetch: ?*const fn () void = null,
     /// Where this file's keys sit in the whole document; every substitution in
     /// it is tried with this in front first (see `Ref`).
     scope: []const Key = &.{},

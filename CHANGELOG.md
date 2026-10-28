@@ -5,6 +5,7 @@ What changed for someone using zig-hocon: the Zig package, the `hocon` command l
 ## [Unreleased]
 
 ### Fixed
+- A parse through libhocon (C, Python) no longer sets SIGIO and SIGPIPE unless it fetches an `http(s)` include, which needs them: a handler the program set, Python's `signal.signal(SIGIO, …)` among them, stays as it was.
 - An include whose file cannot be read reports why: `include url("http://…")` with a host past 255 bytes no longer aborts the process (`NameTooLong`), `HTTP://` is fetched like `http://`, a path through a file (`x.conf/y.conf`) is a missing include and so ignored, and a symlink to itself is `SymLinkLoop`, not an include cycle that is not there.
 - `d.z += 5` reached again through a field that copies `d`, `d { z = ${?a.k} }`, `a += ${d}`, appended 5 twice, `[5, 5]`, when `d` was written before `a`, while the copy in `a` held `[5]`; it is `[5]` in every order, as the spec has it.
 
