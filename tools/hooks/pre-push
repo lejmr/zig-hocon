@@ -41,7 +41,8 @@ for run in "spec:--spec" "java:--java"; do
     HOCON_BIN="$WT/zig-out/bin/hocon" conformance/run.sh ${run#*:} --impl zig-hocon -- "$ADAPTER" \
         > "conformance/reports/zig-hocon.${run%%:*}.json" 2>/dev/null || true
 done
-python3 conformance/maintaining/report.py >/dev/null
+# its warnings, such as results of another library that predate the cases, are for the one pushing
+python3 conformance/maintaining/report.py >&2
 
 # shellcheck disable=SC2086
 git add $GENERATED
