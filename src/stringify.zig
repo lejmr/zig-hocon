@@ -336,9 +336,12 @@ fn isBare(text: []const u8, dots: bool) bool {
 /// `1.50` — when it reads back as the same text: nothing in it ends it early,
 /// no whitespace at either end is trimmed, and a word that starts like a number
 /// is one (`Ast.checkNumbers`). `+` is reserved but in the exponent of a
-/// word, `1e+5 x`.
+/// word, `1e+5 x`. A control character, a NUL above all, goes out escaped in
+/// quotes: written as it is, it ends the text for C and whoever reads it as C
+/// does (`hocon_to_hocon`), and every key after it is gone.
 fn isRaw(text: []const u8) bool {
     if (number.isJsonNumber(text)) return true;
+    for (text) |c| if (c < 0x20 and c != '\t') return false;
     if (text.len == 0 or std.mem.indexOf(u8, text, "//") != null) return false;
     if (std.mem.indexOfAny(u8, text, "$\"{}[]:=,#`^?!@*&\\\n") != null) return false;
     var word: usize = 0;
@@ -912,6 +915,8 @@ test "stringify.a loaded scalar keeps how it was written" {
 // `tea 100000.0`. `01` reads back as text here but as 1 on both, so it goes out
 // quoted, and so does `-.5`, text here but -0.5 on both. `1e+5.x` is text
 // here since 2026-10-25, and both reject it bare, so it goes out quoted.
+// A NUL or another control character goes out escaped in quotes: as it is it
+// would end the text for C (`hocon_to_hocon`).
 test "stringify.unquoted text built by hand reads back" {
     const rows = [_]struct { []const u8, []const u8 }{
         .{ "the wombat sleeps", "the wombat sleeps" },
@@ -933,6 +938,9 @@ test "stringify.unquoted text built by hand reads back" {
         .{ "1.2.3x", "1.2.3x" },
         .{ "a+b", "\"a+b\"" },
         .{ "a // b", "\"a // b\"" },
+        .{ "hello\x00world", "\"hello\\u0000world\"" },
+        .{ "bell\x07", "\"bell\\u0007\"" },
+        .{ "tab\tin", "tab\tin" },
     };
     var arena: std.heap.ArenaAllocator = .init(testing.allocator);
     defer arena.deinit();

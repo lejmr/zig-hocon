@@ -5,6 +5,7 @@ What changed for someone using zig-hocon: the Zig package, the `hocon` command l
 ## [Unreleased]
 
 ### Fixed
+- A NUL or another control character in unquoted text was written back by `to_hocon` / `hocon --hocon` as it was, and a NUL ended the text for C and Python: `motd = hello<NUL>world` lost every key after it. Such text is written quoted now, the character escaped (`"hello\u0000world"`).
 - A parse through libhocon (C, Python) sets SIGIO and SIGPIPE only while it fetches an `http(s)` include, which needs them, and puts back the handlers from before when the last such parse ends: a handler the program set, Python's `signal.signal(SIGIO, …)` among them, stays its own.
 - A deep document on a thread with little stack, a Python thread or one of musl's 128 KiB, ended the process with SIGBUS or SIGSEGV before the limit of 500 levels: libhocon parses and writes on a thread of its own with 16 MiB of stack, so a deeper document is `TooDeep` on any thread, and one below the limit is read.
 - The CLI is fuzzed on every pull request and branch push (`.github/workflows/fuzz.yml`): `tools/fuzz/fuzz.py --no-java --fail-on-crash`, a crash or a hang fails the run. A pull request's wheels are `X.Y.Z+g<commit>`, which PyPI refuses; CONTRIBUTING.md says what a patch and a minor release may change.

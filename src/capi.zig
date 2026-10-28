@@ -930,6 +930,18 @@ test "capi.a file with an include" {
     try testing.expectEqualStrings("{\"port\":443,\"timeout\":\"30s\",\"plugins\":[\"auth\",\"metrics\"]}", std.mem.span(json));
 }
 
+// java – · pyhocon – · spec – — ours alone: a NUL in unquoted text is written
+// back escaped, so the HOCON text, a C string, holds every key after it.
+test "capi.to_hocon keeps what follows a NUL" {
+    const src = "motd = hello\x00world\ndb.host = prod-db\n";
+    const doc = hocon_parse_string(src, src.len, &.{ .env = .none }, null).?;
+    defer hocon_free(doc);
+    var code: Code = undefined;
+    const text = hocon_to_hocon(doc, "", &code).?;
+    defer hocon_free_string(text);
+    try testing.expectEqualStrings("motd = \"hello\\u0000world\"\ndb {\n  host = prod-db\n}\n", std.mem.span(text));
+}
+
 // java – · pyhocon – · spec – — ours alone: a deep document on a thread with
 // little stack, as musl gives a thread or Python one made smaller, is
 // TooDeep past the limit of 500 and read below it, as on any thread: the
