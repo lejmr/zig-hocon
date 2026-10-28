@@ -118,3 +118,31 @@ def test_the_program_s_signal_handler_stays(owl_url, silent_url, tmp_path):
         assert heard
     finally:
         signal.signal(signal.SIGIO, before)
+
+
+# parses at once on many threads, some of them fetching, leave the handler
+# the program's: init and the fetches set and put back under one lock
+@pytest.mark.skipif(not hasattr(signal, "SIGIO"), reason="no SIGIO here")
+def test_the_signal_handler_stays_with_parses_at_once(owl_url, tmp_path):
+    heard = []
+    before = signal.signal(signal.SIGIO, lambda *_: heard.append(1))
+    try:
+
+        def plain():
+            for _ in range(100):
+                ConfigFactory.parse_string("a = 1", env=None)
+
+        def fetching():
+            for _ in range(5):
+                ConfigFactory.parse_string(f'include url("{owl_url}")', basedir=tmp_path, env=None)
+
+        threads = [threading.Thread(target=plain) for _ in range(6)] + [threading.Thread(target=fetching) for _ in range(2)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+        os.kill(os.getpid(), signal.SIGIO)
+        time.sleep(0.05)
+        assert heard
+    finally:
+        signal.signal(signal.SIGIO, before)

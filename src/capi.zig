@@ -143,12 +143,16 @@ fn load(doc: *Doc, path: ?[]const u8, text: []const u8, given: ?*const Options, 
     // that fetches nothing leaves them as they were. A fetch sets them
     // (setFetchSignals) until the last parse that fetched has joined its
     // threads: a SIGIO with no handler ends the process on Linux.
+    // Under the lock the fetches take: two parses starting at once would each
+    // keep the other's no-op handler as the one to put back.
+    lockFetching();
     var threaded: std.Io.Threaded = .init(gpa, .{});
     if (threaded.have_signal_handler) {
         if (@TypeOf(threaded.old_sig_io) != void) std.posix.sigaction(.IO, &threaded.old_sig_io, null);
         if (@TypeOf(threaded.old_sig_pipe) != void) std.posix.sigaction(.PIPE, &threaded.old_sig_pipe, null);
         threaded.have_signal_handler = false;
     }
+    fetching_lock.store(false, .release);
     defer if (fetched_here) putBackSignals();
     defer threaded.deinit();
     const io = threaded.io();
