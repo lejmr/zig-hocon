@@ -110,7 +110,10 @@ pub fn build(b: *std.Build) void {
     // installs. A tag names the oldest system the library runs on, so the
     // target pins it: macOS 13 (zig's oldest), glibc 2.17 (manylinux2014).
     const wheels_step = b.step("wheels", "Build the Python wheels of every platform into zig-out/wheels (needs python3.11+)");
-    const version = @import("build.zig.zon").version;
+    // `-Dlocal-version=g1a2b3c` makes a wheel 0.5.3+g1a2b3c: the pull
+    // request's, which PyPI refuses and pip never takes for the release.
+    const local_version = b.option([]const u8, "local-version", "A wheel's local version, after +: a build that is no release");
+    const version = if (local_version) |local| b.fmt("{s}+{s}", .{ @import("build.zig.zon").version, local }) else @import("build.zig.zon").version;
     for ([_][2][]const u8{
         .{ "aarch64-macos.13.0", "macosx_13_0_arm64" },
         .{ "x86_64-macos.13.0", "macosx_13_0_x86_64" },

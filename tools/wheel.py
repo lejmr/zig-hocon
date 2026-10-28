@@ -22,8 +22,9 @@ python = os.path.join(root, "python")
 
 with open(os.path.join(python, "pyproject.toml"), "rb") as f:
     project = tomllib.load(f)["project"]
-# build.zig.zon has the version; pip install python/ takes pyproject's.
-if project["version"] != version:
+# build.zig.zon has the version; pip install python/ takes pyproject's. A
+# local version after +, a pull request's build, is no release.
+if project["version"] != version.split("+")[0]:
     sys.exit(f"wheel: python/pyproject.toml has version {project['version']}, build.zig.zon {version}")
 # pip reads the semver 0.2.0-rc.1 in a wheel's name as a build tag, and
 # refuses it; PEP 440 spells it 0.2.0rc1, which build.zig.zon does not take.
