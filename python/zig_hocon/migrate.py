@@ -112,7 +112,11 @@ def _diff(old: Any, new: Any, keys: list[Any], tree: ConfigTree, lenient: dict[s
             if key in old and key in new:
                 fields[key] = _diff(old[key], new[key], [*keys, key], tree, lenient)
             else:
-                fields[key] = {"kind": "≠", **({"pyhocon": old[key]} if key in old else {}), **({"zig_hocon": new[key]} if key in new else {})}
+                node = {"kind": "≠", **({"pyhocon": old[key]} if key in old else {}), **({"zig_hocon": new[key]} if key in new else {})}
+                # null on one side, nothing on the other: a getter reads both as missing
+                if old.get(key, new.get(key)) is None:
+                    node.update(kind="≈", hint="null on one side, absent on the other: a getter reads both as missing, its default if it has one")
+                fields[key] = node
         return {"kind": "object", "fields": fields}
     # a list as long, but that is pyhocon's += of a list, is one difference with the hint below
     plus_equals = isinstance(old, list) and isinstance(new, list) and _same(old, _flat(new)) and not _same(old, new)
@@ -138,7 +142,7 @@ def _diff(old: Any, new: Any, keys: list[Any], tree: ConfigTree, lenient: dict[s
         call = f"conf.{getter}({json.dumps(_path(keys))})"
         try:
             if _same(want, getattr(tree, getter)(_path(keys))):
-                return {**node, "kind": "≈", "hint": f"the same through {call}"}
+                return {**node, "kind": "≈", "hint": f"the same through zig_hocon's {call}"}
         except ConfigException as e:
             node["hint"] = f"{call}: zig-hocon error ({e.name})"
     if isinstance(old, list) and isinstance(new, list) and _same(old, _flat(new)):
@@ -306,7 +310,7 @@ _COLOR = False
 _SIDES = ("pyhocon", "zig-hocon")
 # pyhocon's side red and zig-hocon's green, as a diff has them
 _STYLES = {"pyhocon": "31", "zig-hocon": "32", "!": "1", "dim": "2", "bold": "1"}
-_LEGEND = "≠ reads differently · ≈ the same through a getter (--getters) · ! fails in one of them · --accept PATH once reviewed"
+_LEGEND = "≠ reads differently · ≈ the same through a zig_hocon getter (--getters) · ! fails in one of them · --accept PATH once reviewed"
 
 
 def _legend() -> str:

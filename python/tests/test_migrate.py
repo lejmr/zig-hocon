@@ -33,7 +33,7 @@ def test_a_directory_is_its_entry_points(conf, capsys):
     assert code == 1
     assert "base.conf" not in out and "owl" not in out
     assert "≈ timeout   pyhocon " in out and "delta(seconds=" in out and " → zig-hocon '30s'" in out
-    assert 'the same through conf.get_duration("db.timeout")' in out
+    assert 'the same through zig_hocon\'s conf.get_duration("db.timeout")' in out
     assert "≠ size   pyhocon 24 → zig-hocon '0024'" in out
     assert 'conf.get_int("db.pool.size"): zig-hocon error (InvalidCharacter)' in out
     assert 'conf.get_int("db.\\"a.b\\""): zig-hocon error (InvalidCharacter)' in out
@@ -84,7 +84,7 @@ def test_json_is_the_same_tree(conf, capsys):
     [prod] = report["files"]
     db = prod["tree"]["fields"]["db"]["fields"]
     assert db["timeout"]["kind"] == "≈" and db["timeout"]["zig_hocon"] == "30s"
-    assert db["timeout"]["hint"] == 'the same through conf.get_duration("db.timeout")'
+    assert db["timeout"]["hint"] == 'the same through zig_hocon\'s conf.get_duration("db.timeout")'
     assert db["host"] == {"kind": "=", "value": "burrow"}
     assert prod["tree"]["fields"]["l"]["items"][1]["kind"] == "≠"
 
@@ -401,3 +401,12 @@ def test_the_command(tmp_path, capsys):
     # python/ on the path, perhaps with an egg-info pip left there, is no install
     if "site-packages" in str(dist.locate_file("zig_hocon")):
         assert [(e.name, e.value) for e in dist.entry_points if e.group == "console_scripts"] == [("zig-hocon-migrate", "zig_hocon.migrate:cli")]
+
+
+# null on one side and nothing on the other reads alike through a getter: ≈
+def test_null_against_absent(tmp_path, capsys):
+    (tmp_path / "ref.conf").write_text("sentry.dsn = null")
+    (tmp_path / "a.conf").write_text('include "ref.conf"\nsentry.dsn = ${?SENTRY_DSN_NOT_SET}\nb = 1')
+    code, out = run(capsys, tmp_path / "a.conf")
+    assert "≈ dsn" in out and "a getter reads both as missing" in out
+    assert run(capsys, tmp_path / "a.conf", "--getters")[0] == 0
