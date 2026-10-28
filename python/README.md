@@ -106,7 +106,7 @@ Path("deploy.conf").write_text(ConfigFactory.parse_file("app.conf", env=KEEP).to
 
 ## Coming from pyhocon
 
-**The short way** keeps every line of pyhocon code: `zig_hocon.pyhocon` is pyhocon's API, its modules, names and arguments, the tree an `OrderedDict` with `get`, `put`, `pop` and `with_fallback`, and `HOCONConverter`:
+**The short way** keeps every line of pyhocon code: `zig_hocon.pyhocon` is pyhocon's API, its modules, names and arguments, the tree an `OrderedDict` with `get`, `put`, `pop` and `with_fallback`, and `HOCONConverter`, and pyhocon's `include package(…)` and glob includes. What it reads, it reads by the spec: [MIGRATING.md](MIGRATING.md) lists where that differs from pyhocon.
 
 ```python
 from zig_hocon.pyhocon import ConfigFactory   # was: from pyhocon import ConfigFactory
