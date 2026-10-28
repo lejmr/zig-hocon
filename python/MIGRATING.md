@@ -36,7 +36,7 @@ This guide moves a project from pyhocon to zig_hocon. Code that reads through `C
 | `ConfigFactory.parse_string(text, basedir=…)` | the same |
 | `conf.get_string / get_int / get_float / get_bool / get_config(path, default)` | the same |
 | `conf.as_plain_ordered_dict()` | `conf.as_dict()` |
-| `HOCONConverter.to_json(conf)` | `conf.to_json()` (bytes) |
+| `HOCONConverter.to_json(conf)` | `conf.to_json()` (bytes); a duration is its text (`"10s"`), where pyhocon wrote milliseconds (`10000`) |
 | `HOCONConverter.to_hocon(conf)` | `conf.to_hocon()` |
 
 The exception names are the same: `ConfigException`, `ConfigMissingException` (also a `KeyError`), `ConfigSubstitutionException`, `ConfigWrongTypeException` (also a `ValueError`), plus `ConfigParseException` for text that is not valid HOCON.
@@ -58,6 +58,7 @@ settings["db"]["host"]
 | `conf.get_list(path)` | the list from the dict: `conf.as_dict()["features"]["plugins"]`, or `functools.reduce(dict.__getitem__, path.split("."), conf.as_dict())` for a dotted path; there is no list getter |
 | `conf.with_fallback(defaults)` | `include "defaults.conf"` at the top of the file: the same merge, done by the parser. For defaults that ship inside your package, build the includes in code: `ConfigFactory.parse_string(f'include required(file({json.dumps(str(defaults))}))\ninclude required(file({json.dumps(str(app))}))', basedir=app.parent)`; `basedir` is needed even for absolute paths, and `required` makes a missing file an error, where a plain include skips it: a `ConfigParseException` named `IncludeNotFound`, not the `FileNotFound` of `parse_file`. A `${…}` in the defaults sees the value the file sets over it (`url = "…${host}…"` with `host` overridden takes the new host), as the spec and typesafe/config resolve, and as pyhocon does over `resolve=False`; a loader that resolved each file first kept the old one. `migrate --fallback defaults.conf` reads your configs as such a loader does |
 | `conf.put(…)`, `conf.pop(…)` | change the dict from `as_dict()` |
+| `conf.copy()`, `copy.deepcopy(conf)` | not needed: a tree is read only, and `copy.deepcopy` gives the tree itself; `as_dict()` is a new dict each time |
 | `ConfigFactory.from_dict(d)` | `ConfigFactory.parse_string(json.dumps(d))`: JSON is HOCON |
 | `ConfigFactory.parse_URL(url)` | `include url("…")` in a file, or fetch it and `parse_string` |
 | `parse_file(path, encoding=…)` | files are UTF-8 |
@@ -135,7 +136,7 @@ The values that matter most are the ones in no file here: production's environme
 
 A loader that reads each file resolved, `parse_file(…)` without `resolve=False`, before `with_fallback`, is `--resolve-each`: a `${…}` in the reference then keeps the value it had there, as such a loader gives.
 
-Once you rewrite a config for zig_hocon, pyhocon may not read it any more: `x += a` stops it with `AttributeError`, and over a fallback so does `x = ${x} [a]`. Compare it then with the config as it is on your main branch: `--before main` has pyhocon read the configs as git has them at `main`, and zig_hocon as they are now. That is the check a migration pull request wants in CI: what your service read before, against what it reads after.
+Once you rewrite a config for zig_hocon, pyhocon may not read it any more: `x += a` stops it with `AttributeError`, and over a fallback so does `x = ${x} [a]`. Compare it then with the config as it is on your main branch: `--before main` has pyhocon read the configs, and the `--fallback` files, as git has them at `main`, and zig_hocon as they are now; the `--env-file` and `--env` values are the ones you give, for both. That is the check a migration pull request wants in CI: what your service read before, against what it reads after.
 
 A difference you have reviewed and keep, `"0640"` your code reads with `get_string`, or a list of durations (`backoff = [1s, 5s]`, text in the list, where no getter reads an element), is `--accept storage.file_mode`: it is still shown, marked `(accepted)`, and no longer a difference. A path names one value, a list element (`tags[2]`) or everything below it (`storage`). With those, and `--getters` where durations and sizes go through the getters or your model's validators, the run can wait in CI for green.
 
@@ -146,5 +147,5 @@ A directory is its `*.conf` files (`--glob` for others), without those another f
 In the code, each place that uses pyhocon's API is a row in Step 2 or 3. The grep looks for the usual name, `conf`; look for the name your code gives the config too (`c["db"]`, `sorted(settings)`):
 
 ```sh
-grep -rnE "pyhocon|include package|as_plain_ordered_dict|get_list|with_fallback|from_dict|parse_URL|HOCONConverter|\.put\(|\.pop\(|\.get\(|conf\[| in conf\b|json\.dumps\(conf|\+= *\[" .
+grep -rnE "pyhocon|include package|as_plain_ordered_dict|get_list|with_fallback|from_dict|parse_URL|HOCONConverter|conf\.(get|put|pop|copy)\(|deepcopy\(conf|conf\[| in conf\b|json\.dumps\(conf|\+= *\[" .
 ```
