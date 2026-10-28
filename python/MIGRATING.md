@@ -6,7 +6,7 @@ This guide moves a project from pyhocon to zig_hocon. Code that reads through `C
 
 - **Correct.** zig_hocon passes all 586 tests in the [conformance suite](https://htmlpreview.github.io/?https://github.com/lejmr/zig-hocon/blob/main/conformance/report.html), pyhocon 359.
 - **Fast.** A 10 MB config loads in 0.3 s. pyhocon takes 68 s, and 867 s when the file has substitutions.
-- **No crash on `+=`.** Appending text to a list stops pyhocon 0.3.63 with an `AttributeError`, in one file or across an include, and appending a number, `x += 2`, quietly puts 2 in place of the list:
+- **No crash on `+=`.** Appending text to a list stops pyhocon 0.3.63 with an `AttributeError`, in one file or across an include, and appending a number, `x += 2`, quietly puts 2 in place of the list. When `application.conf` and an overlay that includes it both append to a list with `+= [...]`, pyhocon keeps only the overlay's: what the shared file added never reaches the service. `zig-hocon-migrate` shows each such list:
 
   ```hocon
   plugins = [auth]
@@ -134,7 +134,7 @@ done
 exit ${status:-0}
 ```
 
-The values that matter most are the ones in no file here: production's environment from the secret store. zig_hocon reads a number or a boolean from it only as written, so `08`, ` 48` or `True` that started a service on pyhocon stop it now (`get_int`, `get_bool`); a traceback notes what it read, `found '08'` (Python 3.11 and later). A model sees the same values: with lax types pydantic still turns `"08"` into 8 where `get_int` refuses it, so give the config model strict types (`ConfigDict(strict=True)`, `StrictInt`) and the two read alike. Export them once into an env file, `KEY=value` lines, and run `migrate` with it, or check them by hand before the switch.
+The values that matter most are the ones in no file here: production's environment from the secret store. zig_hocon reads a number or a boolean from it only as written, so `08`, ` 48` or `True` that started a service on pyhocon stop it now (`get_int`, `get_bool`); a traceback notes what it read, `found '08'` (Python 3.11 and later). A model reads them otherwise: a value from `${…}` of the environment is text by the spec, `"48"`, so keep the model's number and boolean fields lax, which read it, and know that pydantic then also takes `"08"` as 8, where `get_int` refuses it. Export them once into an env file, `KEY=value` lines, and run `migrate` with it, or check them by hand before the switch.
 
 A loader that reads each file resolved, `parse_file(…)` without `resolve=False`, before `with_fallback`, is `--resolve-each`: a `${…}` in the reference then keeps the value it had there, as such a loader gives.
 
