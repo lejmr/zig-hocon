@@ -161,24 +161,21 @@ Each exits 1 when something is wrong, with the place on stderr; `hocon` alone li
 
 ## Coming from pyhocon
 
-Code that reads through `ConfigFactory` and the typed getters changes its import: those and the exception names are the same. `get`, `get_list`, `with_fallback`, `put` and dict access are not there; MIGRATING.md has what does their job. What reads differently:
+`ConfigFactory`, the typed getters and the exception names are pyhocon's, so code that reads through them changes its import. What differs:
 
-- **The tree is not a dict.** `conf["db"]["host"]` and `json.dumps(conf)` fail; take `conf.as_dict()` first. `as_plain_ordered_dict()` is `as_dict()`.
-- **Fewer methods.** `get`, `get_list`, `with_fallback` and `put` are not there: a typed getter, an `include`, or the dict does the job.
+- **The tree is not a dict**, and `get`, `get_list`, `with_fallback` and `put` are not there: a typed getter, `conf.as_dict()` or an include does the job.
 - **Durations stay text.** `30s` is `"30s"` in `as_dict()` until a getter or a model reads it.
 - **`+=` appends one element.** `x += [a]`, the form pyhocon takes, adds the list `[a]` as one element; `x = ${x} [a]` extends it.
-- **Strict syntax.** Input pyhocon quietly accepted, such as `a..b = 1` or `a = b:c`, is an error with its line and column.
-- **No `include package(...)`.** It is pyhocon's own; include by path.
+- **Values from the environment are text**, read as numbers and booleans only as written: `08` or `True` stop `get_int` and `get_bool`. Check your secret store first.
+- **Strict syntax**, and no `include package(...)`.
 
-To see what would change in your own configs, read them with both: with pyhocon installed beside zig-hocon (`pip install -U zig-hocon`; if `zig-hocon-migrate` is not there after it, your zig-hocon is older than the check),
+`zig-hocon-migrate`, which pip installs with zig-hocon, reads your configs with pyhocon and with zig-hocon and shows what differs:
 
 ```sh
 zig-hocon-migrate conf/prod.conf --env-file env/prod.env
 ```
 
-reads the config with each, with the same environment (one run per deployment, each with its own env file; [MIGRATING.md](MIGRATING.md#checklist) has the loop), and shows where they differ as the config's tree: `≈` another type that a getter reads the same, `≠` another value, `!` one of them fails. It exits 1 when anything differs, so it can wait in CI for the day it is green; once you rewrite the configs for zig-hocon, `--before main` has pyhocon read them as they are on `main`, against the new ones on zig-hocon. [MIGRATING.md](MIGRATING.md#checklist) has the flags for a loader, an environment per deployment and reviewed differences.
-
-The [migration guide](https://github.com/lejmr/zig-hocon/blob/main/python/MIGRATING.md) has every difference, with what to write instead.
+[MIGRATING.md](MIGRATING.md) has every difference, what to write instead, and how to run the check for each deployment in CI.
 
 ## Into a model
 
