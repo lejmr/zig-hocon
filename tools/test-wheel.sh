@@ -30,6 +30,11 @@ cd "$tmp"
 "$(dirname "$py")/zig-hocon-migrate" --help >/dev/null
 printf 'owl = hoot\n' >"$tmp/owl.conf"
 [ "$("$(dirname "$py")/hocon" --json "$tmp/owl.conf")" = '{"owl":"hoot"}' ]
+# pip as well as uv: pip makes hocon executable only when the wheel says it is
+# a regular file (Windows has no such bit).
+uv pip install -q --python "$py" pip
+"$py" -m pip install -q --no-deps --target "$tmp/by-pip" "$wheel"
+[ ! -f "$tmp/by-pip/bin/hocon" ] || [ -x "$tmp/by-pip/bin/hocon" ]
 if [ $examples = no ]; then
     echo "examples left out: no msgspec for Python $version"
     exit 0

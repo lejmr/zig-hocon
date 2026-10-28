@@ -88,6 +88,9 @@ files.append((f"{dist_info}/RECORD", ("\n".join(record) + "\n").encode(), False)
 with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as whl:
     for path, data, executable in files:
         info = zipfile.ZipInfo(path, date_time=(1980, 1, 1, 0, 0, 0))
-        info.external_attr = (0o755 if executable else 0o644) << 16
+        # A regular file's type with its mode: pip makes a script executable
+        # only when the zip says it is a regular file with x bits (uv does
+        # without), and installed hocon was not executable.
+        info.external_attr = (0o100755 if executable else 0o100644) << 16
         info.compress_type = zipfile.ZIP_DEFLATED
         whl.writestr(info, data)
