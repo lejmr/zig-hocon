@@ -134,6 +134,8 @@ class _Pyhocon:
             self.conn, child = multiprocessing.Pipe()
             self.process = multiprocessing.get_context("spawn").Process(target=_read_with_pyhocon, args=(child,), daemon=True)
             self.process.start()
+            # its end is the process's now: when that ends, so does the pipe
+            child.close()
         error = f"no answer in {_PYHOCON_SECONDS:g} s; pyhocon loops for ever on some configs"
         try:
             self.conn.send(str(path))
