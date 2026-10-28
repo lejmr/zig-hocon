@@ -66,6 +66,10 @@ with open(os.path.join(root, "LICENSE"), "rb") as f:
     files.append((f"{dist_info}/licenses/LICENSE", f.read(), False))
 files.append((f"{dist_info}/METADATA", "\n".join(metadata).encode(), False))
 files.append((f"{dist_info}/WHEEL", ("\n".join(wheel) + "\n").encode(), False))
+# The commands pip puts on the path: `hocon`, as pyproject's [project.scripts] has it.
+scripts = "".join(f"{command} = {target}\n" for command, target in project.get("scripts", {}).items())
+if scripts:
+    files.append((f"{dist_info}/entry_points.txt", ("[console_scripts]\n" + scripts).encode(), False))
 
 
 def record_line(path, data):

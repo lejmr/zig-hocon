@@ -401,13 +401,13 @@ def _environment(files: list[str], pairs: list[str]) -> None:
         os.environ[key.strip()] = value
 
 
-def main(argv: list[str] | None = None) -> int:
+def main(argv: list[str] | None = None, prog: str = "python -m zig_hocon migrate") -> int:
     for stream in (sys.stdout, sys.stderr):
         # the marks, ≈ ≠ ·, also into a pipe or a file on Windows, whose
         # code page has none of them
         if isinstance(stream, io.TextIOWrapper) and stream.encoding.replace("-", "").lower() != "utf8":
             stream.reconfigure(encoding="utf-8")
-    parser = argparse.ArgumentParser(prog="python -m zig_hocon migrate", description=__doc__.split("\n\n")[0] if __doc__ else None)
+    parser = argparse.ArgumentParser(prog=prog, description=__doc__.split("\n\n")[0] if __doc__ else None)
     parser.add_argument("paths", nargs="+", metavar="PATH", help="a config file, or a directory of them")
     parser.add_argument("--all", action="store_true", help="every file, the included ones too, and what is the same")
     parser.add_argument("--glob", default="*.conf", help="the files of a directory (default *.conf)")
