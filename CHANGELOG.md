@@ -10,7 +10,6 @@ What changed for someone using zig-hocon: the Zig package, the `hocon` command l
 
 ### Fixed
 
-- An include of a name no file can have where it is read, `include "conf.d/*.conf"` on Windows, where `*` is no file name character, failed with `BadPathName`; it is a missing include there too, nothing, or `IncludeNotFound` under `required()`, as on Linux and macOS.
 
 - Python: `ConfigFactory.parse_string(0)` read a buffer of zeros and gave an empty config; text or bytes only now, anything else a `TypeError`. `get_duration` and `parse_duration` past about 292 years gave a `timedelta` cut down to that, where the library cannot hold more in nanoseconds; that is a `ConfigWrongTypeException` named `Overflow` now. `python/MIGRATING.md` lists the getters that are stricter than pyhocon's, and what `if conf:` means.
 - Python: the wheels have `py.typed`, which `pip install python/` had and the release wheels did not, so a type checker reads the package's types.

@@ -223,12 +223,10 @@ fn loadFile(gpa: Allocator, io: std.Io, path: []const u8, ctx: Value.Context) va
 
     // Everything read lives as long as the document: values point into the text.
     const source = std.Io.Dir.cwd().readFileAllocOptions(io, path, gpa, .limited(max_file_size), .of(u8), 0) catch |err| switch (err) {
-        // A file on the way, `x.conf/y.conf`, is no directory, and a name the
-        // system cannot hold, `*` on Windows, names no file: nothing there,
-        // on every system alike. Other errors are not a missing file (spec
-        // L1069): a directory, a symlink to itself, no permission are
-        // reported, by their own names.
-        error.FileNotFound, error.NotDir, error.BadPathName => return null,
+        // A file on the way, `x.conf/y.conf`, is no directory: nothing there.
+        // Other errors are not a missing file (spec L1069): a directory, a
+        // symlink to itself, no permission are reported, by their own names.
+        error.FileNotFound, error.NotDir => return null,
         else => return err,
     };
 
@@ -665,18 +663,6 @@ test "include.a host name longer than DNS allows is NameTooLong" {
 // include-missing-and-required/007 · java ✓ · pyhocon – · spec ✓ (L1053) — a file on
 // the way where a directory should be, `file.conf/x.conf`: nothing is there, so a
 // plain include is a missing file, and `required` says it is not found.
-// java – · pyhocon – · spec ✓ (L1053) — a name no file can have where it is read
-// (Windows refuses `*`, as BadPathName) is a missing file there too, so a plain
-// include of one is nothing on every system and `required` says IncludeNotFound.
-test "include.a name the system cannot hold is a missing file" {
-    try expectJson(&.{
-        .{ .path = "main.conf", .text = "a = 1\ninclude \"conf.d/*.conf\"" },
-    }, "{\"a\":1}");
-    try expectError(&.{
-        .{ .path = "main.conf", .text = "include required(\"conf.d/*.conf\")" },
-    }, error.IncludeNotFound);
-}
-
 test "include.a file on the way to an include is a missing file" {
     try expectJson(&.{
         .{ .path = "main.conf", .text = "a = 1\ninclude \"file.conf/x.conf\"" },
