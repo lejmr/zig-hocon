@@ -41,7 +41,7 @@ The rest of this page reads these two files.
 - **Clear errors.** File, line, column, and a caret under the mistake.
 - **No dependencies.** A thin ctypes layer over one bundled library.
 
-\* A 6 KB config in 1 ms, a 10 MB one in 0.3 s, on an Apple M4 Pro.
+\* A 1 MB config with substitutions in 13 ms, a 10 MB one in 0.14 s, on an Apple M4 Pro: [BENCHMARK.md](BENCHMARK.md).
 
 ## Install
 
