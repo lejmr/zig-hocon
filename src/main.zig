@@ -23,10 +23,16 @@
 const std = @import("std");
 const hocon = @import("hocon");
 const check = @import("check.zig");
+/// `schema`: whether `check --schema` is built in (build.zig); the wheels'
+/// CLI has none.
+const build_options = @import("options");
 
 const usage = "usage: hocon [--hocon | --json] [--env=process|none|keep] <file.conf>";
 const usage_get = "usage: hocon get [--hocon | --json] [--env=process|none|keep] <path> <file.conf>";
-const usage_check = "usage: hocon check [--env=process|none|keep] [--schema <file.zig>:<Type>] <file.conf>...";
+const usage_check = if (build_options.schema)
+    "usage: hocon check [--env=process|none|keep] [--schema <file.zig>:<Type>] <file.conf>..."
+else
+    "usage: hocon check [--env=process|none|keep] <file.conf>...";
 const usage_diff = "usage: hocon diff [--json] [--env=process|none|keep] <a.conf> <b.conf>";
 /// All four, one under the other, below the `error: ` that `fatal` puts first.
 const usage_all = usage ++
@@ -155,7 +161,7 @@ fn run(init: std.process.Init, command: Command, args: []const []const u8) !void
         } else if (std.mem.startsWith(u8, arg, "--env=")) {
             if (flags.env != null) std.process.fatal("{s}", .{command_usage});
             flags.env = std.meta.stringToEnum(Env, arg["--env=".len..]) orelse std.process.fatal("{s}", .{command_usage});
-        } else if (std.mem.eql(u8, arg, "--schema") and command == .check) {
+        } else if (build_options.schema and std.mem.eql(u8, arg, "--schema") and command == .check) {
             if (flags.schema != null or i + 1 == args.len) std.process.fatal("{s}", .{command_usage});
             i += 1;
             flags.schema = args[i];
@@ -175,7 +181,7 @@ fn run(init: std.process.Init, command: Command, args: []const []const u8) !void
         },
         .check => {
             if (rest.len == 0) std.process.fatal("{s}", .{command_usage});
-            if (flags.schema) |schema| try checkSchema(init, schema, env, rest);
+            if (comptime build_options.schema) if (flags.schema) |schema| try checkSchema(init, schema, env, rest);
             if (try check.run(hocon.Value, init.gpa, init.io, rest, envOf(init, env)) > 0) std.process.exit(1);
         },
         .diff => {

@@ -6,7 +6,7 @@ What changed for someone using zig-hocon: the Zig package, the `hocon` command l
 
 ### Added
 
-- Python: `pip install zig-hocon` puts the `hocon` command line tool of its platform on the path, the same as a release's, with `get`, `diff` and `check`.
+- Python: `pip install zig-hocon` puts the `hocon` command line tool of its platform on the path, the same as a release's, with `get`, `diff` and `check`; only `check --schema`, which builds a Zig program and needs zig, is left out.
 - Python: `zig-hocon-migrate conf/` (pip installs it; `python -m zig_hocon migrate` is the same) reads each config with pyhocon and with zig-hocon, with the same environment, and shows where they differ as the config's tree: another type a getter reads the same, another value, or one of them failing. A directory is its entry points; it exits 1 when anything differs, for CI, and `--json` gives the tree as JSON. `--fallback reference.conf` reads each config over a reference as `conf.with_fallback(reference)` in a loader does, `--getters` makes a value a getter reads the same no difference, `--accept PATH` marks a reviewed difference as no difference, `--resolve-each` reads as a loader that resolves each file before the merge, and `--before main` has pyhocon read the configs as they are on `main` and zig-hocon as they are now, so the run can gate CI.
 - Python: MIGRATING.md says that `x += [3, 4]` appends the list as one element, by the spec, where pyhocon extends the list; it said `+=` reads the same.
 

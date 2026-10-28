@@ -49,7 +49,7 @@ The rest of this page reads these two files.
 pip install zig-hocon
 ```
 
-It puts two commands on the path: `hocon`, the zig-hocon command line tool built for your platform (`hocon --json app.conf`, `hocon get db.host app.conf`, `hocon diff a.conf b.conf`, `hocon check conf/*.conf`), and `zig-hocon-migrate`, the check of what changes from pyhocon.
+It puts two commands on the path: [`hocon`](#the-hocon-command), the command line tool of zig-hocon built for your platform, and `zig-hocon-migrate`, the check of what changes from pyhocon ([Coming from pyhocon](#coming-from-pyhocon)).
 
 One wheel per platform, for every Python from 3.10 on, free-threaded builds and PyPy included: macOS (arm64, x86_64), Linux (x86_64, aarch64; glibc 2.17+ and musl) and Windows (x86_64). The import name is `zig_hocon`. Anywhere else, build it from source (below).
 
@@ -104,7 +104,60 @@ Path("deploy.conf").write_text(ConfigFactory.parse_file("app.conf", env=KEEP).to
 
 **Durations and sizes** have helpers with the same rules as the getters: `zig_hocon.parse_duration("30s")` gives a `timedelta`, `zig_hocon.parse_bytes("512MiB")` an int.
 
-**From the shell**, `python -m zig_hocon [--json] [--env=process|none|keep] app.conf` prints the file resolved.
+**From the shell**, [`hocon`](#the-hocon-command) prints the file resolved, and more; `python -m zig_hocon [--json] [--env=process|none|keep] app.conf` does the first through the package.
+
+## The hocon command
+
+`pip install zig-hocon` puts `hocon` on the path: the same tool as a release of zig-hocon has, built for your platform. It prints a file resolved, as HOCON or with `--json` as JSON:
+
+```sh
+$ hocon --json prod.conf
+{"db":{"host":"db.example.org","pool":4},"timeout":"30s","cache":"512MiB","debug":false}
+```
+
+A `${…}` the file does not answer reads the environment; `--env=none` reads none. `--env=keep` writes the one file to deploy: includes and overrides worked out, the variables left for the server:
+
+```sh
+$ hocon --env=keep prod.conf > deploy.conf
+$ cat deploy.conf
+db {
+  host = db.example.org
+  pool = 4
+  pool = ${?DB_POOL}
+}
+timeout = 30s
+cache = 512MiB
+debug = false
+```
+
+**get** prints one value, for a shell script:
+
+```sh
+$ hocon get db.host prod.conf
+db.example.org
+$ hocon get db --json prod.conf
+{"host":"db.example.org","pool":4}
+```
+
+**diff** compares two files as they resolve, path by path (`~ path: old → new`, `+` and `-`), and exits 0 when they say the same, as the deploy file does:
+
+```sh
+$ hocon diff prod.conf deploy.conf; echo $?
+0
+```
+
+**check** reads each file and says which fail and where, for CI:
+
+```sh
+$ hocon check prod.conf staging.conf
+prod.conf: ok
+staging.conf:2:11: error: Unresolved
+db.host = ${DB_HOST}
+          ^
+1 of 2 failed
+```
+
+Each exits 1 when something is wrong, with the place on stderr; `hocon` alone lists the commands and their flags. (The `hocon` of a release also has `check --schema`, which reads a file into a Zig struct; it needs zig, and the wheel's leaves it out.)
 
 ## Coming from pyhocon
 
