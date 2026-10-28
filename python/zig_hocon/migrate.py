@@ -1,8 +1,9 @@
-"""``python -m zig_hocon.migrate conf/``: each config read by pyhocon and by
+"""``python -m zig_hocon migrate conf/``: each config read by pyhocon and by
 zig_hocon, with the same environment, and where they differ shown as the
 config's tree. ``=`` the same, ``≈`` another type that a getter reads the
 same (``as_dict()`` and a model see it), ``≠`` another value, ``!`` one of
-them fails. Exit 0 when all is the same, 1 when not, 2 when it cannot run.
+them fails. Exit 0 when all is the same, 1 when not, 2 when it cannot run,
+as without pyhocon to compare with.
 
 A directory is its ``*.conf`` files, without those another one includes:
 they are checked through the file that includes them, as they cannot be
@@ -14,10 +15,13 @@ import glob
 import importlib
 import io
 import json
+import logging
+import multiprocessing
 import os
 import re
 import sys
 from pathlib import Path
+from multiprocessing.connection import Connection
 from typing import Any
 
 from .config_parser import ConfigFactory
@@ -100,14 +104,60 @@ def _diff(old: Any, new: Any, keys: list[Any], tree: ConfigTree) -> dict[str, An
     return node
 
 
-def _check(path: Path, pyhocon: Any) -> dict[str, Any]:
+# How long pyhocon may take for one file.
+_PYHOCON_SECONDS = 30.0
+
+
+def _read_with_pyhocon(conn: Connection) -> None:
+    """Reads each path sent, with pyhocon, and sends back its values, or the
+    error; None ends it. Its warnings, an include it leaves out, say what
+    the tree shows."""
+    logging.disable(logging.WARNING)
+    pyhocon = importlib.import_module("pyhocon")
+    while (path := conn.recv()) is not None:
+        try:
+            conn.send((pyhocon.ConfigFactory.parse_file(path).as_plain_ordered_dict(), None))
+        except Exception as e:  # noqa: BLE001 - pyhocon fails with pyparsing's, its own and Python's errors
+            conn.send((None, f"{type(e).__name__}: {e}"))
+
+
+class _Pyhocon:
+    """pyhocon in a process of its own, ended when it takes too long: it
+    loops for ever on some configs, ``x { a = ${?n.a} }`` and then
+    ``x = ${?NOT_SET}``."""
+
+    def __init__(self) -> None:
+        self.process: Any = None
+
+    def read(self, path: Path) -> tuple[Any, str | None]:
+        if self.process is None:
+            self.conn, child = multiprocessing.Pipe()
+            self.process = multiprocessing.get_context("spawn").Process(target=_read_with_pyhocon, args=(child,), daemon=True)
+            self.process.start()
+        error = f"no answer in {_PYHOCON_SECONDS:g} s; pyhocon loops for ever on some configs"
+        try:
+            self.conn.send(str(path))
+            if self.conn.poll(_PYHOCON_SECONDS):
+                result: tuple[Any, str | None] = self.conn.recv()
+                return result
+        except (EOFError, OSError):
+            error = "pyhocon's process ended on it"
+        self.process.terminate()
+        self.process = None
+        return None, error
+
+    def close(self) -> None:
+        if self.process is not None:
+            self.conn.send(None)
+            self.process.join()
+
+
+def _check(path: Path, pyhocon: _Pyhocon) -> dict[str, Any]:
     """One file read by both: its tree of nodes, or what each failed with."""
     out: dict[str, Any] = {"path": str(path)}
-    old = None
-    try:
-        old = pyhocon.ConfigFactory.parse_file(str(path)).as_plain_ordered_dict()
-    except Exception as e:  # noqa: BLE001 - pyhocon fails with pyparsing's, its own and Python's errors
-        out["pyhocon_error"] = f"{type(e).__name__}: {e}"
+    old, error = pyhocon.read(path)
+    if error is not None:
+        out["pyhocon_error"] = error
     try:
         tree = ConfigFactory.parse_file(path)
     except ConfigException as e:
@@ -185,7 +235,7 @@ def _environment(files: list[str], pairs: list[str]) -> None:
     for pair in pairs:
         key, sep, value = pair.partition("=")
         if not sep:
-            raise ValueError(f"zig_hocon.migrate: {pair!r} is no KEY=value")
+            raise ValueError(f"migrate: {pair!r} is no KEY=value")
         os.environ[key.strip()] = value
 
 
@@ -195,7 +245,7 @@ def main(argv: list[str] | None = None) -> int:
         # code page has none of them
         if isinstance(stream, io.TextIOWrapper) and stream.encoding.replace("-", "").lower() != "utf8":
             stream.reconfigure(encoding="utf-8")
-    parser = argparse.ArgumentParser(prog="python -m zig_hocon.migrate", description=__doc__.split("\n\n")[0] if __doc__ else None)
+    parser = argparse.ArgumentParser(prog="python -m zig_hocon migrate", description=__doc__.split("\n\n")[0] if __doc__ else None)
     parser.add_argument("paths", nargs="+", metavar="PATH", help="a config file, or a directory of them")
     parser.add_argument("--all", action="store_true", help="every file, the included ones too, and what is the same")
     parser.add_argument("--glob", default="*.conf", help="the files of a directory (default *.conf)")
@@ -204,16 +254,20 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--json", action="store_true", help="the result as JSON, the same tree")
     args = parser.parse_args(argv)
     try:
-        pyhocon = importlib.import_module("pyhocon")
+        importlib.import_module("pyhocon")
     except ImportError:
-        print("zig_hocon.migrate compares with pyhocon: pip install pyhocon", file=sys.stderr)
+        print("no pyhocon here to compare with: pip install pyhocon, in this environment", file=sys.stderr)
         return 2
     try:
         _environment(args.env_file, args.env)
     except (OSError, ValueError) as e:
         print(e, file=sys.stderr)
         return 2
-    results = [_check(path, pyhocon) for path in _entry_points(args.paths, args.glob, args.all)]
+    pyhocon = _Pyhocon()
+    try:
+        results = [_check(path, pyhocon) for path in _entry_points(args.paths, args.glob, args.all)]
+    finally:
+        pyhocon.close()
     total = sum(map(_differences, results))
     if args.json:
         print(json.dumps({"files": results, "differences": total}, default=repr, ensure_ascii=False, indent=2))
@@ -228,6 +282,3 @@ def main(argv: list[str] | None = None) -> int:
         print(f"{total} difference{'s' * (total != 1)} in {files} file{'s' * (files != 1)}.")
     return 1 if total else 0
 
-
-if __name__ == "__main__":  # pragma: no cover
-    sys.exit(main())

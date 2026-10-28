@@ -1,4 +1,4 @@
-"""python -m zig_hocon.migrate: each config read by pyhocon and zig_hocon, and
+"""python -m zig_hocon migrate: each config read by pyhocon and zig_hocon, and
 what differs shown as the config's tree."""
 
 import importlib.util
@@ -131,12 +131,12 @@ def test_without_pyhocon(monkeypatch, capsys):
 
     monkeypatch.setattr(migrate.importlib, "import_module", missing)
     assert migrate.main(["a.conf"]) == 2
-    assert "pip install pyhocon" in capsys.readouterr().err
+    assert "no pyhocon here to compare with: pip install pyhocon" in capsys.readouterr().err
 
 
 def test_python_m(conf):
-    run = subprocess.run([sys.executable, "-m", "zig_hocon.migrate", "--help"], capture_output=True, encoding="utf-8", cwd=Path(migrate.__file__).parents[1])
-    assert run.returncode == 0 and "--env-file" in run.stdout
+    run = subprocess.run([sys.executable, "-m", "zig_hocon", "migrate", "--help"], capture_output=True, encoding="utf-8", cwd=Path(migrate.__file__).parents[1])
+    assert run.returncode == 0 and "--env-file" in run.stdout and "python -m zig_hocon migrate" in run.stdout
 
 
 # Windows writes a pipe or a file in its code page, which has no ≈ or ≠
@@ -147,3 +147,54 @@ def test_the_marks_into_a_stream_of_another_code_page(tmp_path, monkeypatch):
     assert migrate.main([str(tmp_path / "a.conf")]) == 1
     out.flush()
     assert "≈ t" in out.buffer.getvalue().decode("utf-8")
+
+
+# pyhocon loops for ever on this one: it is ended, and the next file is read
+# by a pyhocon of its own
+def test_pyhocon_that_never_answers(tmp_path, monkeypatch, capsys):
+    (tmp_path / "a.conf").write_text("x { t = 1\n  x = ${?nope.a.b}\n  b = fox den }\nx = ${?NOT_SET_HERE}\n")
+    (tmp_path / "b.conf").write_text("b = 1")
+    monkeypatch.setattr(migrate, "_PYHOCON_SECONDS", 2.0)
+    code, out = run(capsys, tmp_path)
+    assert code == 1
+    assert "! pyhocon: no answer in 2 s; pyhocon loops for ever on some configs" in out
+    assert out.endswith("b.conf   same\n1 difference in 1 file.\n")
+
+
+# the reading process, here in a thread for its lines to count
+def test_the_reading_process(tmp_path):
+    import multiprocessing
+    import threading
+
+    (tmp_path / "a.conf").write_text("a = 0042")
+    (tmp_path / "b.conf").write_text("a {} {b: 1}")
+    conn, child = multiprocessing.Pipe()
+    worker = threading.Thread(target=migrate._read_with_pyhocon, args=(child,), daemon=True)
+    worker.start()
+    conn.send(str(tmp_path / "a.conf"))
+    assert conn.poll(30) and conn.recv() == ({"a": 42}, None)
+    conn.send(str(tmp_path / "b.conf"))
+    assert conn.poll(30)
+    value, error = conn.recv()
+    assert value is None and "Exception" in error, error
+    conn.send(None)
+    worker.join(30)
+    assert not worker.is_alive()
+
+
+def test_a_directory_with_no_config(tmp_path, capsys):
+    code, out = run(capsys, tmp_path)
+    assert code == 0 and out == "0 differences in 0 files.\n"
+
+
+# pyhocon's process ended under it: that file says so, and the next is read
+# by a new one
+def test_pyhocon_s_process_ends(tmp_path):
+    (tmp_path / "a.conf").write_text("a = 1")
+    pyhocon = migrate._Pyhocon()
+    assert pyhocon.read(tmp_path / "a.conf") == ({"a": 1}, None)
+    pyhocon.process.kill()
+    pyhocon.process.join()
+    assert pyhocon.read(tmp_path / "a.conf") == (None, "pyhocon's process ended on it")
+    assert pyhocon.read(tmp_path / "a.conf") == ({"a": 1}, None)
+    pyhocon.close()

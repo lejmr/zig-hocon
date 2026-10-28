@@ -101,7 +101,7 @@ Everything else (variables, includes, merging) reads the same, except where pyho
 Read your configs with both, with pyhocon installed beside zig-hocon:
 
 ```sh
-python -m zig_hocon.migrate conf/ --env-file prod.env
+python -m zig_hocon migrate conf/ --env-file prod.env
 ```
 
 ```

@@ -6,7 +6,7 @@ What changed for someone using zig-hocon: the Zig package, the `hocon` command l
 
 ### Added
 
-- Python: `python -m zig_hocon.migrate conf/` reads each config with pyhocon and with zig-hocon, with the same environment, and shows where they differ as the config's tree: another type a getter reads the same, another value, or one of them failing. A directory is its entry points; it exits 1 when anything differs, for CI, and `--json` gives the tree as JSON.
+- Python: `python -m zig_hocon migrate conf/` reads each config with pyhocon and with zig-hocon, with the same environment, and shows where they differ as the config's tree: another type a getter reads the same, another value, or one of them failing. A directory is its entry points; it exits 1 when anything differs, for CI, and `--json` gives the tree as JSON.
 - Python: MIGRATING.md says that `x += [3, 4]` appends the list as one element, by the spec, where pyhocon extends the list; it said `+=` reads the same.
 
 ### Fixed
