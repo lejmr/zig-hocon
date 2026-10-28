@@ -121,7 +121,7 @@ To see what would change in your own configs, read them with both: with pyhocon 
 python -m zig_hocon migrate conf/ --env-file prod.env --fallback reference.conf
 ```
 
-reads every config in `conf/` with each, with the same environment (and over `reference.conf`, as `conf.with_fallback(reference)` in your loader), and shows where they differ as the config's tree: `≈` another type that a getter reads the same, `≠` another value, `!` one of them fails. It exits 1 when anything differs, so it can wait in CI for the day it is green.
+reads every config in `conf/` with each, with the same environment (and over `reference.conf`, as `conf.with_fallback(reference)` in your loader), and shows where they differ as the config's tree: `≈` another type that a getter reads the same, `≠` another value, `!` one of them fails. It exits 1 when anything differs, so it can wait in CI for the day it is green; once you rewrite the configs for zig-hocon, `--before main` has pyhocon read them as they are on `main`, against the new ones on zig-hocon. [MIGRATING.md](MIGRATING.md#checklist) has the flags for a loader, an environment per deployment and reviewed differences.
 
 The [migration guide](https://github.com/lejmr/zig-hocon/blob/main/python/MIGRATING.md) has every difference, with what to write instead.
 
