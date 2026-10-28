@@ -60,8 +60,29 @@ def _entry_points(paths: list[str], pattern: str, every: bool) -> list[Path]:
 
 
 def _path(keys: list[Any]) -> str:
-    """A HOCON path, a key with a path character in quotes."""
-    return ".".join(key if _BARE_KEY.fullmatch(key) else json.dumps(key) for key in keys)
+    """A HOCON path, a key with a path character in quotes; a list index,
+    in what is shown, as ``[2]``."""
+    out = ""
+    for key in keys:
+        if isinstance(key, int):
+            out += f"[{key}]"
+        else:
+            out += ("." if out else "") + (key if _BARE_KEY.fullmatch(key) else json.dumps(key))
+    return out
+
+
+def _accept(node: dict[str, Any], keys: list[Any], accepted: list[str]) -> None:
+    """Marks each difference at a path ``accepted`` names, or below one."""
+    if node["kind"] == "object":
+        for key, child in node["fields"].items():
+            _accept(child, [*keys, key], accepted)
+    elif node["kind"] == "list":
+        for i, child in enumerate(node["items"]):
+            _accept(child, [*keys, i], accepted)
+    elif node["kind"] != "=":
+        path = _path(keys)
+        if any(path == a or path.startswith((a + ".", a + "[")) for a in accepted):
+            node["accepted"] = True
 
 
 def _same(a: Any, b: Any) -> bool:
@@ -246,6 +267,8 @@ def _count(node: dict[str, Any], same_through_getter: bool = False) -> int:
         return sum(_count(n, same_through_getter) for n in node["fields"].values())
     if node["kind"] == "list":
         return sum(_count(n, same_through_getter) for n in node["items"])
+    if node.get("accepted"):
+        return 0
     return int(node["kind"] not in (("=", "≈") if same_through_getter else ("=",)))
 
 
@@ -263,24 +286,26 @@ def _show(value: Any) -> str:
     return repr(value)
 
 
-def _lines(node: dict[str, Any], keys: list[Any], depth: int, every: bool) -> list[str]:
+def _lines(node: dict[str, Any], keys: list[Any], depth: int, every: bool, getters: bool = False) -> list[str]:
     """The tree as text: an object or list where something differs, and with
-    ``every`` what is the same, on one line per object."""
+    ``every`` what is the same, on one line per object; with ``getters`` a
+    ``≈`` is the same."""
     pad = "  " * depth
     children = node["fields"].items() if node["kind"] == "object" else enumerate(node["items"])
     out, same = [], []
     for key, child in children:
         name = f"[{key}]" if isinstance(key, int) else _path([key])
         if child["kind"] in ("object", "list"):
-            below = _lines(child, [*keys, key], depth + 1, every)
+            below = _lines(child, [*keys, key], depth + 1, every, getters)
             if below:
                 out += [pad + name, *below]
-        elif child["kind"] == "=":
+        elif child["kind"] == "=" or (getters and child["kind"] == "≈"):
             same.append(name)
         else:
             old = _show(child["pyhocon"]) if "pyhocon" in child else "(none)"
             new = _show(child["zig_hocon"]) if "zig_hocon" in child else "(none)"
-            out.append(f"{pad}{child['kind']} {name}   pyhocon {old}   zig-hocon {new}")
+            accepted = "   (accepted)" if child.get("accepted") else ""
+            out.append(f"{pad}{child['kind']} {name}   pyhocon {old}   zig-hocon {new}{accepted}")
             if "hint" in child:
                 out.append(f"{pad}    {child['hint']}")
     if every and same:
@@ -288,7 +313,7 @@ def _lines(node: dict[str, Any], keys: list[Any], depth: int, every: bool) -> li
     return out
 
 
-def _report(result: dict[str, Any], every: bool) -> list[str]:
+def _report(result: dict[str, Any], every: bool, getters: bool = False) -> list[str]:
     out = [result["path"]]
     errors = [(who, result[f"{key}_error"]) for who, key in (("pyhocon", "pyhocon"), ("zig-hocon", "zig_hocon")) if f"{key}_error" in result]
     if len(errors) == 2:
@@ -296,7 +321,7 @@ def _report(result: dict[str, Any], every: bool) -> list[str]:
     for who, error in errors:
         out.append(f"  {'·' if len(errors) == 2 else '!'} {who}: " + error.replace("\n", "\n      "))
     if "tree" in result:
-        out += _lines(result["tree"], [], 1, every)
+        out += _lines(result["tree"], [], 1, every, getters)
     return out
 
 
@@ -345,6 +370,13 @@ def main(argv: list[str] | None = None) -> int:
         help="read each config over FILE, as conf.with_fallback(FILE) does; again for one under it",
     )
     parser.add_argument("--getters", action="store_true", help="≈ is no difference: for code that reads only through the getters")
+    parser.add_argument(
+        "--accept",
+        action="append",
+        default=[],
+        metavar="PATH",
+        help="a difference at PATH, or below it, is reviewed: shown, and no difference (db.file_mode, tags[2], db)",
+    )
     args = parser.parse_args(argv)
     try:
         importlib.import_module("pyhocon")
@@ -373,6 +405,9 @@ def main(argv: list[str] | None = None) -> int:
         results = [_check(path, pyhocon, args.fallback) for path in entry_points]
     finally:
         pyhocon.close()
+    for result in results:
+        if "tree" in result:
+            _accept(result["tree"], [], args.accept)
     def differences(result: dict[str, Any]) -> int:
         return _differences(result, args.getters)
 
@@ -384,7 +419,7 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps({"files": results, "differences": total}, default=repr, ensure_ascii=False, indent=2))
     else:
         for result in results:
-            print("\n".join(_report(result, args.all)), end="\n\n")
+            print("\n".join(_report(result, args.all, args.getters)), end="\n\n")
         for result in results:
             n = differences(result)
             both = "both fail" if {"pyhocon_error", "zig_hocon_error"} <= result.keys() else ""

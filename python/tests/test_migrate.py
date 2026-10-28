@@ -306,4 +306,20 @@ def test_getters_only(tmp_path, capsys):
     (tmp_path / "a.conf").write_text("t = 30s\nn = 1")
     assert run(capsys, tmp_path / "a.conf")[0] == 1
     code, out = run(capsys, tmp_path / "a.conf", "--getters")
-    assert code == 0 and "≈ t" in out and out.endswith("0 differences in 0 files.\n")
+    assert code == 0 and "≈ t" not in out and out.endswith("0 differences in 0 files.\n")
+    code, out = run(capsys, tmp_path / "a.conf", "--getters", "--all")
+    assert "= t, n" in out
+
+
+# --accept: a difference reviewed is shown, and no difference; a path names
+# a value, a list element or everything below it
+def test_accepted_differences(tmp_path, capsys):
+    (tmp_path / "a.conf").write_text("mode = 0640\ndb { pool = 0010, port = 0005 }\ntags = [a, 01]\nother = 007")
+    assert run(capsys, tmp_path / "a.conf")[0] == 1
+    code, out = run(capsys, tmp_path / "a.conf", "--accept", "mode", "--accept", "db", "--accept", "tags[1]", "--accept", "other")
+    assert code == 0, out
+    assert "≠ mode   pyhocon 640   zig-hocon '0640'   (accepted)" in out
+    assert "≠ pool   pyhocon 10   zig-hocon '0010'   (accepted)" in out
+    assert out.endswith("0 differences in 0 files.\n")
+    code, out = run(capsys, tmp_path / "a.conf", "--accept", "db.pool", "--accept", "mode", "--accept", "tags", "--accept", "oth")
+    assert code == 1 and out.endswith("2 differences in 1 file.\n")

@@ -43,7 +43,7 @@ The exception names are the same: `ConfigException`, `ConfigMissingException` (a
 
 ## Step 2: what needs code
 
-**The tree is not a dict.** pyhocon's `ConfigTree` is an `OrderedDict`, so `conf["db"]["host"]`, `"db" in conf`, `for key in conf`, `dict(conf)` and `json.dumps(conf)` work on it. Here the values stay in the library until a getter asks; take a dict where you need one:
+**The tree is not a dict.** (`zig_hocon.ConfigTree` is the type `parse_file` gives, for your type hints.) pyhocon's `ConfigTree` is an `OrderedDict`, so `conf["db"]["host"]`, `"db" in conf`, `for key in conf`, `dict(conf)` and `json.dumps(conf)` work on it. Here the values stay in the library until a getter asks; take a dict where you need one:
 
 ```python
 settings = conf.as_dict()
@@ -54,7 +54,7 @@ settings["db"]["host"]
 
 | pyhocon | instead |
 |---|---|
-| `conf.get(path)`, `conf.get_list(path)` | a typed getter, or `functools.reduce(dict.__getitem__, path.split("."), conf.as_dict())` for a plain dotted path |
+| `conf.get(path)`, `conf.get_list(path)` | a typed getter, or for a plain dotted path `functools.reduce(dict.__getitem__, path.split("."), conf.as_dict())`; as a helper, `def get_list(conf, path): return functools.reduce(dict.__getitem__, path.split("."), conf.as_dict())` |
 | `conf.with_fallback(defaults)` | `include "defaults.conf"` at the top of the file: the same merge, done by the parser. For defaults that ship inside your package, build the includes in code: `ConfigFactory.parse_string(f'include required(file({json.dumps(str(defaults))}))\ninclude required(file({json.dumps(str(app))}))', basedir=app.parent)`; `basedir` is needed even for absolute paths, and `required` makes a missing file an error, where a plain include skips it. A `${…}` in the defaults sees the value the file sets over it (`url = "…${host}…"` with `host` overridden takes the new host), as the spec and typesafe/config resolve, and as pyhocon does over `resolve=False`; a loader that resolved each file first kept the old one. `migrate --fallback defaults.conf` reads your configs as such a loader does |
 | `conf.put(…)`, `conf.pop(…)` | change the dict from `as_dict()` |
 | `ConfigFactory.from_dict(d)` | `ConfigFactory.parse_string(json.dumps(d))`: JSON is HOCON |
@@ -121,7 +121,20 @@ Each config is read by pyhocon and by `zig_hocon`, with the same environment (`-
 - `≠` another value, or a key only one of them has, with the getter's error where there is one. Also the same value that a getter reads otherwise: a number `get_string` reads as written (`1.10` where pyhocon has `1.1`), text pyhocon's `get_int`, `get_float` or `get_bool` reads and zig_hocon's do not (`"08"`, `" 4"`, `"True"`, often from the environment), and `null`, which pyhocon's getters give as `None` and zig_hocon's as an error. Getters are not run on list elements, nor `get_int` on a number with a fraction, which pyhocon cuts.
 - `!` one of them fails, with the error and its place; when both fail (`· both fail`), say on a `${…}` the environment has no value for, it is no difference.
 
-A config your loader merges in code, `conf.with_fallback(reference)`, is read alone by neither library as it is in your service; pyhocon often fails on it with `AttributeError: 'bool' object has no attribute 'count'` (its bug with `+=` onto a list from another file). `--fallback reference.conf` reads each config over it, pyhocon through `with_fallback` over `resolve=False` as such a loader does, zig_hocon through `include required(file(…))`; give it again for one under that. `--getters` makes `≈` no difference, for code that reads only through the getters: a duration then passes as the same `get_duration` gives, while `as_dict()` and a model would see `"30s"`.
+With an env file per environment, check each overlay with its own, one run per environment:
+
+```sh
+for env in prod staging dev; do
+  python -m zig_hocon migrate "conf/$env.conf" --env-file "env/$env.env" --fallback reference.conf || status=1
+done
+exit ${status:-0}
+```
+
+The values that matter most are the ones in no file here: production's environment from the secret store. zig_hocon reads a number or a boolean from it only as written, so `08`, ` 48`, `True` or `1` that started a service on pyhocon stop it now (`get_int`, `get_bool`). Export them once into an env file, `KEY=value` lines, and run `migrate` with it, or check them by hand before the switch.
+
+A difference you have reviewed and keep, `"0640"` your code reads with `get_string`, is `--accept storage.file_mode`: it is still shown, marked `(accepted)`, and no longer a difference. A path names one value, a list element (`tags[2]`) or everything below it (`storage`). With those, the run can wait in CI for green.
+
+A config your loader merges in code, `conf.with_fallback(reference)`, is read alone by neither library as it is in your service; pyhocon often fails on it with `AttributeError: 'bool' object has no attribute 'count'` (its bug with `+=` onto a list from another file). `--fallback reference.conf` reads each config over it, pyhocon through `with_fallback` over `resolve=False` as such a loader does, zig_hocon through `include required(file(…))`; give it again for one under that. `--getters` makes `≈` no difference and lists it with the same, for code that reads only through the getters: a duration then passes as the same `get_duration` gives, while `as_dict()` and a model would see `"30s"`.
 
 A directory is its `*.conf` files (`--glob` for others), without those another file includes: they are checked through the file that includes them, as they often cannot be read alone. `--all` checks every file and shows what is the same, and `--json` gives the same tree as JSON. It exits 0 when everything is the same, 1 when not, 2 when it cannot run or compares nothing: a path that is not there, a directory with no file `--glob` names, or configs that each fail in both, so it can wait in CI for the day it is green. pyhocon is no dependency of zig-hocon; the tool imports it.
 
