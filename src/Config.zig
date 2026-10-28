@@ -42,6 +42,10 @@ pub const Config = struct {
         /// One fetch of an `http(s)` include, from connect to the last byte; longer is
         /// `error.IncludeTimeout`.
         http_timeout: std.Io.Duration = Include.default_http_timeout,
+        /// Called before each fetch of an `http(s)` include. The C library sets
+        /// the signal handlers the fetch needs here, so that a parse without one
+        /// leaves them alone.
+        before_fetch: ?*const fn () void = null,
         /// Where a substitution whose path is not in the document looks next.
         /// The library never reads the process environment on its own: pass
         /// `.{ .map = init.environ_map }` for that, the way `std.process.run`
@@ -93,7 +97,7 @@ pub const Config = struct {
     /// directory (pyhocon's `parse_string(…, basedir=…)`). An error in the text
     /// itself has no path, as for any slice.
     pub fn parseFromSliceInDirLeaky(comptime T: type, allocator: Allocator, io: std.Io, dir: []const u8, source: [:0]const u8, options: ParseOptions) !T {
-        return parseSource(T, allocator, allocator, "", source, .{ .io = io, .http_timeout = options.http_timeout, .dir = dir }, options);
+        return parseSource(T, allocator, allocator, "", source, .{ .io = io, .http_timeout = options.http_timeout, .before_fetch = options.before_fetch, .dir = dir }, options);
     }
 
     /// Reads the file at `path` and every file it includes through `io`, and
@@ -135,6 +139,7 @@ pub const Config = struct {
         return parseSource(T, allocator, keep, path, source, .{
             .io = io,
             .http_timeout = options.http_timeout,
+            .before_fetch = options.before_fetch,
             .dir = std.fs.path.dirname(path) orelse "",
             .stack = &.{full_path},
         }, options);

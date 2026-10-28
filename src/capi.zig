@@ -72,6 +72,33 @@ export fn hocon_parse_string(src: ?[*]const u8, len: usize, options: ?*const Opt
 
 /// The file at `path`, or with no path `text`, as a document.
 fn parse(path: ?[]const u8, text: []const u8, options: ?*const Options, err: ?*Error) ?*Doc {
+    return onBigStack(parseHere, .{ path, text, options, err });
+}
+
+/// `function(args)` on a thread of its own, with `std.Thread`'s 16 MiB of
+/// stack, joined before this returns: parsing, resolving and writing recurse
+/// once per level of nesting, up to 500 levels, and the caller's thread may
+/// have far less (musl's 128 KiB, a Python thread made smaller), where a deep
+/// document would end the process. On a thread of its own the limit is
+/// `TooDeep` on every thread alike. Where no thread can be started, on the
+/// caller's.
+// ponytail: a thread per call, about 20 µs; one long-lived thread if that ever
+// matters more than a parse at startup.
+fn onBigStack(comptime function: anytype, args: anytype) @typeInfo(@TypeOf(function)).@"fn".return_type.? {
+    const Result = @typeInfo(@TypeOf(function)).@"fn".return_type.?;
+    if (builtin.single_threaded) return @call(.auto, function, args);
+    const Run = struct {
+        fn run(out: *Result, a: @TypeOf(args)) void {
+            out.* = @call(.auto, function, a);
+        }
+    };
+    var out: Result = undefined;
+    const thread = std.Thread.spawn(.{}, Run.run, .{ &out, args }) catch return @call(.auto, function, args);
+    thread.join();
+    return out;
+}
+
+fn parseHere(path: ?[]const u8, text: []const u8, options: ?*const Options, err: ?*Error) ?*Doc {
     if (err) |e| e.* = .{};
     const doc = gpa.create(Doc) catch {
         fail(err, error.OutOfMemory, null, .{});
@@ -111,15 +138,25 @@ fn load(doc: *Doc, path: ?[]const u8, text: []const u8, given: ?*const Options, 
     // (Include.fetchWithTimeout). The threads start with the first fetch, and
     // `deinit` joins them before the parse returns: none outlives the call, and
     // nothing is shared to start once for the library. The fetch that lost is
-    // woken with SIGIO, so `init` sets SIGIO and SIGPIPE to a handler that does
-    // nothing. Those stay set: put back after each parse, two parses on two
-    // threads would put back each other's, and a SIGIO with no handler ends
-    // the process on Linux.
+    // woken with SIGIO, so it needs SIGIO and SIGPIPE set to a handler that
+    // does nothing. `init` sets them, and they are put back at once: a parse
+    // that fetches nothing leaves them as they were. A fetch sets them
+    // (setFetchSignals) until the last parse that fetched has joined its
+    // threads: a SIGIO with no handler ends the process on Linux.
+    // Under the lock the fetches take: two parses starting at once would each
+    // keep the other's no-op handler as the one to put back.
+    lockFetching();
     var threaded: std.Io.Threaded = .init(gpa, .{});
-    threaded.have_signal_handler = false;
+    if (threaded.have_signal_handler) {
+        if (@TypeOf(threaded.old_sig_io) != void) std.posix.sigaction(.IO, &threaded.old_sig_io, null);
+        if (@TypeOf(threaded.old_sig_pipe) != void) std.posix.sigaction(.PIPE, &threaded.old_sig_pipe, null);
+        threaded.have_signal_handler = false;
+    }
+    fetching_lock.store(false, .release);
+    defer if (fetched_here) putBackSignals();
     defer threaded.deinit();
     const io = threaded.io();
-    var parse_options: hocon.ParseOptions = .{ .diagnostics = diag, .env = env, .resolve = options.resolve, .files = &doc.files };
+    var parse_options: hocon.ParseOptions = .{ .diagnostics = diag, .env = env, .resolve = options.resolve, .files = &doc.files, .before_fetch = setFetchSignals };
     if (options.http_timeout_ms > 0) parse_options.http_timeout = .fromMilliseconds(options.http_timeout_ms);
     // The files keep the path they were named by, and the caller's may go.
     if (path) |p| return hocon.parseFromFileLeaky(hocon.Value, arena, io, try arena.dupe(u8, p), parse_options);
@@ -130,6 +167,52 @@ fn load(doc: *Doc, path: ?[]const u8, text: []const u8, given: ?*const Options, 
     const dir = options.include_dir orelse return hocon.parseFromSliceLeaky(hocon.Value, arena, source, parse_options);
     return hocon.parseFromSliceInDirLeaky(hocon.Value, arena, io, std.mem.span(dir), source, parse_options);
 }
+
+// The parses fetching an include now, and the handlers they set SIGIO and
+// SIGPIPE over: the first to fetch keeps them, the last to end puts them back.
+// ponytail: a handler a program sets while a fetch runs is replaced by the one
+// from before, when the last fetching parse ends.
+var fetching_parses: usize = 0;
+var fetching_lock: std.atomic.Value(bool) = .init(false);
+var old_sig_io: if (has_sig_io) std.posix.Sigaction else void = undefined;
+var old_sig_pipe: if (has_sig_pipe) std.posix.Sigaction else void = undefined;
+const has_sig_io = std.posix.Sigaction != void and @hasField(std.posix.SIG, "IO");
+const has_sig_pipe = std.posix.Sigaction != void and @hasField(std.posix.SIG, "PIPE");
+/// Whether the parse on this thread has set the signals for a fetch.
+threadlocal var fetched_here = false;
+
+/// SIGIO and SIGPIPE to a handler that does nothing, as `std.Io.Threaded.init`
+/// sets them, for an `http(s)` include to be fetched (see `load`); once per
+/// parse.
+fn setFetchSignals() void {
+    if (fetched_here or std.posix.Sigaction == void) return;
+    fetched_here = true;
+    lockFetching();
+    defer fetching_lock.store(false, .release);
+    fetching_parses += 1;
+    if (fetching_parses > 1) return;
+    const act: std.posix.Sigaction = .{ .handler = .{ .handler = doNothing }, .mask = std.posix.sigemptyset(), .flags = 0 };
+    if (has_sig_io) std.posix.sigaction(.IO, &act, &old_sig_io);
+    if (has_sig_pipe) std.posix.sigaction(.PIPE, &act, &old_sig_pipe);
+}
+
+/// After a parse that fetched has joined its threads: the last one puts back
+/// the handlers from before the first.
+fn putBackSignals() void {
+    fetched_here = false;
+    lockFetching();
+    defer fetching_lock.store(false, .release);
+    fetching_parses -= 1;
+    if (fetching_parses > 0) return;
+    if (has_sig_io) std.posix.sigaction(.IO, &old_sig_io, null);
+    if (has_sig_pipe) std.posix.sigaction(.PIPE, &old_sig_pipe, null);
+}
+
+fn lockFetching() void {
+    while (fetching_lock.cmpxchgWeak(false, true, .acquire, .monotonic) != null) std.atomic.spinLoopHint();
+}
+
+fn doNothing(_: std.posix.SIG) callconv(.c) void {}
 
 /// The caller's options: the fields its `size` holds, and the defaults for
 /// the rest, which a program built against an older hocon.h does not know of.
@@ -362,6 +445,10 @@ export fn hocon_to_hocon(doc: ?*Doc, path: ?[*:0]const u8, code: ?*Code) ?[*:0]u
 const Format = enum { json, hocon };
 
 fn write(format: Format, doc: ?*Doc, path: ?[*:0]const u8, code: ?*Code) ?[*:0]u8 {
+    return onBigStack(writeHere, .{ format, doc, path, code });
+}
+
+fn writeHere(format: Format, doc: ?*Doc, path: ?[*:0]const u8, code: ?*Code) ?[*:0]u8 {
     const text = writeAlloc(format, doc, path) catch |err| {
         const failed = remember(doc, path, err, .{});
         if (code) |c| c.* = failed;
@@ -846,6 +933,123 @@ test "capi.a file with an include" {
     defer hocon_free_string(json);
     try testing.expectEqualStrings("{\"port\":443,\"timeout\":\"30s\",\"plugins\":[\"auth\",\"metrics\"]}", std.mem.span(json));
 }
+
+// java – · pyhocon – · spec – — ours alone: a NUL in unquoted text is written
+// back escaped, so the HOCON text, a C string, holds every key after it.
+test "capi.to_hocon keeps what follows a NUL" {
+    const src = "motd = hello\x00world\ndb.host = prod-db\n";
+    const doc = hocon_parse_string(src, src.len, &.{ .env = .none }, null).?;
+    defer hocon_free(doc);
+    var code: Code = undefined;
+    const text = hocon_to_hocon(doc, "", &code).?;
+    defer hocon_free_string(text);
+    try testing.expectEqualStrings("motd = \"hello\\u0000world\"\ndb {\n  host = prod-db\n}\n", std.mem.span(text));
+}
+
+// java – · pyhocon – · spec – — ours alone: a deep document on a thread with
+// little stack, as musl gives a thread or Python one made smaller, is
+// TooDeep past the limit of 500 and read below it, as on any thread: the
+// parse and the writing run on a thread of the library's own.
+test "capi.a small stack reads as deep as any" {
+    const Small = struct {
+        fn run(result: *anyerror!void) void {
+            result.* = readDeep();
+        }
+
+        fn readDeep() !void {
+            for ([_]struct { usize, []const u8 }{ .{ 499, "ok" }, .{ 1000, "TooDeep" } }) |row| {
+                const n, const want = row;
+                for ([_][]const u8{ "appends", "nested", "chained" }) |shape| {
+                    var src: std.Io.Writer.Allocating = .init(testing.allocator);
+                    defer src.deinit();
+                    const w = &src.writer;
+                    if (std.mem.eql(u8, shape, "appends")) {
+                        try w.writeAll("x = []\n");
+                        for (0..n) |i| try w.print("x += [{d}]\n", .{i});
+                    } else if (std.mem.eql(u8, shape, "nested")) {
+                        try w.writeAll("a = ");
+                        for (0..n) |_| try w.writeAll("{b = ");
+                        try w.writeAll("1");
+                        try w.splatByteAll('}', n);
+                    } else {
+                        // each field waits for the next, so the chain is resolved in depth
+                        for (0..n) |i| try w.print("a{d} = ${{a{d}}}\n", .{ i, i + 1 });
+                        try w.print("a{d} = 1\n", .{n});
+                    }
+                    var err: Error = .{};
+                    defer hocon_error_free(&err);
+                    const doc = hocon_parse_string(src.written().ptr, src.written().len, &.{ .env = .none }, &err);
+                    defer if (doc) |d| hocon_free(d);
+                    const got: []const u8 = if (doc) |d| got: {
+                        var code: Code = undefined;
+                        if (hocon_to_hocon(d, "", &code)) |text| hocon_free_string(text);
+                        break :got @tagName(code);
+                    } else std.mem.span(err.name.?);
+                    testing.expectEqualStrings(want, got) catch |e| {
+                        std.debug.print("{s} × {d}\n", .{ shape, n });
+                        return e;
+                    };
+                }
+            }
+            // as deep as JSON is written, and one deeper
+            for ([_]struct { usize, Code }{ .{ 255, .ok }, .{ 400, .too_deep } }) |row| {
+                const n, const want = row;
+                var src: std.Io.Writer.Allocating = .init(testing.allocator);
+                defer src.deinit();
+                try src.writer.writeAll("a = ");
+                try src.writer.splatByteAll('[', n);
+                try src.writer.splatByteAll(']', n);
+                const doc = hocon_parse_string(src.written().ptr, src.written().len, &.{ .env = .none }, null).?;
+                defer hocon_free(doc);
+                var code: Code = undefined;
+                if (hocon_to_json(doc, "", &code)) |json| hocon_free_string(json);
+                try testing.expectEqual(want, code);
+            }
+        }
+    };
+    var result: anyerror!void = {};
+    // 1 MiB: glibc takes a test binary's static TLS, large in Debug, from the
+    // stack, and refuses less (EINVAL); a Debug parse 499 deep needs about
+    // 4 MiB, so this still ends the process without the library's own thread.
+    // test_runtime.py runs the same on 256 KiB, through the release build.
+    const thread = try std.Thread.spawn(.{ .stack_size = 1024 * 1024 }, Small.run, .{&result});
+    thread.join();
+    try result;
+}
+
+// java – · pyhocon – · spec – — ours alone: a parse leaves SIGIO and SIGPIPE
+// as the program set them, a Python handler too; a fetch of an http(s)
+// include sets them while it needs them, and puts them back (see `load`).
+test "capi.signals are the program's after a parse" {
+    if (std.posix.Sigaction == void or !@hasField(std.posix.SIG, "IO")) return error.SkipZigTest;
+    const mine: std.posix.Sigaction = .{ .handler = .{ .handler = owlHoots }, .mask = std.posix.sigemptyset(), .flags = 0 };
+    var io_before: std.posix.Sigaction = undefined;
+    var pipe_before: std.posix.Sigaction = undefined;
+    std.posix.sigaction(.IO, &mine, &io_before);
+    defer std.posix.sigaction(.IO, &io_before, null);
+    std.posix.sigaction(.PIPE, &mine, &pipe_before);
+    defer std.posix.sigaction(.PIPE, &pipe_before, null);
+    const options: Options = .{ .env = .none, .include_dir = "." };
+    var now: std.posix.Sigaction = undefined;
+
+    const plain = "a = 1\ninclude \"no-such-burrow.conf\"";
+    hocon_free(hocon_parse_string(plain, plain.len, &options, null).?);
+    std.posix.sigaction(.IO, null, &now);
+    try testing.expectEqual(mine.handler.handler, now.handler.handler);
+    std.posix.sigaction(.PIPE, null, &now);
+    try testing.expectEqual(mine.handler.handler, now.handler.handler);
+
+    // nothing listens on port 1: the fetch fails at once, after the signals are set
+    const fetching = "include url(\"http://127.0.0.1:1/owl.conf\")";
+    if (hocon_parse_string(fetching, fetching.len, &options, null)) |doc| hocon_free(doc);
+    try testing.expectEqual(0, fetching_parses);
+    std.posix.sigaction(.IO, null, &now);
+    try testing.expectEqual(mine.handler.handler, now.handler.handler);
+    std.posix.sigaction(.PIPE, null, &now);
+    try testing.expectEqual(mine.handler.handler, now.handler.handler);
+}
+
+fn owlHoots(_: std.posix.SIG) callconv(.c) void {}
 
 // A parse that failed with no place in the file is the file not read only
 // when it failed reading it; a read error with a place is an include's.

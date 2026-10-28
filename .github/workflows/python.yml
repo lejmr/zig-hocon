@@ -19,7 +19,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: zig build wheels
+      # A pull request's or a branch's wheels are 0.5.3+g<commit>, which PyPI
+      # refuses: no one takes them for the release. Called by release.yml,
+      # the version alone.
+      - run: zig build wheels ${{ (github.event_name == 'pull_request' || github.event_name == 'push') && format('-Dlocal-version=g{0}', github.sha) || '' }}
       - uses: actions/upload-artifact@v4
         with:
           name: wheels

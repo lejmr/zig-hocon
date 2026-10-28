@@ -31,6 +31,15 @@ Conventional commits: `type(scope): what changed`, with type one of `feat`, `fix
 
 A `feat` or a `fix` someone using the library would notice also gets a line under `## [Unreleased]` in [CHANGELOG.md](CHANGELOG.md), written for them: what they can do now, or what works that did not.
 
+## Versions
+
+What a version promises, to someone who pins one:
+
+- **A patch release (0.5.3 → 0.5.4) does not change what a config means.** It fixes a crash, an error that should not be one, or a value that was read against the spec, each under *Fixed* in CHANGELOG.md, with the input that shows it. A config that read fine reads the same.
+- **A change of what a valid config reads as goes into a minor release (0.5 → 0.6),** under *Changed* in CHANGELOG.md, with the old and the new value: a spec reading revisited, a default that is different.
+- **Nothing is renamed or removed** in the Zig API, `c/hocon.h` or the Python package; something new is added beside it (see the compatibility rules in CLAUDE.md).
+- **A wheel built for a pull request or a branch is `X.Y.Z+g<commit>`**, a local version PyPI refuses, so it is never taken for the release of the same number. Only the Release workflow builds `X.Y.Z` itself.
+
 ## Releasing
 
 One version, one tag, everything at once: the Zig package, libhocon for C and the Python package. A release is **Actions → Release → Run workflow** on `main`, with the version. It refuses a version that has a tag already or that CHANGELOG.md has nothing for, runs every test on Linux, macOS and Windows and every wheel on each Python, and only then commits `chore(release): vX.Y.Z` (CHANGELOG.md, `build.zig.zon`, `python/pyproject.toml` and the README's install line), tags it, and publishes the GitHub release, with the CHANGELOG.md section as its notes and the wheels and C zips attached, and the wheels on PyPI. `dry_run` does all of it but push, and publishes to TestPyPI instead.

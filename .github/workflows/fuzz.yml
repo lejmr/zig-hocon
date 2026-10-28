@@ -1,0 +1,39 @@
+name: Fuzz
+
+# A few minutes of fuzzing on every pull request and every push to a branch
+# other than main: a crash or a hang of the CLI fails the run, with the cases
+# that did it as an artifact. Not on main and not in a release (release.yml
+# calls CI, not this): a finding belongs to the change that brings it.
+on:
+  pull_request:
+  push:
+    branches-ignore: [main]
+
+jobs:
+  fuzz:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: "0.16.0"
+      - name: Build the CLI as it ships
+        run: zig build -Doptimize=ReleaseSafe
+      # Without java: what zig shows on its own, a crash, a hang, a broken
+      # equivalence or an export that reads back otherwise; only a crash or a
+      # hang fails. A seed of its own each run, printed, so a case can be
+      # rebuilt: python3 tools/fuzz/fuzz.py replay <id>.
+      - name: Fuzz
+        run: |
+          seed=${{ github.run_id }}
+          echo "seed $seed"
+          python3 tools/fuzz/fuzz.py mutate --no-java --fail-on-crash --seed "$seed" --batches 40 --size 300 --jobs 4 --out fuzz-out/mutate
+          python3 tools/fuzz/fuzz.py gen --no-java --fail-on-crash --seed "$seed" --batches 20 --size 300 --jobs 4 --out fuzz-out/gen
+      - name: Keep the findings
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-findings
+          path: fuzz-out/
+          if-no-files-found: ignore

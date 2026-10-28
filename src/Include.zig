@@ -233,6 +233,7 @@ fn loadFile(gpa: Allocator, io: std.Io, path: []const u8, ctx: Value.Context) va
     const child: Value.Context = .{
         .io = io,
         .http_timeout = ctx.http_timeout,
+        .before_fetch = ctx.before_fetch,
         .dir = std.fs.path.dirname(path) orelse "",
         .stack = try std.mem.concat(gpa, []const u8, &.{ ctx.stack, &.{id} }),
         .scope = try scopeOf(gpa, ctx),
@@ -320,6 +321,7 @@ fn loadUrl(gpa: Allocator, io: std.Io, url: []const u8, ctx: Value.Context) valu
     // std's lookup assumes a host of at most 255 bytes, and panics past it
     // (RFC 1035, section 2.3.4); refused here as a name too long.
     if (uri.host) |host| if ((try host.toRawMaybeAlloc(gpa)).len > std.Io.net.HostName.max_len) return error.NameTooLong;
+    if (ctx.before_fetch) |before| before();
     const fetched = try fetchWithTimeout(gpa, io, uri, ctx.http_timeout) orelse return null;
 
     // What the server says the file is wins over what its name looks like.
@@ -328,6 +330,7 @@ fn loadUrl(gpa: Allocator, io: std.Io, url: []const u8, ctx: Value.Context) valu
         .io = io,
         .base_url = url,
         .http_timeout = ctx.http_timeout,
+        .before_fetch = ctx.before_fetch,
         .stack = try std.mem.concat(gpa, []const u8, &.{ ctx.stack, &.{url} }),
         .scope = try scopeOf(gpa, ctx),
         .elements = ctx.elements,
