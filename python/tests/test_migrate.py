@@ -345,7 +345,11 @@ def test_a_loader_that_resolves_each_file(tmp_path, capsys):
 # they are now, so a config rewritten for zig_hocon is checked against the one
 # pyhocon read
 def test_before_and_after(tmp_path, monkeypatch, capsys):
+    import shutil
     import subprocess
+
+    if shutil.which("git") is None:
+        pytest.skip("no git here (the Alpine image of the musl wheels' tests)")
 
     def git(*args):
         subprocess.run(["git", *args], cwd=tmp_path, check=True, capture_output=True)
