@@ -203,3 +203,34 @@ def test_pyhocon_s_process_ends(tmp_path):
     pyhocon.close()
     assert pyhocon.read(tmp_path / "a.conf") == ({"a": 1}, None)
     pyhocon.close()
+
+
+# an include in a comment is none: the file it names is checked on its own
+def test_an_include_in_a_comment(tmp_path, capsys):
+    (tmp_path / "a.conf").write_text('# include "extra.conf"\n// include "extra.conf"\na = 1\nb { include "inner.conf" }')
+    (tmp_path / "extra.conf").write_text("b = 0012")
+    (tmp_path / "inner.conf").write_text("c = 1")
+    code, out = run(capsys, tmp_path)
+    assert code == 1 and "extra.conf   1 difference" in out and "inner.conf" not in out
+
+
+# an env file as a shell or docker writes it: export, and quoted values
+def test_an_env_file_with_export_and_quotes(tmp_path, monkeypatch, capsys):
+    (tmp_path / "a.conf").write_text("a = ${OWL}\nb = ${BAT}\nc = ${MOTH}")
+    (tmp_path / "env").write_text("export OWL=hoot\nBAT=\"flap flap\"\n  export MOTH='dust'\n")
+    for key in ("OWL", "BAT", "MOTH"):
+        monkeypatch.delenv(key, raising=False)
+    code, out = run(capsys, tmp_path / "a.conf", "--env-file", tmp_path / "env")
+    assert code == 0
+    import os
+
+    assert (os.environ["OWL"], os.environ["BAT"], os.environ["MOTH"]) == ("hoot", "flap flap", "dust")
+
+
+# the same number, which get_string reads as written
+def test_a_number_get_string_reads_otherwise(tmp_path, capsys):
+    (tmp_path / "a.conf").write_text("version = 1.10\nn = 7\nl = [1.10]")
+    code, out = run(capsys, tmp_path / "a.conf")
+    assert code == 1
+    assert 'conf.get_string("version") is "1.10", pyhocon\'s "1.1"' in out
+    assert "≠ n " not in out and out.endswith("1 difference in 1 file.\n")

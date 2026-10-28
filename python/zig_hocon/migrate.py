@@ -31,9 +31,10 @@ from .exceptions import ConfigException
 __all__ = ["main"]
 
 _GETTERS = {datetime.timedelta: "get_duration", bool: "get_bool", int: "get_int", float: "get_float", str: "get_string"}
-# ponytail: a regular expression, not a parser: an include in a comment counts
-# too, and its file is then only checked through the one including it (--all).
-_INCLUDE = re.compile(r'include\s+(?:required\(\s*)?(?:file\(\s*)?("(?:[^"\\]|\\.)*")')
+# An include where a line or an object starts, so not one in a comment.
+# ponytail: a regular expression, not a parser: one on a line of a """ string
+# counts too, and its file is then only checked through the one including it.
+_INCLUDE = re.compile(r'(?:^|[{,])[ \t]*include\s+(?:required\(\s*)?(?:file\(\s*)?("(?:[^"\\]|\\.)*")', re.MULTILINE)
 _BARE_KEY = re.compile(r"[A-Za-z0-9_-]+")
 # pyhocon's duration with dateutil installed, as a timedelta from a day it adds to
 _EPOCH = datetime.datetime(2000, 1, 1)
@@ -87,9 +88,14 @@ def _diff(old: Any, new: Any, keys: list[Any], tree: ConfigTree) -> dict[str, An
         return {"kind": "object", "fields": fields}
     if isinstance(old, list) and isinstance(new, list) and len(old) == len(new) and not _same(old, new):
         return {"kind": "list", "items": [_diff(o, n, [*keys, i], tree) for i, (o, n) in enumerate(zip(old, new))]}
-    if _same(old, new):
-        return {"kind": "=", "value": new}
     node = {"kind": "≠", "pyhocon": old, "zig_hocon": new}
+    if _same(old, new):
+        # the same number, but get_string reads it as written: 1.10, 1e3
+        if type(new) in (int, float) and not any(isinstance(k, int) for k in keys):
+            text = tree.get_string(_path(keys))
+            if text != str(old):
+                return {**node, "hint": f'conf.get_string({json.dumps(_path(keys))}) is "{text}", pyhocon\'s "{old}"'}
+        return {"kind": "=", "value": new}
     want = _EPOCH + old - _EPOCH if type(old).__name__ == "relativedelta" else old
     getter = _GETTERS.get(type(want))
     if getter and type(old) is not type(new) and not any(isinstance(k, int) for k in keys):
@@ -229,11 +235,21 @@ def _report(result: dict[str, Any], every: bool) -> list[str]:
     return out
 
 
+def _unquoted(line: str) -> str:
+    key, sep, value = line.partition("=")
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in "'\"":
+        value = value[1:-1]
+    return key + sep + value
+
+
 def _environment(files: list[str], pairs: list[str]) -> None:
-    """``KEY=value`` lines and pairs into os.environ, for both readers."""
+    """``KEY=value`` lines and pairs into os.environ, for both readers. A
+    line of a file may begin with ``export`` and quote its value, as a
+    shell's or docker's env file does."""
     for name in files:
-        lines = Path(name).read_text(encoding="utf-8").splitlines()
-        pairs = [line for line in lines if line.strip() and not line.lstrip().startswith("#")] + pairs
+        lines = [line.strip() for line in Path(name).read_text(encoding="utf-8").splitlines()]
+        lines = [line.removeprefix("export ").lstrip() for line in lines if line and not line.startswith("#")]
+        pairs = [_unquoted(line) for line in lines] + pairs
     for pair in pairs:
         key, sep, value = pair.partition("=")
         if not sep:

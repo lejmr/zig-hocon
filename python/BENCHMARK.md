@@ -15,7 +15,7 @@ I was curious how the other Python HOCON libraries compare, so I benchmarked the
 
 Measured on 2026-10-18 on an Apple M4 Pro with 48 GB, macOS 27.0.1, Python 3.12.8, Rust 1.97.1, OpenJDK 27 and Zig 0.16.0.
 
-- **spec**: `conformance/run.sh --spec`, cases passed out of 445.
+- **spec**: `conformance/run.sh --spec`, cases passed out of the 445 the suite had then, on v0.5.0. It has 586 now, many of them from fuzzing; the [conformance report](https://htmlpreview.github.io/?https://github.com/lejmr/zig-hocon/blob/main/conformance/report.html) has today's numbers for zig-hocon, typesafe/config and pyhocon. The times are as measured then.
 - **1 KB, 1 MB, 10 MB**: files written by `tools/bench/gen.py --refs`, service configs with substitutions in them: values from a shared block, lists and strings built around a reference, whole objects copied, references that chain from one service to the next, and later blocks merged into earlier ones. A cell is the time to parse and resolve text already in memory, inside the process, as the library's own result object (`parse_string` or its equivalent): the median of warm runs. Cold times and whole-command times are in what `run.sh` prints.
 - Before a file is timed, the library's output for it is compared with typesafe/config's JSON, and the cell would say "wrong output" if they differed. None did.
 - **> 120 s**: the library did not parse the file within two minutes and was cut off.

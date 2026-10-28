@@ -6,19 +6,14 @@ This guide moves a project from pyhocon to zig_hocon. For most code it is a chan
 
 - **Correct.** zig_hocon passes all 586 tests in the [conformance suite](https://htmlpreview.github.io/?https://github.com/lejmr/zig-hocon/blob/main/conformance/report.html), pyhocon 359.
 - **Fast.** A 10 MB config loads in 0.3 s. pyhocon takes 68 s, and 867 s when the file has substitutions.
-- **No crash on a layered config.** A list from an included file, extended with `+=`, stops pyhocon 0.3.63 with an `AttributeError`:
+- **No crash on `+=`.** Appending one element to a list stops pyhocon 0.3.63 with an `AttributeError`, in one file or across an include:
 
   ```hocon
-  # defaults.conf
   plugins = [auth]
-  ```
-  ```hocon
-  # prod.conf
-  include "defaults.conf"
   plugins += metrics
   ```
 
-  zig_hocon gives `["auth", "metrics"]`.
+  zig_hocon gives `["auth", "metrics"]`. pyhocon reads only `plugins += [metrics]`, a list, which the spec reads as one element: `migrate` shows each such line.
 - **No silent guesses.** pyhocon accepts input the spec rejects and changes what you wrote. zig_hocon reports an error with its place:
 
   | input | pyhocon 0.3.63 | zig_hocon |
@@ -120,10 +115,10 @@ conf/prod.conf
 3 differences in 1 file.
 ```
 
-Each config is read by pyhocon and by `zig_hocon`, with the same environment (`--env-file`, `--env KEY=VALUE`), and what differs is shown as the config's tree:
+Each config is read by pyhocon and by `zig_hocon`, with the same environment (`--env-file` with `KEY=value` lines, as a shell or docker writes them, `export` and quotes allowed; `--env KEY=VALUE`), and what differs is shown as the config's tree:
 
 - `≈` another type that a getter reads the same: code that reads it with that getter, as most pyhocon code does, is not touched by it; `as_dict()` and a model are. The [examples](examples) show how a model reads a duration, with pydantic, msgspec and dataclasses.
-- `≠` another value, or a key only one of them has, with the getter's error where there is one.
+- `≠` another value, or a key only one of them has, with the getter's error where there is one; also the same number that `get_string` reads as written, `1.10` where pyhocon has `1.1`.
 - `!` one of them fails, with the error and its place; when both fail (`· both fail`), say on a `${…}` the environment has no value for, it is no difference.
 
 A directory is its `*.conf` files (`--glob` for others), without those another file includes: they are checked through the file that includes them, as they often cannot be read alone. `--all` checks every file and shows what is the same, and `--json` gives the same tree as JSON. It exits 0 when everything is the same, 1 when not, 2 when it cannot run or finds no config to check, a path that is not there or a directory with no file `--glob` names, so it can wait in CI for the day it is green. pyhocon is no dependency of zig-hocon; the tool imports it.
