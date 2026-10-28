@@ -171,13 +171,18 @@ def test_the_reading_process(tmp_path):
     conn, child = multiprocessing.Pipe()
     worker = threading.Thread(target=migrate._read_with_pyhocon, args=(child,), daemon=True)
     worker.start()
-    conn.send(str(tmp_path / "a.conf"))
+    conn.send((str(tmp_path / "a.conf"), []))
     lenient = {"b.s": {"get_int": 8, "get_float": 8.0}, "b.n": {"get_string": None}}
     assert conn.poll(30) and conn.recv() == (({"a": 42, "b": {"s": "08", "n": None, "t": "owl"}}, lenient), None)
-    conn.send(str(tmp_path / "b.conf"))
+    conn.send((str(tmp_path / "b.conf"), []))
     assert conn.poll(30)
     value, error = conn.recv()
     assert value is None and "Exception" in error, error
+    # over a fallback, as a loader merges them
+    (tmp_path / "ref.conf").write_text("host = a\nport = 1")
+    (tmp_path / "c.conf").write_text("host = b")
+    conn.send((str(tmp_path / "c.conf"), [str(tmp_path / "ref.conf")]))
+    assert conn.poll(30) and conn.recv()[0][0] == {"host": "b", "port": 1}
     conn.send(None)
     worker.join(30)
     assert not worker.is_alive()
@@ -273,3 +278,32 @@ def test_every_file_fails_in_both(tmp_path, capsys):
     (tmp_path / "a.conf").write_text("a = ${NOT_SET_HERE_EITHER}")
     assert migrate.main([str(tmp_path)]) == 2
     assert "no config could be compared" in capsys.readouterr().err
+
+
+# a config the loader merges in code, conf.with_fallback(reference): read
+# alone pyhocon fails on its += (its bug), and says how to read it as the
+# loader does; with --fallback both read it over the reference, which is not
+# checked on its own
+def test_a_config_over_a_fallback(tmp_path, capsys):
+    (tmp_path / "conf").mkdir()
+    (tmp_path / "reference.conf").write_text('plugins = [auth]\nhost = a\nurl = "db://"${host}\n')
+    (tmp_path / "conf" / "prod.conf").write_text("plugins += [metrics]\nhost = b\n")
+    (tmp_path / "one.conf").write_text("plugins = [auth]\nplugins += metrics\n")
+    code, out = run(capsys, tmp_path / "one.conf")
+    assert "AttributeError" in out and "--fallback reads them as it does" in out
+    code, out = run(capsys, tmp_path / "conf", "--fallback", tmp_path / "reference.conf")
+    assert code == 1
+    assert "≠ plugins   pyhocon ['auth', 'metrics']   zig-hocon ['auth', ['metrics']]" in out
+    assert "+= appends one element" in out and "url" not in out
+    code, out = run(capsys, tmp_path, "--fallback", tmp_path / "reference.conf", "--all")
+    assert "reference.conf   " not in out and "= host, url" in out
+    assert migrate.main([str(tmp_path / "conf"), "--fallback", str(tmp_path / "nowhere.conf")]) == 2
+
+
+# --getters: a value another type that a getter reads the same is no
+# difference, for code that reads only through the getters
+def test_getters_only(tmp_path, capsys):
+    (tmp_path / "a.conf").write_text("t = 30s\nn = 1")
+    assert run(capsys, tmp_path / "a.conf")[0] == 1
+    code, out = run(capsys, tmp_path / "a.conf", "--getters")
+    assert code == 0 and "≈ t" in out and out.endswith("0 differences in 0 files.\n")

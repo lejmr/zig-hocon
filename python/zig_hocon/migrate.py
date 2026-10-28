@@ -89,7 +89,9 @@ def _diff(old: Any, new: Any, keys: list[Any], tree: ConfigTree, lenient: dict[s
             else:
                 fields[key] = {"kind": "≠", **({"pyhocon": old[key]} if key in old else {}), **({"zig_hocon": new[key]} if key in new else {})}
         return {"kind": "object", "fields": fields}
-    if isinstance(old, list) and isinstance(new, list) and len(old) == len(new) and not _same(old, new):
+    # a list as long, but that is pyhocon's += of a list, is one difference with the hint below
+    plus_equals = isinstance(old, list) and isinstance(new, list) and _same(old, _flat(new)) and not _same(old, new)
+    if isinstance(old, list) and isinstance(new, list) and len(old) == len(new) and not _same(old, new) and not plus_equals:
         return {"kind": "list", "items": [_diff(o, n, [*keys, i], tree, lenient) for i, (o, n) in enumerate(zip(old, new))]}
     node = {"kind": "≠", "pyhocon": old, "zig_hocon": new}
     if _same(old, new):
@@ -155,14 +157,18 @@ _PYHOCON_SECONDS = 30.0
 
 
 def _read_with_pyhocon(conn: Connection) -> None:
-    """Reads each path sent, with pyhocon, and sends back its values, or the
-    error; None ends it. Its warnings, an include it leaves out, say what
-    the tree shows."""
+    """Reads each path sent, with pyhocon, over its fallbacks as a loader
+    does it (``parse_file(…, resolve=False).with_fallback(…)``), and sends
+    back its values, or the error; None ends it. Its warnings, an include it
+    leaves out, say what the tree shows."""
     logging.disable(logging.WARNING)
     pyhocon = importlib.import_module("pyhocon")
-    while (path := conn.recv()) is not None:
+    while (job := conn.recv()) is not None:
+        path, fallbacks = job
         try:
-            tree = pyhocon.ConfigFactory.parse_file(path)
+            tree = pyhocon.ConfigFactory.parse_file(path, resolve=not fallbacks)
+            for fallback in fallbacks:
+                tree = tree.with_fallback(pyhocon.ConfigFactory.parse_file(fallback, resolve=False), resolve=fallback == fallbacks[-1])
             plain = tree.as_plain_ordered_dict()
             conn.send(((plain, _lenient(tree, plain, [])), None))
         except Exception as e:  # noqa: BLE001 - pyhocon fails with pyparsing's, its own and Python's errors
@@ -177,7 +183,7 @@ class _Pyhocon:
     def __init__(self) -> None:
         self.process: Any = None
 
-    def read(self, path: Path) -> tuple[Any, str | None]:
+    def read(self, path: Path, fallbacks: list[str] = []) -> tuple[Any, str | None]:  # noqa: B006 - read, never changed
         if self.process is None:
             self.conn, child = multiprocessing.Pipe()
             self.process = multiprocessing.get_context("spawn").Process(target=_read_with_pyhocon, args=(child,), daemon=True)
@@ -186,7 +192,7 @@ class _Pyhocon:
             child.close()
         error = f"no answer in {_PYHOCON_SECONDS:g} s; pyhocon loops for ever on some configs"
         try:
-            self.conn.send(str(path))
+            self.conn.send((str(path), fallbacks))
             if self.conn.poll(_PYHOCON_SECONDS):
                 result: tuple[Any, str | None] = self.conn.recv()
                 return result
@@ -202,14 +208,21 @@ class _Pyhocon:
             self.process.join()
 
 
-def _check(path: Path, pyhocon: _Pyhocon) -> dict[str, Any]:
-    """One file read by both: its tree of nodes, or what each failed with."""
+def _check(path: Path, pyhocon: _Pyhocon, fallbacks: list[str] = []) -> dict[str, Any]:  # noqa: B006 - read, never changed
+    """One file read by both, over its fallbacks: its tree of nodes, or what
+    each failed with. zig_hocon reads the fallbacks as includes before the
+    file, the last one first: the same merge, done by the parser."""
     out: dict[str, Any] = {"path": str(path)}
-    read, error = pyhocon.read(path)
+    read, error = pyhocon.read(path, fallbacks)
     if error is not None:
-        out["pyhocon_error"] = error
+        out["pyhocon_error"] = error + (_PLUS_EQUALS if "'bool' object has no attribute 'count'" in error else "")
     try:
-        tree = ConfigFactory.parse_file(path)
+        if fallbacks:
+            files = [*reversed(fallbacks), str(path)]
+            text = "\n".join(f"include required(file({json.dumps(os.path.abspath(f))}))" for f in files)
+            tree = ConfigFactory.parse_string(text, basedir=os.path.dirname(os.path.abspath(path)))
+        else:
+            tree = ConfigFactory.parse_file(path)
     except ConfigException as e:
         out["zig_hocon_error"] = str(e)
         return out
@@ -219,17 +232,26 @@ def _check(path: Path, pyhocon: _Pyhocon) -> dict[str, Any]:
     return out
 
 
-def _count(node: dict[str, Any]) -> int:
+# pyhocon's own bug, the one a layered config meets first.
+_PLUS_EQUALS = (
+    "\n    pyhocon fails so on `+=` onto a list from another file or object: when your loader"
+    " merges the files with with_fallback, --fallback reads them as it does"
+)
+
+
+def _count(node: dict[str, Any], same_through_getter: bool = False) -> int:
+    """The differences in ``node``; ``≈`` not among them when
+    ``same_through_getter``, for code that reads through the getters."""
     if node["kind"] == "object":
-        return sum(map(_count, node["fields"].values()))
+        return sum(_count(n, same_through_getter) for n in node["fields"].values())
     if node["kind"] == "list":
-        return sum(map(_count, node["items"]))
-    return int(node["kind"] != "=")
+        return sum(_count(n, same_through_getter) for n in node["items"])
+    return int(node["kind"] not in (("=", "≈") if same_through_getter else ("=",)))
 
 
-def _differences(result: dict[str, Any]) -> int:
+def _differences(result: dict[str, Any], same_through_getter: bool = False) -> int:
     if "tree" in result:
-        return _count(result["tree"])
+        return _count(result["tree"], same_through_getter)
     return int(("pyhocon_error" in result) != ("zig_hocon_error" in result))
 
 
@@ -315,6 +337,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--env-file", action="append", default=[], help="KEY=value lines for the environment of both")
     parser.add_argument("--env", action="append", default=[], metavar="KEY=VALUE", help="one variable for both")
     parser.add_argument("--json", action="store_true", help="the result as JSON, the same tree")
+    parser.add_argument(
+        "--fallback",
+        action="append",
+        default=[],
+        metavar="FILE",
+        help="read each config over FILE, as conf.with_fallback(FILE) does; again for one under it",
+    )
+    parser.add_argument("--getters", action="store_true", help="≈ is no difference: for code that reads only through the getters")
     args = parser.parse_args(argv)
     try:
         importlib.import_module("pyhocon")
@@ -328,20 +358,25 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     # Nothing checked is no green: a path that is not there, or a directory
     # with no file the glob names, is an error.
-    missing = [name for name in args.paths if not os.path.exists(name)]
+    missing = [name for name in [*args.paths, *args.fallback] if not os.path.exists(name)]
     if missing:
         print(f"migrate: no such file or directory: {', '.join(missing)}", file=sys.stderr)
         return 2
-    entry_points = _entry_points(args.paths, args.glob, args.all)
+    # a fallback is read under each config, not on its own
+    fallbacks = {os.path.abspath(f) for f in args.fallback}
+    entry_points = [p for p in _entry_points(args.paths, args.glob, args.all) if os.path.abspath(p) not in fallbacks]
     if not entry_points:
         print(f"migrate: no {args.glob} file in {', '.join(args.paths)} to check; --glob names others", file=sys.stderr)
         return 2
     pyhocon = _Pyhocon()
     try:
-        results = [_check(path, pyhocon) for path in entry_points]
+        results = [_check(path, pyhocon, args.fallback) for path in entry_points]
     finally:
         pyhocon.close()
-    total = sum(map(_differences, results))
+    def differences(result: dict[str, Any]) -> int:
+        return _differences(result, args.getters)
+
+    total = sum(map(differences, results))
     compared = any("tree" in r for r in results)
     if not total and not compared:
         print("migrate: no config could be compared: each fails in both; --env-file gives a ${…} its value", file=sys.stderr)
@@ -351,10 +386,10 @@ def main(argv: list[str] | None = None) -> int:
         for result in results:
             print("\n".join(_report(result, args.all)), end="\n\n")
         for result in results:
-            n = _differences(result)
+            n = differences(result)
             both = "both fail" if {"pyhocon_error", "zig_hocon_error"} <= result.keys() else ""
             print(f"  {result['path']}   {both or (f'{n} difference' + 's' * (n != 1) if n else 'same')}")
-        files = sum(1 for r in results if _differences(r))
+        files = sum(1 for r in results if differences(r))
         print(f"{total} difference{'s' * (total != 1)} in {files} file{'s' * (files != 1)}.")
     return 1 if total else 0 if compared else 2
 

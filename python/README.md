@@ -111,16 +111,17 @@ Code that reads through `ConfigFactory` and the typed getters changes its import
 - **The tree is not a dict.** `conf["db"]["host"]` and `json.dumps(conf)` fail; take `conf.as_dict()` first. `as_plain_ordered_dict()` is `as_dict()`.
 - **Fewer methods.** `get`, `get_list`, `with_fallback` and `put` are not there: a typed getter, an `include`, or the dict does the job.
 - **Durations stay text.** `30s` is `"30s"` in `as_dict()` until a getter or a model reads it.
+- **`+=` appends one element.** `x += [a]`, the form pyhocon takes, adds the list `[a]` as one element; `x = ${x} [a]` extends it.
 - **Strict syntax.** Input pyhocon quietly accepted, such as `a..b = 1` or `a = b:c`, is an error with its line and column.
 - **No `include package(...)`.** It is pyhocon's own; include by path.
 
 To see what would change in your own configs, read them with both: with pyhocon installed beside zig-hocon,
 
 ```sh
-python -m zig_hocon migrate conf/ --env-file prod.env
+python -m zig_hocon migrate conf/ --env-file prod.env --fallback reference.conf
 ```
 
-reads every config in `conf/` with each, with the same environment, and shows where they differ as the config's tree: `≈` another type that a getter reads the same, `≠` another value, `!` one of them fails. It exits 1 when anything differs, so it can wait in CI for the day it is green.
+reads every config in `conf/` with each, with the same environment (and over `reference.conf`, as `conf.with_fallback(reference)` in your loader), and shows where they differ as the config's tree: `≈` another type that a getter reads the same, `≠` another value, `!` one of them fails. It exits 1 when anything differs, so it can wait in CI for the day it is green.
 
 The [migration guide](https://github.com/lejmr/zig-hocon/blob/main/python/MIGRATING.md) has every difference, with what to write instead.
 
