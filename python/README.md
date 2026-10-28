@@ -106,7 +106,7 @@ Path("deploy.conf").write_text(ConfigFactory.parse_file("app.conf", env=KEEP).to
 
 ## Coming from pyhocon
 
-Change the import: `ConfigFactory`, the getters and the exception names are the same. What reads differently:
+Code that reads through `ConfigFactory` and the typed getters changes its import: those and the exception names are the same. `get`, `get_list`, `with_fallback`, `put` and dict access are not there; MIGRATING.md has what does their job. What reads differently:
 
 - **The tree is not a dict.** `conf["db"]["host"]` and `json.dumps(conf)` fail; take `conf.as_dict()` first. `as_plain_ordered_dict()` is `as_dict()`.
 - **Fewer methods.** `get`, `get_list`, `with_fallback` and `put` are not there: a typed getter, an `include`, or the dict does the job.

@@ -1,6 +1,6 @@
 # Migrating from pyhocon
 
-This guide moves a project from pyhocon to zig_hocon. For most code it is a change of imports: `ConfigFactory`, the typed getters and the exception names are the same. Code that uses the tree as a dict needs a few lines more, and a config with `include package(...)` needs a change. Steps 1 to 3 cover all of it, and the checklist at the end finds every place to look at.
+This guide moves a project from pyhocon to zig_hocon. Code that reads through `ConfigFactory` and the typed getters changes its imports: those and the exception names are the same. Code that uses the tree as a dict, or `get`, `get_list`, `with_fallback`, `put` or `from_dict`, needs a few lines more (Step 2), and a config with `include package(...)` needs a change. Steps 1 to 3 cover all of it, and the checklist at the end finds every place to look at.
 
 ## Why move
 
@@ -55,7 +55,7 @@ settings["db"]["host"]
 | pyhocon | instead |
 |---|---|
 | `conf.get(path)`, `conf.get_list(path)` | a typed getter, or `functools.reduce(dict.__getitem__, path.split("."), conf.as_dict())` for a plain dotted path |
-| `conf.with_fallback(defaults)` | `include "defaults.conf"` at the top of the file: the same merge, done by the parser |
+| `conf.with_fallback(defaults)` | `include "defaults.conf"` at the top of the file: the same merge, done by the parser. One difference: a `${…}` in the defaults now sees the value the file sets over it (`url = "…${host}…"` with `host` overridden takes the new host), as the spec and typesafe/config resolve; pyhocon resolved each file before merging and kept the old one. `migrate` compares files, not this code: diff what your loader gives before and after |
 | `conf.put(…)`, `conf.pop(…)` | change the dict from `as_dict()` |
 | `ConfigFactory.from_dict(d)` | `ConfigFactory.parse_string(json.dumps(d))`: JSON is HOCON |
 | `ConfigFactory.parse_URL(url)` | `include url("…")` in a file, or fetch it and `parse_string` |
