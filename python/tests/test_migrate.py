@@ -32,16 +32,16 @@ def test_a_directory_is_its_entry_points(conf, capsys):
     code, out = run(capsys, conf, "--env", "REGION=north")
     assert code == 1
     assert "base.conf" not in out and "owl" not in out
-    assert "≈ timeout   pyhocon " in out and "delta(seconds=" in out and "   zig-hocon '30s'" in out
+    assert "≈ timeout   pyhocon " in out and "delta(seconds=" in out and " → zig-hocon '30s'" in out
     assert 'the same through conf.get_duration("db.timeout")' in out
-    assert "≠ size   pyhocon 24   zig-hocon '0024'" in out
-    assert 'conf.get_int("db.pool.size") is an error: InvalidCharacter' in out
-    assert 'conf.get_int("db.\\"a.b\\"") is an error: InvalidCharacter' in out
-    assert "≠ tags   pyhocon [1, 2, 3, 4]   zig-hocon [1, 2, [3, 4]]" in out
+    assert "≠ size   pyhocon 24 → zig-hocon '0024'" in out
+    assert 'conf.get_int("db.pool.size"): zig-hocon error (InvalidCharacter)' in out
+    assert 'conf.get_int("db.\\"a.b\\""): zig-hocon error (InvalidCharacter)' in out
+    assert "≠ tags   pyhocon [1, 2, 3, 4] → zig-hocon [1, 2, [3, 4]]" in out
     assert "+= appends one element" in out
-    assert "  l\n    ≠ [1]   pyhocon 1   zig-hocon '01'" in out
-    assert "≠ t   pyhocon 'b   c'   zig-hocon 'b\\tc'" in out
-    assert out.endswith("prod.conf   6 differences\n6 differences in 1 file.\n")
+    assert "  l\n    ≠ [1]   pyhocon 1 → zig-hocon '01'" in out
+    assert "≠ t   pyhocon 'b   c' → zig-hocon 'b\\tc'" in out
+    assert "prod.conf   6 differences\n6 differences in 1 file.\npyhocon → zig-hocon · ≠ reads differently" in out
 
 
 def test_all_checks_the_included_files_and_shows_what_is_the_same(conf, capsys):
@@ -66,7 +66,7 @@ def test_failures(tmp_path, capsys):
     assert code == 1
     assert "! zig-hocon: " in out and "! pyhocon: " in out
     assert "· both fail, which is no difference" in out and "both.conf   both fail" in out
-    assert out.endswith("2 differences in 2 files.\n")
+    assert "2 differences in 2 files.\n" in out
 
 
 def test_a_key_only_one_has(tmp_path, capsys):
@@ -74,7 +74,7 @@ def test_a_key_only_one_has(tmp_path, capsys):
     (tmp_path / "a.conf").write_text('include "plain"')
     (tmp_path / "plain.conf").write_text("q = 2")
     code, out = run(capsys, tmp_path / "a.conf")
-    assert "≠ p   pyhocon 1   zig-hocon (none)" in out and "≠ o   pyhocon {'k': 1}   zig-hocon (none)" in out and "≠ q   pyhocon (none)   zig-hocon 2" in out
+    assert "≠ p   pyhocon 1 → zig-hocon (none)" in out and "≠ o   pyhocon {'k': 1} → zig-hocon (none)" in out and "≠ q   pyhocon (none) → zig-hocon 2" in out
 
 
 def test_json_is_the_same_tree(conf, capsys):
@@ -112,7 +112,7 @@ def test_a_duration_of_months(tmp_path, capsys):
     (tmp_path / "a.conf").write_text("m = 1 month")
     code, out = run(capsys, tmp_path / "a.conf")
     if importlib.util.find_spec("dateutil"):
-        assert code == 1 and 'conf.get_duration("m") is an error: UnknownUnit' in out
+        assert code == 1 and 'conf.get_duration("m"): zig-hocon error (UnknownUnit)' in out
     else:
         assert code == 0
 
@@ -158,7 +158,7 @@ def test_pyhocon_that_never_answers(tmp_path, monkeypatch, capsys):
     code, out = run(capsys, tmp_path)
     assert code == 1
     assert "! pyhocon: no answer in 2 s; pyhocon loops for ever on some configs" in out
-    assert out.endswith("b.conf   same\n1 difference in 1 file.\n")
+    assert "b.conf   same\n1 difference in 1 file.\n" in out
 
 
 # the reading process, here in a thread for its lines to count
@@ -238,8 +238,8 @@ def test_a_number_get_string_reads_otherwise(tmp_path, capsys):
     (tmp_path / "a.conf").write_text("version = 1.10\nn = 7\nl = [1.10]")
     code, out = run(capsys, tmp_path / "a.conf")
     assert code == 1
-    assert 'conf.get_string("version") is "1.10", pyhocon\'s "1.1"' in out
-    assert "≠ n " not in out and out.endswith("1 difference in 1 file.\n")
+    assert 'conf.get_string("version"): pyhocon "1.1" → zig-hocon "1.10"' in out
+    assert "≠ n " not in out and "1 difference in 1 file.\n" in out
 
 
 # later wins: a later env file over an earlier one, --env over both
@@ -265,12 +265,13 @@ def test_what_pyhocon_s_getters_read_in_text(tmp_path, monkeypatch, capsys):
         monkeypatch.setenv(key, value)
     code, out = run(capsys, tmp_path / "a.conf")
     assert code == 1
-    assert 'conf.get_int("pool") is an error: InvalidCharacter, pyhocon\'s 8' in out
-    assert 'conf.get_int("workers") is an error: InvalidCharacter, pyhocon\'s 4' in out
-    assert 'conf.get_bool("beta") is an error: WrongType, pyhocon\'s True' in out or "conf.get_bool(\"beta\") is an error" in out
-    assert 'conf.get_string("password") is an error: Missing, pyhocon\'s None' in out
+    assert 'conf.get_int("pool"): pyhocon 8 → zig-hocon error (InvalidCharacter)' in out
+    assert 'conf.get_int("workers"): pyhocon 4 → zig-hocon error (InvalidCharacter)' in out
+    assert 'conf.get_bool("beta"): pyhocon True → zig-hocon error' in out
+    assert 'conf.get_string("password"): pyhocon None → zig-hocon error (Missing)' in out
+    assert "≠ pool   '08' in both" in out
     assert "≠ name" not in out and "≠ port" not in out and "≠ ok" not in out
-    assert out.endswith("4 differences in 1 file.\n")
+    assert "4 differences in 1 file.\n" in out
 
 
 # nothing compared is no green either: each file fails in both
@@ -293,7 +294,7 @@ def test_a_config_over_a_fallback(tmp_path, capsys):
     assert "AttributeError" in out and "--fallback reads them as it does" in out
     code, out = run(capsys, tmp_path / "conf", "--fallback", tmp_path / "reference.conf")
     assert code == 1
-    assert "≠ plugins   pyhocon ['auth', 'metrics']   zig-hocon ['auth', ['metrics']]" in out
+    assert "≠ plugins   pyhocon ['auth', 'metrics'] → zig-hocon ['auth', ['metrics']]" in out
     assert "+= appends one element" in out and "url" not in out
     code, out = run(capsys, tmp_path, "--fallback", tmp_path / "reference.conf", "--all")
     assert "reference.conf   " not in out and "= host, url" in out
@@ -322,11 +323,11 @@ def test_accepted_differences(tmp_path, capsys):
     assert run(capsys, tmp_path / "a.conf")[0] == 1
     code, out = run(capsys, tmp_path / "a.conf", "--accept", "mode", "--accept", "db", "--accept", "tags[1]", "--accept", "other")
     assert code == 0, out
-    assert "≠ mode   pyhocon 640   zig-hocon '0640'   (accepted)" in out
-    assert "≠ pool   pyhocon 10   zig-hocon '0010'   (accepted)" in out
+    assert "≠ mode   pyhocon 640 → zig-hocon '0640'   (accepted)" in out
+    assert "≠ pool   pyhocon 10 → zig-hocon '0010'   (accepted)" in out
     assert out.endswith("0 differences in 0 files.\n")
     code, out = run(capsys, tmp_path / "a.conf", "--accept", "db.pool", "--accept", "mode", "--accept", "tags", "--accept", "oth")
-    assert code == 1 and out.endswith("2 differences in 1 file.\n")
+    assert code == 1 and "2 differences in 1 file.\n" in out
 
 
 # --resolve-each: a loader that resolves each file before with_fallback keeps
@@ -337,7 +338,7 @@ def test_a_loader_that_resolves_each_file(tmp_path, capsys):
     code, out = run(capsys, tmp_path / "prod.conf", "--fallback", tmp_path / "reference.conf")
     assert code == 0
     code, out = run(capsys, tmp_path / "prod.conf", "--fallback", tmp_path / "reference.conf", "--resolve-each")
-    assert code == 1 and "≠ url   pyhocon 'db://a'   zig-hocon 'db://b'" in out
+    assert code == 1 and "≠ url   pyhocon 'db://a' → zig-hocon 'db://b'" in out
 
 
 # --before REV: pyhocon reads the configs as git has them at REV, zig_hocon as
@@ -362,3 +363,16 @@ def test_before_and_after(tmp_path, monkeypatch, capsys):
     assert run(capsys, "app.conf", "--before", "HEAD")[0] == 1
     assert migrate.main(["app.conf", "--before", "no-such-rev"]) == 2
     assert "--before no-such-rev" in capsys.readouterr().err
+
+
+# --color: pyhocon's side red, zig-hocon's green, as a diff has them; never
+# on a pipe unless asked, and not with NO_COLOR
+def test_colours(tmp_path, monkeypatch, capsys):
+    (tmp_path / "a.conf").write_text("n = 01")
+    code, out = run(capsys, tmp_path / "a.conf", "--color", "always")
+    assert "\033[31m1\033[0m → \033[32m'01'\033[0m" in out
+    assert "\033[31mpyhocon\033[0m → \033[32mzig-hocon\033[0m · " in out
+    assert "\033[" not in run(capsys, tmp_path / "a.conf")[1]
+    monkeypatch.setattr(sys.stdout, "isatty", lambda: True, raising=False)
+    monkeypatch.setenv("NO_COLOR", "1")
+    assert "\033[" not in run(capsys, tmp_path / "a.conf")[1]

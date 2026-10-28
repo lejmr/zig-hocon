@@ -124,13 +124,13 @@ def _diff(old: Any, new: Any, keys: list[Any], tree: ConfigTree, lenient: dict[s
         if type(new) in (int, float) and not any(isinstance(k, int) for k in keys):
             text = tree.get_string(_path(keys))
             if text != str(old):
-                return {**node, "hint": f'conf.get_string({json.dumps(_path(keys))}) is "{text}", pyhocon\'s "{old}"'}
+                return {**node, "hint": f'conf.get_string({json.dumps(_path(keys))}): pyhocon "{old}" → zig-hocon "{text}"'}
         # the same text or null, which pyhocon's getters read where these do
         # not: "08" and " 4" as numbers, "True" as a bool, null as None
         read = {} if any(isinstance(k, int) for k in keys) else lenient.get(_path(keys), {})
         misread = [_misread(tree, getter, _path(keys), want) for getter, want in read.items()]
         if any(misread):
-            return {**node, "hint": "; ".join(m for m in misread if m)}
+            return {**node, "hint": "\n".join(m for m in misread if m)}
         return {"kind": "=", "value": new}
     want = _EPOCH + old - _EPOCH if type(old).__name__ == "relativedelta" else old
     getter = _GETTERS.get(type(want))
@@ -140,7 +140,7 @@ def _diff(old: Any, new: Any, keys: list[Any], tree: ConfigTree, lenient: dict[s
             if _same(want, getattr(tree, getter)(_path(keys))):
                 return {**node, "kind": "≈", "hint": f"the same through {call}"}
         except ConfigException as e:
-            node["hint"] = f"{call} is an error: {e.name}"
+            node["hint"] = f"{call}: zig-hocon error ({e.name})"
     if isinstance(old, list) and isinstance(new, list) and _same(old, _flat(new)):
         node["hint"] = "+= appends one element, here a list; x = ${x} [...] extends it (MIGRATING.md, Step 3)"
     return node
@@ -153,8 +153,8 @@ def _misread(tree: ConfigTree, getter: str, path: str, want: Any) -> str:
     try:
         got = getattr(tree, getter)(path)
     except ConfigException as e:
-        return f"{call} is an error: {e.name}, pyhocon's {want!r}"
-    return "" if _same(want, got) else f"{call} is {got!r}, pyhocon's {want!r}"
+        return f"{call}: pyhocon {want!r} → zig-hocon error ({e.name})"
+    return "" if _same(want, got) else f"{call}: pyhocon {want!r} → zig-hocon {got!r}"
 
 
 def _lenient(tree: Any, plain: dict[str, Any], keys: list[str]) -> dict[str, Any]:
@@ -298,6 +298,24 @@ def _show(value: Any) -> str:
     return repr(value)
 
 
+# How the text report looks, set by main: colours on a terminal, and the names
+# of the two sides.
+_COLOR = False
+_SIDES = ("pyhocon", "zig-hocon")
+# pyhocon's side red and zig-hocon's green, as a diff has them
+_STYLES = {"pyhocon": "31", "zig-hocon": "32", "!": "1", "dim": "2", "bold": "1"}
+_LEGEND = "≠ reads differently · ≈ the same through a getter (--getters) · ! fails in one of them · --accept PATH once reviewed"
+
+
+def _legend() -> str:
+    sides = f"{_paint(_SIDES[0], 'pyhocon')} → {_paint(_SIDES[1], 'zig-hocon')} · "
+    return sides + _paint(_LEGEND, "dim")
+
+
+def _paint(text: str, style: str) -> str:
+    return f"\033[{_STYLES[style]}m{text}\033[0m" if _COLOR else text
+
+
 def _lines(node: dict[str, Any], keys: list[Any], depth: int, every: bool, getters: bool = False) -> list[str]:
     """The tree as text: an object or list where something differs, and with
     ``every`` what is the same, on one line per object; with ``getters`` a
@@ -316,22 +334,29 @@ def _lines(node: dict[str, Any], keys: list[Any], depth: int, every: bool, gette
         else:
             old = _show(child["pyhocon"]) if "pyhocon" in child else "(none)"
             new = _show(child["zig_hocon"]) if "zig_hocon" in child else "(none)"
-            accepted = "   (accepted)" if child.get("accepted") else ""
-            out.append(f"{pad}{child['kind']} {name}   pyhocon {old}   zig-hocon {new}{accepted}")
-            if "hint" in child:
-                out.append(f"{pad}    {child['hint']}")
+            # the same as written, read otherwise by a getter: the hint says how
+            if child.get("accepted"):
+                values = f"{old} in both" if old == new else f"{_SIDES[0]} {old} → {_SIDES[1]} {new}"
+                out.append(pad + _paint(f"{child['kind']} {name}   {values}   (accepted)", "dim"))
+            else:
+                # in colour the arrow is enough: pyhocon's side red, zig-hocon's green
+                left, right = ("", "") if _COLOR else (f"{_SIDES[0]} ", f"{_SIDES[1]} ")
+                values = f"{old} in both" if old == new else f"{_paint(left + old, 'pyhocon')} → {_paint(right + new, 'zig-hocon')}"
+                out.append(f"{pad}{child['kind']} {name}   {values}")
+            out += [pad + "    " + _paint(hint, "dim") for hint in child.get("hint", "").splitlines()]
     if every and same:
-        out.insert(0, f"{pad}= {', '.join(same)}")
+        out.insert(0, pad + _paint(f"= {', '.join(same)}", "dim"))
     return out
 
 
 def _report(result: dict[str, Any], every: bool, getters: bool = False) -> list[str]:
-    out = [result["path"]]
+    out = [_paint(result["path"], "bold")]
     errors = [(who, result[f"{key}_error"]) for who, key in (("pyhocon", "pyhocon"), ("zig-hocon", "zig_hocon")) if f"{key}_error" in result]
     if len(errors) == 2:
         out.append("  · both fail, which is no difference")
     for who, error in errors:
-        out.append(f"  {'·' if len(errors) == 2 else '!'} {who}: " + error.replace("\n", "\n      "))
+        mark = "·" if len(errors) == 2 else _paint("!", "!")
+        out.append(f"  {mark} {who}: " + error.replace("\n", "\n      "))
     if "tree" in result:
         out += _lines(result["tree"], [], 1, every, getters)
     return out
@@ -389,6 +414,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--env-file", action="append", default=[], help="KEY=value lines for the environment of both")
     parser.add_argument("--env", action="append", default=[], metavar="KEY=VALUE", help="one variable for both")
     parser.add_argument("--json", action="store_true", help="the result as JSON, the same tree")
+    parser.add_argument("--color", choices=["auto", "always", "never"], default="auto", help="colours: on a terminal without NO_COLOR (auto)")
     parser.add_argument(
         "--fallback",
         action="append",
@@ -407,6 +433,9 @@ def main(argv: list[str] | None = None) -> int:
         help="a difference at PATH, or below it, is reviewed: shown, and no difference (db.file_mode, tags[2], db)",
     )
     args = parser.parse_args(argv)
+    global _COLOR, _SIDES
+    _COLOR = args.color == "always" or (args.color == "auto" and sys.stdout.isatty() and not os.environ.get("NO_COLOR"))
+    _SIDES = (f"{args.before} on pyhocon", "now on zig-hocon") if args.before else ("pyhocon", "zig-hocon")
     try:
         importlib.import_module("pyhocon")
     except ImportError:
@@ -460,5 +489,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f"  {result['path']}   {both or (f'{n} difference' + 's' * (n != 1) if n else 'same')}")
         files = sum(1 for r in results if differences(r))
         print(f"{total} difference{'s' * (total != 1)} in {files} file{'s' * (files != 1)}.")
+        if total:
+            print(_legend())
     return 1 if total else 0 if compared else 2
 

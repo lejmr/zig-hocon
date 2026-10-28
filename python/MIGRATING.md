@@ -117,6 +117,8 @@ conf/prod.conf
 3 differences in 1 file.
 ```
 
+A value that reads differently is `pyhocon 4 → zig-hocon 16`, what your service got and what it gets; on a terminal pyhocon's side is red and zig-hocon's green (`--color always` or `never`, and `NO_COLOR`). A value written the same that a getter reads otherwise is `'0640' in both`, each getter on a line below.
+
 Each config is read by pyhocon and by `zig_hocon`, with the same environment (`--env-file` with `KEY=value` lines, as a shell or docker writes them, `export` and quotes allowed, a later file over an earlier one; `--env KEY=VALUE` over the files), and what differs is shown as the config's tree:
 
 - `≈` another type that a getter reads the same: code that reads it with that getter, as most pyhocon code does, is not touched by it; `as_dict()` and a model are. The [examples](examples) show how a model reads a duration, with pydantic, msgspec and dataclasses.
