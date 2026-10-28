@@ -234,3 +234,18 @@ def test_a_number_get_string_reads_otherwise(tmp_path, capsys):
     assert code == 1
     assert 'conf.get_string("version") is "1.10", pyhocon\'s "1.1"' in out
     assert "≠ n " not in out and out.endswith("1 difference in 1 file.\n")
+
+
+# later wins: a later env file over an earlier one, --env over both
+def test_env_files_later_wins(tmp_path, monkeypatch, capsys):
+    import os
+
+    (tmp_path / "a.conf").write_text("a = ${OWL}")
+    (tmp_path / "base.env").write_text("OWL=hoot\nBAT=flap\n")
+    (tmp_path / "prod.env").write_text("OWL=screech\n")
+    monkeypatch.delenv("OWL", raising=False)
+    monkeypatch.delenv("BAT", raising=False)
+    run(capsys, tmp_path / "a.conf", "--env-file", tmp_path / "base.env", "--env-file", tmp_path / "prod.env")
+    assert (os.environ["OWL"], os.environ["BAT"]) == ("screech", "flap")
+    run(capsys, tmp_path / "a.conf", "--env-file", tmp_path / "base.env", "--env-file", tmp_path / "prod.env", "--env", "OWL=whoo")
+    assert os.environ["OWL"] == "whoo"

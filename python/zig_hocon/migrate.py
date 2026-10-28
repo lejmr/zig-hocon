@@ -245,12 +245,14 @@ def _unquoted(line: str) -> str:
 def _environment(files: list[str], pairs: list[str]) -> None:
     """``KEY=value`` lines and pairs into os.environ, for both readers. A
     line of a file may begin with ``export`` and quote its value, as a
-    shell's or docker's env file does."""
+    shell's or docker's env file does. Later wins: a later file over an
+    earlier one, ``--env`` over the files."""
+    from_files: list[str] = []
     for name in files:
         lines = [line.strip() for line in Path(name).read_text(encoding="utf-8").splitlines()]
         lines = [line.removeprefix("export ").lstrip() for line in lines if line and not line.startswith("#")]
-        pairs = [_unquoted(line) for line in lines] + pairs
-    for pair in pairs:
+        from_files += [_unquoted(line) for line in lines]
+    for pair in from_files + pairs:
         key, sep, value = pair.partition("=")
         if not sep:
             raise ValueError(f"migrate: {pair!r} is no KEY=value")

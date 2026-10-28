@@ -115,7 +115,7 @@ conf/prod.conf
 3 differences in 1 file.
 ```
 
-Each config is read by pyhocon and by `zig_hocon`, with the same environment (`--env-file` with `KEY=value` lines, as a shell or docker writes them, `export` and quotes allowed; `--env KEY=VALUE`), and what differs is shown as the config's tree:
+Each config is read by pyhocon and by `zig_hocon`, with the same environment (`--env-file` with `KEY=value` lines, as a shell or docker writes them, `export` and quotes allowed, a later file over an earlier one; `--env KEY=VALUE` over the files), and what differs is shown as the config's tree:
 
 - `≈` another type that a getter reads the same: code that reads it with that getter, as most pyhocon code does, is not touched by it; `as_dict()` and a model are. The [examples](examples) show how a model reads a duration, with pydantic, msgspec and dataclasses.
 - `≠` another value, or a key only one of them has, with the getter's error where there is one; also the same number that `get_string` reads as written, `1.10` where pyhocon has `1.1`.
