@@ -11,6 +11,7 @@ What changed for someone using zig-hocon: the Zig package, the `hocon` command l
 - Python: MIGRATING.md says that `x += [3, 4]` appends the list as one element, by the spec, where pyhocon extends the list; it said `+=` reads the same.
 
 ### Fixed
+- Python: a getter that cannot read a value notes what it read, which a traceback prints under the message (Python 3.11+): `found '08'`, where a `${…}` from the environment showed only its name.
 - Python: `copy.copy` and `copy.deepcopy` of a `ConfigTree` failed with a `TypeError` on the library's handle, and an error from the handle's cleanup; a tree is read only, so a copy is now the tree itself.
 - Python: `help()`, pydoc and an IDE showed the whole process environment, secrets too, in the signature of `ConfigFactory.parse_file` and `parse_string`, whose default `env` was `os.environ` itself. The default is now named `os.environ` and reads it at the call, as before.
 - A NUL or another control character in unquoted text was written back by `to_hocon` / `hocon --hocon` as it was, and a NUL ended the text for C and Python: `motd = hello<NUL>world` lost every key after it. Such text is written quoted now, the character escaped (`"hello\u0000world"`).

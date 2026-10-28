@@ -230,7 +230,9 @@ class _Pyhocon:
     def close(self) -> None:
         if self.process is not None:
             self.conn.send(None)
-            self.process.join()
+            # ponytail: it ends on None; a process that does not, ended after 5 s
+            self.process.join(5)
+            self.process.terminate()
 
 
 def _check(path: Path, pyhocon: _Pyhocon, fallbacks: list[str] = [], each: bool = False, before: Callable[[str], str] = str) -> dict[str, Any]:  # noqa: B006 - read, never changed
