@@ -5,7 +5,7 @@
     "path-expressions.10",
     "the--field-separator.1"
   ],
-  "why": "a key may start with a number and run into +=: 3 and 1e are keys, and += appends to nothing: {\"3\": [[]], \"1e\": [1]}; typesafe/config reads + as part of the number and rejects it, pyhocon drops the brackets",
+  "why": "Settled with the number-like reading (Readings): a key is a path expression and always a string (L562-568), and += is the field separator (L720+). After the completed JSON number 3, or the non-number text 1e (no exponent digits), += begins — so the keys are \"3\" and \"1e\", and += onto nothing is {\"3\": [[]], \"1e\": [1]}. typesafe/config's Parse is the same lenient-number biproduct as 01→1: its tokenizer eats + as an exponent and fails; pyhocon drops the brackets. Not a separate HOCON hole.",
   "expect": {
     "3": [
       []
