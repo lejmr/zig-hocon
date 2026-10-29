@@ -15,6 +15,7 @@ from zig_hocon import (
     ConfigFactory,
     ConfigMissingException,
     ConfigWrongTypeException,
+    Period,
 )
 
 
@@ -50,9 +51,9 @@ def get(src, method, path):
         ("a = 512MB", "get_bytes", "a", 512_000_000),
         ('a = "1.5 GiB"', "get_bytes", "a", 1_610_612_736),
         ("a = 3", "get_bytes", "a", 3),
-        ("a = 3mo", "get_period", "a", {"years": 0, "months": 3, "days": 0}),
-        ("a = 2w", "get_period", "a", {"years": 0, "months": 0, "days": 14}),
-        ("a = 1y", "get_period", "a", {"years": 1, "months": 0, "days": 0}),
+        ("a = 3mo", "get_period", "a", Period(years=0, months=3, days=0)),
+        ("a = 2w", "get_period", "a", Period(years=0, months=0, days=14)),
+        ("a = 1y", "get_period", "a", Period(years=1, months=0, days=0)),
         ("db { host = burrow.example }", "get_string", "db.host", "burrow.example"),
         ('a { "b.c" = dot }', "get_string", 'a."b.c"', "dot"),
     ],
