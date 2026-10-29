@@ -34,7 +34,7 @@
 #   --spec (default)  score against what the HOCON specification requires
 #   --java            score against what typesafe/config does, on the rows where
 #                     the two disagree — compatibility with the JVM world rather
-#                     than conformance; see conformance/PROCESS.md
+#                     than conformance; see conformance/maintaining/PROCESS.md
 #   --java-version V  which typesafe/config --java scores against: 1.4.9 (the
 #                     default, the latest release) or a later one, e.g. main.
 #                     Rows a newer typesafe/config fixed say so in `java_since`
