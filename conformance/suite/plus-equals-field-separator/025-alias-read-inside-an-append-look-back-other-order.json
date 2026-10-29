@@ -13,15 +13,10 @@
     ]
   },
   "resolve": true,
-  "java": "diverges",
   "also_valid": [
     {
       "e": [],
       "c": []
     }
-  ],
-  "java_expect": {
-    "c": [],
-    "e": []
-  }
+  ]
 }

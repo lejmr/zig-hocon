@@ -17,10 +17,5 @@
       "a": "x"
     },
     "rejected"
-  ],
-  "java": "diverges",
-  "java_expect": {
-    "a": "x",
-    "p": "x"
-  }
+  ]
 }

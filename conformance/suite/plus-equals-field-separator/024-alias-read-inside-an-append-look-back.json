@@ -13,16 +13,11 @@
     "c": []
   },
   "resolve": true,
-  "java": "diverges",
   "also_valid": [
     {
       "e": [],
       "c": []
     },
     "rejected"
-  ],
-  "java_expect": {
-    "c": [],
-    "e": []
-  }
+  ]
 }

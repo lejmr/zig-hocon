@@ -12,7 +12,6 @@
     }
   },
   "resolve": true,
-  "java": "diverges",
   "also_valid": [
     {
       "f": {
@@ -21,11 +20,5 @@
       "a": 3
     },
     "rejected"
-  ],
-  "java_expect": {
-    "a": 3,
-    "f": {
-      "z": 3
-    }
-  }
+  ]
 }

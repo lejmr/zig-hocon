@@ -16,10 +16,5 @@
       "c": "xy",
       "e": "xy"
     }
-  ],
-  "java": "diverges",
-  "java_expect": {
-    "c": "xy",
-    "e": "xy"
-  }
+  ]
 }
