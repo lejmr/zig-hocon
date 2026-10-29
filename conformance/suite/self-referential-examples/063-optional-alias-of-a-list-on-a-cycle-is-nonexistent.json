@@ -5,14 +5,16 @@
     "self-referential-substitutions.13",
     "substitutions.17"
   ],
-  "why": "d's ${?c} leads back to d through c, and c's ${?d} back to c through d, so both are nonexistent (L716) whichever field is resolved first: d is [] and c, an optional with nothing behind it, is no field. typesafe/config keeps c as []",
+  "why": "Resolving d first, c's ${?d} closes the cycle and is missing, memoized: d is [] and c is no field. Resolving c first, d's ${?c} closes it: d is [] and c is d, [], as typesafe/config gives: the spec leaves the order two fields resolve in undefined and allows either result or an error (L866-881); a cycle is broken by removing one of its links (L660-661), the optional that closes it, which is then missing (L714-716), and its result is memoized (L884-888)",
   "expect": {
     "d": []
   },
   "resolve": true,
-  "java": "diverges",
-  "java_expect": {
-    "c": [],
-    "d": []
-  }
+  "also_valid": [
+    {
+      "c": [],
+      "d": []
+    },
+    "rejected"
+  ]
 }

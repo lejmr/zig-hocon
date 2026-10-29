@@ -5,7 +5,7 @@
     "self-referential-substitutions.13",
     "substitutions.15"
   ],
-  "why": "as 043 without the x: ${?a.t} leads back to f, so it is nonexistent and f is not created; ${?f} leads back to a and is nonexistent too, so a is {t: 1}. typesafe/config gives f = 1 here, though in 043 it reads ${?a.t} as nonexistent",
+  "why": "Resolving a first, f's ${?a.t} closes the cycle and is missing, memoized, so f is no field and a is {t: 1}. Resolving f first, a's ${?f} closes it, a is {t: 1} and f is 1, as typesafe/config gives: the spec leaves the order two fields resolve in undefined and allows either result or an error (L866-881); a cycle is broken by removing one of its links (L660-661), the optional that closes it, which is then missing (L714-716), and its result is memoized (L884-888)",
   "expect": {
     "a": {
       "t": 1
@@ -15,14 +15,16 @@
     }
   },
   "resolve": true,
-  "java": "diverges",
-  "java_expect": {
-    "a": {
-      "t": 1
+  "also_valid": [
+    {
+      "a": {
+        "t": 1
+      },
+      "f": 1,
+      "y": {
+        "t": 1
+      }
     },
-    "f": 1,
-    "y": {
-      "t": 1
-    }
-  }
+    "rejected"
+  ]
 }

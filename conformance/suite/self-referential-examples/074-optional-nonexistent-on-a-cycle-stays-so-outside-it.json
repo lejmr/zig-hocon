@@ -5,7 +5,7 @@
     "self-referential-substitutions.13",
     "examples-of-self-referential-substitutions.27"
   ],
-  "why": "e's ${?f.k} leads back to e through f's ${e}, and f's ${?e} back to f through e's ${?f.k}: both are nonexistent (L716) whichever field is resolved first, so e is [y] and f is ${e}, [y]. A substitution is resolved once (L884-886): f's ${?e}, found nonexistent while e was resolved, stays nonexistent when f is resolved afterwards. typesafe/config calls the cycle an error",
+  "why": "Resolving f first, e's ${?f.k} closes the cycle and is missing, memoized: e is [y] and f is ${e}, [y]. Resolving e first, f's ${?e} is missing but its ${e} is required and closes the cycle, an error, as typesafe/config reports: the spec leaves the order two fields resolve in undefined and allows either result or an error (L866-881); a cycle is broken by removing one of its links (L660-661), the optional that closes it, which is then missing (L714-716), and its result is memoized (L884-888)",
   "expect": {
     "e": [
       "y"
@@ -15,6 +15,7 @@
     ]
   },
   "resolve": true,
-  "java": "unsupported",
-  "java_error": "UnresolvedSubstitution"
+  "also_valid": [
+    "rejected"
+  ]
 }
