@@ -4,6 +4,10 @@ What changed for someone using zig-hocon: the Zig package, the `hocon` command l
 
 ## [Unreleased]
 
+### Changed
+
+- Python: the README and the package description no longer call the API pyhocon's. Only `parse_file`, `parse_string`, the typed getters and the exception names carry over; code that uses the tree as a dict, reads lists or calls pyhocon's other methods is rewritten, as MIGRATING.md says.
+
 ### Added
 
 - Python: `pip install zig-hocon` puts the `hocon` command line tool of its platform on the path, the same as a release's, with `get`, `diff` and `check`; only `check --schema`, which builds a Zig program and needs zig, is left out.

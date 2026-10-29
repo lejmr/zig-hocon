@@ -1,6 +1,6 @@
 # Migrating from pyhocon
 
-This guide moves a project from pyhocon to zig_hocon. Code that reads through `ConfigFactory` and the typed getters changes its imports (Step 1); code that uses the tree as a dict or pyhocon's other methods needs a few lines more (Step 2); a few configs read differently (Step 3). `zig-hocon-migrate` reads your configs with both and shows every difference ([Checklist](#checklist)).
+This guide moves a project from pyhocon to zig_hocon. It is not an import swap: only `ConfigFactory` and the typed getters carry over (Step 1); code that uses the tree as a dict, reads lists or calls pyhocon's other methods is rewritten (Step 2), mostly onto `as_dict()` or a model; a few configs read differently (Step 3). `zig-hocon-migrate` reads your configs with both and shows every difference ([Checklist](#checklist)).
 
 **Before you switch, check your secret store.** zig_hocon reads a number or a boolean from the environment only as written: `08`, ` 48` or `True`, which pyhocon took, now stop a service at startup in `get_int` or `get_bool`. It is the most common way a service does not start after the move. Export each deployment's environment into an env file and run `zig-hocon-migrate` with it.
 

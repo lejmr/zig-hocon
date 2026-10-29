@@ -1,6 +1,6 @@
 <img src="https://raw.githubusercontent.com/lejmr/zig-hocon/main/docs/brand/zig-Hocon-badge-master-1650x500.png" width="600" alt="zig-hocon">
 
-Read [HOCON](https://github.com/lightbend/config/blob/main/HOCON.md) config files in Python, to the spec. Fast, because the parser is written in Zig. Familiar, because the API is pyhocon's.
+Read [HOCON](https://github.com/lightbend/config/blob/main/HOCON.md) config files in Python, to the spec. Fast, because the parser is written in Zig. Not a drop-in for pyhocon: the getters keep pyhocon's names, the rest of the API is its own ([Coming from pyhocon](#coming-from-pyhocon)).
 
 HOCON is JSON made for people: comments, no quotes needed, units like `30s` and `512MiB`, files that include other files, later settings that merge over earlier ones, and values taken from other keys or from environment variables. One base file, one small file per environment on top.
 
@@ -161,9 +161,10 @@ Each exits 1 when something is wrong, with the place on stderr; `hocon` alone li
 
 ## Coming from pyhocon
 
-`ConfigFactory`, the typed getters and the exception names are pyhocon's, so code that reads through them changes its import. What differs:
+Moving over is a rewrite of the code that works with the tree, not a change of import. What carries over: `ConfigFactory.parse_file` and `parse_string`, the typed getters (`get_string`, `get_int`, `get_float`, `get_bool`, `get_config`) and the exception names. What does not:
 
 - **The tree is not a dict**, and `get`, `get_list`, `with_fallback` and `put` are not there: a typed getter, `conf.as_dict()` or an include does the job.
+- **A list has no getters.** It and the objects in it come from `conf.as_dict()`, where a duration is text: `zig_hocon.parse_duration` reads it, or a model does.
 - **Durations stay text.** `30s` is `"30s"` in `as_dict()` until a getter or a model reads it.
 - **`+=` appends one element.** `x += [a]`, the form pyhocon takes, adds the list `[a]` as one element; `x = ${x} [a]` extends it.
 - **Values from the environment are text**, read as numbers and booleans only as written: `08` or `True` stop `get_int` and `get_bool`. Check your secret store first.
