@@ -1,10 +1,10 @@
 {
   "suite": "hocon-conformance",
   "implementation": "zig-hocon",
-  "version": "zig-hocon code@732ac04",
+  "version": "zig-hocon code@98e3825",
   "mode": "spec",
   "command": "conformance/adapters/zig-hocon.sh",
-  "ran_at": "2026-10-29T07:37:59Z",
+  "ran_at": "2026-10-29T08:41:55Z",
   "suite_digest": "d3ebfb2f13a116b1",
   "total": 588,
   "passed": 588,

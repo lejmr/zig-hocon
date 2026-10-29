@@ -131,6 +131,8 @@ config.cache.whole(.B)         // 536870912; "512MB" counts by 1000, "512MiB" by
 period.months                  // hocon.Period: years, months, days, as java.time.Period
 ```
 
+A `Duration` holds its nanoseconds exactly, in an i96 (`.nanoseconds`); `whole` gives an i64, so past 292 years `whole(.ns)` is the largest i64 rather than the value.
+
 **Without a struct**, when the keys are not known ahead of time, ask for `hocon.Value`: the whole tree of objects, lists and values, to walk with a `switch`. `std.json.Stringify` prints it as JSON:
 
 ```zig
@@ -173,14 +175,14 @@ $ hocon get db --json prod.conf
 {"host":"db.example.org","pool":4}
 ```
 
-**diff** compares two files as they resolve, path by path (`~ path: old → new`, `+` and `-`), and exits 0 when they say the same, as the deploy file does:
+**diff** compares two files as they resolve, path by path (`~ path: old → new`, `+` and `-`), and exits 0 when they say the same, as the deploy file does, 1 when they differ and 2 when one cannot be read:
 
 ```sh
 $ hocon diff prod.conf deploy.conf; echo $?
 0
 ```
 
-**check** reads files, and with `--schema` into your struct, so a value of the wrong type fails as it would in your program. It compiles the struct with the `zig` on your `PATH`, so the file may import `std` and `hocon` and nothing else:
+**check** reads files, and with `--schema` into your struct, so a value of the wrong type fails as it would in your program. A key the struct has no field for is skipped, as `parseFromFile` does by default; a program with `.ignore_unknown_fields = false` refuses it where `check` does not. It compiles the struct with the `zig` on your `PATH`, so the file may import `std` and `hocon` and nothing else:
 
 ```sh
 $ hocon check --schema config.zig:Config prod.conf
@@ -194,7 +196,7 @@ db.pool = ${?DB_POOL}   # only when DB_POOL is set
 
 `config.zig` there is the `Config` struct from the top of this page, `pub`.
 
-Each exits 1 when something is wrong, with the place on stderr; `hocon` alone lists the commands and their flags.
+Each exits 1 when something is wrong (`diff` 2, as 1 is a difference), with the place on stderr; `hocon` alone lists the commands and their flags.
 
 From `build.zig`, run the binary of the dependency. Here `zig build check-config` checks `deploy/prod.conf` against `Config`:
 
@@ -224,7 +226,7 @@ b.step("check-config", "Check the config against Config").dependOn(&check.step);
 | py.hocon <sub>hocon-parser 1.14.2 (Python)</sub> | 78.1% (459/588) | 79.1% (465/588) |
 | pyhocon <sub>pyhocon 0.3.63</sub> | 61.1% (359/588) | 57.7% (339/588) |
 | rs.hocon <sub>hocon-parser 1.14.2 (Rust)</sub> | 77.6% (456/588) | 78.4% (461/588) |
-| zig-hocon <sub>zig-hocon code@732ac04</sub> | 100% (588/588) | 80.6% (474/588) |
+| zig-hocon <sub>zig-hocon code@98e3825</sub> | 100% (588/588) | 80.6% (474/588) |
 
 The table keeps the best parsers; the others measured, and why they are not in it: [conformance/README.md](conformance/README.md#not-in-the-table).
 
