@@ -20,7 +20,6 @@ What changed for someone using zig-hocon: the Zig package, the `hocon` command l
 
 ### Fixed
 
-- The README's `build.zig` example, `b.addRunArtifact(hocon.artifact("hocon"))`, panicked with `artifact name 'hocon' is ambiguous`, as libhocon and the CLI share the name. A dependent project runs the CLI through `hocon.namedLazyPath("cli")`, which the README now shows.
 - Python: a getter that cannot read a value notes what it read, which a traceback prints under the message (Python 3.11+): `found '08'`, where a `${…}` from the environment showed only its name.
 - Python: `copy.copy` and `copy.deepcopy` of a `ConfigTree` failed with a `TypeError` on the library's handle, and an error from the handle's cleanup; a tree is read only, so a copy is now the tree itself.
 - Python: `help()`, pydoc and an IDE showed the whole process environment, secrets too, in the signature of `ConfigFactory.parse_file` and `parse_string`, whose default `env` was `os.environ` itself. The default is now named `os.environ` and reads it at the call, as before.
