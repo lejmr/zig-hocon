@@ -44,7 +44,7 @@ pub fn main(init: std.process.Init) !void {
 }
 ```
 
-The rest of this page reads these two files.
+The rest of this page reads these two files. **Variables go last.** A later setting hides an earlier one, a `${?…}` too: `workers = ${?WORKERS}` in `app.conf` under `workers = 8` in `prod.conf` is 8 whatever `WORKERS` says. Put what the environment overrides where nothing comes after it, as `prod.conf` here does with `${?DB_POOL}`, or in a file every environment includes last.
 
 ## Why zig-hocon
 
@@ -131,7 +131,7 @@ config.cache.whole(.B)         // 536870912; "512MB" counts by 1000, "512MiB" by
 period.months                  // hocon.Period: years, months, days, as java.time.Period
 ```
 
-A `Duration` holds its nanoseconds exactly, in an i96 (`.nanoseconds`); `whole` gives an i64, so past 292 years `whole(.ns)` is the largest i64 rather than the value.
+The units are `.ns`, `.us`, `.ms`, `.s`, `.min`, `.h`, `.d` and `.w` for a duration, `.B`, `.kB`, `.MB`, `.GB`, `.TB`, `.PB`, `.EB` and `.KiB` … `.EiB` for a size. A `Duration` holds its nanoseconds exactly, in an i96 (`.nanoseconds`); `whole` gives an i64, so past 292 years `whole(.ns)` is the largest i64 rather than the value.
 
 **Without a struct**, when the keys are not known ahead of time, ask for `hocon.Value`: the whole tree of objects, lists and values, to walk with a `switch`. `std.json.Stringify` prints it as JSON:
 
