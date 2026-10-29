@@ -102,7 +102,7 @@ from pathlib import Path
 Path("deploy.conf").write_text(ConfigFactory.parse_file("prod.conf", env=KEEP).to_hocon())
 ```
 
-**Durations, periods and sizes** have helpers with the same rules as the getters: `zig_hocon.parse_duration("30s")` gives a `timedelta`, `zig_hocon.parse_period("3 months")` a dict as `get_period` does, `zig_hocon.parse_bytes("512MiB")` an int. A duration is nanoseconds in an int64, as in C: a `timedelta` to the microsecond, of up to 292 years; a longer one is a `ConfigWrongTypeException` named `Overflow`.
+**Durations, periods and sizes** have helpers with the same rules as the getters: `zig_hocon.parse_duration("30s")` gives a `timedelta`, `zig_hocon.parse_period("3 months")` a dict as `get_period` does, `zig_hocon.parse_bytes("512MiB")` an int; `zig_hocon.parse_int` and `zig_hocon.parse_bool` read a number and a boolean as `get_int` and `get_bool` do ([Strict, as the Zig side reads it](#into-a-model)). A duration is nanoseconds in an int64, as in C: a `timedelta` to the microsecond, of up to 292 years; a longer one is a `ConfigWrongTypeException` named `Overflow`.
 
 **From the shell**, [`hocon`](#the-hocon-command) prints the file resolved, and more; `python -m zig_hocon [--json] [--env=process|none|keep] prod.conf` does the first through the package.
 
@@ -141,7 +141,7 @@ $ hocon get db --json prod.conf
 {"host":"db.example.org","pool":4}
 ```
 
-**diff** compares two files as they resolve, path by path (`~ path: old → new`, `+` and `-`), and exits 0 when they say the same, as the deploy file does:
+**diff** compares two files as they resolve, path by path (`~ path: old → new`, `+` and `-`), and exits 0 when they say the same, as the deploy file does, 1 when they differ and 2 when one cannot be read:
 
 ```sh
 $ hocon diff prod.conf deploy.conf; echo $?
@@ -159,7 +159,7 @@ db.host = ${DB_HOST}
 1 of 2 failed
 ```
 
-Each exits 1 when something is wrong, with the place on stderr; `hocon` alone lists the commands and their flags. (The `hocon` of a release also has `check --schema`, which reads a file into a Zig struct; it needs zig, and the wheel's leaves it out.)
+Each exits 1 when something is wrong (`diff` 2, as 1 is a difference), with the place on stderr; `hocon` alone lists the commands and their flags. (The `hocon` of a release also has `check --schema`, which reads a file into a Zig struct; it needs zig, and the wheel's leaves it out.)
 
 ## Coming from pyhocon
 
@@ -258,6 +258,36 @@ settings = msgspec.json.decode(conf.to_json(), type=Settings, dec_hook=dec_hook,
 ```
 
 All three give `settings.db.host == "db.example.org"` and `settings.timeout == timedelta(seconds=30)`, and fail with the model's own error, path included, on a value of the wrong type. A size works the same way through `zig_hocon.parse_bytes`. The [examples](https://github.com/lejmr/zig-hocon/tree/main/python/examples) have these as tests, with layered environments, errors and one-file deploys.
+
+**Strict, as the Zig side reads it.** A model's own rules for a number or a boolean are not the library's, and a value from the environment is always text, `${DB_POOL}` with `08` in it is `"08"`:
+
+| text | `get_int` / `get_bool`, a Zig struct | pydantic | msgspec, `strict=False` |
+|---|---|---|---|
+| `"08"`, `"+9000"`, `"9_000"`, `" 48"` | refused | 8, 9000, 9000, 48 | refused |
+| `"True"`, `"1"` | refused | `True` | `True` |
+| `"yes"`, `"on"` | `True` | `True` | refused |
+
+So the same file, with the same environment, can start the Python side with `workers = 8` where the Zig side of the application refuses to start, or the other way round. `zig_hocon.parse_int` and `zig_hocon.parse_bool` read as `get_int`, `get_bool` and a Zig struct do; as validators they make a model take exactly what the Zig side takes:
+
+```python
+from typing import Annotated
+
+import zig_hocon
+from pydantic import BaseModel, BeforeValidator, Field
+
+Int = Annotated[int, BeforeValidator(zig_hocon.parse_int)]
+Bool = Annotated[bool, BeforeValidator(zig_hocon.parse_bool)]
+
+class Db(BaseModel):
+    host: str
+    pool: Annotated[Int, Field(ge=0, le=65535)]  # a u16 on the Zig side
+
+class Settings(BaseModel):
+    db: Db
+    debug: Bool
+```
+
+The range stays the model's (`Field`). With msgspec, the same calls go in `dec_hook`, for types of their own as `Duration` above. Text is the other way round: unquoted `password = 12345` is the text `"12345"` to a Zig `[]const u8` field and to `get_string`, but a number to `as_dict()`, where `1.50` is also `1.5`, so a model's `str` field cannot see what was written. Quote a value meant as text that looks like a number, `password = "12345"`, and both sides read the same text.
 
 ## Building from source
 

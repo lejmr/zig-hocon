@@ -129,11 +129,11 @@ pub const Config = struct {
         }
         // The text stays in the arena: the values point into it.
         const source = std.Io.Dir.cwd().readFileAllocOptions(io, path, allocator, .limited(Include.max_file_size), .of(u8), 0) catch |err| {
-            noPlace(options, err);
+            noFile(options, err, keep, path);
             return err;
         };
         const full_path = Include.fileId(allocator, io, path) catch |err| {
-            noPlace(options, err);
+            noFile(options, err, keep, path);
             return err;
         };
         return parseSource(T, allocator, keep, path, source, .{
@@ -148,6 +148,12 @@ pub const Config = struct {
     /// An error with nothing to point into: the file was never read.
     fn noPlace(options: ParseOptions, err: anyerror) void {
         if (options.diagnostics) |diag| diag.* = .{ .err = err };
+    }
+
+    // The file the parse was given could not be read: it names the error.
+    fn noFile(options: ParseOptions, err: anyerror, keep: Allocator, path: []const u8) void {
+        const diag = options.diagnostics orelse return;
+        diag.* = .{ .err = err, .file = keep.dupe(u8, path) catch "" };
     }
 
     /// `keep` is what the diagnostics copy the path and the line with: the files

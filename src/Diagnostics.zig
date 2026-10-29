@@ -25,6 +25,10 @@ key_path: []const u8 = "",
 /// And what T wanted there: `u16`, `string`, `one of debug, info`. Empty when
 /// the error is not about the value's type, as for MissingField.
 expected: []const u8 = "",
+/// The file the parse was given, copied like the location, when reading it
+/// failed: no place in it to name it, `prod.conf: error: FileNotFound`. Empty
+/// for every other error.
+file: []const u8 = "",
 
 pub const Location = struct {
     /// The file the error is in, as it was named: the path the parse was given,
@@ -60,6 +64,7 @@ pub fn deinit(self: *Diagnostics, gpa: Allocator) void {
         gpa.free(loc.source_line);
     }
     if (self.key_path.len > 0) gpa.free(self.key_path);
+    if (self.file.len > 0) gpa.free(self.file);
     self.* = .{};
 }
 
@@ -117,7 +122,7 @@ pub fn render(self: Diagnostics, w: *std.Io.Writer) std.Io.Writer.Error!void {
     if (self.location) |loc| {
         if (loc.path.len > 0) try w.print("{s}:", .{loc.path});
         try w.print("{d}:{d}: ", .{ loc.line, loc.column });
-    }
+    } else if (self.file.len > 0) try w.print("{s}: ", .{self.file});
     try w.print("error: {t}", .{err});
     if (self.key_path.len > 0) try w.print(" at {s}", .{self.key_path});
     if (self.expected.len > 0) try w.print(": expected {s}", .{self.expected});

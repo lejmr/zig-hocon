@@ -43,7 +43,7 @@ settings = msgspec.json.decode(conf.to_json(), type=models_dataclasses.Settings,
 
 Two things every example deals with:
 
-- **A variable is text.** `PORT=9443` arrives as `"9443"`. pydantic turns it into an int by default; msgspec needs `strict=False`.
+- **A variable is text.** `PORT=9443` arrives as `"9443"`. pydantic turns it into an int by default; msgspec needs `strict=False`. Both then take text the library refuses, pydantic `"08"` as 8; `zig_hocon.parse_int` and `parse_bool` as validators read it as `get_int`, `get_bool` and a Zig struct do (the package README, *Strict, as the Zig side reads it*).
 - **JSON has no durations or sizes.** `timeout = 30s` arrives as `"30s"`. pydantic converts it in a `BeforeValidator` with `zig_hocon.parse_duration`. msgspec reads a `timedelta` only from ISO 8601 (`"PT30S"`), so its models give the field a type of their own and convert it in a `dec_hook`.
 
 Coming from pyhocon, where `30s` is already a `timedelta`: the [migration guide](../MIGRATING.md) lists every difference.

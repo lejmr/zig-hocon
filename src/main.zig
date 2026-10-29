@@ -92,7 +92,7 @@ pub fn main(init: std.process.Init) !void {
         var stderr_writer = std.Io.File.stderr().writerStreaming(io, &stderr_buffer);
         const stderr = &stderr_writer.interface;
         // No place in a file, so no file named by it: say which one was given.
-        if (diag.location == null) try stderr.print("{s}: ", .{path});
+        if (diag.location == null and diag.file.len == 0) try stderr.print("{s}: ", .{path});
         try diag.render(stderr);
         try stderr.flush();
         std.process.exit(1);

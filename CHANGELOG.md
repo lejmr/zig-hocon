@@ -14,6 +14,7 @@ What changed for someone using zig-hocon: the Zig package, the `hocon` command l
 
 ### Added
 
+- Python: `zig_hocon.parse_int` and `zig_hocon.parse_bool` read a number and a boolean as `get_int`, `get_bool` and a Zig struct do, for a model's validator: a lax pydantic model takes `"08"` as 8 and `"True"`, which the Zig side of the same application refuses.
 - Python: `zig_hocon.parse_period("3 months")` gives what `get_period` does, for a model's validator, beside `parse_duration` and `parse_bytes`.
 - The CLI is fuzzed on every pull request and branch push (`.github/workflows/fuzz.yml`): `tools/fuzz/fuzz.py --no-java --fail-on-crash`, a crash or a hang fails the run. A pull request's wheels are `X.Y.Z+g<commit>`, which PyPI refuses; CONTRIBUTING.md says what a patch and a minor release may change.
 - Python: `pip install zig-hocon` puts the `hocon` command line tool of its platform on the path, the same as a release's, with `get`, `diff` and `check`; only `check --schema`, which builds a Zig program and needs zig, is left out.
@@ -22,6 +23,8 @@ What changed for someone using zig-hocon: the Zig package, the `hocon` command l
 
 ### Fixed
 
+- Python: `parse_duration`, `parse_bytes` and the other `parse_*` helpers given no text or number (`True`, a list) raise an error that is a `ValueError` as well as the `TypeError` it was, so a pydantic validator reports it as the field's error instead of letting a bare `TypeError` through; an `Overflow` says what it was given, not `v`.
+- `Diagnostics.render` names the file when the file a parse was given cannot be read, `prod.conf: error: FileNotFound`, where it printed `error: FileNotFound` alone; the new field `Diagnostics.file` holds it.
 - `d { z = ${?a.k} }`, `d.z += 5`, `a += ${d}` was a `SubstitutionCycle` when `d` came before `a`, and `{d: {z: [5]}, a: [{z: [5]}]}` in the other orders: the `${?a.k}` that leads back to `d.z` is nonexistent (spec L716) in every order now, as typesafe/config reads it. v0.5.3 had it too; two conformance cases more, 588 in all.
 - Python: a getter that cannot read a value notes what it read, which a traceback prints under the message (Python 3.11+): `found '08'`, where a `${…}` from the environment showed only its name.
 - Python: `copy.copy` and `copy.deepcopy` of a `ConfigTree` failed with a `TypeError` on the library's handle, and an error from the handle's cleanup; a tree is read only, so a copy is now the tree itself.
