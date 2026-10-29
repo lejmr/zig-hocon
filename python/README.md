@@ -36,12 +36,12 @@ The rest of this page reads these two files.
 
 ## Why zig-hocon
 
-- **Correct.** Passes all 586 tests in the [conformance suite](https://htmlpreview.github.io/?https://github.com/lejmr/zig-hocon/blob/main/conformance/report.html), one test for each sentence of the spec.
+- **Correct.** Passes all 586 tests in the [conformance suite](https://htmlpreview.github.io/?https://github.com/lejmr/zig-hocon/blob/main/conformance/report.html): each checks one sentence of the spec, and together they cover 276 of its 290 rules.
 - **Fast.** Orders of magnitude faster than what Python usually has.\*
 - **Clear errors.** File, line, column, and a caret under the mistake.
 - **No dependencies.** A thin ctypes layer over one bundled library.
 
-\* A 1 MB config with substitutions in 13 ms, a 10 MB one in 0.14 s, on an Apple M4 Pro: [BENCHMARK.md](BENCHMARK.md).
+\* A 1 MB config with substitutions in 13 ms, a 10 MB one in 0.14 s, on an Apple M4 Pro: [BENCHMARK.md](https://github.com/lejmr/zig-hocon/blob/main/python/BENCHMARK.md).
 
 ## Install
 
@@ -111,14 +111,14 @@ Path("deploy.conf").write_text(ConfigFactory.parse_file("app.conf", env=KEEP).to
 `pip install zig-hocon` puts `hocon` on the path: the same tool as a release of zig-hocon has, built for your platform. It prints a file resolved, as HOCON or with `--json` as JSON:
 
 ```sh
-$ hocon --json prod.conf
-{"db":{"host":"db.example.org","pool":4},"timeout":"30s","cache":"512MiB","debug":false}
+$ hocon --json app.conf
+{"db":{"host":"db.example.org","pool":4},"timeout":"30s","cache":"512MiB","retention":"3 months","debug":false,"ratio":0.75}
 ```
 
 A `${…}` the file does not answer reads the environment; `--env=none` reads none. `--env=keep` writes the one file to deploy: includes and overrides worked out, the variables left for the server:
 
 ```sh
-$ hocon --env=keep prod.conf > deploy.conf
+$ hocon --env=keep app.conf > deploy.conf
 $ cat deploy.conf
 db {
   host = db.example.org
@@ -127,30 +127,32 @@ db {
 }
 timeout = 30s
 cache = 512MiB
+retention = 3 months
 debug = false
+ratio = 0.75
 ```
 
 **get** prints one value, for a shell script:
 
 ```sh
-$ hocon get db.host prod.conf
+$ hocon get db.host app.conf
 db.example.org
-$ hocon get db --json prod.conf
+$ hocon get db --json app.conf
 {"host":"db.example.org","pool":4}
 ```
 
 **diff** compares two files as they resolve, path by path (`~ path: old → new`, `+` and `-`), and exits 0 when they say the same, as the deploy file does:
 
 ```sh
-$ hocon diff prod.conf deploy.conf; echo $?
+$ hocon diff app.conf deploy.conf; echo $?
 0
 ```
 
 **check** reads each file and says which fail and where, for CI:
 
 ```sh
-$ hocon check prod.conf staging.conf
-prod.conf: ok
+$ hocon check app.conf staging.conf
+app.conf: ok
 staging.conf:2:11: error: Unresolved
 db.host = ${DB_HOST}
           ^
@@ -176,7 +178,7 @@ Moving over is a rewrite of the code that works with the tree, not a change of i
 zig-hocon-migrate conf/prod.conf --env-file env/prod.env
 ```
 
-[MIGRATING.md](MIGRATING.md) has every difference, what to write instead, and how to run the check for each deployment in CI.
+[MIGRATING.md](https://github.com/lejmr/zig-hocon/blob/main/python/MIGRATING.md) has every difference, what to write instead, and how to run the check for each deployment in CI.
 
 ## Into a model
 

@@ -7,7 +7,7 @@
 - [ ] `zig fmt --check .` passes
 - [ ] `zig build test` passes
 - [ ] Added/updated a test for this change
-- [ ] Ticked the matching item in the [spec checklist](../docs/spec.md), if applicable
+- [ ] Updated the matching item in the [spec checklist](../docs/spec.md), if its behaviour changed
 - [ ] This PR is scoped to a single feature/fix (not a bundle)
 
 <!-- If any box above is unchecked, please open this as a Draft PR. -->

@@ -31,8 +31,8 @@ zig_hocon gives a dict (`as_dict()`) or JSON bytes (`to_json()`). The model libr
 conf = zig_hocon.ConfigFactory.parse_file("conf/prod/app.conf")
 
 settings = models_pydantic.Settings.model_validate(conf.as_dict())
-settings = msgspec.json.decode(conf.to_json(), type=models_msgspec.Settings)
-settings = msgspec.json.decode(conf.to_json(), type=models_dataclasses.Settings)
+settings = msgspec.json.decode(conf.to_json(), type=models_msgspec.Settings, strict=False)
+settings = msgspec.json.decode(conf.to_json(), type=models_dataclasses.Settings, strict=False)
 ```
 
 | | checks types | builds nested objects | needs |

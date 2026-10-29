@@ -1,6 +1,6 @@
 # How substitutions resolve
 
-`src/Value/Resolver.zig` and `src/Value/Resolver/stack.zig`, drawn in five views from the whole to the detail: from file to value, the walk over the tree, a key written more than once, one `${…}`, and a path with the cycles on it. Every node is named after the function that does it, so it can be found in the code. `L…` is a line in [spec/HOCON.md](../spec/HOCON.md), a three-digit number a case in [conformance/suite](../conformance/suite).
+`src/Value/Resolver.zig` and `src/Value/Resolver/stack.zig`, drawn in five views from the whole to the detail: from file to value, the walk over the tree, a key written more than once, one `${…}`, and a path with the cycles on it. Every node is named after the function that does it, so it can be found in the code. `L…` is a line in [spec/HOCON.md](../spec/HOCON.md), a three-digit number a case in [conformance/suite/self-referential-examples](../conformance/suite/self-referential-examples).
 
 ## Two rules almost everything follows from
 
@@ -57,7 +57,7 @@ flowchart TD
   KIND -->|"stack, ref, pending"| RS["resolveStack(layers)"]
   KIND -->|other| RV2["resolveValue"]
   RS --> TOP{"top layer"}
-  TOP -->|"scalar / array"| HIDE["hides everything below<br/>(L776: hidden is never evaluated)"]
+  TOP -->|"scalar / array"| HIDE["hides everything below<br/>(L778: hidden is never evaluated)"]
   TOP -->|object| OL["resolveObjectLayer<br/>FORWARD"]
   TOP -->|"ref / pending"| LB{"holds a ref?"}
   LB -->|"no: a list next to an object"| RV3["resolveValue(top)"]

@@ -52,7 +52,7 @@ if [ -z "$(git branch -r --contains HEAD)" ]; then
     git commit --quiet --amend --no-edit
     echo "pre-push: amended the results ($SCORE) into $(git log -1 --format='%h %s')." >&2
 else
-    git commit --quiet -m "conformance: zig-hocon results ($SCORE)"
+    git commit --quiet -m "chore(conformance): zig-hocon results ($SCORE)"
     echo "pre-push: HEAD is already on the server, so the results ($SCORE) are a new commit: $(git log -1 --format='%h')." >&2
 fi
 echo "pre-push: push again to include them." >&2

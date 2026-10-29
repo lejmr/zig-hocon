@@ -1,6 +1,6 @@
 # Spec coverage
 
-Tracks coverage of the [HOCON spec](https://github.com/lightbend/config/blob/main/HOCON.md), following its own section names so the two can be read side by side. Checked items are implemented and tested; unchecked items are planned.
+Tracks coverage of the [HOCON spec](https://github.com/lightbend/config/blob/main/HOCON.md), following its own section names so the two can be read side by side. Every item is implemented and tested.
 
 ## Syntax
 
@@ -56,7 +56,7 @@ Somewhere around here the library becomes useful end to end: with merging done a
 
 ## API recommendations
 
-[§API Recommendations](https://github.com/lightbend/config/blob/main/HOCON.md#api-recommendations) is explicitly advisory — a HOCON implementation is conforming without it — but these are what makes the format pleasant, so they are on the roadmap.
+[§API Recommendations](https://github.com/lightbend/config/blob/main/HOCON.md#api-recommendations) is explicitly advisory — a HOCON implementation is conforming without it — but these are what makes the format pleasant, so all of them are implemented.
 
 - [x] [Automatic type conversions](https://github.com/lightbend/config/blob/main/HOCON.md#automatic-type-conversions) — into a Zig type rather than through typed getters: integers, floats, `bool` (`true`/`yes`/`on`, `false`/`no`/`off`, lowercase only), strings, slices, fixed arrays, structs, tagged unions (`{ tag = … }`), optionals, enums and field defaults. A number reads as a string exactly as written (`1.50` stays `"1.50"`), unquoted `null` fits only an optional, and objects and arrays never become strings. One deliberate difference from typesafe/config: `1.5` into an integer is an error rather than a silent `1`. An object with numeric keys reads as a list (see above).
 - [x] [Duration format](https://github.com/lightbend/config/blob/main/HOCON.md#duration-format) (`10s`, `5m`, ...) — `hocon.Duration`, nanoseconds in an i96 like `std.Io.Duration`. A fraction is exact, no floats (`0.3 s` is 300000000ns), where typesafe/config multiplies a double and can round (`9.999…9 s`). Where typesafe/config saturates at 292 years, an i96 holds the value, and past that it is `error.Overflow`. The number is JSON's: `.5 s` and `01 s`, which typesafe/config takes, are errors.
