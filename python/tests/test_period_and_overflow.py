@@ -7,9 +7,10 @@ from zig_hocon import ConfigFactory, ConfigWrongTypeException
 
 
 def test_parse_period_reads_as_get_period():
-    assert zig_hocon.parse_period("3mo") == {"years": 0, "months": 3, "days": 0}
-    assert zig_hocon.parse_period("2w") == {"years": 0, "months": 0, "days": 14}
-    assert zig_hocon.parse_period(5) == {"years": 0, "months": 0, "days": 5}
+    assert zig_hocon.parse_period("3mo") == zig_hocon.Period(years=0, months=3, days=0)
+    assert zig_hocon.parse_period("2w").days == 14
+    years, months, days = zig_hocon.parse_period(5)
+    assert (years, months, days) == (0, 0, 5)
 
 
 def test_parse_period_refuses_what_is_none():

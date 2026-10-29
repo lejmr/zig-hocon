@@ -7,7 +7,7 @@ import datetime
 import json
 
 from .config_parser import ConfigFactory
-from .config_tree import ConfigTree
+from .config_tree import ConfigTree, Period
 from .exceptions import ConfigException, ConfigWrongTypeException
 
 __all__ = ["parse_bool", "parse_bytes", "parse_duration", "parse_int", "parse_period"]
@@ -48,8 +48,8 @@ def parse_bytes(text: str | int | float) -> int:
         raise ConfigWrongTypeException(f"not a size in bytes: {text!r}", name="WrongType") from None
 
 
-def parse_period(text: str | int | float) -> dict[str, int]:
-    """``"3mo"``, ``"2w"`` or a number of days as a dict of ``years``,
+def parse_period(text: str | int | float) -> Period:
+    """``"3mo"``, ``"2w"`` or a number of days as a ``Period`` of ``years``,
     ``months`` and ``days``, as ``get_period`` gives it, by the rules of
     ``hocon.Period``. ConfigWrongTypeException, a ValueError, when it is none."""
     conf = _single(text, "parse_period")

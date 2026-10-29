@@ -5,7 +5,7 @@ import datetime
 import json
 import threading
 from collections.abc import Callable, Sequence
-from typing import Any, TypeVar, overload
+from typing import Any, NamedTuple, TypeVar, overload
 
 from . import _capi
 from ._capi import lib
@@ -60,6 +60,16 @@ def _path_bytes(full: str) -> bytes:
 def _timedelta(ns: int) -> datetime.timedelta:
     seconds, rest = divmod(ns, 1_000_000_000)
     return datetime.timedelta(seconds=seconds, microseconds=rest / 1000)
+
+
+class Period(NamedTuple):
+    """A calendar period, as ``hocon.Period`` and ``java.time.Period`` have
+    it: months and years have no fixed length, so no timedelta holds one.
+    ``relativedelta(**period._asdict())`` gives dateutil's."""
+
+    years: int
+    months: int
+    days: int
 
 
 class ConfigTree:
@@ -245,16 +255,15 @@ class ConfigTree:
         return out.value if found else value
 
     @overload
-    def get_period(self, path: str) -> dict[str, int]: ...
+    def get_period(self, path: str) -> Period: ...
     @overload
-    def get_period(self, path: str, default: _T) -> dict[str, int] | _T: ...
+    def get_period(self, path: str, default: _T) -> Period | _T: ...
     def get_period(self, path: str, default: Any = _NO_DEFAULT) -> Any:
-        """``3mo``, ``2w``, ``1y``; a number alone is days. A dict of
-        ``years``, ``months`` and ``days`` (weeks are days): months and years
-        have no fixed length, and the standard library has no calendar period."""
+        """``3mo``, ``2w``, ``1y``; a number alone is days. A ``Period`` of
+        ``years``, ``months`` and ``days`` (weeks are days)."""
         years, months, days = ctypes.c_int32(), ctypes.c_int32(), ctypes.c_int32()
         found, value = self._get(lib.hocon_get_period, path, [years, months, days], "a period", default)
-        return {"years": years.value, "months": months.value, "days": days.value} if found else value
+        return Period(years.value, months.value, days.value) if found else value
 
     @overload
     def get_config(self, path: str) -> "ConfigTree": ...

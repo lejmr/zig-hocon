@@ -18,7 +18,7 @@ The modules are pyhocon's: ``config_parser`` (ConfigFactory), ``config_tree``
 import importlib.metadata
 
 from .config_parser import KEEP, ConfigFactory
-from .config_tree import ConfigTree
+from .config_tree import ConfigTree, Period
 from .exceptions import (
     ConfigException,
     ConfigMissingException,
@@ -37,6 +37,7 @@ __all__ = [
     "ConfigSubstitutionException",
     "ConfigTree",
     "ConfigWrongTypeException",
+    "Period",
     "parse_bool",
     "parse_bytes",
     "parse_duration",

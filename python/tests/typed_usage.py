@@ -9,7 +9,7 @@ from typing import Any
 
 from typing_extensions import assert_type
 
-from zig_hocon import KEEP, ConfigFactory, ConfigTree, ConfigWrongTypeException, parse_bytes, parse_duration
+from zig_hocon import KEEP, ConfigFactory, ConfigTree, ConfigWrongTypeException, Period, parse_bytes, parse_duration
 
 conf = ConfigFactory.parse_string("db { pool = 4, timeout = 30s }", env=None)
 assert_type(conf, ConfigTree)
@@ -21,7 +21,7 @@ assert_type(conf.get_float("db.ratio"), float)
 assert_type(conf.get_bool("db.debug", False), bool)
 assert_type(conf.get_duration("db.timeout"), datetime.timedelta)
 assert_type(conf.get_bytes("db.cache"), int)
-assert_type(conf.get_period("db.keep"), dict[str, int])
+assert_type(conf.get_period("db.keep"), Period)
 assert_type(conf.get_config("db"), ConfigTree)
 assert_type(conf.get_config("cache", None), ConfigTree | None)
 assert_type(conf.as_dict(), dict[str, Any])

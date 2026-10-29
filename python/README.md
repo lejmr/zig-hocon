@@ -74,7 +74,7 @@ conf.get_float("ratio")         # 0.75
 conf.get_bool("debug")          # False: true/yes/on, false/no/off
 conf.get_duration("timeout")    # timedelta(seconds=30)
 conf.get_bytes("cache")         # 536870912: "512MB" counts by 1000, "512MiB" by 1024
-conf.get_period("retention")    # {"years": 0, "months": 3, "days": 0}: a timedelta has no months
+conf.get_period("retention")    # Period(years=0, months=3, days=0): a timedelta has no months
 conf.get_config("db")           # the object at db, read the same way
 conf.get_int("db.size", default=10)  # 10: nothing at db.size
 
@@ -102,7 +102,7 @@ from pathlib import Path
 Path("deploy.conf").write_text(ConfigFactory.parse_file("prod.conf", env=KEEP).to_hocon())
 ```
 
-**Durations, periods and sizes** have helpers with the same rules as the getters: `zig_hocon.parse_duration("30s")` gives a `timedelta`, `zig_hocon.parse_period("3 months")` a dict as `get_period` does, `zig_hocon.parse_bytes("512MiB")` an int; `zig_hocon.parse_int` and `zig_hocon.parse_bool` read a number and a boolean as `get_int` and `get_bool` do ([Strict, as the Zig side reads it](#into-a-model)). A duration is nanoseconds in an int64, as in C: a `timedelta` to the microsecond, rounded half to even (`1500ns` is 2 µs, where Zig keeps 1500 ns), of up to 292 years; a longer one is a `ConfigWrongTypeException` named `Overflow`.
+**Durations, periods and sizes** have helpers with the same rules as the getters: `zig_hocon.parse_duration("30s")` gives a `timedelta`, `zig_hocon.parse_period("3 months")` a `Period` as `get_period` does, `zig_hocon.parse_bytes("512MiB")` an int; `zig_hocon.parse_int` and `zig_hocon.parse_bool` read a number and a boolean as `get_int` and `get_bool` do ([Strict, as the Zig side reads it](#into-a-model)). A duration is nanoseconds in an int64, as in C: a `timedelta` to the microsecond, rounded half to even (`1500ns` is 2 µs, where Zig keeps 1500 ns), of up to 292 years; a longer one is a `ConfigWrongTypeException` named `Overflow`.
 
 **From the shell**, [`hocon`](#the-hocon-command) prints the file resolved, and more; `python -m zig_hocon [--json] [--env=process|none|keep] prod.conf` does the first through the package.
 

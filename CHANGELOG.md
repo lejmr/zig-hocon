@@ -6,6 +6,7 @@ What changed for someone using zig-hocon: the Zig package, the `hocon` command l
 
 ### Changed
 
+- Python: `get_period` gives a `zig_hocon.Period`, a named tuple of `years`, `months` and `days` (`p.months`), where it gave a dict; `relativedelta(**p._asdict())` gives dateutil's.
 - Python: `get_duration` and `parse_duration` raise a `ConfigWrongTypeException` named `Overflow` for a duration past 292 years, the longest an int64 of nanoseconds holds, where they gave 292 years without a word (C's `hocon_get_duration_ns` saturates there, as before).
 - Python: the README and the package description no longer call the API pyhocon's. Only `parse_file`, `parse_string`, the typed getters and the exception names carry over; code that uses the tree as a dict, reads lists or calls pyhocon's other methods is rewritten, as MIGRATING.md says.
 - Optional substitutions on a cycle resolve the same whichever field comes first, as the spec has it, where v0.5.3 dropped or kept them by the order of the lines, and in two cases lost a value: `b.c += ${y}`, `b.c += 2`, `y = [1, ${?b}]` is `b.c = [[1], 2]` again, and `f = x${?a}`, `f = { z = 3 }`, `a = ${?f}` keeps `a`, since text under an object is hidden and never evaluated, as a list is. An include inside an object concatenated with an optional, `k = { include "x" } ${?y}`, no longer reports a cycle. Found by a bug hunt on v0.5.3.
