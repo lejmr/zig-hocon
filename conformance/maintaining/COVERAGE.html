@@ -797,7 +797,7 @@ should be parsed next-to-last.</mark></p>
 <p data-line="1096">    include &quot;foo.properties&quot;
     include &quot;foo.json&quot;
     include &quot;foo.conf&quot;</p>
-<p data-line="1100"><mark class="ok" title="include-semantics-file-formats-and-extensions.6 — include-file-formats/006-json-extension-means-json-syntax/main.conf, include-file-formats/007-properties-extension-means-properties-syntax/main.conf">This same extension-based behavior is applied to classpath
+<p data-line="1100"><mark class="ok" title="include-semantics-file-formats-and-extensions.6 — include-file-formats/006-json-extension-means-json-syntax/main.conf, include-file-formats/007-properties-extension-means-properties-syntax/main.conf, include-file-formats/034-properties-file-with-only-comments-is-empty/main.conf">This same extension-based behavior is applied to classpath
 resources and files.</mark></p>
 <p data-line="1103"><mark class="ok" title="include-semantics-file-formats-and-extensions.7 — include-file-formats/027-url-without-extension-is-the-exact-url/main.conf">For URLs, a basename without extension is not allowed; only the
 exact URL specified is used.</mark> <mark class="ok" title="include-semantics-file-formats-and-extensions.8 — include-file-formats/028-file-url-is-read-as-given/main.conf">The format will be chosen based on
@@ -1072,7 +1072,7 @@ way to get rid of default fallback values they don&#x27;t want.</p>
 <p data-line="1447">It may be useful to merge Java properties data with data loaded
 from JSON or HOCON. See the Java properties spec here:
 https://docs.oracle.com/javase/8/docs/api/java/util/Properties.html#load-java.io.Reader-</p>
-<p data-line="1451"><mark class="ok" title="java-properties-mapping.1 — include-file-formats/007-properties-extension-means-properties-syntax/main.conf">Java properties parse as a one-level map from string keys to
+<p data-line="1451"><mark class="ok" title="java-properties-mapping.1 — include-file-formats/007-properties-extension-means-properties-syntax/main.conf, include-file-formats/034-properties-file-with-only-comments-is-empty/main.conf">Java properties parse as a one-level map from string keys to
 string values.</mark></p>
 <p data-line="1454">To convert to HOCON, first split each key on the `.` character,
 keeping any empty strings (including leading and trailing empty

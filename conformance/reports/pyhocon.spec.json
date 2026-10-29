@@ -4,11 +4,11 @@
   "version": "pyhocon 0.3.63",
   "mode": "spec",
   "command": "conformance/adapters/oracle.sh hocon-py",
-  "ran_at": "2026-10-26T20:16:43Z",
-  "suite_digest": "6016265ebddf11c8",
-  "total": 583,
-  "passed": 358,
-  "percent": 61.4,
+  "ran_at": "2026-10-26T21:08:01Z",
+  "suite_digest": "f387ae8f6ee1b6a9",
+  "total": 584,
+  "passed": 359,
+  "percent": 61.5,
   "sections": {
     "array-and-object-concatenation": {
       "total": 23,
@@ -43,8 +43,8 @@
       "passed": 2
     },
     "include-file-formats": {
-      "total": 30,
-      "passed": 5
+      "total": 31,
+      "passed": 6
     },
     "include-locating": {
       "total": 5,
@@ -291,6 +291,7 @@
     "include-file-formats/031-json-rejects-raw-tab-in-string/main.conf": "fail",
     "include-file-formats/032-json-nonbreaking-space-is-not-whitespace/main.conf": "fail",
     "include-file-formats/033-json-bom-at-start-may-be-ignored/main.conf": "fail",
+    "include-file-formats/034-properties-file-with-only-comments-is-empty/main.conf": "pass",
     "include-locating/001-include-string-that-is-a-url-is-a-url.conf": "pass",
     "include-locating/002-nested-include-is-relative-to-the-including-file/main.conf": "pass",
     "include-locating/003-plain-name-is-a-file-beside-the-including-one/main.conf": "pass",
@@ -3336,7 +3337,7 @@
         "a": "null bar"
       },
       "got": {
-        "a": "<pyhocon.config_tree.NoneValue object at 0x7f4509541400>bar"
+        "a": "<pyhocon.config_tree.NoneValue object at 0x7f3b02079400>bar"
       }
     },
     {

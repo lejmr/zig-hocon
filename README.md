@@ -48,7 +48,7 @@ The rest of this page reads these two files.
 
 ## Why zig-hocon
 
-- **Correct.** Passes all 583 tests in the [conformance suite](https://htmlpreview.github.io/?https://github.com/lejmr/zig-hocon/blob/main/conformance/report.html), one test for each sentence of the spec.
+- **Correct.** Passes all 584 tests in the [conformance suite](https://htmlpreview.github.io/?https://github.com/lejmr/zig-hocon/blob/main/conformance/report.html), one test for each sentence of the spec.
 - **Your schema is a Zig struct.** HOCON is only what sits on disk; the struct says what it holds, with defaults, optionals, enums, durations and sizes.
 - **Fast.** A 10 MB config in a quarter of a second.\*
 - **Clear errors.** File, line, column and a caret, also for a value of the wrong type.
@@ -210,11 +210,11 @@ b.step("check-config", "Check the config against Config").dependOn(&check.step);
 
 | implementation | against the spec | against typesafe/config 1.4.9 |
 |---|---|---|
-| Java <sub>typesafe/config 1.4.9</sub> | 81.3% (475/584) | 99.8% (583/584) |
+| Java <sub>typesafe/config 1.4.9</sub> | 81.5% (476/584) | 100% (584/584) |
 | hocon2 <sub>hocon2 0.6.3</sub> | 66.1% (386/584) | 61.3% (358/584) |
 | pulse-pyhocon <sub>pulse-pyhocon 0.2.1</sub> | 54.3% (317/584) | 51.2% (299/584) |
 | py.hocon <sub>hocon-parser 1.14.2 (Python)</sub> | 68.2% (398/584) | 66.3% (387/584) |
-| pyhocon <sub>pyhocon 0.3.63</sub> | 61.3% (358/584) | 57.9% (338/584) |
+| pyhocon <sub>pyhocon 0.3.63</sub> | 61.5% (359/584) | 58.0% (339/584) |
 | rs.hocon <sub>hocon-parser 1.14.2 (Rust)</sub> | 68.2% (398/584) | 65.8% (384/584) |
 | zig-hocon <sub>zig-hocon code@6543a17</sub> | 100% (584/584) | 80.5% (470/584) |
 

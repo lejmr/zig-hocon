@@ -34,7 +34,7 @@ observable parse behaviour.
 | 982 | Include semantics: merging | `include-merging` | ✅ 19 cases |
 | 1008 | Include semantics: substitution | `include-substitution` | ✅ 28 cases |
 | 1051 | Include semantics: missing and required files | `include-missing-and-required` | ✅ 6 cases |
-| 1074 | Include semantics: file formats and extensions | `include-file-formats` | ✅ 30 cases |
+| 1074 | Include semantics: file formats and extensions | `include-file-formats` | ✅ 31 cases |
 | 1109 | Include semantics: locating resources | `include-locating` | ✅ 5 cases |
 | 1184 | Conversion of numerically-indexed objects to arrays | `numerically-indexed-objects-to-arrays` | ✅ 7 cases |
 | 1221 | MIME Type | — | — |
