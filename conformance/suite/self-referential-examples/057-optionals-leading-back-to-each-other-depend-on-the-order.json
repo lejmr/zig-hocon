@@ -1,0 +1,25 @@
+{
+  "spec": "HOCON.md#examples-of-self-referential-substitutions",
+  "rule": [
+    "self-referential-substitutions.4",
+    "self-referential-substitutions.13",
+    "substitutions.17"
+  ],
+  "why": "b's ${?a} and a's ${?b} lead back to each other. Resolving b first, a's ${?b} closes the cycle and is missing: a is [], b is [[]]; resolving a first gives the mirror image, which is what typesafe/config does. Both lists empty comes out of no order: the spec leaves the order two fields resolve in undefined and allows either result or an error (L866-881); a cycle is broken by removing one of its links (L660-661), the optional that closes it, which is then missing (L714-716), and its result is memoized (L884-888)",
+  "expect": {
+    "b": [
+      []
+    ],
+    "a": []
+  },
+  "resolve": true,
+  "also_valid": [
+    {
+      "b": [],
+      "a": [
+        []
+      ]
+    },
+    "rejected"
+  ]
+}
