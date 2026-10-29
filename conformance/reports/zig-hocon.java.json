@@ -1,12 +1,12 @@
 {
   "suite": "hocon-conformance",
   "implementation": "zig-hocon",
-  "version": "zig-hocon code@27c6cd4",
+  "version": "zig-hocon code@d3af388",
   "mode": "java",
   "java_version": "1.4.9",
   "command": "conformance/adapters/zig-hocon.sh",
-  "ran_at": "2026-10-29T14:11:28Z",
-  "suite_digest": "e5f2da024c3254d8",
+  "ran_at": "2026-10-29T14:21:50Z",
+  "suite_digest": "339cb6ded26cc7e0",
   "total": 588,
   "passed": 479,
   "percent": 81.5,
@@ -347,10 +347,10 @@
     "include-substitution/022-include-in-a-list-element-looks-up-its-own-root/main.conf": "fail",
     "include-substitution/023-include-under-plus-equals-looks-up-its-own-root/main.conf": "fail",
     "include-substitution/024-include-in-a-list-element-before-the-including-root/main.conf": "fail",
-    "include-substitution/025-plus-equals-with-nothing-at-fixed-up-path-falls-back/main.conf": "fail",
+    "include-substitution/025-plus-equals-with-nothing-at-fixed-up-path-starts-a-list/main.conf": "fail",
     "include-substitution/026-include-in-an-object-concatenated-with-an-optional/main.conf": "pass",
-    "include-substitution/027-plus-equals-falling-back-onto-text-is-an-error/main.conf": "fail",
-    "include-substitution/028-optional-self-reference-falling-back-to-the-root/main.conf": "fail",
+    "include-substitution/027-plus-equals-does-not-fall-back-onto-text/main.conf": "fail",
+    "include-substitution/028-optional-self-reference-in-an-include-disappears/main.conf": "fail",
     "include-syntax/001-include-later-in-key-is-literal.conf": "pass",
     "include-syntax/002-include-as-object-value-is-string.conf": "pass",
     "include-syntax/003-include-as-array-element-is-string.conf": "pass",
@@ -640,12 +640,12 @@
     "substitutions/036-empty-quoted-path-element.conf": "pass",
     "substitutions/037-path-into-a-list-element-is-undefined.conf": "pass",
     "substitutions/038-whitespace-after-question-mark.conf": "pass",
-    "substitutions/039-undefined-optional-with-number-is-a-string.conf": "fail",
+    "substitutions/039-undefined-optional-next-to-a-number-keeps-the-number.conf": "fail",
     "substitutions/040-null-blocks-environment-lookup.conf": "pass",
     "substitutions/041-undefined-optional-under-a-path-leaves-the-object.conf": "pass",
-    "substitutions/042-undefined-optional-next-to-number-is-a-string.conf": "fail",
-    "substitutions/043-undefined-optional-before-a-leading-zero.conf": "fail",
-    "substitutions/044-undefined-optional-with-boolean-is-a-string.conf": "fail",
+    "substitutions/042-undefined-optional-next-to-numbers-keeps-them-numbers.conf": "fail",
+    "substitutions/043-undefined-optional-before-a-leading-zero.conf": "open",
+    "substitutions/044-undefined-optional-with-boolean-keeps-the-boolean.conf": "fail",
     "unchanged-from-json/001-quoted-string-json-format.conf": "pass",
     "unchanged-from-json/002-string-value-type.conf": "pass",
     "unchanged-from-json/003-number-value-type.conf": "pass",
@@ -770,9 +770,6 @@
     "include-substitution/022-include-in-a-list-element-looks-up-its-own-root/main.conf": "{\"a\":[{\"x\":1,\"y\":1}]}",
     "include-substitution/023-include-under-plus-equals-looks-up-its-own-root/main.conf": "{\"a\":[{\"x\":1,\"y\":1}]}",
     "include-substitution/024-include-in-a-list-element-before-the-including-root/main.conf": "{\"a\":[{\"x\":1,\"y\":1}],\"y\":2}",
-    "include-substitution/025-plus-equals-with-nothing-at-fixed-up-path-falls-back/main.conf": "{\"a\":[1],\"k\":{\"a\":[1,2]}}",
-    "include-substitution/027-plus-equals-falling-back-onto-text-is-an-error/main.conf": "rejected",
-    "include-substitution/028-optional-self-reference-falling-back-to-the-root/main.conf": "{\"a\":{\"b\":{}},\"b\":{}}",
     "key-value-separator/007-object-after-omitted-separator-concatenates.conf": "{\"a\":{\"m\":2,\"n\":1}}",
     "key-value-separator/008-substitution-after-omitted-separator-concatenates.conf": "{\"x\":{\"p\":1},\"a\":{\"m\":2,\"p\":1}}",
     "omit-root-braces/006-array-root-unaffected.conf": "[1,2,3]",
@@ -824,10 +821,7 @@
     "string-value-concatenation/016-text-between-arrays-is-not-dropped.conf": "rejected",
     "substitution-fallback-to-environment/009-self-reference-reads-env.conf": "{\"CONFORMANCE_HOME\":\"/from/env\"}",
     "substitution-fallback-to-environment/010-optional-self-reference-reads-env.conf": "{\"CONFORMANCE_HOME\":\"/from/env\"}",
-    "substitutions/039-undefined-optional-with-number-is-a-string.conf": "{\"a\":\"42\"}",
-    "substitutions/042-undefined-optional-next-to-number-is-a-string.conf": "{\"a\":[\"10\",\"1.50\"]}",
     "substitutions/043-undefined-optional-before-a-leading-zero.conf": "{\"a\":\"01\"}",
-    "substitutions/044-undefined-optional-with-boolean-is-a-string.conf": "{\"a\":\"true\"}",
     "unchanged-from-json/009-leading-zero-run-is-text.conf": "{\"a\":\"01\"}",
     "unchanged-from-json/010-signed-fraction-without-integer-part-is-text.conf": "{\"a\":\"-.33\"}",
     "unchanged-from-json/011-plus-in-a-signed-fraction-is-illegal.conf": "rejected",
@@ -1312,9 +1306,9 @@
       "java": "unsupported"
     },
     {
-      "case": "include-substitution/025-plus-equals-with-nothing-at-fixed-up-path-falls-back/main.conf",
+      "case": "include-substitution/025-plus-equals-with-nothing-at-fixed-up-path-starts-a-list/main.conf",
       "spec": "HOCON.md#include-semantics-substitution",
-      "rule": "a += 2 in a file included at k is a = ${?a} [2], fixed up to ${?k.a}; looking back, k.a has no earlier value, so the original path a is looked up as well and k.a appends to it. typesafe/config lets the self-reference end the lookup, the same for the long form, though it falls back for b = ${?a} [2]",
+      "rule": "A self-reference looks back at the field's own earlier value (L747-749), here at its fixed-up path; the fallback to the original path is for an included file that \"might intend to refer to the application's root config\" (L1043-1047), which a field referring to itself does not. typesafe/config reads it so: a += 2 included at k is k.a = ${?k.a} [2], k.a has no earlier value, and the root's unrelated a = [1] is not looked at: k.a is [2].",
       "expected": {
         "a": [
           1
@@ -1335,13 +1329,12 @@
             2
           ]
         }
-      },
-      "java": "diverges"
+      }
     },
     {
-      "case": "include-substitution/027-plus-equals-falling-back-onto-text-is-an-error/main.conf",
+      "case": "include-substitution/027-plus-equals-does-not-fall-back-onto-text/main.conf",
       "spec": "HOCON.md#include-semantics-substitution",
-      "rule": "a += 3 in child.conf looks for k.a first, which is not there, then for a from the root (L1010, as in 025): the text \"\", and += onto a value that is no list is an error (L731). typesafe/config treats the include's a as unrelated to the root's",
+      "rule": "A self-reference looks back at the field's own earlier value (L747-749), here at its fixed-up path; the fallback to the original path is for an included file that \"might intend to refer to the application's root config\" (L1043-1047), which a field referring to itself does not. typesafe/config reads it so: a += 3 included at k looks back at k.a only, which has no earlier value, so the root's text a = \"\" is not appended to and k.a is [3], no error.",
       "expected": {
         "a": "",
         "k": {
@@ -1350,13 +1343,12 @@
           ]
         }
       },
-      "got": "rejected (exit 1)",
-      "java": "lenient"
+      "got": "rejected (exit 1)"
     },
     {
-      "case": "include-substitution/028-optional-self-reference-falling-back-to-the-root/main.conf",
+      "case": "include-substitution/028-optional-self-reference-in-an-include-disappears/main.conf",
       "spec": "HOCON.md#include-semantics-substitution",
-      "rule": "b = ${?b} in child.conf has nothing below it at a.b, so it is as if a.b were not in the document, and the path is looked up from the root next (L1010, as in 025): b is {}, and so is a.b. typesafe/config drops a.b",
+      "rule": "A self-reference looks back at the field's own earlier value (L747-749), here at its fixed-up path; the fallback to the original path is for an included file that \"might intend to refer to the application's root config\" (L1043-1047), which a field referring to itself does not. typesafe/config reads it so: b = ${?b} included in a has nothing below it at a.b, so it \"just disappears silently\" (L776), and the root's b {} is not taken: a is {}.",
       "expected": {
         "a": {},
         "b": {}
@@ -1366,8 +1358,7 @@
           "b": {}
         },
         "b": {}
-      },
-      "java": "diverges"
+      }
     },
     {
       "case": "key-value-separator/007-object-after-omitted-separator-concatenates.conf",
@@ -1788,11 +1779,11 @@
     {
       "case": "plus-equals-field-separator/028-number-and-list-appending-each-other-optionally.conf",
       "spec": "HOCON.md#the--field-separator",
-      "rule": "Resolving c first, d's ${?c} closes the cycle and is missing, so d is 1 next to nothing and c is [d]: the string \"1\" as in substitutions/042, or the number 1 as typesafe/config reads it (an open question of its own). Resolving d first, c's ${?d} is missing, c is [], and d is 1 next to a list, an error (L384-385). c = [] together with d = \"1\" comes out of no order: the spec leaves the order two fields resolve in undefined and allows either result or an error (L866-881); a cycle is broken by removing one of its links (L660-661), the optional that closes it, which is then missing (L714-716), and its result is memoized (L884-888)",
+      "rule": "Resolving c first, d's ${?c} closes the cycle and is missing, so d is 1 next to nothing and c is [d]: the number 1, as substitutions/039 has it. Resolving d first, c's ${?d} is missing, c is [], and d is 1 next to a list, an error (L384-385). c = [] together with d = 1 comes out of no order: the spec leaves the order two fields resolve in undefined and allows either result or an error (L866-881); a cycle is broken by removing one of its links (L660-661), the optional that closes it, which is then missing (L714-716), and its result is memoized (L884-888)",
       "expected": {
-        "d": "1",
+        "d": 1,
         "c": [
-          "1"
+          1
         ]
       },
       "got": {
@@ -1803,12 +1794,12 @@
     {
       "case": "plus-equals-field-separator/029-number-and-list-appending-each-other-optionally-other-order.conf",
       "spec": "HOCON.md#the--field-separator",
-      "rule": "028 with c written first: c [\"1\"] and d \"1\" (or the number, as typesafe/config reads it) when c is resolved first, an error when d is. c = [] together with d = \"1\" comes out of no order: the spec leaves the order two fields resolve in undefined and allows either result or an error (L866-881); a cycle is broken by removing one of its links (L660-661), the optional that closes it, which is then missing (L714-716), and its result is memoized (L884-888)",
+      "rule": "028 with c written first: c [1] and d 1 when c is resolved first, an error when d is. c = [] together with d = 1 comes out of no order: the spec leaves the order two fields resolve in undefined and allows either result or an error (L866-881); a cycle is broken by removing one of its links (L660-661), the optional that closes it, which is then missing (L714-716), and its result is memoized (L884-888)",
       "expected": {
         "c": [
-          "1"
+          1
         ],
-        "d": "1"
+        "d": 1
       },
       "got": {
         "c": [],
@@ -2179,21 +2170,20 @@
       "java": "diverges"
     },
     {
-      "case": "substitutions/039-undefined-optional-with-number-is-a-string.conf",
+      "case": "substitutions/039-undefined-optional-next-to-a-number-keeps-the-number.conf",
       "spec": "HOCON.md#substitutions",
-      "rule": "${?x}42 is a concatenation of two parts, so it is value-concatenated to form a string (substitutions.24): the undefined optional becomes empty and the number keeps its written form; typesafe/config instead drops the undefined part and keeps the lone number as a number",
+      "rule": "An undefined ${?x} next to one other value adds nothing: it becomes an empty string only \"as part of a value concatenation with another string\" (L636-637), \"a single value is never converted to a string\" (L376), and two undefined optionals make no field at all (L640-642), so what is left is the other value with its type, as typesafe/config reads it: ${?x}42 is the number 42.",
       "expected": {
         "a": 42
       },
       "got": {
         "a": "42"
-      },
-      "java": "diverges"
+      }
     },
     {
-      "case": "substitutions/042-undefined-optional-next-to-number-is-a-string.conf",
+      "case": "substitutions/042-undefined-optional-next-to-numbers-keeps-them-numbers.conf",
       "spec": "HOCON.md#substitutions",
-      "rule": "each element is a concatenation of two values, not a lone substitution, so the undefined ${?x} becomes \"\" and the element is a string, the number kept as written: [\"10\", \"1.50\"]; typesafe/config and pyhocon keep the numbers",
+      "rule": "An undefined ${?x} next to one other value adds nothing: it becomes an empty string only \"as part of a value concatenation with another string\" (L636-637), \"a single value is never converted to a string\" (L376), and two undefined optionals make no field at all (L640-642), so what is left is the other value with its type, as typesafe/config reads it: [${?x}10, 1.50${?x}] is [10, 1.5].",
       "expected": {
         "a": [
           10,
@@ -2205,32 +2195,30 @@
           "10",
           "1.50"
         ]
-      },
-      "java": "diverges"
+      }
     },
     {
       "case": "substitutions/043-undefined-optional-before-a-leading-zero.conf",
       "spec": "HOCON.md#substitutions",
-      "rule": "${?n}01 is a concatenation of two parts, so it is a string (042), and 01 is no JSON number anyway: \"01\". typesafe/config and pyhocon drop the undefined part and read the number 1",
+      "rule": "An undefined ${?x} next to one other value adds nothing: it becomes an empty string only \"as part of a value concatenation with another string\" (L636-637), \"a single value is never converted to a string\" (L376), and two undefined optionals make no field at all (L640-642), so what is left is the other value with its type, as typesafe/config reads it: ${?n}01 is whatever 01 alone is, which is the open question of unchanged-from-json/009 (one invalid number token per L272, the number 0 then the text 1, or typesafe/config's number 1).",
       "expected": {
-        "a": 1
+        "a": "01"
       },
       "got": {
         "a": "01"
       },
-      "java": "diverges"
+      "open_question": "the optional part is settled (the value keeps its type, as 039); what 01 alone is waits on unchanged-from-json/009"
     },
     {
-      "case": "substitutions/044-undefined-optional-with-boolean-is-a-string.conf",
+      "case": "substitutions/044-undefined-optional-with-boolean-keeps-the-boolean.conf",
       "spec": "HOCON.md#substitutions",
-      "rule": "true${?x} is a concatenation of two parts, so it is value-concatenated to form a string (substitutions.24): the undefined optional becomes empty and true becomes \"true\" (string-value-concatenation.7); typesafe/config instead drops the undefined part and keeps the lone true as a boolean",
+      "rule": "An undefined ${?x} next to one other value adds nothing: it becomes an empty string only \"as part of a value concatenation with another string\" (L636-637), \"a single value is never converted to a string\" (L376), and two undefined optionals make no field at all (L640-642), so what is left is the other value with its type, as typesafe/config reads it: true${?x} is the boolean true.",
       "expected": {
         "a": true
       },
       "got": {
         "a": "true"
-      },
-      "java": "diverges"
+      }
     },
     {
       "case": "unchanged-from-json/009-leading-zero-run-is-text.conf",
