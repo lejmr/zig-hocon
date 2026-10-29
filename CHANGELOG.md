@@ -14,6 +14,7 @@ What changed for someone using zig-hocon: the Zig package, the `hocon` command l
 
 ### Added
 
+- `hocon --env-file=<file>`, on every command and `check --schema` too: the `KEY=value` lines of a file over the environment, a later file over an earlier one, over none with `--env=none`; the lines `zig-hocon-migrate --env-file` reads.
 - Python: `zig_hocon.parse_int` and `zig_hocon.parse_bool` read a number and a boolean as `get_int`, `get_bool` and a Zig struct do, for a model's validator: a lax pydantic model takes `"08"` as 8 and `"True"`, which the Zig side of the same application refuses.
 - Python: `zig_hocon.parse_period("3 months")` gives what `get_period` does, for a model's validator, beside `parse_duration` and `parse_bytes`.
 - The CLI is fuzzed on every pull request and branch push (`.github/workflows/fuzz.yml`): `tools/fuzz/fuzz.py --no-java --fail-on-crash`, a crash or a hang fails the run. A pull request's wheels are `X.Y.Z+g<commit>`, which PyPI refuses; CONTRIBUTING.md says what a patch and a minor release may change.

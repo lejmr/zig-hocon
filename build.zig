@@ -292,7 +292,7 @@ pub fn build(b: *std.Build) void {
     const bad_format = runCli(b, exe);
     bad_format.addArgs(&.{ "--yaml", "no-such-file.conf" });
     bad_format.expectExitCode(1);
-    bad_format.expectStdErrEqual("error: usage: hocon [--hocon | --json] [--env=process|none|keep] <file.conf>\n");
+    bad_format.expectStdErrEqual("error: usage: hocon [--hocon | --json] [--env=process|none|keep] [--env-file=<file>]... <file.conf>\n");
     test_step.dependOn(&bad_format.step);
 
     // A flag alone, or an empty name, is no file name: usage, not FileNotFound.
@@ -300,7 +300,7 @@ pub fn build(b: *std.Build) void {
         const no_file = runCli(b, exe);
         no_file.addArg(arg);
         no_file.expectExitCode(1);
-        no_file.expectStdErrEqual("error: usage: hocon [--hocon | --json] [--env=process|none|keep] <file.conf>\n");
+        no_file.expectStdErrEqual("error: usage: hocon [--hocon | --json] [--env=process|none|keep] [--env-file=<file>]... <file.conf>\n");
         test_step.dependOn(&no_file.step);
     }
 
@@ -331,7 +331,7 @@ pub fn build(b: *std.Build) void {
         const bad_env = runCli(b, exe);
         bad_env.addArgs(args);
         bad_env.expectExitCode(1);
-        bad_env.expectStdErrEqual("error: usage: hocon [--hocon | --json] [--env=process|none|keep] <file.conf>\n");
+        bad_env.expectStdErrEqual("error: usage: hocon [--hocon | --json] [--env=process|none|keep] [--env-file=<file>]... <file.conf>\n");
         test_step.dependOn(&bad_env.step);
     }
 
@@ -342,6 +342,41 @@ pub fn build(b: *std.Build) void {
     env_none.setEnvironmentVariable("WOMBAT_PORT", "9090");
     env_none.expectStdOutEqual("{\"host\":\"localhost\",\"port\":8080}\n");
     test_step.dependOn(&env_none.step);
+
+    // `--env-file=`: KEY=value lines over the process environment, a later
+    // file over an earlier one, as `zig-hocon-migrate --env-file` reads them;
+    // with `--env=none` over none.
+    for ([_]struct { none: bool = false, files: []const []const u8, out: []const u8 }{
+        .{ .files = &.{"wombat.env"}, .out = "{\"host\":\"burrow.example.org\",\"port\":\"7070\"}\n" },
+        .{ .files = &.{ "wombat.env", "late.env" }, .out = "{\"host\":\"burrow.example.org\",\"port\":\"6060\"}\n" },
+        .{ .none = true, .files = &.{"late.env"}, .out = "{\"host\":\"localhost\",\"port\":\"6060\"}\n" },
+    }) |case| {
+        const env_file = runCli(b, exe);
+        env_file.addArg("--json");
+        if (case.none) env_file.addArg("--env=none");
+        for (case.files) |f| env_file.addPrefixedFileArg("--env-file=", b.path(b.pathJoin(&.{ "tests/cli-env", f })));
+        env_file.addFileArg(b.path("tests/cli-env/server.conf"));
+        env_file.setEnvironmentVariable("WOMBAT_PORT", "9090");
+        env_file.setEnvironmentVariable("WOMBAT_HOST", "shell.example.org");
+        env_file.expectStdOutEqual(case.out);
+        test_step.dependOn(&env_file.step);
+    }
+    // A line with no key says where; `--env=keep` leaves every variable for
+    // later, so a file has nothing to give it.
+    const env_file_bad = runCli(b, exe);
+    env_file_bad.addArg("--json");
+    env_file_bad.addPrefixedFileArg("--env-file=", b.path("tests/cli-env/broken.env"));
+    env_file_bad.addFileArg(b.path("tests/cli-env/server.conf"));
+    env_file_bad.expectExitCode(1);
+    env_file_bad.expectStdErrMatch("broken.env:3: not a KEY=value line\n");
+    test_step.dependOn(&env_file_bad.step);
+    const env_file_keep = runCli(b, exe);
+    env_file_keep.addArg("--env=keep");
+    env_file_keep.addPrefixedFileArg("--env-file=", b.path("tests/cli-env/late.env"));
+    env_file_keep.addFileArg(b.path("tests/cli-env/server.conf"));
+    env_file_keep.expectExitCode(1);
+    env_file_keep.expectStdErrEqual("error: usage: hocon [--hocon | --json] [--env=process|none|keep] [--env-file=<file>]... <file.conf>\n");
+    test_step.dependOn(&env_file_keep.step);
 
     // `--env=keep` leaves a `${…}` for later, which only HOCON can write.
     const keep_json = runCli(b, exe);
@@ -621,6 +656,21 @@ pub fn build(b: *std.Build) void {
         test_step.dependOn(&run_env.step);
     }
 
+    // `--env-file` reaches the program too, which reads it in its own
+    // environment: 7070 is a u16, 70000 is not.
+    for ([_]struct { file: []const u8, ok: bool }{ .{ .file = "port.env", .ok = true }, .{ .file = "far.env", .ok = false } }) |row| {
+        const run_env_file = runSchema(b, exe, home, "config.zig:Config");
+        run_env_file.addArgs(&.{ "--env=none", b.fmt("--env-file={s}", .{row.file}), "env-file.conf" });
+        run_env_file.step.dependOn(&run_schema.step);
+        if (row.ok) {
+            run_env_file.expectStdOutEqual("env-file.conf: ok\n");
+        } else {
+            run_env_file.expectExitCode(1);
+            run_env_file.expectStdErrEqual("env-file.conf:2:8: error: Overflow at port: expected u16\nport = ${?WOMBAT_PORT}\n       ^\n1 of 1 failed\n");
+        }
+        test_step.dependOn(&run_env_file.step);
+    }
+
     // A schema that is not there is said the way a .conf that is not there
     // is, before anything is compiled; a cache that cannot be written says
     // where it was to go.
@@ -731,15 +781,15 @@ pub fn build(b: *std.Build) void {
 
     // Every command says how it is called when it is called wrong, its own
     // line; `hocon` alone lists all four.
-    const usage_get = "error: usage: hocon get [--hocon | --json] [--env=process|none|keep] <path> <file.conf>\n";
-    const usage_check = "error: usage: hocon check [--env=process|none|keep] [--schema <file.zig>:<Type>] <file.conf>...\n";
-    const usage_diff = "error: usage: hocon diff [--json] [--env=process|none|keep] <a.conf> <b.conf>\n";
+    const usage_get = "error: usage: hocon get [--hocon | --json] [--env=process|none|keep] [--env-file=<file>]... <path> <file.conf>\n";
+    const usage_check = "error: usage: hocon check [--env=process|none|keep] [--env-file=<file>]... [--schema <file.zig>:<Type>] <file.conf>...\n";
+    const usage_diff = "error: usage: hocon diff [--json] [--env=process|none|keep] [--env-file=<file>]... <a.conf> <b.conf>\n";
     for ([_]struct { args: []const []const u8, err: []const u8 }{
         .{ .args = &.{}, .err =
-        \\error: usage: hocon [--hocon | --json] [--env=process|none|keep] <file.conf>
-        \\              hocon get [--hocon | --json] [--env=process|none|keep] <path> <file.conf>
-        \\              hocon check [--env=process|none|keep] [--schema <file.zig>:<Type>] <file.conf>...
-        \\              hocon diff [--json] [--env=process|none|keep] <a.conf> <b.conf>
+        \\error: usage: hocon [--hocon | --json] [--env=process|none|keep] [--env-file=<file>]... <file.conf>
+        \\              hocon get [--hocon | --json] [--env=process|none|keep] [--env-file=<file>]... <path> <file.conf>
+        \\              hocon check [--env=process|none|keep] [--env-file=<file>]... [--schema <file.zig>:<Type>] <file.conf>...
+        \\              hocon diff [--json] [--env=process|none|keep] [--env-file=<file>]... <a.conf> <b.conf>
         \\
         },
         .{ .args = &.{"get"}, .err = usage_get },
