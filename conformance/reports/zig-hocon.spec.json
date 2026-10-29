@@ -4,11 +4,11 @@
   "version": "zig-hocon code@d3af388",
   "mode": "spec",
   "command": "conformance/adapters/zig-hocon.sh",
-  "ran_at": "2026-10-29T14:21:46Z",
-  "suite_digest": "339cb6ded26cc7e0",
+  "ran_at": "2026-10-29T14:29:47Z",
+  "suite_digest": "784759bd15d73e25",
   "total": 588,
-  "passed": 574,
-  "percent": 97.6,
+  "passed": 575,
+  "percent": 97.8,
   "sections": {
     "array-and-object-concatenation": {
       "total": 23,
@@ -124,7 +124,7 @@
     },
     "substitutions": {
       "total": 41,
-      "passed": 37
+      "passed": 38
     },
     "unchanged-from-json": {
       "total": 34,
@@ -643,7 +643,7 @@
     "substitutions/040-null-blocks-environment-lookup.conf": "pass",
     "substitutions/041-undefined-optional-under-a-path-leaves-the-object.conf": "pass",
     "substitutions/042-undefined-optional-next-to-numbers-keeps-them-numbers.conf": "fail",
-    "substitutions/043-undefined-optional-before-a-leading-zero.conf": "open",
+    "substitutions/043-undefined-optional-before-a-leading-zero.conf": "pass",
     "substitutions/044-undefined-optional-with-boolean-keeps-the-boolean.conf": "fail",
     "unchanged-from-json/001-quoted-string-json-format.conf": "pass",
     "unchanged-from-json/002-string-value-type.conf": "pass",
@@ -1048,18 +1048,6 @@
           "1.50"
         ]
       }
-    },
-    {
-      "case": "substitutions/043-undefined-optional-before-a-leading-zero.conf",
-      "spec": "HOCON.md#substitutions",
-      "rule": "An undefined ${?x} next to one other value adds nothing: it becomes an empty string only \"as part of a value concatenation with another string\" (L636-637), \"a single value is never converted to a string\" (L376), and two undefined optionals make no field at all (L640-642), so what is left is the other value with its type, as typesafe/config reads it: ${?n}01 is whatever 01 alone is, which is the open question of unchanged-from-json/009 (one invalid number token per L272, the number 0 then the text 1, or typesafe/config's number 1).",
-      "expected": {
-        "a": "01"
-      },
-      "got": {
-        "a": "01"
-      },
-      "open_question": "the optional part is settled (the value keeps its type, as 039); what 01 alone is waits on unchanged-from-json/009"
     },
     {
       "case": "substitutions/044-undefined-optional-with-boolean-keeps-the-boolean.conf",

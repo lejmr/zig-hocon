@@ -5,8 +5,8 @@
   "mode": "java",
   "java_version": "1.4.9",
   "command": "conformance/adapters/zig-hocon.sh",
-  "ran_at": "2026-10-29T14:21:50Z",
-  "suite_digest": "339cb6ded26cc7e0",
+  "ran_at": "2026-10-29T14:29:52Z",
+  "suite_digest": "784759bd15d73e25",
   "total": 588,
   "passed": 479,
   "percent": 81.5,
@@ -644,7 +644,7 @@
     "substitutions/040-null-blocks-environment-lookup.conf": "pass",
     "substitutions/041-undefined-optional-under-a-path-leaves-the-object.conf": "pass",
     "substitutions/042-undefined-optional-next-to-numbers-keeps-them-numbers.conf": "fail",
-    "substitutions/043-undefined-optional-before-a-leading-zero.conf": "open",
+    "substitutions/043-undefined-optional-before-a-leading-zero.conf": "fail",
     "substitutions/044-undefined-optional-with-boolean-keeps-the-boolean.conf": "fail",
     "unchanged-from-json/001-quoted-string-json-format.conf": "pass",
     "unchanged-from-json/002-string-value-type.conf": "pass",
@@ -2200,14 +2200,14 @@
     {
       "case": "substitutions/043-undefined-optional-before-a-leading-zero.conf",
       "spec": "HOCON.md#substitutions",
-      "rule": "An undefined ${?x} next to one other value adds nothing: it becomes an empty string only \"as part of a value concatenation with another string\" (L636-637), \"a single value is never converted to a string\" (L376), and two undefined optionals make no field at all (L640-642), so what is left is the other value with its type, as typesafe/config reads it: ${?n}01 is whatever 01 alone is, which is the open question of unchanged-from-json/009 (one invalid number token per L272, the number 0 then the text 1, or typesafe/config's number 1).",
+      "rule": "An undefined ${?n} next to one other value adds nothing (substitutions/039): ${?n}01 is 01 alone, and 01 is no JSON number, so it is the text \"01\" (unchanged-from-json/009). typesafe/config reads 01 as the number 1",
       "expected": {
-        "a": "01"
+        "a": 1
       },
       "got": {
         "a": "01"
       },
-      "open_question": "the optional part is settled (the value keeps its type, as 039); what 01 alone is waits on unchanged-from-json/009"
+      "java": "diverges"
     },
     {
       "case": "substitutions/044-undefined-optional-with-boolean-keeps-the-boolean.conf",
