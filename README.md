@@ -227,7 +227,7 @@ Every case, and what each implementation printed, is in **[the conformance repor
 ## Status
 
 - **Beta until 1.0.** The API can still change; each change is in [CHANGELOG.md](CHANGELOG.md), and what a version may change is in [CONTRIBUTING.md](CONTRIBUTING.md#versions).
-- **One maintainer, held by tests.** Every change runs the 586 cases of the conformance suite, one for each sentence of the spec, the tests the C header and the Python package are held to, which only the maintainer edits, and a fuzzer over the parser.
+- **One maintainer, held by tests; more are welcome** ([CONTRIBUTING.md](CONTRIBUTING.md)). Every change runs the 586 cases of the conformance suite, one for each sentence of the spec, the tests the C header and the Python package are held to, which only the maintainer edits, and a fuzzer over the parser.
 - **Yours to build.** Zig 0.16 and `zig build` give the library, libhocon for C and the command line tool; the suite says what a fork changed.
 
 ## What is in, what is out
