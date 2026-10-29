@@ -1,6 +1,7 @@
-"""Durations and sizes in a program's own hands (a pydantic validator, a
-msgspec dec_hook), by the rules of ``hocon.Duration``, ``hocon.Period`` and
-``hocon.Size``."""
+"""Values in a program's own hands (a pydantic validator, a msgspec
+dec_hook), by the library's rules: durations, periods and sizes as
+``hocon.Duration``, ``hocon.Period`` and ``hocon.Size`` read them, and
+integers and booleans as ``get_int``, ``get_bool`` and a Zig struct do."""
 
 import datetime
 import json
@@ -9,7 +10,7 @@ from .config_parser import ConfigFactory
 from .config_tree import ConfigTree
 from .exceptions import ConfigException, ConfigWrongTypeException
 
-__all__ = ["parse_bytes", "parse_duration", "parse_period"]
+__all__ = ["parse_bool", "parse_bytes", "parse_duration", "parse_int", "parse_period"]
 
 
 def _single(value: str | int | float, what: str) -> ConfigTree:
@@ -48,3 +49,30 @@ def parse_period(text: str | int | float) -> dict[str, int]:
         return _single(text, "parse_period").get_period("v")
     except ConfigException:
         raise ConfigWrongTypeException(f"not a period: {text!r}", name="WrongType") from None
+
+
+def parse_int(value: str | int) -> int:
+    """``"48"`` or 48 as an int, as ``get_int`` and a Zig integer read it:
+    ``"08"``, ``"+9000"``, ``"9_000"``, ``" 48"``, ``"1.5"`` and ``True`` are
+    none. A lax model takes most of them; this one, as a validator, takes from
+    the environment what the Zig side takes. ConfigWrongTypeException, a
+    ValueError, when it is none."""
+    if not isinstance(value, bool):
+        try:
+            return _single(value, "parse_int").get_int("v")
+        except ConfigException:
+            pass
+    raise ConfigWrongTypeException(f"not an integer: {value!r}", name="WrongType")
+
+
+def parse_bool(value: str | bool) -> bool:
+    """``true``/``yes``/``on`` or ``false``/``no``/``off``, lowercase, or a
+    bool, as ``get_bool`` and a Zig ``bool`` read it: ``"True"``, ``"1"`` and
+    ``"y"`` are none, which a lax model takes. ConfigWrongTypeException, a
+    ValueError, when it is none."""
+    if isinstance(value, bool):
+        return value
+    try:
+        return _single(value, "parse_bool").get_bool("v")
+    except ConfigException:
+        raise ConfigWrongTypeException(f"not a boolean: {value!r}", name="WrongType") from None

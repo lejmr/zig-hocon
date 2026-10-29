@@ -24,7 +24,7 @@ from .exceptions import (
     ConfigSubstitutionException,
     ConfigWrongTypeException,
 )
-from .units import parse_bytes, parse_duration, parse_period
+from .units import parse_bool, parse_bytes, parse_duration, parse_int, parse_period
 
 __all__ = [
     "KEEP",
@@ -35,7 +35,9 @@ __all__ = [
     "ConfigSubstitutionException",
     "ConfigTree",
     "ConfigWrongTypeException",
+    "parse_bool",
     "parse_bytes",
     "parse_duration",
+    "parse_int",
     "parse_period",
 ]
