@@ -2,7 +2,8 @@
 
 The parsing, the substitutions and every conversion are the Zig library's
 (libhocon, next to this file); this is a thin ctypes layer over its C API
-(c/hocon.h), shaped like pyhocon so moving over is a change of import::
+(c/hocon.h). ``ConfigFactory``, the typed getters and the exception names
+are pyhocon's; the rest is its own (MIGRATING.md)::
 
     from zig_hocon import ConfigFactory
 
@@ -23,7 +24,7 @@ from .exceptions import (
     ConfigSubstitutionException,
     ConfigWrongTypeException,
 )
-from .units import parse_bytes, parse_duration
+from .units import parse_bytes, parse_duration, parse_period
 
 __all__ = [
     "KEEP",
@@ -36,4 +37,5 @@ __all__ = [
     "ConfigWrongTypeException",
     "parse_bytes",
     "parse_duration",
+    "parse_period",
 ]
