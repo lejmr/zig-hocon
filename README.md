@@ -211,6 +211,7 @@ b.step("check-config", "Check the config against Config").dependOn(&check.step);
 | implementation | against the spec | against typesafe/config 1.4.9 |
 |---|---|---|
 | Java <sub>typesafe/config 1.4.9</sub> | 81.6% (480/588) | 100% (588/588) |
+| hocon.rs <sub>hocon 0.9.0 (Rust)</sub> | 64.8% (381/588) | 65.8% (387/588) |
 | hocon2 <sub>hocon2 0.6.3</sub> | 79.3% (466/588) | 69.6% (409/588) |
 | pulse-pyhocon <sub>pulse-pyhocon 0.2.1</sub> | 63.6% (374/588) | 59.2% (348/588) |
 | py.hocon <sub>hocon-parser 1.14.2 (Python)</sub> | 78.1% (459/588) | 79.1% (465/588) |
