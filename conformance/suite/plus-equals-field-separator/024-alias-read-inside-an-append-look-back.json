@@ -5,7 +5,7 @@
     "examples-of-self-referential-substitutions.22",
     "examples-of-self-referential-substitutions.27"
   ],
-  "why": "e's last value reaches e again through c, so it is self-referential and looks back at the first e += ${?c}, whose own ${?c} leads back to e and is nonexistent: c is [] there, and keeps it, as a substitution is resolved once, so e is [[]]. Or c is an alias for the final e, every optional on the cycle nonexistent: [] both (also_valid), as in self-referential-examples/035 and 065",
+  "why": "e's last value reaches e again through c, so it is self-referential and looks back at the first e += ${?c}, whose own ${?c} leads back to e and is nonexistent: c is [] there, and keeps it, as a substitution is resolved once, so e is [[]]. Or c is an alias for the final e, every optional on the cycle nonexistent: [] both (also_valid), as in self-referential-examples/035 and 065. The order the fields resolve in is undefined, so an error is allowed too (L866-881).",
   "expect": {
     "e": [
       []
@@ -18,7 +18,8 @@
     {
       "e": [],
       "c": []
-    }
+    },
+    "rejected"
   ],
   "java_expect": {
     "c": [],

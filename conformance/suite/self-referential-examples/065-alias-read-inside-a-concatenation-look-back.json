@@ -5,7 +5,7 @@
     "examples-of-self-referential-substitutions.22",
     "examples-of-self-referential-substitutions.27"
   ],
-  "why": "e's last value reaches e again through c, so it is self-referential and looks back at e = x${?c}, whose own ${?c} leads back to e and is nonexistent: c is \"x\" there, and keeps it, as a substitution is resolved once, so e is \"xyx\". Or c is an alias for the final e, the optionals on the cycle nonexistent: \"xy\" both (also_valid), as in 035",
+  "why": "e's last value reaches e again through c, so it is self-referential and looks back at e = x${?c}, whose own ${?c} leads back to e and is nonexistent: c is \"x\" there, and keeps it, as a substitution is resolved once, so e is \"xyx\". Or c is an alias for the final e, the optionals on the cycle nonexistent: \"xy\" both (also_valid), as in 035. The order the fields resolve in is undefined, so an error is allowed too (L866-881).",
   "expect": {
     "e": "xyx",
     "c": "x"
@@ -15,7 +15,8 @@
     {
       "e": "xy",
       "c": "xy"
-    }
+    },
+    "rejected"
   ],
   "java": "diverges",
   "java_expect": {

@@ -5,7 +5,7 @@
     "examples-of-self-referential-substitutions.11",
     "examples-of-self-referential-substitutions.27"
   ],
-  "why": "as 035, through a path: inside p's look-back a is the earlier 1, which has no z, so p = \"x\"; a keeps the memoized 1 (expect) or is an alias for the final p (also_valid). typesafe/config gives a = \"x\", which is the second reading, though for 035 it takes the first",
+  "why": "as 035, through a path: inside p's look-back a is the earlier 1, which has no z, so p = \"x\"; a keeps the memoized 1 (expect) or is an alias for the final p (also_valid). typesafe/config gives a = \"x\", which is the second reading, though for 035 it takes the first. The order the fields resolve in is undefined, so an error is allowed too (L866-881).",
   "expect": {
     "p": "x",
     "a": 1
@@ -15,7 +15,8 @@
     {
       "p": "x",
       "a": "x"
-    }
+    },
+    "rejected"
   ],
   "java": "diverges",
   "java_expect": {

@@ -5,7 +5,7 @@
     "examples-of-self-referential-substitutions.22",
     "examples-of-self-referential-substitutions.27"
   ],
-  "why": "f's ${?a} is resolved to see whether it merges with the object over it, and reaches f again through a: from that layer f has nothing below (L659), so a's ${?f.z} finds nothing there, and keeps that, as a substitution is resolved once (L886): a is no field, as in 035 and 065. Or a is an alias for the final f.z, the object's 3 (also_valid)",
+  "why": "f's ${?a} is resolved to see whether it merges with the object over it, and reaches f again through a: from that layer f has nothing below (L659), so a's ${?f.z} finds nothing there, and keeps that, as a substitution is resolved once (L886): a is no field, as in 035 and 065. Or a is an alias for the final f.z, the object's 3 (also_valid). The order the fields resolve in is undefined, so an error is allowed too (L866-881).",
   "expect": {
     "f": {
       "z": 3
@@ -19,7 +19,8 @@
         "z": 3
       },
       "a": 3
-    }
+    },
+    "rejected"
   ],
   "java_expect": {
     "a": 3,
