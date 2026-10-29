@@ -194,7 +194,8 @@ From `build.zig`, run the binary of the dependency. Here `zig build check-config
 
 ```zig
 const hocon = b.dependency("hocon", .{ .target = target, .optimize = optimize });
-const check = b.addRunArtifact(hocon.artifact("hocon"));
+const check = std.Build.Step.Run.create(b, "check config");
+check.addFileArg(hocon.namedLazyPath("cli"));
 check.addArgs(&.{ "check", "--schema", b.fmt("{s}:Config", .{b.pathFromRoot("src/config.zig")}) });
 check.addFileInput(b.path("src/config.zig"));
 check.addFileArg(b.path("deploy/prod.conf"));
@@ -216,7 +217,7 @@ b.step("check-config", "Check the config against Config").dependOn(&check.step);
 | py.hocon <sub>hocon-parser 1.14.2 (Python)</sub> | 78.0% (457/586) | 79.0% (463/586) |
 | pyhocon <sub>pyhocon 0.3.63</sub> | 61.3% (359/586) | 57.8% (339/586) |
 | rs.hocon <sub>hocon-parser 1.14.2 (Rust)</sub> | 77.5% (454/586) | 78.3% (459/586) |
-| zig-hocon <sub>zig-hocon code@4830963</sub> | 100% (586/586) | 80.5% (472/586) |
+| zig-hocon <sub>zig-hocon code@bb2bd50</sub> | 100% (586/586) | 80.5% (472/586) |
 
 The table keeps the best parsers; the others measured, and why they are not in it: [conformance/README.md](conformance/README.md#not-in-the-table).
 
