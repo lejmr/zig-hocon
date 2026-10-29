@@ -1449,6 +1449,19 @@ test "diagnostics.render" {
     , out.written());
 }
 
+// A file that cannot be read has no place in it, so the file the parse was
+// given names the error, as the CLI says it: `nope.conf: error: FileNotFound`.
+test "diagnostics.render names a file that cannot be read" {
+    var diag: hocon.Diagnostics = .{};
+    defer diag.deinit(testing.allocator);
+    try testing.expectError(error.FileNotFound, hocon.parseFromFile(hocon.Value, testing.allocator, testing.io, "no-such-wombat.conf", .{ .diagnostics = &diag }));
+
+    var out: std.Io.Writer.Allocating = .init(testing.allocator);
+    defer out.deinit();
+    try diag.render(&out.writer);
+    try testing.expectEqualStrings("no-such-wombat.conf: error: FileNotFound\n", out.written());
+}
+
 // Where a member begins, the token that cannot begin one: after a braced root,
 // a second root container, a container with no key in a block, a `${` as a key.
 // java ✓ (same line on every row) · pyhocon ✓ (same line and column) · spec ✓

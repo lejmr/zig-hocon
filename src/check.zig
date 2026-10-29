@@ -62,10 +62,10 @@ pub fn run(comptime T: type, gpa: std.mem.Allocator, io: std.Io, files: []const 
     return failed;
 }
 
-/// The error of a parse of `path`. With no place in a file there is no file
-/// named by it either, so it says which one it was given.
+/// The error of a parse of `path`. With no place in a file and no file the
+/// diagnostics name, it says which one it was given.
 pub fn printError(w: *std.Io.Writer, path: []const u8, diag: hocon.Diagnostics) !void {
-    if (diag.location == null) try w.print("{s}: ", .{path});
+    if (diag.location == null and diag.file.len == 0) try w.print("{s}: ", .{path});
     try diag.render(w);
     try w.flush();
 }

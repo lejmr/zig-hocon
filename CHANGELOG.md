@@ -22,6 +22,7 @@ What changed for someone using zig-hocon: the Zig package, the `hocon` command l
 
 ### Fixed
 
+- `Diagnostics.render` names the file when the file a parse was given cannot be read, `prod.conf: error: FileNotFound`, where it printed `error: FileNotFound` alone; the new field `Diagnostics.file` holds it.
 - `d { z = ${?a.k} }`, `d.z += 5`, `a += ${d}` was a `SubstitutionCycle` when `d` came before `a`, and `{d: {z: [5]}, a: [{z: [5]}]}` in the other orders: the `${?a.k}` that leads back to `d.z` is nonexistent (spec L716) in every order now, as typesafe/config reads it. v0.5.3 had it too; two conformance cases more, 588 in all.
 - Python: a getter that cannot read a value notes what it read, which a traceback prints under the message (Python 3.11+): `found '08'`, where a `${…}` from the environment showed only its name.
 - Python: `copy.copy` and `copy.deepcopy` of a `ConfigTree` failed with a `TypeError` on the library's handle, and an error from the handle's cleanup; a tree is read only, so a copy is now the tree itself.
