@@ -335,8 +335,10 @@ pub noinline fn resolvePending(state: *Resolver, parts: []const Part, element: b
     }
     if (kept.items.len > 0) return .{ .pending = try kept.toOwnedSlice(gpa) };
     var result = buffer orelse return null;
-    // Merged text is always string, ${?x}42 is "42", and it starts
-    // where its first part past a gap is written.
+    // Merged text is always string. An undefined optional next to one other
+    // value should leave that value's type (L376, L636-637; suite
+    // substitutions/039): ${?x}42 is the number 42. This path still quotes
+    // the remainder as a string; it starts where its first part past a gap is.
     if (result == .scalar) {
         result.scalar.quoted = true;
         result.scalar.file = start.file;
@@ -845,9 +847,10 @@ test "resolve.an undefined optional removes what it stands in" {
     try expectResolved("a = ${?nope}\nb = 1", "{\"b\":1}");
     try expectResolved("l = [1, ${?nope}, 2]", "{\"l\":[1,2]}");
 }
-// S13.18 · java ⚠️ · pyhocon ⚠️ · spec ✓ — inside a concatenation the undefined
-// optional is empty and the rest is still a concatenation, so a string. Both
-// oracles give the number 42 (suite: substitutions/039).
+// S13.18 · java ✓ · pyhocon ✓ · spec ✓ (suite) · zig ⚠️ — an undefined optional
+// next to one other value adds nothing and that value keeps its type (L376,
+// L636-637): ${?nope}42 is the number 42 (substitutions/039). This test locks
+// the string zig still produces until the resolver catches up.
 test "resolve.an undefined optional in a concatenation leaves a string" {
     try expectResolved("a = ${?nope}42", "{\"a\":\"42\"}");
 }
