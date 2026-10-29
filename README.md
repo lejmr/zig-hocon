@@ -44,7 +44,7 @@ pub fn main(init: std.process.Init) !void {
 }
 ```
 
-The rest of this page reads these two files.
+The rest of this page reads these two files. **Variables go last.** A later setting hides an earlier one, a `${?…}` too: `workers = ${?WORKERS}` in `app.conf` under `workers = 8` in `prod.conf` is 8 whatever `WORKERS` says. Put what the environment overrides where nothing comes after it, as `prod.conf` here does with `${?DB_POOL}`, or in a file every environment includes last.
 
 ## Why zig-hocon
 
@@ -131,7 +131,7 @@ config.cache.whole(.B)         // 536870912; "512MB" counts by 1000, "512MiB" by
 period.months                  // hocon.Period: years, months, days, as java.time.Period
 ```
 
-A `Duration` holds its nanoseconds exactly, in an i96 (`.nanoseconds`); `whole` gives an i64, so past 292 years `whole(.ns)` is the largest i64 rather than the value.
+The units are `.ns`, `.us`, `.ms`, `.s`, `.min`, `.h`, `.d` and `.w` for a duration, `.B`, `.kB`, `.MB`, `.GB`, `.TB`, `.PB`, `.EB` and `.KiB` … `.EiB` for a size. A `Duration` holds its nanoseconds exactly, in an i96 (`.nanoseconds`); `whole` gives an i64, so past 292 years `whole(.ns)` is the largest i64 rather than the value.
 
 **Without a struct**, when the keys are not known ahead of time, ask for `hocon.Value`: the whole tree of objects, lists and values, to walk with a `switch`. `std.json.Stringify` prints it as JSON:
 
@@ -151,7 +151,7 @@ $ hocon --json prod.conf
 {"db":{"host":"db.example.org","pool":4},"timeout":"30s","cache":"512MiB","debug":false}
 ```
 
-A `${…}` the file does not answer reads the environment; `--env=none` reads none. `--env=keep` writes the one file to deploy: includes and overrides worked out, the variables left for the server:
+A `${…}` the file does not answer reads the environment; `--env=none` reads none. `--env-file=prod.env` puts the `KEY=value` lines of a file over it, as a shell or docker writes them (`export` and quotes allowed); a later file goes over an earlier one, and with `--env=none` they are all there is: `hocon check --env=none --env-file=prod.env prod.conf` checks a deployment against its own variables and nothing from your shell. `--env=keep` writes the one file to deploy: includes and overrides worked out, the variables left for the server:
 
 ```sh
 $ hocon --env=keep prod.conf > deploy.conf
@@ -226,7 +226,7 @@ b.step("check-config", "Check the config against Config").dependOn(&check.step);
 | py.hocon <sub>hocon-parser 1.14.2 (Python)</sub> | 78.1% (459/588) | 79.1% (465/588) |
 | pyhocon <sub>pyhocon 0.3.63</sub> | 61.1% (359/588) | 57.7% (339/588) |
 | rs.hocon <sub>hocon-parser 1.14.2 (Rust)</sub> | 77.6% (456/588) | 78.4% (461/588) |
-| zig-hocon <sub>zig-hocon code@98e3825</sub> | 100% (588/588) | 80.6% (474/588) |
+| zig-hocon <sub>zig-hocon code@563ee0c</sub> | 100% (588/588) | 80.6% (474/588) |
 
 The table keeps the best parsers; the others measured, and why they are not in it: [conformance/README.md](conformance/README.md#not-in-the-table).
 

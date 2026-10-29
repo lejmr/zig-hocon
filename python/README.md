@@ -32,7 +32,7 @@ conf.get_string("db.host")   # "db.example.org"
 conf.get_int("db.pool")      # 4, or $DB_POOL when it is set
 ```
 
-The rest of this page reads these two files.
+The rest of this page reads these two files. **Variables go last.** A later setting hides an earlier one, a `${?…}` too: `workers = ${?WORKERS}` in `app.conf` under `workers = 8` in `prod.conf` is 8 whatever `WORKERS` says. Put what the environment overrides where nothing comes after it, as `prod.conf` here does with `${?DB_POOL}`, or in a file every environment includes last.
 
 ## Why zig-hocon
 
@@ -63,7 +63,7 @@ from zig_hocon import ConfigFactory, KEEP
 conf = ConfigFactory.parse_file("prod.conf")                       # DB_POOL from os.environ
 conf = ConfigFactory.parse_file("prod.conf", env={"DB_POOL": "8"}) # from a dict
 conf = ConfigFactory.parse_file("prod.conf", env=None)             # no variables: pool stays 4
-conf = ConfigFactory.parse_file("prod.conf", env=KEEP)             # ${?DB_POOL} kept, for later
+conf = ConfigFactory.parse_file("prod.conf", env=KEEP)             # ${?DB_POOL} kept, for to_hocon(); a getter there is Unresolved
 conf = ConfigFactory.parse_file("prod.conf", resolve=False)        # every ${…} as written
 conf = ConfigFactory.parse_file("prod.conf", http_timeout=5)       # an http(s) include waits 5 s, not 30
 conf = ConfigFactory.parse_string('include "prod.conf"', basedir=".")  # text, includes from basedir
@@ -102,7 +102,7 @@ from pathlib import Path
 Path("deploy.conf").write_text(ConfigFactory.parse_file("prod.conf", env=KEEP).to_hocon())
 ```
 
-**Durations, periods and sizes** have helpers with the same rules as the getters: `zig_hocon.parse_duration("30s")` gives a `timedelta`, `zig_hocon.parse_period("3 months")` a dict as `get_period` does, `zig_hocon.parse_bytes("512MiB")` an int; `zig_hocon.parse_int` and `zig_hocon.parse_bool` read a number and a boolean as `get_int` and `get_bool` do ([Strict, as the Zig side reads it](#into-a-model)). A duration is nanoseconds in an int64, as in C: a `timedelta` to the microsecond, of up to 292 years; a longer one is a `ConfigWrongTypeException` named `Overflow`.
+**Durations, periods and sizes** have helpers with the same rules as the getters: `zig_hocon.parse_duration("30s")` gives a `timedelta`, `zig_hocon.parse_period("3 months")` a dict as `get_period` does, `zig_hocon.parse_bytes("512MiB")` an int; `zig_hocon.parse_int` and `zig_hocon.parse_bool` read a number and a boolean as `get_int` and `get_bool` do ([Strict, as the Zig side reads it](#into-a-model)). A duration is nanoseconds in an int64, as in C: a `timedelta` to the microsecond, rounded half to even (`1500ns` is 2 µs, where Zig keeps 1500 ns), of up to 292 years; a longer one is a `ConfigWrongTypeException` named `Overflow`.
 
 **From the shell**, [`hocon`](#the-hocon-command) prints the file resolved, and more; `python -m zig_hocon [--json] [--env=process|none|keep] prod.conf` does the first through the package.
 
@@ -115,7 +115,7 @@ $ hocon --json prod.conf
 {"db":{"host":"db.example.org","pool":4},"timeout":"30s","cache":"512MiB","retention":"3 months","debug":false,"ratio":0.75}
 ```
 
-A `${…}` the file does not answer reads the environment; `--env=none` reads none. `--env=keep` writes the one file to deploy: includes and overrides worked out, the variables left for the server:
+A `${…}` the file does not answer reads the environment; `--env=none` reads none. `--env-file=prod.env` puts the `KEY=value` lines of a file over it, as a shell or docker writes them (`export` and quotes allowed); a later file goes over an earlier one, and with `--env=none` they are all there is: `hocon check --env=none --env-file=prod.env prod.conf` checks a deployment against its own variables and nothing from your shell. `--env=keep` writes the one file to deploy: includes and overrides worked out, the variables left for the server:
 
 ```sh
 $ hocon --env=keep prod.conf > deploy.conf

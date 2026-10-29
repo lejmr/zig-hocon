@@ -28,6 +28,8 @@ cd "$tmp"
 # The commands pip puts beside python (with .exe on Windows): the migration
 # check, and the CLI of this platform.
 "$(dirname "$py")/zig-hocon-migrate" --help >/dev/null
+# __version__ is the version the wheel was built as, its name has it
+test "$("$py" -c 'import zig_hocon; print(zig_hocon.__version__)')" = "$(basename "$wheel" | cut -d- -f2)"
 printf 'owl = hoot\n' >"$tmp/owl.conf"
 [ "$("$(dirname "$py")/hocon" --json "$tmp/owl.conf")" = '{"owl":"hoot"}' ]
 # pip as well as uv: pip makes hocon executable only when the wheel says it is

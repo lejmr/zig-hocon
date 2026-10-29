@@ -2,7 +2,8 @@
 //! HOCON file, resolves it and prints it as HOCON, or with `--json` as compact
 //! JSON. A path that is not in the file reads the process environment, or with
 //! `--env=none` nothing; `--env=keep` leaves it as written, for wherever the
-//! printed file is read next.
+//! printed file is read next. `--env-file=<file>`, any number of them, puts
+//! its `KEY=value` lines over that environment, or over none with `--env=none`.
 //!
 //! Exit 0 with the result on stdout, or exit 1 with the reason on stderr. With
 //! `--json` that is the whole contract of a conformance adapter
@@ -27,13 +28,13 @@ const check = @import("check.zig");
 /// CLI has none.
 const build_options = @import("options");
 
-const usage = "usage: hocon [--hocon | --json] [--env=process|none|keep] <file.conf>";
-const usage_get = "usage: hocon get [--hocon | --json] [--env=process|none|keep] <path> <file.conf>";
+const usage = "usage: hocon [--hocon | --json] [--env=process|none|keep] [--env-file=<file>]... <file.conf>";
+const usage_get = "usage: hocon get [--hocon | --json] [--env=process|none|keep] [--env-file=<file>]... <path> <file.conf>";
 const usage_check = if (build_options.schema)
-    "usage: hocon check [--env=process|none|keep] [--schema <file.zig>:<Type>] <file.conf>..."
+    "usage: hocon check [--env=process|none|keep] [--env-file=<file>]... [--schema <file.zig>:<Type>] <file.conf>..."
 else
-    "usage: hocon check [--env=process|none|keep] <file.conf>...";
-const usage_diff = "usage: hocon diff [--json] [--env=process|none|keep] <a.conf> <b.conf>";
+    "usage: hocon check [--env=process|none|keep] [--env-file=<file>]... <file.conf>...";
+const usage_diff = "usage: hocon diff [--json] [--env=process|none|keep] [--env-file=<file>]... <a.conf> <b.conf>";
 /// All four, one under the other, below the `error: ` that `fatal` puts first.
 const usage_all = usage ++
     "\n" ++ " " ** 14 ++ usage_get["usage: ".len..] ++
@@ -61,7 +62,6 @@ pub fn main(init: std.process.Init) !void {
         std.log.err("{t}", .{err});
         std.process.exit(if (command == .diff) 2 else 1);
     };
-    if (args.len > 4) std.process.fatal("{s}", .{usage});
     const path = args[args.len - 1];
     // A flag is no file name, and nothing is none; `./--json` is one.
     if (path.len == 0 or std.mem.startsWith(u8, path, "--")) std.process.fatal("{s}", .{usage});
@@ -69,9 +69,12 @@ pub fn main(init: std.process.Init) !void {
     // them it is HOCON and the process environment.
     var format: ?Format = null;
     var env: ?Env = null;
+    var env_files: std.ArrayList([]const u8) = .empty;
     for (args[1 .. args.len - 1]) |arg| {
         if (!std.mem.startsWith(u8, arg, "--")) std.process.fatal("{s}", .{usage});
-        if (std.mem.startsWith(u8, arg, "--env=")) {
+        if (std.mem.startsWith(u8, arg, "--env-file=")) {
+            try env_files.append(arena, try envFile(arg, usage));
+        } else if (std.mem.startsWith(u8, arg, "--env=")) {
             if (env != null) std.process.fatal("{s}", .{usage});
             env = std.meta.stringToEnum(Env, arg["--env=".len..]) orelse std.process.fatal("{s}", .{usage});
         } else {
@@ -82,11 +85,7 @@ pub fn main(init: std.process.Init) !void {
 
     var diag: hocon.Diagnostics = .{};
     // `${PORT}` with no `PORT` in the file reads the process environment.
-    const options: hocon.ParseOptions = .{ .diagnostics = &diag, .env = switch (env orelse .process) {
-        .process => .{ .map = init.environ_map },
-        .none => .none,
-        .keep => .keep,
-    } };
+    const options: hocon.ParseOptions = .{ .diagnostics = &diag, .env = envOf(init, env orelse .process, env_files.items, usage) };
     const value = hocon.parseFromFileLeaky(hocon.Value, arena, io, path, options) catch {
         // The compiler's own format, caret and all, so editors can jump to it.
         var stderr_writer = std.Io.File.stderr().writerStreaming(io, &stderr_buffer);
@@ -140,6 +139,7 @@ const Flags = struct {
     format: ?Format = null,
     env: ?Env = null,
     schema: ?[]const u8 = null,
+    env_files: std.ArrayList([]const u8) = .empty,
     rest: std.ArrayList([]const u8) = .empty,
 };
 
@@ -158,6 +158,8 @@ fn run(init: std.process.Init, command: Command, args: []const []const u8) !void
         if (arg.len == 0) std.process.fatal("{s}", .{command_usage});
         if (!std.mem.startsWith(u8, arg, "--")) {
             try flags.rest.append(arena, arg);
+        } else if (std.mem.startsWith(u8, arg, "--env-file=")) {
+            try flags.env_files.append(arena, try envFile(arg, command_usage));
         } else if (std.mem.startsWith(u8, arg, "--env=")) {
             if (flags.env != null) std.process.fatal("{s}", .{command_usage});
             flags.env = std.meta.stringToEnum(Env, arg["--env=".len..]) orelse std.process.fatal("{s}", .{command_usage});
@@ -174,24 +176,41 @@ fn run(init: std.process.Init, command: Command, args: []const []const u8) !void
     }
     const rest = flags.rest.items;
     const env = flags.env orelse .process;
+    const env_files = flags.env_files.items;
     switch (command) {
         .get => {
             if (rest.len != 2) std.process.fatal("{s}", .{command_usage});
-            try get(init, rest[0], rest[1], flags.format, env);
+            try get(init, rest[0], rest[1], flags.format, envOf(init, env, env_files, command_usage));
         },
         .check => {
             if (rest.len == 0) std.process.fatal("{s}", .{command_usage});
-            if (comptime build_options.schema) if (flags.schema) |schema| try checkSchema(init, schema, env, rest);
-            if (try check.run(hocon.Value, init.gpa, init.io, rest, envOf(init, env)) > 0) std.process.exit(1);
+            const value_env = envOf(init, env, env_files, command_usage);
+            if (comptime build_options.schema) if (flags.schema) |schema| try checkSchema(init, schema, env, env_files, rest);
+            if (try check.run(hocon.Value, init.gpa, init.io, rest, value_env) > 0) std.process.exit(1);
         },
         .diff => {
             if (rest.len != 2) std.process.fatal("{s}", .{command_usage});
-            try diff(init, rest[0], rest[1], flags.format, env);
+            try diff(init, rest[0], rest[1], flags.format, envOf(init, env, env_files, command_usage));
         },
     }
 }
 
-fn envOf(init: std.process.Init, env: Env) hocon.Value.Env {
+/// The file of `--env-file=<file>`; nothing is none.
+fn envFile(arg: []const u8, command_usage: []const u8) ![]const u8 {
+    const file = arg["--env-file=".len..];
+    if (file.len == 0) std.process.fatal("{s}", .{command_usage});
+    return file;
+}
+
+/// What a `${…}` the files do not answer reads: the process environment, or
+/// none, with each env file over it. `--env=keep` leaves every variable for
+/// later, so a file has nothing to give it.
+fn envOf(init: std.process.Init, env: Env, env_files: []const []const u8, command_usage: []const u8) hocon.Value.Env {
+    if (env_files.len > 0) return switch (env) {
+        .keep => std.process.fatal("{s}", .{command_usage}),
+        .process => .{ .map = check.withEnvFiles(init.arena.allocator(), init.io, init.environ_map, env_files) },
+        .none => .{ .map = check.withEnvFiles(init.arena.allocator(), init.io, null, env_files) },
+    };
     return switch (env) {
         .process => .{ .map = init.environ_map },
         .none => .none,
@@ -200,9 +219,9 @@ fn envOf(init: std.process.Init, env: Env) hocon.Value.Env {
 }
 
 /// The file resolved, or null with the reason it is not on stderr.
-fn load(init: std.process.Init, path: []const u8, env: Env) !?hocon.Value {
+fn load(init: std.process.Init, path: []const u8, env: hocon.Value.Env) !?hocon.Value {
     var diag: hocon.Diagnostics = .{};
-    const options: hocon.ParseOptions = .{ .diagnostics = &diag, .env = envOf(init, env) };
+    const options: hocon.ParseOptions = .{ .diagnostics = &diag, .env = env };
     return hocon.parseFromFileLeaky(hocon.Value, init.arena.allocator(), init.io, path, options) catch {
         var stderr_writer = std.Io.File.stderr().writerStreaming(init.io, &stderr_buffer);
         try check.printError(&stderr_writer.interface, path, diag);
@@ -212,7 +231,7 @@ fn load(init: std.process.Init, path: []const u8, env: Env) !?hocon.Value {
 
 /// `hocon get <path> <file>`. Text comes out bare, so `$(hocon get port
 /// app.conf)` is the port; anything else as `write` prints a document.
-fn get(init: std.process.Init, text: []const u8, path: []const u8, format: ?Format, env: Env) !void {
+fn get(init: std.process.Init, text: []const u8, path: []const u8, format: ?Format, env: hocon.Value.Env) !void {
     const arena = init.arena.allocator();
     var stderr_writer = std.Io.File.stderr().writerStreaming(init.io, &stderr_buffer);
     const stderr = &stderr_writer.interface;
@@ -283,7 +302,7 @@ const library = [_][2][]const u8{
 /// `check.main(@import("schema").Type, …)` with `zig run`, which caches the
 /// build, and becomes it. `zig run` in turn becomes the program, so what it
 /// prints and its exit code are the check's.
-fn checkSchema(init: std.process.Init, schema: []const u8, env: Env, files: []const []const u8) !noreturn {
+fn checkSchema(init: std.process.Init, schema: []const u8, env: Env, env_files: []const []const u8, files: []const []const u8) !noreturn {
     const arena = init.arena.allocator();
     const colon = std.mem.lastIndexOfScalar(u8, schema, ':') orelse std.process.fatal("{s}", .{usage_check});
     const file = schema[0..colon];
@@ -331,6 +350,8 @@ fn checkSchema(init: std.process.Init, schema: []const u8, env: Env, files: []co
     // With the ZIG_EXE the user had, as `zig run` sets its own (see `check.main`).
     const zig_exe = init.environ_map.get("ZIG_EXE");
     try argv.appendSlice(arena, &.{ "--", if (env == .process and zig_exe != null) try std.fmt.allocPrint(arena, "process={s}", .{zig_exe.?}) else @tagName(env) });
+    // Read there, in the program's own environment (`check.main`).
+    for (env_files) |f| try argv.append(arena, try std.fmt.allocPrint(arena, "--env-file={s}", .{f}));
     try argv.appendSlice(arena, files);
     const err = std.process.replace(init.io, .{ .argv = argv.items });
     if (err != error.OperationUnsupported) std.process.fatal("--schema runs zig, from the PATH: {t}", .{err});
@@ -374,7 +395,7 @@ const Change = struct { path: []const u8, old: ?hocon.Value, new: ?hocon.Value }
 
 /// `hocon diff <a> <b>`: both files resolved, then compared path by path.
 /// Values print as JSON, so `8080` and `"8080"` look as different as they are.
-fn diff(init: std.process.Init, a_path: []const u8, b_path: []const u8, format: ?Format, env: Env) !void {
+fn diff(init: std.process.Init, a_path: []const u8, b_path: []const u8, format: ?Format, env: hocon.Value.Env) !void {
     const arena = init.arena.allocator();
     // Exit 1 says they differ, so trouble is 2, as for diff(1).
     const a = try load(init, a_path, env) orelse std.process.exit(2);
