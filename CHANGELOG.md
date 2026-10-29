@@ -2,7 +2,7 @@
 
 What changed for someone using zig-hocon: the Zig package, the `hocon` command line tool, libhocon for C and the `zig-hocon` Python package, which are released together under one version. The technical detail is in the commits each release links to.
 
-## [Unreleased]
+## [0.6.0] - 2026-10-29
 
 ### Changed
 
