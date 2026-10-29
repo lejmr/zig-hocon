@@ -39,8 +39,8 @@ pub fn main(init: std.process.Init) !void {
     });
     defer parsed.deinit();
     const config = parsed.value;
-    // config.db.host == "db.example.org", config.db.pool == 4, or $DB_POOL
-    // config.timeout.whole(.s) == 30, config.cache.whole(.B) == 536870912
+    std.debug.print("{s} pool {d}, timeout {d} s\n", .{ config.db.host, config.db.pool, config.timeout.whole(.s) });
+    // db.example.org pool 4 (or $DB_POOL), timeout 30 s; config.cache.whole(.B) == 536870912
 }
 ```
 

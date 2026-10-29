@@ -287,7 +287,7 @@ class Settings(BaseModel):
     debug: Bool
 ```
 
-The range stays the model's (`Field`). With msgspec, the same calls go in `dec_hook`, for types of their own as `Duration` above.
+The range stays the model's (`Field`). With msgspec, the same calls go in `dec_hook`, for types of their own as `Duration` above. Text is the other way round: unquoted `password = 12345` is the text `"12345"` to a Zig `[]const u8` field and to `get_string`, but a number to `as_dict()`, where `1.50` is also `1.5`, so a model's `str` field cannot see what was written. Quote a value meant as text that looks like a number, `password = "12345"`, and both sides read the same text.
 
 ## Building from source
 
