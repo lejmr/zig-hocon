@@ -15,11 +15,11 @@ cache = 512MiB
 retention = 3 months
 debug = false
 ratio = 0.75
-include "prod.conf"
 ```
 
 ```hocon
 # prod.conf
+include "app.conf"
 db.host = db.example.org
 db.pool = ${?DB_POOL}   # only when DB_POOL is set
 ```
@@ -27,7 +27,7 @@ db.pool = ${?DB_POOL}   # only when DB_POOL is set
 ```python
 from zig_hocon import ConfigFactory
 
-conf = ConfigFactory.parse_file("app.conf")
+conf = ConfigFactory.parse_file("prod.conf")
 conf.get_string("db.host")   # "db.example.org"
 conf.get_int("db.pool")      # 4, or $DB_POOL when it is set
 ```
@@ -60,13 +60,13 @@ Beta: the API can still change before 1.0. BSD-3-Clause.
 ```python
 from zig_hocon import ConfigFactory, KEEP
 
-conf = ConfigFactory.parse_file("app.conf")                       # DB_POOL from os.environ
-conf = ConfigFactory.parse_file("app.conf", env={"DB_POOL": "8"}) # from a dict
-conf = ConfigFactory.parse_file("app.conf", env=None)             # no variables: pool stays 4
-conf = ConfigFactory.parse_file("app.conf", env=KEEP)             # ${?DB_POOL} kept, for later
-conf = ConfigFactory.parse_file("app.conf", resolve=False)        # every ${…} as written
-conf = ConfigFactory.parse_file("app.conf", http_timeout=5)       # an http(s) include waits 5 s, not 30
-conf = ConfigFactory.parse_string('include "app.conf"', basedir=".")  # text, includes from basedir
+conf = ConfigFactory.parse_file("prod.conf")                       # DB_POOL from os.environ
+conf = ConfigFactory.parse_file("prod.conf", env={"DB_POOL": "8"}) # from a dict
+conf = ConfigFactory.parse_file("prod.conf", env=None)             # no variables: pool stays 4
+conf = ConfigFactory.parse_file("prod.conf", env=KEEP)             # ${?DB_POOL} kept, for later
+conf = ConfigFactory.parse_file("prod.conf", resolve=False)        # every ${…} as written
+conf = ConfigFactory.parse_file("prod.conf", http_timeout=5)       # an http(s) include waits 5 s, not 30
+conf = ConfigFactory.parse_string('include "prod.conf"', basedir=".")  # text, includes from basedir
 
 conf.get_string("db.host")      # "db.example.org"
 conf.get_int("db.pool")         # 4
@@ -99,26 +99,26 @@ A path is written as in the file: `db.host`, `a."b.c"`. A getter's default is it
 ```python
 from pathlib import Path
 
-Path("deploy.conf").write_text(ConfigFactory.parse_file("app.conf", env=KEEP).to_hocon())
+Path("deploy.conf").write_text(ConfigFactory.parse_file("prod.conf", env=KEEP).to_hocon())
 ```
 
-**Durations and sizes** have helpers with the same rules as the getters: `zig_hocon.parse_duration("30s")` gives a `timedelta`, `zig_hocon.parse_bytes("512MiB")` an int.
+**Durations, periods and sizes** have helpers with the same rules as the getters: `zig_hocon.parse_duration("30s")` gives a `timedelta`, `zig_hocon.parse_period("3 months")` a dict as `get_period` does, `zig_hocon.parse_bytes("512MiB")` an int. A duration is nanoseconds in an int64, as in C: a `timedelta` to the microsecond, of up to 292 years; a longer one is a `ConfigWrongTypeException` named `Overflow`.
 
-**From the shell**, [`hocon`](#the-hocon-command) prints the file resolved, and more; `python -m zig_hocon [--json] [--env=process|none|keep] app.conf` does the first through the package.
+**From the shell**, [`hocon`](#the-hocon-command) prints the file resolved, and more; `python -m zig_hocon [--json] [--env=process|none|keep] prod.conf` does the first through the package.
 
 ## The hocon command
 
 `pip install zig-hocon` puts `hocon` on the path: the same tool as a release of zig-hocon has, built for your platform. It prints a file resolved, as HOCON or with `--json` as JSON:
 
 ```sh
-$ hocon --json app.conf
+$ hocon --json prod.conf
 {"db":{"host":"db.example.org","pool":4},"timeout":"30s","cache":"512MiB","retention":"3 months","debug":false,"ratio":0.75}
 ```
 
 A `${…}` the file does not answer reads the environment; `--env=none` reads none. `--env=keep` writes the one file to deploy: includes and overrides worked out, the variables left for the server:
 
 ```sh
-$ hocon --env=keep app.conf > deploy.conf
+$ hocon --env=keep prod.conf > deploy.conf
 $ cat deploy.conf
 db {
   host = db.example.org
@@ -135,24 +135,24 @@ ratio = 0.75
 **get** prints one value, for a shell script:
 
 ```sh
-$ hocon get db.host app.conf
+$ hocon get db.host prod.conf
 db.example.org
-$ hocon get db --json app.conf
+$ hocon get db --json prod.conf
 {"host":"db.example.org","pool":4}
 ```
 
 **diff** compares two files as they resolve, path by path (`~ path: old → new`, `+` and `-`), and exits 0 when they say the same, as the deploy file does:
 
 ```sh
-$ hocon diff app.conf deploy.conf; echo $?
+$ hocon diff prod.conf deploy.conf; echo $?
 0
 ```
 
 **check** reads each file and says which fail and where, for CI:
 
 ```sh
-$ hocon check app.conf staging.conf
-app.conf: ok
+$ hocon check prod.conf staging.conf
+prod.conf: ok
 staging.conf:2:11: error: Unresolved
 db.host = ${DB_HOST}
           ^
@@ -182,7 +182,7 @@ zig-hocon-migrate conf/prod.conf --env-file env/prod.env
 
 ## Into a model
 
-The package hands over a dict (`as_dict()`) or JSON bytes (`to_json()`); a model library does the checking. The same `app.conf` into the three usual ones.
+The package hands over a dict (`as_dict()`) or JSON bytes (`to_json()`); a model library does the checking. The same `prod.conf` into the three usual ones.
 
 **pydantic** reads the dict. A duration is text in the file, `"30s"`, so a `BeforeValidator` turns it into a `timedelta` first:
 
@@ -204,7 +204,7 @@ class Settings(BaseModel):
     timeout: Duration
     debug: bool
 
-conf = zig_hocon.ConfigFactory.parse_file("app.conf")
+conf = zig_hocon.ConfigFactory.parse_file("prod.conf")
 settings = Settings.model_validate(conf.as_dict())
 ```
 
@@ -234,7 +234,7 @@ class Settings(msgspec.Struct):
     timeout: Duration
     debug: bool
 
-conf = zig_hocon.ConfigFactory.parse_file("app.conf")
+conf = zig_hocon.ConfigFactory.parse_file("prod.conf")
 settings = msgspec.json.decode(conf.to_json(), type=Settings, dec_hook=dec_hook, strict=False)
 ```
 
