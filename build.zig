@@ -11,14 +11,17 @@ pub fn build(b: *std.Build) void {
     });
 
     // `hocon <file.conf>` prints the file resolved, as HOCON, or with `--json`
-    // as JSON; `zig build run -- file.conf`.
+    // as JSON; `zig build run -- file.conf`. With `check --schema`, which
+    // builds a Zig program and needs zig (the wheels' leaves it out).
+    const cli_options = b.addOptions();
+    cli_options.addOption(bool, "schema", true);
     const exe = b.addExecutable(.{
         .name = "hocon",
         .root_module = b.createModule(.{
             .root_source_file = b.path("src/main.zig"),
             .target = target,
             .optimize = optimize,
-            .imports = &.{.{ .name = "hocon", .module = mod }},
+            .imports = &.{ .{ .name = "hocon", .module = mod }, .{ .name = "options", .module = cli_options.createModule() } },
         }),
     });
     b.installArtifact(exe);
@@ -82,7 +85,7 @@ pub fn build(b: *std.Build) void {
     // where coverage does not follow.
     const python_version = b.option([]const u8, "python", "The Python test-python runs on (default 3.12)") orelse "3.12";
     const coverage_file = b.pathFromRoot(".zig-cache/python.coverage");
-    const pytest = b.addSystemCommand(&.{ "uv", "run", "--no-project", "--python", python_version, "--with", "pytest", "--with", "coverage", "python", "-m", "coverage", "run", "--branch", "--source=python/zig_hocon", "--omit=python/zig_hocon/__main__.py", "-m", "pytest", "-q", "python/tests" });
+    const pytest = b.addSystemCommand(&.{ "uv", "run", "--no-project", "--python", python_version, "--with", "pytest", "--with", "coverage", "--with", "pyhocon", "--with", "python-dateutil", "python", "-m", "coverage", "run", "--branch", "--source=python/zig_hocon", "--omit=python/zig_hocon/__main__.py", "-m", "pytest", "-q", "python/tests" });
     pytest.setCwd(b.path("."));
     pytest.setEnvironmentVariable("PYTHONPATH", "python");
     pytest.setEnvironmentVariable("COVERAGE_FILE", coverage_file);
@@ -135,6 +138,18 @@ pub fn build(b: *std.Build) void {
             .imports = &.{.{ .name = "hocon", .module = wheel_hocon }},
         }) });
         wheel_lib.bundle_ubsan_rt = false;
+        // The `hocon` CLI of the same platform: pip puts it on the path.
+        // Without `check --schema`, which builds a Zig program against a Zig
+        // type: no use without zig, and the library's sources it carries go.
+        const wheel_cli_options = b.addOptions();
+        wheel_cli_options.addOption(bool, "schema", false);
+        const wheel_cli = b.addExecutable(.{ .name = "hocon", .root_module = b.createModule(.{
+            .root_source_file = b.path("src/main.zig"),
+            .target = wheel_target,
+            .optimize = .ReleaseSafe,
+            .strip = true,
+            .imports = &.{ .{ .name = "hocon", .module = wheel_hocon }, .{ .name = "options", .module = wheel_cli_options.createModule() } },
+        }) });
 
         const file_name = b.fmt("zig_hocon-{s}-py3-none-{s}.whl", .{ version, tag });
         const pack = b.addSystemCommand(&.{ "python3", "tools/wheel.py" });
@@ -143,6 +158,8 @@ pub fn build(b: *std.Build) void {
         pack.addArgs(&.{ version, tag });
         pack.addFileArg(wheel_lib.getEmittedBin());
         pack.addArg(wheel_lib.out_filename);
+        pack.addFileArg(wheel_cli.getEmittedBin());
+        pack.addArg(wheel_cli.out_filename);
         // It reads python/ too, which zig does not track: packed every time.
         pack.has_side_effects = true;
         wheels_step.dependOn(&b.addInstallFileWithDir(wheel, .{ .custom = "wheels" }, file_name).step);

@@ -211,18 +211,24 @@ b.step("check-config", "Check the config against Config").dependOn(&check.step);
 | implementation | against the spec | against typesafe/config 1.4.9 |
 |---|---|---|
 | Java <sub>typesafe/config 1.4.9</sub> | 81.6% (478/586) | 100% (586/586) |
-| hocon2 <sub>hocon2 0.6.3</sub> | 65.9% (386/586) | 61.1% (358/586) |
-| pulse-pyhocon <sub>pulse-pyhocon 0.2.1</sub> | 54.1% (317/586) | 51.0% (299/586) |
-| py.hocon <sub>hocon-parser 1.14.2 (Python)</sub> | 67.9% (398/586) | 66.0% (387/586) |
+| hocon2 <sub>hocon2 0.6.3</sub> | 79.5% (466/586) | 69.8% (409/586) |
+| pulse-pyhocon <sub>pulse-pyhocon 0.2.1</sub> | 63.8% (374/586) | 59.4% (348/586) |
+| py.hocon <sub>hocon-parser 1.14.2 (Python)</sub> | 78.0% (457/586) | 79.0% (463/586) |
 | pyhocon <sub>pyhocon 0.3.63</sub> | 61.3% (359/586) | 57.8% (339/586) |
-| rs.hocon <sub>hocon-parser 1.14.2 (Rust)</sub> | 67.9% (398/586) | 65.5% (384/586) |
-| zig-hocon <sub>zig-hocon code@58d3410</sub> | 100% (586/586) | 80.5% (472/586) |
+| rs.hocon <sub>hocon-parser 1.14.2 (Rust)</sub> | 77.5% (454/586) | 78.3% (459/586) |
+| zig-hocon <sub>zig-hocon code@4830963</sub> | 100% (586/586) | 80.5% (472/586) |
 
 The table keeps the best parsers; the others measured, and why they are not in it: [conformance/README.md](conformance/README.md#not-in-the-table).
 
 <!-- conformance:end -->
 
 Every case, and what each implementation printed, is in **[the conformance report](https://htmlpreview.github.io/?https://github.com/lejmr/zig-hocon/blob/main/conformance/report.html)**. Any HOCON parser can be scored on it through a ten-line adapter: [conformance/README.md](conformance/README.md) shows how.
+
+## Status
+
+- **Beta until 1.0.** The API can still change; each change is in [CHANGELOG.md](CHANGELOG.md), and what a version may change is in [CONTRIBUTING.md](CONTRIBUTING.md#versions).
+- **One maintainer, held by tests; more are welcome** ([CONTRIBUTING.md](CONTRIBUTING.md)). Every change runs the 586 cases of the conformance suite, one for each sentence of the spec, the tests the C header and the Python package are held to, which only the maintainer edits, and a fuzzer over the parser.
+- **Yours to build.** Zig 0.16 and `zig build` give the library, libhocon for C and the command line tool; the suite says what a fork changed.
 
 ## What is in, what is out
 

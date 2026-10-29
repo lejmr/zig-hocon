@@ -4,7 +4,20 @@ What changed for someone using zig-hocon: the Zig package, the `hocon` command l
 
 ## [Unreleased]
 
+### Changed
+
+- Python: the README and the package description no longer call the API pyhocon's. Only `parse_file`, `parse_string`, the typed getters and the exception names carry over; code that uses the tree as a dict, reads lists or calls pyhocon's other methods is rewritten, as MIGRATING.md says.
+
+### Added
+
+- Python: `pip install zig-hocon` puts the `hocon` command line tool of its platform on the path, the same as a release's, with `get`, `diff` and `check`; only `check --schema`, which builds a Zig program and needs zig, is left out.
+- Python: `zig-hocon-migrate conf/` (pip installs it; `python -m zig_hocon migrate` is the same) reads each config with pyhocon and with zig-hocon, with the same environment, and shows where they differ as the config's tree: another type a getter reads the same, another value, or one of them failing. A directory is its entry points; it exits 1 when anything differs, for CI, and `--json` gives the tree as JSON. `--fallback reference.conf` reads each config over a reference as `conf.with_fallback(reference)` in a loader does, `--getters` makes a value a getter reads the same no difference, `--accept PATH` marks a reviewed difference as no difference, `--resolve-each` reads as a loader that resolves each file before the merge, and `--before main` has pyhocon read the configs as they are on `main` and zig-hocon as they are now, so the run can gate CI.
+- Python: MIGRATING.md says that `x += [3, 4]` appends the list as one element, by the spec, where pyhocon extends the list; it said `+=` reads the same.
+
 ### Fixed
+- Python: a getter that cannot read a value notes what it read, which a traceback prints under the message (Python 3.11+): `found '08'`, where a `${…}` from the environment showed only its name.
+- Python: `copy.copy` and `copy.deepcopy` of a `ConfigTree` failed with a `TypeError` on the library's handle, and an error from the handle's cleanup; a tree is read only, so a copy is now the tree itself.
+- Python: `help()`, pydoc and an IDE showed the whole process environment, secrets too, in the signature of `ConfigFactory.parse_file` and `parse_string`, whose default `env` was `os.environ` itself. The default is now named `os.environ` and reads it at the call, as before.
 - A NUL or another control character in unquoted text was written back by `to_hocon` / `hocon --hocon` as it was, and a NUL ended the text for C and Python: `motd = hello<NUL>world` lost every key after it. Such text is written quoted now, the character escaped (`"hello\u0000world"`).
 - A parse through libhocon (C, Python) sets SIGIO and SIGPIPE only while it fetches an `http(s)` include, which needs them, and puts back the handlers from before when the last such parse ends: a handler the program set, Python's `signal.signal(SIGIO, …)` among them, stays its own.
 - A deep document on a thread with little stack, a Python thread or one of musl's 128 KiB, ended the process with SIGBUS or SIGSEGV before the limit of 500 levels: libhocon parses and writes on a thread of its own with 16 MiB of stack, so a deeper document is `TooDeep` on any thread, and one below the limit is read.

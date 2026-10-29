@@ -17,14 +17,24 @@ py=$tmp/venv/bin/python
 # The examples read into pydantic and msgspec, and msgspec has no build for
 # PyPy or a free-threaded Python: there only the package's tests run.
 case $version in
-    pypy* | *t) examples=no; uv pip install -q --python "$py" "$wheel" pytest ;;
-    *) examples=yes; uv pip install -q --python "$py" "$wheel" pytest pydantic msgspec ;;
+    pypy* | *t) examples=no; uv pip install -q --python "$py" "$wheel" pytest pyhocon ;;
+    *) examples=yes; uv pip install -q --python "$py" "$wheel" pytest pyhocon pydantic msgspec ;;
 esac
 
 # From elsewhere, so nothing imports python/zig_hocon by accident.
 cd "$tmp"
 "$py" -c 'import sys, zig_hocon; print(sys.version.split()[0], zig_hocon.__file__); assert "site-packages" in zig_hocon.__file__'
 "$py" -m pytest -q -p no:cacheprovider "$root/python/tests"
+# The commands pip puts beside python (with .exe on Windows): the migration
+# check, and the CLI of this platform.
+"$(dirname "$py")/zig-hocon-migrate" --help >/dev/null
+printf 'owl = hoot\n' >"$tmp/owl.conf"
+[ "$("$(dirname "$py")/hocon" --json "$tmp/owl.conf")" = '{"owl":"hoot"}' ]
+# pip as well as uv: pip makes hocon executable only when the wheel says it is
+# a regular file (Windows has no such bit).
+uv pip install -q --python "$py" pip
+"$py" -m pip install -q --no-deps --target "$tmp/by-pip" "$wheel"
+[ ! -f "$tmp/by-pip/bin/hocon" ] || [ -x "$tmp/by-pip/bin/hocon" ]
 if [ $examples = no ]; then
     echo "examples left out: no msgspec for Python $version"
     exit 0

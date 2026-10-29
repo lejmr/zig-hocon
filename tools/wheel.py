@@ -1,8 +1,9 @@
 """Packs one wheel of zig_hocon: the Python files of python/zig_hocon/, the
-library zig built for one platform, and the metadata of python/pyproject.toml.
-`zig build wheels` runs it once per platform; nothing here needs pip.
+library zig built for one platform, the `hocon` CLI built for it, and the
+metadata of python/pyproject.toml. `zig build wheels` runs it once per
+platform; nothing here needs pip.
 
-    python3 tools/wheel.py <out.whl> <version> <tag>[.<tag>…] <library> <name in the package>
+    python3 tools/wheel.py <out.whl> <version> <tag>[.<tag>…] <library> <name in the package> <cli> <its name>
 
 The wheel is `py3-none-<platform>`: ctypes loads the library, so it holds no
 code of any one Python. Every file has the same date, so the same inputs make
@@ -16,7 +17,7 @@ import sys
 import tomllib
 import zipfile
 
-out, version, platform, library, lib_name = sys.argv[1:]
+out, version, platform, library, lib_name, cli, cli_name = sys.argv[1:]
 root = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 python = os.path.join(root, "python")
 
@@ -62,10 +63,18 @@ for file in sorted(os.listdir(package)):
             files.append((f"{name}/{file}", f.read(), False))
 with open(library, "rb") as f:
     files.append((f"{name}/{lib_name}", f.read(), True))
+# A file in <name>-<version>.data/scripts/ is one pip puts on the path, as it
+# is: the CLI, hocon or hocon.exe.
+with open(cli, "rb") as f:
+    files.append((f"{name}-{version}.data/scripts/{cli_name}", f.read(), True))
 with open(os.path.join(root, "LICENSE"), "rb") as f:
     files.append((f"{dist_info}/licenses/LICENSE", f.read(), False))
 files.append((f"{dist_info}/METADATA", "\n".join(metadata).encode(), False))
 files.append((f"{dist_info}/WHEEL", ("\n".join(wheel) + "\n").encode(), False))
+# The commands pip puts on the path, as pyproject's [project.scripts] has them.
+scripts = "".join(f"{command} = {target}\n" for command, target in project.get("scripts", {}).items())
+if scripts:
+    files.append((f"{dist_info}/entry_points.txt", ("[console_scripts]\n" + scripts).encode(), False))
 
 
 def record_line(path, data):
@@ -79,6 +88,9 @@ files.append((f"{dist_info}/RECORD", ("\n".join(record) + "\n").encode(), False)
 with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as whl:
     for path, data, executable in files:
         info = zipfile.ZipInfo(path, date_time=(1980, 1, 1, 0, 0, 0))
-        info.external_attr = (0o755 if executable else 0o644) << 16
+        # A regular file's type with its mode: pip makes a script executable
+        # only when the zip says it is a regular file with x bits (uv does
+        # without), and installed hocon was not executable.
+        info.external_attr = (0o100755 if executable else 0o100644) << 16
         info.compress_type = zipfile.ZIP_DEFLATED
         whl.writestr(info, data)

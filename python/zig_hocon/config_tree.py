@@ -74,6 +74,14 @@ class ConfigTree:
         self._doc = doc
         self._prefix = prefix
 
+    # A tree is read only, so a copy is the tree itself: copy.deepcopy(conf)
+    # in code from pyhocon works, where it failed on the library's handle.
+    def __copy__(self) -> "ConfigTree":
+        return self
+
+    def __deepcopy__(self, memo: dict[int, Any]) -> "ConfigTree":
+        return self
+
     def _full(self, path: str) -> str:
         """``path`` from the root. Whitespace around a path is no part of it,
         and joined to the prefix it would be inside a key."""
@@ -89,9 +97,21 @@ class ConfigTree:
         full = self._full(path)
         with self._doc.lock:
             code = getter(self._doc.handle, _path_bytes(full), *[ctypes.byref(o) for o in outs])
+            found = None
+            if code == _capi.WRONG_TYPE and getter is not lib.hocon_get_string:
+                found = self._text(full)
+                if found is None:
+                    # no text there, an object or a list: the getter again, for
+                    # its error, which that call put aside
+                    code = getter(self._doc.handle, _path_bytes(full), *[ctypes.byref(o) for o in outs])
             error = self._error(code, full, what)
         if error is None:
             return True, None
+        if found is not None:
+            # What was read, as a ${…} from the environment does not show it:
+            # a note, which a traceback prints (Python 3.11+), while str(error)
+            # stays the message it was.
+            setattr(error, "__notes__", [*getattr(error, "__notes__", ()), f"found {found!r}"])
         # A path through a scalar or a list (`a.b` with `a = 5`) is the wrong
         # type to a getter, WrongType, and has nothing at it: java's hasPath
         # is false, pyhocon gives the default. A value that does not convert
@@ -99,6 +119,14 @@ class ConfigTree:
         if default is not _NO_DEFAULT and (code == _capi.MISSING or error.name == "WrongType"):
             return False, default
         raise error
+
+    def _text(self, full: str) -> str | None:
+        """The text at ``full`` as written, for an error to show what it
+        read: ``"08"`` from the environment; None for an object or a list."""
+        ptr, size = ctypes.c_void_p(), ctypes.c_size_t()
+        if lib.hocon_get_string(self._doc.handle, _path_bytes(full), ctypes.byref(ptr), ctypes.byref(size)) != _capi.OK:
+            return None
+        return ctypes.string_at(ptr, size.value).decode("utf-8", "surrogatepass") if size.value else ""
 
     def _error(self, code: int, full: str, what: str) -> ConfigException | None:
         """The exception for ``code``, which a call on ``full`` just returned;

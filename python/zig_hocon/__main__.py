@@ -1,4 +1,5 @@
 """``python -m zig_hocon [--hocon | --json] [--env=process|none|keep] <file.conf>``
+``python -m zig_hocon migrate [--help] <conf/>``
 
 The file resolved, as the ``hocon`` CLI prints it: HOCON by default, or
 compact JSON; an error goes to stderr with exit 1. Through this package and
@@ -12,7 +13,13 @@ import sys
 
 from zig_hocon import KEEP, ConfigException, ConfigFactory
 
-parser = argparse.ArgumentParser(prog="python -m zig_hocon")
+# A file named migrate is ./migrate.
+if sys.argv[1:2] == ["migrate"]:
+    from zig_hocon.migrate import main
+
+    sys.exit(main(sys.argv[2:]))
+
+parser = argparse.ArgumentParser(prog="python -m zig_hocon", epilog="python -m zig_hocon migrate <conf/> shows how pyhocon and zig-hocon read your configs")
 output = parser.add_mutually_exclusive_group()
 output.add_argument("--hocon", action="store_true", help="print HOCON (the default)")
 output.add_argument("--json", action="store_true", help="print compact JSON")

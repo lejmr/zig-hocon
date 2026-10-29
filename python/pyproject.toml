@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "zig-hocon"
 version = "0.5.3"
-description = "HOCON configuration for Python: the whole spec, fast, with pyhocon's API"
+description = "HOCON configuration for Python: the whole spec, fast, with clear errors"
 readme = "README.md"
 license = "BSD-3-Clause"
 requires-python = ">=3.10"
@@ -30,6 +30,9 @@ classifiers = [
     "Topic :: System :: Systems Administration",
     "Typing :: Typed",
 ]
+
+[project.scripts]
+zig-hocon-migrate = "zig_hocon.migrate:cli"
 
 [project.urls]
 Homepage = "https://github.com/lejmr/zig-hocon"

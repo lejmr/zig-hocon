@@ -1,6 +1,6 @@
 <img src="https://raw.githubusercontent.com/lejmr/zig-hocon/main/docs/brand/zig-Hocon-badge-master-1650x500.png" width="600" alt="zig-hocon">
 
-Read [HOCON](https://github.com/lightbend/config/blob/main/HOCON.md) config files in Python, to the spec. Fast, because the parser is written in Zig. Familiar, because the API is pyhocon's.
+Read [HOCON](https://github.com/lightbend/config/blob/main/HOCON.md) config files in Python, to the spec. Fast, because the parser is written in Zig.
 
 HOCON is JSON made for people: comments, no quotes needed, units like `30s` and `512MiB`, files that include other files, later settings that merge over earlier ones, and values taken from other keys or from environment variables. One base file, one small file per environment on top.
 
@@ -41,13 +41,15 @@ The rest of this page reads these two files.
 - **Clear errors.** File, line, column, and a caret under the mistake.
 - **No dependencies.** A thin ctypes layer over one bundled library.
 
-\* A 6 KB config in 1 ms, a 10 MB one in 0.3 s, on an Apple M4 Pro.
+\* A 1 MB config with substitutions in 13 ms, a 10 MB one in 0.14 s, on an Apple M4 Pro: [BENCHMARK.md](BENCHMARK.md).
 
 ## Install
 
 ```sh
 pip install zig-hocon
 ```
+
+It puts two commands on the path: [`hocon`](#the-hocon-command), the command line tool of zig-hocon built for your platform, and `zig-hocon-migrate`, the check of what changes from pyhocon ([Coming from pyhocon](#coming-from-pyhocon)).
 
 One wheel per platform, for every Python from 3.10 on, free-threaded builds and PyPy included: macOS (arm64, x86_64), Linux (x86_64, aarch64; glibc 2.17+ and musl) and Windows (x86_64). The import name is `zig_hocon`. Anywhere else, build it from source (below).
 
@@ -102,19 +104,79 @@ Path("deploy.conf").write_text(ConfigFactory.parse_file("app.conf", env=KEEP).to
 
 **Durations and sizes** have helpers with the same rules as the getters: `zig_hocon.parse_duration("30s")` gives a `timedelta`, `zig_hocon.parse_bytes("512MiB")` an int.
 
-**From the shell**, `python -m zig_hocon [--json] [--env=process|none|keep] app.conf` prints the file resolved.
+**From the shell**, [`hocon`](#the-hocon-command) prints the file resolved, and more; `python -m zig_hocon [--json] [--env=process|none|keep] app.conf` does the first through the package.
+
+## The hocon command
+
+`pip install zig-hocon` puts `hocon` on the path: the same tool as a release of zig-hocon has, built for your platform. It prints a file resolved, as HOCON or with `--json` as JSON:
+
+```sh
+$ hocon --json prod.conf
+{"db":{"host":"db.example.org","pool":4},"timeout":"30s","cache":"512MiB","debug":false}
+```
+
+A `${…}` the file does not answer reads the environment; `--env=none` reads none. `--env=keep` writes the one file to deploy: includes and overrides worked out, the variables left for the server:
+
+```sh
+$ hocon --env=keep prod.conf > deploy.conf
+$ cat deploy.conf
+db {
+  host = db.example.org
+  pool = 4
+  pool = ${?DB_POOL}
+}
+timeout = 30s
+cache = 512MiB
+debug = false
+```
+
+**get** prints one value, for a shell script:
+
+```sh
+$ hocon get db.host prod.conf
+db.example.org
+$ hocon get db --json prod.conf
+{"host":"db.example.org","pool":4}
+```
+
+**diff** compares two files as they resolve, path by path (`~ path: old → new`, `+` and `-`), and exits 0 when they say the same, as the deploy file does:
+
+```sh
+$ hocon diff prod.conf deploy.conf; echo $?
+0
+```
+
+**check** reads each file and says which fail and where, for CI:
+
+```sh
+$ hocon check prod.conf staging.conf
+prod.conf: ok
+staging.conf:2:11: error: Unresolved
+db.host = ${DB_HOST}
+          ^
+1 of 2 failed
+```
+
+Each exits 1 when something is wrong, with the place on stderr; `hocon` alone lists the commands and their flags. (The `hocon` of a release also has `check --schema`, which reads a file into a Zig struct; it needs zig, and the wheel's leaves it out.)
 
 ## Coming from pyhocon
 
-Change the import: `ConfigFactory`, the getters and the exception names are the same. What reads differently:
+Moving over is a rewrite of the code that works with the tree, not a change of import. What carries over: `ConfigFactory.parse_file` and `parse_string`, the typed getters (`get_string`, `get_int`, `get_float`, `get_bool`, `get_config`) and the exception names. What does not:
 
-- **The tree is not a dict.** `conf["db"]["host"]` and `json.dumps(conf)` fail; take `conf.as_dict()` first. `as_plain_ordered_dict()` is `as_dict()`.
-- **Fewer methods.** `get`, `get_list`, `with_fallback` and `put` are not there: a typed getter, an `include`, or the dict does the job.
+- **The tree is not a dict**, and `get`, `get_list`, `with_fallback` and `put` are not there: a typed getter, `conf.as_dict()` or an include does the job.
+- **A list has no getters.** Read it through your model (`list[str]`), which checks the type as `get_list` did; `conf.as_dict()` gives whatever is there, a string from the environment too.
 - **Durations stay text.** `30s` is `"30s"` in `as_dict()` until a getter or a model reads it.
-- **Strict syntax.** Input pyhocon quietly accepted, such as `a..b = 1` or `a = b:c`, is an error with its line and column.
-- **No `include package(...)`.** It is pyhocon's own; include by path.
+- **`+=` appends one element.** `x += [a]`, the form pyhocon takes, adds the list `[a]` as one element; `x = ${x} [a]` extends it.
+- **Values from the environment are text**, read as numbers and booleans only as written: `08` or `True` stop `get_int` and `get_bool`. Check your secret store first.
+- **Strict syntax**, and no `include package(...)`.
 
-The [migration guide](https://github.com/lejmr/zig-hocon/blob/main/python/MIGRATING.md) has every difference, with what to write instead.
+`zig-hocon-migrate`, which pip installs with zig-hocon, reads your configs with pyhocon and with zig-hocon and shows what differs:
+
+```sh
+zig-hocon-migrate conf/prod.conf --env-file env/prod.env
+```
+
+[MIGRATING.md](MIGRATING.md) has every difference, what to write instead, and how to run the check for each deployment in CI.
 
 ## Into a model
 
