@@ -23,6 +23,7 @@ What changed for someone using zig-hocon: the Zig package, the `hocon` command l
 
 ### Fixed
 
+- Python: `parse_duration`, `parse_bytes` and the other `parse_*` helpers given no text or number (`True`, a list) raise an error that is a `ValueError` as well as the `TypeError` it was, so a pydantic validator reports it as the field's error instead of letting a bare `TypeError` through; an `Overflow` says what it was given, not `v`.
 - `Diagnostics.render` names the file when the file a parse was given cannot be read, `prod.conf: error: FileNotFound`, where it printed `error: FileNotFound` alone; the new field `Diagnostics.file` holds it.
 - `d { z = ${?a.k} }`, `d.z += 5`, `a += ${d}` was a `SubstitutionCycle` when `d` came before `a`, and `{d: {z: [5]}, a: [{z: [5]}]}` in the other orders: the `${?a.k}` that leads back to `d.z` is nonexistent (spec L716) in every order now, as typesafe/config reads it. v0.5.3 had it too; two conformance cases more, 588 in all.
 - Python: a getter that cannot read a value notes what it read, which a traceback prints under the message (Python 3.11+): `found '08'`, where a `${…}` from the environment showed only its name.

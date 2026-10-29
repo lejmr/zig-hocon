@@ -53,3 +53,27 @@ def test_a_model_with_the_validators_refuses_what_a_lax_one_takes():
     with pytest.raises(ValidationError):
         Strict(workers="8", debug="True")
     assert Strict(workers="8", debug="yes") == Strict(workers=8, debug=True)
+
+
+# what is no text and no number is a TypeError, as it was, and a ValueError
+# too, so a pydantic validator reports it as the field's error
+@pytest.mark.parametrize("parse", [zig_hocon.parse_duration, zig_hocon.parse_bytes, zig_hocon.parse_period, zig_hocon.parse_int, zig_hocon.parse_bool])
+def test_no_text_is_a_type_error_and_a_value_error(parse):
+    with pytest.raises(TypeError, match="expected text or a number, not list") as e:
+        parse([1])
+    assert isinstance(e.value, ValueError)
+
+
+def test_a_model_reports_a_value_of_no_type_as_its_own_error():
+    pydantic = pytest.importorskip("pydantic")
+
+    class Settings(pydantic.BaseModel):
+        timeout: Annotated[object, pydantic.BeforeValidator(zig_hocon.parse_duration)]
+
+    with pytest.raises(pydantic.ValidationError, match="timeout"):
+        Settings(timeout=True)
+
+
+def test_an_overflow_says_what_it_was_given():
+    with pytest.raises(ConfigWrongTypeException, match="a duration past 292 years, the longest an int64 of nanoseconds holds: '200000d'"):
+        zig_hocon.parse_duration("200000d")
