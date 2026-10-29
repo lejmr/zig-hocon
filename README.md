@@ -84,15 +84,15 @@ The same package has the other three:
 
 `parseFromFile` reads the file and what it includes; `parseFromSlice(T, gpa, text, .{})` reads text, which can include nothing. Both return `Parsed(T)`: an arena that owns everything in `.value`, freed by one `deinit`. The `Leaky` twins, `parseFromFileLeaky` and `parseFromSliceLeaky`, take your arena and return the plain value.
 
-What the options do:
+What the options do, each set to something other than its default:
 
 ```zig
 .{
-    .env = .{ .map = init.environ_map }, // where ${DB_POOL} looks; .none (the default) or .keep
-    .resolve = false,                    // every ${…} stays as written, for hocon.Value
-    .ignore_unknown_fields = false,      // a key the struct has no field for is an error
-    .diagnostics = &diag,                // where an error is, see below
-    .http_timeout = .fromSeconds(30),    // for an include of an http(s) URL
+    .env = .{ .map = init.environ_map }, // where ${DB_POOL} looks; default .none, no variables; or .keep
+    .resolve = false,                    // default true; false keeps every ${…} as written, for hocon.Value
+    .ignore_unknown_fields = false,      // default true, a key the struct has no field for is skipped; false makes it an error
+    .diagnostics = &diag,                // default null; where an error is, see below
+    .http_timeout = .fromSeconds(5),     // default 30 s; for an include of an http(s) URL
 }
 ```
 
@@ -100,9 +100,15 @@ What the options do:
 
 ```zig
 var diag: hocon.Diagnostics = .{};
-defer diag.deinit(gpa);
-const parsed = hocon.parseFromFile(Config, gpa, io, "prod.conf", .{ .diagnostics = &diag }) catch |err| {
-    try diag.render(stderr);
+defer diag.deinit(init.gpa);
+const parsed = hocon.parseFromFile(Config, init.gpa, init.io, "prod.conf", .{
+    .env = .{ .map = init.environ_map },
+    .diagnostics = &diag,
+}) catch |err| {
+    var buffer: [1024]u8 = undefined;
+    var stderr = std.Io.File.stderr().writerStreaming(init.io, &buffer);
+    try diag.render(&stderr.interface); // any *std.Io.Writer
+    try stderr.interface.flush();
     return err;
 };
 ```
