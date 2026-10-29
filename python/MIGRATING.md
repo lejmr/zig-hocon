@@ -118,12 +118,22 @@ It exits 0 when everything is the same, 1 when not, and 2 when it compares nothi
 
 | flag | what it does |
 |---|---|
-| `--env-file FILE`, `--env KEY=VALUE` | the environment both read: the shell's, with these over it (`KEY=value` lines, `export` and quotes allowed, a later file over an earlier one); `env -i PATH="$PATH" zig-hocon-migrate …` starts from none |
+| `--env-file FILE`, `--env KEY=VALUE` | the environment both read: the shell's, with these over it (`KEY=value` lines as docker compose and python-dotenv read them, a file written for `source` with `export` and quotes as it is, a later file over an earlier one; below); `env -i PATH="$PATH" zig-hocon-migrate …` starts from none |
 | `--before REV` | pyhocon reads the configs as git has them at `REV`, zig_hocon as they are now: the check a migration pull request wants, as a config rewritten for zig_hocon (`x += a`) often stops pyhocon |
 | `--getters` | `≈` is no difference, for code that reads such values through the getters or a model's validators |
 | `--accept PATH` | a difference you reviewed and keep: still shown, marked `(accepted)`, not counted, such as `"0640"` your code reads with `get_string`, or a list of durations, whose elements no getter reads; a path names a value, a list element (`tags[2]`) or everything below it, and one that names no difference is reported |
 | `--fallback FILE` | reads each config over `FILE`, as an old loader's `conf.with_fallback(FILE)`; `--resolve-each` for a loader that resolved each file before merging |
 | `--all`, `--json`, `--glob`, `--color` | every file and what is the same; the tree as JSON; the files of a directory (`*.conf`); colours (`auto`, `always`, `never`, and `NO_COLOR`) |
+
+An env file, one per deployment:
+
+```sh
+# env/prod.env
+DB_HOST=db.internal
+DB_POOL=16
+# a line written for `source` reads the same
+export LOG_LEVEL="warn"
+```
 
 A directory is its `*.conf` files without those another file includes, as those are checked through the files that include them.
 

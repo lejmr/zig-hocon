@@ -115,7 +115,17 @@ $ hocon --json prod.conf
 {"db":{"host":"db.example.org","pool":4},"timeout":"30s","cache":"512MiB","retention":"3 months","debug":false,"ratio":0.75}
 ```
 
-A `${…}` the file does not answer reads the environment; `--env=none` reads none. `--env-file=prod.env` puts the `KEY=value` lines of a file over it, as a shell or docker writes them (`export` and quotes allowed); a later file goes over an earlier one, and with `--env=none` they are all there is: `hocon check --env=none --env-file=prod.env prod.conf` checks a deployment against its own variables and nothing from your shell. `--env=keep` writes the one file to deploy: includes and overrides worked out, the variables left for the server:
+A `${…}` the file does not answer reads the environment; `--env=none` reads none. `--env-file=prod.env` puts the `KEY=value` lines of a file over it, as docker compose and python-dotenv read them; a file written for a shell's `source`, with `export` and quotes, works as it is. A later file goes over an earlier one, and with `--env=none` they are all there is: `hocon check --env=none --env-file=prod.env prod.conf` checks a deployment against its own variables and nothing from your shell.
+
+```sh
+# prod.env
+DB_HOST=db.internal
+DB_POOL=16
+# a line written for `source` reads the same
+export LOG_LEVEL="warn"
+```
+
+`--env=keep` writes the one file to deploy: includes and overrides worked out, the variables left for the server:
 
 ```sh
 $ hocon --env=keep prod.conf > deploy.conf
