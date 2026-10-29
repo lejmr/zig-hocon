@@ -25,6 +25,9 @@ pub fn build(b: *std.Build) void {
         }),
     });
     b.installArtifact(exe);
+    // The CLI for a project that depends on this one: `artifact("hocon")`
+    // names libhocon as well, so it is ambiguous there.
+    b.addNamedLazyPath("cli", exe.getEmittedBin());
 
     const run_exe = b.addRunArtifact(exe);
     if (b.args) |args| run_exe.addArgs(args);
