@@ -1,0 +1,13 @@
+{
+  "spec": "HOCON.md#include-semantics-substitution",
+  "rule": [
+    "include-semantics-substitution.1",
+    "examples-of-self-referential-substitutions.6"
+  ],
+  "why": "A self-reference looks back at the field's own earlier value (L747-749), here at its fixed-up path; the fallback to the original path is for an included file that \"might intend to refer to the application's root config\" (L1043-1047), which a field referring to itself does not. typesafe/config reads it so: b = ${?b} included in a has nothing below it at a.b, so it \"just disappears silently\" (L776), and the root's b {} is not taken: a is {}.",
+  "expect": {
+    "a": {},
+    "b": {}
+  },
+  "resolve": true
+}

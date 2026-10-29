@@ -1,0 +1,17 @@
+{
+  "spec": "HOCON.md#include-semantics-substitution",
+  "rule": [
+    "include-semantics-substitution.1",
+    "the--field-separator.4"
+  ],
+  "why": "A self-reference looks back at the field's own earlier value (L747-749), here at its fixed-up path; the fallback to the original path is for an included file that \"might intend to refer to the application's root config\" (L1043-1047), which a field referring to itself does not. typesafe/config reads it so: a += 3 included at k looks back at k.a only, which has no earlier value, so the root's text a = \"\" is not appended to and k.a is [3], no error.",
+  "expect": {
+    "a": "",
+    "k": {
+      "a": [
+        3
+      ]
+    }
+  },
+  "resolve": true
+}

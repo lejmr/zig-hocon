@@ -6,21 +6,15 @@
     "substitutions.17",
     "unquoted-strings.9"
   ],
-  "why": "Resolving c first, d's ${?c} closes the cycle and is missing, so d is 1 next to nothing and c is [d]: the string \"1\" as in substitutions/042, or the number 1 as typesafe/config reads it (an open question of its own). Resolving d first, c's ${?d} is missing, c is [], and d is 1 next to a list, an error (L384-385). c = [] together with d = \"1\" comes out of no order: the spec leaves the order two fields resolve in undefined and allows either result or an error (L866-881); a cycle is broken by removing one of its links (L660-661), the optional that closes it, which is then missing (L714-716), and its result is memoized (L884-888)",
+  "why": "Resolving c first, d's ${?c} closes the cycle and is missing, so d is 1 next to nothing and c is [d]: the number 1, as substitutions/039 has it. Resolving d first, c's ${?d} is missing, c is [], and d is 1 next to a list, an error (L384-385). c = [] together with d = 1 comes out of no order: the spec leaves the order two fields resolve in undefined and allows either result or an error (L866-881); a cycle is broken by removing one of its links (L660-661), the optional that closes it, which is then missing (L714-716), and its result is memoized (L884-888)",
   "expect": {
-    "d": "1",
+    "d": 1,
     "c": [
-      "1"
+      1
     ]
   },
   "resolve": true,
   "also_valid": [
-    {
-      "c": [
-        1
-      ],
-      "d": 1
-    },
     "rejected"
   ]
 }
