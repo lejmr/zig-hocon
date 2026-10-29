@@ -46,7 +46,7 @@ The exception names are the same: `ConfigException`, `ConfigMissingException` (a
 | `conf.get_list(path)` | the field in your model, `list[str]` or a list of durations with the validator (Step 3); `as_dict()[…]` only where you check the type yourself: `proxies = ${?PROXIES}` with `a,b` in it is the text `"a,b"`, which `get_list` refused and a loop reads letter by letter |
 | `conf.with_fallback(defaults)` | an include, below |
 | `conf.put(…)`, `conf.pop(…)` | change the dict from `as_dict()` |
-| `conf.copy()`, `copy.deepcopy(conf)` | not needed: a tree is read only, `copy.deepcopy` gives the tree itself |
+| `conf.copy()`, `copy.deepcopy(conf)` | not needed: a tree is read only, `copy.deepcopy` gives the tree itself (0.6.0; before, a `TypeError`) |
 | `ConfigFactory.from_dict(d)` | `ConfigFactory.parse_string(json.dumps(d))`: JSON is HOCON |
 | `ConfigFactory.parse_URL(url)` | `include url("…")` in a file, or fetch it and `parse_string` |
 | `parse_file(path, encoding=…)` | files are UTF-8 |
@@ -74,7 +74,7 @@ conf = ConfigFactory.parse_string(text, basedir=app.parent)
 ## Step 3: configs that read differently
 
 - **Durations and sizes are text until something asks.** pyhocon turns `30s` into a `timedelta` while it parses; here `as_dict()` has `"30s"`, and `get_duration` or the model converts it. With pydantic, a `BeforeValidator(zig_hocon.parse_duration)` on the field; [examples/durations-and-sizes](examples/durations-and-sizes) has it for pydantic and msgspec. A number alone is milliseconds to `parse_duration` (`"0.5"` is half a millisecond), so keep the validator on duration fields, not on a `float | timedelta`.
-- **Values from the environment are text.** `${DB_POOL}` with `48` in it is `"48"`, as the spec has it: `get_int` reads it, `" 48"` and `08` it refuses. A pydantic model with lax types reads `"48"` too, and also takes `"08"` as 8; a strict one refuses them all, so keep config models lax. When a getter refuses a value, a traceback notes what it read, `found '08'` (Python 3.11 and later).
+- **Values from the environment are text.** `${DB_POOL}` with `48` in it is `"48"`, as the spec has it: `get_int` reads it, `" 48"` and `08` it refuses. A pydantic model with lax types reads `"48"` too, and also takes `"08"` as 8; a strict one refuses them all, so keep config models lax. When a getter refuses a value, a traceback notes what it read, `found '08'` (zig-hocon 0.6.0, Python 3.11 and later).
 - **A leading zero keeps the text.** `zip = 01234` is `"01234"`; pyhocon gives 1234. So are `.5` and `-.5`, `-foo` and `-Xmx2g`, an IP address, a version and a UUID: text becomes a number only by the JSON rules. `get_int("zip")` on `01234` and `get_float` on `-.5` raise `ConfigWrongTypeException`: write `zip = "01234"` and read it with `get_string`, or write `-0.5`.
 - **`+=` appends one element.** `x += [3, 4]` after `x = [1, 2]` is `[1, 2, [3, 4]]`; pyhocon gives `[1, 2, 3, 4]`. It is the one form of `+=` pyhocon takes, so every pyhocon config has it (`grep -rnE '\+= *\[' conf/`). To extend a list with another, `x = ${x} [3, 4]`. pyhocon reads that alike in one file but loses elements across nested includes, so compare the old config with the new one (`--before`, below).
 - **A concatenation is a string.** `a = ${?nope}42` is `"42"`; pyhocon gives the number 42.
@@ -86,7 +86,7 @@ Everything else (variables, includes, merging) reads the same, except where pyho
 
 ## Checklist
 
-`pip install -U zig-hocon` puts `zig-hocon-migrate` on the path (`python -m zig_hocon migrate` is the same; if it is not there, your zig-hocon is older than the check). With pyhocon installed beside it, it reads each config with both, with the same environment, and shows what differs as the config's tree:
+`pip install -U zig-hocon` puts `zig-hocon-migrate` on the path (`python -m zig_hocon migrate` is the same; both come with zig-hocon 0.6.0). With pyhocon installed beside it, it reads each config with both, with the same environment, and shows what differs as the config's tree:
 
 ```sh
 zig-hocon-migrate conf/prod.conf --env-file env/prod.env
@@ -105,6 +105,7 @@ conf/prod.conf
 
   conf/prod.conf   3 differences
 3 differences in 1 file.
+pyhocon → zig-hocon · ≠ reads differently · ≈ the same through a zig_hocon getter (--getters) · ! fails in one of them · --accept PATH once reviewed
 ```
 
 On a terminal, pyhocon's side is red and zig-hocon's green, without the labels. The marks:

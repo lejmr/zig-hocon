@@ -22,11 +22,11 @@ Where the two part ways, the row records both:
 
 ```json
 {
-  "spec": "HOCON.md#units-format",
-  "why": "the spec lists 'µs' among the microsecond suffixes; typesafe/config rejects it",
-  "expect": {"t": "1µs"},
+  "spec": "HOCON.md#omit-root-braces",
+  "why": "a file starting with [ keeps its array root; typesafe/config has no array-rooted config",
+  "expect": [1, 2, 3],
   "java": "unsupported",
-  "java_error": "ConfigException.BadValue"
+  "java_error": "WrongType"
 }
 ```
 
@@ -40,7 +40,7 @@ Where the two part ways, the row records both:
 | `unsupported` | a value | refuses | `expect` + `java_error` |
 | `lenient` | rejects | a value | `error` + `java_expect` |
 
-`lenient` is the common one, and the one worth staring at: it is every input HOCON forbids that typesafe/config waves through. `a = -.33e+1`, `a = "\u+041"` and `include.foo : 42` are all of this kind. An implementation aiming at compatibility may copy the leniency; one aiming at conformance must not.
+`lenient` is the one worth staring at: it is every input HOCON forbids that typesafe/config waves through. `a = -.33e+1`, `a = "\u+041"` and `include.foo : 42` are all of this kind. An implementation aiming at compatibility may copy the leniency; one aiming at conformance must not.
 
 `java_expect` / `java_error` record the typesafe/config release, 1.4.9. When a later typesafe/config changes a row, the row says since when and by what, and `run.sh --java-version <v>` scores against that version instead:
 

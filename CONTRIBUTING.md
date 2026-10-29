@@ -3,15 +3,15 @@
 ## Workflow
 
 1. Open a pull request. If it's not ready for review yet, mark it as a **draft** — draft is also the default state for anything that isn't passing CI yet.
-2. A PR is only taken out of draft / considered for review once **CI is green** (`zig fmt --check` and `zig build test` both pass). Red CI = draft, no exceptions.
-3. One feature or fix per PR. If you're implementing more than one item from the [spec checklist](docs/spec.md), split it into separate PRs — smaller PRs get reviewed faster.
+2. A PR is only taken out of draft / considered for review once **CI is green** (formatting, tests, commit subjects, the Python package and the fuzzer). Red CI = draft, no exceptions.
+3. One feature or fix per PR. If you're changing more than one item of the [spec checklist](docs/spec.md), split it into separate PRs — smaller PRs get reviewed faster.
 4. If you're proposing a feature not yet on the checklist, open an issue first to discuss scope before investing time in a PR.
 
 ## Requirements for a mergeable PR
 
 - `zig fmt --check .` passes.
 - `zig build test` passes, including a new test for whatever you added or fixed.
-- If your PR implements an item of the spec checklist, tick it off in the same PR.
+- If your PR changes what an item of the spec checklist does, update its line in [docs/spec.md](docs/spec.md).
 
 ## Local setup
 
