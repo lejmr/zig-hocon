@@ -5,11 +5,11 @@
   "mode": "java",
   "java_version": "1.4.9",
   "command": "pure Python, PyPI hocon-parser 1.14.2 (o3co/py.hocon): hocon.parse_file, the tree as JSON",
-  "ran_at": "2026-10-28T22:10:10Z",
-  "suite_digest": "2752bb3bb30b03fc",
-  "total": 586,
-  "passed": 463,
-  "percent": 79.0,
+  "ran_at": "2026-10-29T07:11:12Z",
+  "suite_digest": "d3ebfb2f13a116b1",
+  "total": 588,
+  "passed": 465,
+  "percent": 79.1,
   "sections": {
     "array-and-object-concatenation": {
       "total": 23,
@@ -100,8 +100,8 @@
       "passed": 7
     },
     "plus-equals-field-separator": {
-      "total": 31,
-      "passed": 16
+      "total": 33,
+      "passed": 18
     },
     "self-referential-examples": {
       "total": 77,
@@ -484,6 +484,8 @@
     "plus-equals-field-separator/029-number-and-list-appending-each-other-optionally-other-order.conf": "fail",
     "plus-equals-field-separator/030-append-reached-again-through-a-list-appends-once.conf": "pass",
     "plus-equals-field-separator/031-append-reached-again-through-a-list-appends-once-other-order.conf": "pass",
+    "plus-equals-field-separator/032-append-reached-again-with-no-list-before-appends-once.conf": "pass",
+    "plus-equals-field-separator/033-append-reached-again-with-no-list-before-appends-once-other-order.conf": "pass",
     "self-referential-examples/001-isolated-self-reference-is-an-error.conf": "pass",
     "self-referential-examples/002-self-reference-resolves-to-earlier-merged-value.conf": "pass",
     "self-referential-examples/003-self-reference-before-any-value-is-undefined.conf": "fail",

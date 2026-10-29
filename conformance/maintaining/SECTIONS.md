@@ -27,7 +27,7 @@ observable parse behaviour.
 | 521 | Paths as keys | `paths-as-keys` | ✅ 11 cases |
 | 574 | Substitutions | `substitutions` | ✅ 41 cases |
 | 653 | Self-referential substitutions | `self-referential-substitutions` | ✅ 8 cases |
-| 719 | The += field separator | `plus-equals-field-separator` | ✅ 31 cases |
+| 719 | The += field separator | `plus-equals-field-separator` | ✅ 33 cases |
 | 738 | Examples of self-referential substitutions | `self-referential-examples` | ✅ 77 cases |
 | 893 | List values from environment variables | `list-values-from-environment-variables` | ✅ 6 cases |
 | 921 | Include syntax | `include-syntax` | ✅ 16 cases |
