@@ -1,6 +1,6 @@
 <img src="https://raw.githubusercontent.com/lejmr/zig-hocon/main/docs/brand/zig-Hocon-badge-master-1650x500.png" width="600" alt="zig-hocon">
 
-Read [HOCON](https://github.com/lightbend/config/blob/main/HOCON.md) config files in Python, to the spec. Fast, because the parser is written in Zig. Not a drop-in for pyhocon: the getters keep pyhocon's names, the rest of the API is its own ([Coming from pyhocon](#coming-from-pyhocon)).
+Read [HOCON](https://github.com/lightbend/config/blob/main/HOCON.md) config files in Python, to the spec. Fast, because the parser is written in Zig.
 
 HOCON is JSON made for people: comments, no quotes needed, units like `30s` and `512MiB`, files that include other files, later settings that merge over earlier ones, and values taken from other keys or from environment variables. One base file, one small file per environment on top.
 
