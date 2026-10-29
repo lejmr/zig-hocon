@@ -5,7 +5,7 @@
   "mode": "java",
   "java_version": "1.4.9",
   "command": "conformance/adapters/zig-hocon.sh",
-  "ran_at": "2026-10-29T09:07:23Z",
+  "ran_at": "2026-10-29T09:23:43Z",
   "suite_digest": "d3ebfb2f13a116b1",
   "total": 588,
   "passed": 474,

@@ -4,7 +4,7 @@
   "version": "zig-hocon code@563ee0c",
   "mode": "spec",
   "command": "conformance/adapters/zig-hocon.sh",
-  "ran_at": "2026-10-29T09:07:10Z",
+  "ran_at": "2026-10-29T09:23:30Z",
   "suite_digest": "d3ebfb2f13a116b1",
   "total": 588,
   "passed": 588,
