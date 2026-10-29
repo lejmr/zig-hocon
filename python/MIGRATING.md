@@ -38,12 +38,12 @@ The exception names are the same: `ConfigException`, `ConfigMissingException` (a
 
 ## Step 2: what needs code
 
-**The tree is not a dict.** pyhocon's `ConfigTree` is an `OrderedDict`, so `conf["db"]["host"]`, `"db" in conf`, `for key in conf` and `json.dumps(conf)` work on it. Here the values stay in the library until a getter asks; take a dict where you need one: `settings = conf.as_dict()`.
+**The tree is not a dict.** pyhocon's `ConfigTree` is an `OrderedDict`, so `conf["db"]["host"]`, `"db" in conf`, `for key in conf` and `json.dumps(conf)` work on it. Here the values stay in the library until a getter asks; take a dict where you need one: `settings = conf.as_dict()`. Code that reads the tree outside the model is where pyhocon's getters checked types for you; move it onto the model.
 
 | pyhocon | instead |
 |---|---|
 | `conf.get(path)` | a typed getter, `get_string`, `get_int`, …; a duration pyhocon gave as a `timedelta` is `conf.get_duration(path)`, a new call, and a size `conf.get_bytes(path)` |
-| `conf.get_list(path)` | the list from the dict, `conf.as_dict()["features"]["plugins"]`; there is no list getter |
+| `conf.get_list(path)` | the field in your model, `list[str]` or a list of durations with the validator (Step 3); `as_dict()[…]` only where you check the type yourself: `proxies = ${?PROXIES}` with `a,b` in it is the text `"a,b"`, which `get_list` refused and a loop reads letter by letter |
 | `conf.with_fallback(defaults)` | an include, below |
 | `conf.put(…)`, `conf.pop(…)` | change the dict from `as_dict()` |
 | `conf.copy()`, `copy.deepcopy(conf)` | not needed: a tree is read only, `copy.deepcopy` gives the tree itself |

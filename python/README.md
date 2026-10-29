@@ -164,7 +164,7 @@ Each exits 1 when something is wrong, with the place on stderr; `hocon` alone li
 Moving over is a rewrite of the code that works with the tree, not a change of import. What carries over: `ConfigFactory.parse_file` and `parse_string`, the typed getters (`get_string`, `get_int`, `get_float`, `get_bool`, `get_config`) and the exception names. What does not:
 
 - **The tree is not a dict**, and `get`, `get_list`, `with_fallback` and `put` are not there: a typed getter, `conf.as_dict()` or an include does the job.
-- **A list has no getters.** It and the objects in it come from `conf.as_dict()`, where a duration is text: `zig_hocon.parse_duration` reads it, or a model does.
+- **A list has no getters.** Read it through your model (`list[str]`), which checks the type as `get_list` did; `conf.as_dict()` gives whatever is there, a string from the environment too.
 - **Durations stay text.** `30s` is `"30s"` in `as_dict()` until a getter or a model reads it.
 - **`+=` appends one element.** `x += [a]`, the form pyhocon takes, adds the list `[a]` as one element; `x = ${x} [a]` extends it.
 - **Values from the environment are text**, read as numbers and booleans only as written: `08` or `True` stop `get_int` and `get_bool`. Check your secret store first.
