@@ -149,7 +149,9 @@ def _diff(old: Any, new: Any, keys: list[Any], tree: ConfigTree, lenient: dict[s
             node["hint"] = f"{call}: zig-hocon error ({e.name})"
     # a list nested in zig-hocon's, none in pyhocon's: `x += [...]`, read by the spec
     if isinstance(old, list) and isinstance(new, list) and any(isinstance(x, list) for x in new) and not any(isinstance(x, list) for x in old):
-        node["hint"] = "+= appends one element, here a list; x = ${x} [...] extends it (MIGRATING.md, Step 3)"
+        # a ${…} is the full path, also in a { } block where += was relative to it
+        line = f"{_path(keys)} = ${{?{_path(keys)}}} [...]" if not any(isinstance(k, int) for k in keys) else "x = ${?x} [...]"
+        node["hint"] = f"+= appends one element, here a list; {line} extends it (MIGRATING.md, Step 3)"
         flat = _flat(new)
         if len(flat) > len(old) and all(any(_same(o, f) for f in flat) for o in old):
             node["hint"] += "\npyhocon kept only some of these, its own += bug: the file names them all"

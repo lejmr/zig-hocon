@@ -419,6 +419,8 @@ def test_the_plus_equals_hint_inside_a_block(tmp_path, capsys):
     code, out = run(capsys, tmp_path / "a.conf")
     assert "+= appends one element" in out
     assert "pyhocon kept only some of these" in out
+    # the line to write names the full path, as a ${…} is absolute inside { } too
+    assert "cors.origins = ${?cors.origins} [...] extends it" in out
 
 
 # an --accept that names no difference says so, as a typo or a pattern

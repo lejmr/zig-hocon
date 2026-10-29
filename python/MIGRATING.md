@@ -101,7 +101,7 @@ conf/prod.conf
       ≠ size   pyhocon 24 → zig-hocon '0024'
           conf.get_int("db.pool.size"): zig-hocon error (InvalidCharacter)
   ≠ tags   pyhocon [1, 2, 3, 4] → zig-hocon [1, 2, [3, 4]]
-      += appends one element, here a list; x = ${x} [...] extends it (MIGRATING.md, Step 3)
+      += appends one element, here a list; tags = ${?tags} [...] extends it (MIGRATING.md, Step 3)
 
   conf/prod.conf   3 differences
 3 differences in 1 file.
