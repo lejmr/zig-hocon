@@ -1,0 +1,24 @@
+{
+  "spec": "HOCON.md#the--field-separator",
+  "rule": [
+    "the--field-separator.2",
+    "self-referential-substitutions.13",
+    "examples-of-self-referential-substitutions.27"
+  ],
+  "why": "as 030 with no a : [] before a += ${d}: a += ${d} is a = ${?a} [${d}], its ${?a} finding nothing, and ${?a.k} leading back to d.z through a is still nonexistent (L716), so d.z is [5] and a is [{z: [5]}], d written before a",
+  "expect": {
+    "d": {
+      "z": [
+        5
+      ]
+    },
+    "a": [
+      {
+        "z": [
+          5
+        ]
+      }
+    ]
+  },
+  "resolve": true
+}

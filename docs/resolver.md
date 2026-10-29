@@ -161,7 +161,7 @@ flowchart TD
   OQ2 -->|yes| GONE2["null, closeAt(i)"]
   OQ2 -->|no| WAQ{"walkAgain: a list or object<br/>with a field on the cycle<br/>that looks back?"}
   WAQ -->|yes| WALK["walk it again, the field at<br/>its earlier value (L693, 007);<br/>outside the target: walked (L886)"]
-  WAQ -->|no| BRK["markBreaking: the last ${?…}<br/>begun after the target (039)"]
+  WAQ -->|no| BRK["markBreaking: the last ${?…}<br/>begun after the target (039),<br/>unless a field on the cycle can look back;<br/>one busy looking back cannot (plus-equals 032)"]
   BRK --> SC2["SubstitutionCycle:<br/>up to resolveOptional,<br/>or out to the caller"]
 ```
 
