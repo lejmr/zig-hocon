@@ -48,7 +48,7 @@ The rest of this page reads these two files.
 
 ## Why zig-hocon
 
-- **Correct.** Passes all 586 tests in the [conformance suite](https://htmlpreview.github.io/?https://github.com/lejmr/zig-hocon/blob/main/conformance/report.html): each checks one sentence of the spec, and together they cover 276 of its 290 rules.
+- **Correct.** Passes all 588 tests in the [conformance suite](https://htmlpreview.github.io/?https://github.com/lejmr/zig-hocon/blob/main/conformance/report.html): each checks one sentence of the spec, and together they cover 276 of its 290 rules.
 - **Your schema is a Zig struct.** HOCON is only what sits on disk; the struct says what it holds, with defaults, optionals, enums, durations and sizes.
 - **Fast.** A 10 MB config in a quarter of a second.\*
 - **Clear errors.** File, line, column and a caret, also for a value of the wrong type.
@@ -211,13 +211,14 @@ b.step("check-config", "Check the config against Config").dependOn(&check.step);
 
 | implementation | against the spec | against typesafe/config 1.4.9 |
 |---|---|---|
-| Java <sub>typesafe/config 1.4.9</sub> | 81.6% (478/586) | 100% (586/586) |
-| hocon2 <sub>hocon2 0.6.3</sub> | 79.5% (466/586) | 69.8% (409/586) |
-| pulse-pyhocon <sub>pulse-pyhocon 0.2.1</sub> | 63.8% (374/586) | 59.4% (348/586) |
-| py.hocon <sub>hocon-parser 1.14.2 (Python)</sub> | 78.0% (457/586) | 79.0% (463/586) |
-| pyhocon <sub>pyhocon 0.3.63</sub> | 61.3% (359/586) | 57.8% (339/586) |
-| rs.hocon <sub>hocon-parser 1.14.2 (Rust)</sub> | 77.5% (454/586) | 78.3% (459/586) |
-| zig-hocon <sub>zig-hocon code@bb2bd50</sub> | 100% (586/586) | 80.5% (472/586) |
+| Java <sub>typesafe/config 1.4.9</sub> | 81.6% (480/588) | 100% (588/588) |
+| hocon.rs <sub>hocon 0.9.0 (Rust)</sub> | 64.8% (381/588) | 65.8% (387/588) |
+| hocon2 <sub>hocon2 0.6.3</sub> | 79.3% (466/588) | 69.6% (409/588) |
+| pulse-pyhocon <sub>pulse-pyhocon 0.2.1</sub> | 63.6% (374/588) | 59.2% (348/588) |
+| py.hocon <sub>hocon-parser 1.14.2 (Python)</sub> | 78.1% (459/588) | 79.1% (465/588) |
+| pyhocon <sub>pyhocon 0.3.63</sub> | 61.1% (359/588) | 57.7% (339/588) |
+| rs.hocon <sub>hocon-parser 1.14.2 (Rust)</sub> | 77.6% (456/588) | 78.4% (461/588) |
+| zig-hocon <sub>zig-hocon code@732ac04</sub> | 100% (588/588) | 80.6% (474/588) |
 
 The table keeps the best parsers; the others measured, and why they are not in it: [conformance/README.md](conformance/README.md#not-in-the-table).
 
@@ -228,7 +229,7 @@ Every case, and what each implementation printed, is in **[the conformance repor
 ## Status
 
 - **Beta until 1.0.** The API can still change; each change is in [CHANGELOG.md](CHANGELOG.md), and what a version may change is in [CONTRIBUTING.md](CONTRIBUTING.md#versions).
-- **One maintainer, held by tests; more are welcome** ([CONTRIBUTING.md](CONTRIBUTING.md)). Every change runs the 586 cases of the conformance suite, each checking one sentence of the spec, the tests the C header and the Python package are held to, which only the maintainer edits, and a fuzzer over the parser.
+- **One maintainer, held by tests; more are welcome** ([CONTRIBUTING.md](CONTRIBUTING.md)). Every change runs the 588 cases of the conformance suite, each checking one sentence of the spec, the tests the C header and the Python package are held to, which only the maintainer edits, and a fuzzer over the parser.
 - **Yours to build.** Zig 0.16 and `zig build` give the library, libhocon for C and the command line tool; the suite says what a fork changed.
 
 ## What is in, what is out

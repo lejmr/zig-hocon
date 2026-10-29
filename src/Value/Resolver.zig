@@ -417,13 +417,23 @@ pub fn closeAt(state: *Resolver, i: usize) void {
 
 // A required ref closed a cycle at the i-th place in `visiting`: the last
 // optional that began after it is on the cycle, and it breaks there, unless a
-// field on the cycle can look back (`resolveOptional`).
+// field on the cycle can look back (`resolveOptional`). One in the middle of
+// its look-back cannot: the cycle runs through what it looks back at.
+// `d { z = ${?a.k} }`, `d.z += 5`, `a += ${d}`: ${?a.k} breaks it, d.z is [5].
 pub fn markBreaking(state: *Resolver, i: usize) void {
     const last = state.optionals.items.len;
     const looking_back = for (state.visiting.items[i + 1 ..]) |p| {
-        if (looksBackAt(state, p)) break true;
+        if (looksBackAt(state, p) and !busyAt(state, p)) break true;
     } else false;
     if (!looking_back and last > 0 and state.optionals.items[last - 1] > i) state.breaking = last - 1;
+}
+
+// Whether `place` is a field in the middle of looking back at its layers below.
+fn busyAt(state: *Resolver, place: *Value) bool {
+    for (state.fields.items) |f| {
+        if (f.place == place and f.progress == .busy) return true;
+    }
+    return false;
 }
 
 // Where `place` is in `visiting`, if it is there.
@@ -908,8 +918,9 @@ test "resolve.+= in a list element sees the value it overrides there" {
     try expectResolveError("a = [ { b = 1, b += 2 } ]", error.UnsupportedConcatenation);
 }
 
-// self-referential-examples/040, 043, 045–048 · java ✓ (all but the `f =
-// ${?a.t}` row, where it gives f = 1) · spec ✓ — the same lines in either
+// self-referential-examples/040, 043, 045–048, plus-equals-field-separator/
+// 032–033 · java ✓ (all but the `f = ${?a.t}` row, where it gives f = 1) ·
+// pyhocon ⚠️ (`d.z` is 5, not [5], on the last two) · spec ✓ — the same lines in either
 // order give the same values: an optional that leads back to its own field is
 // nonexistent (L716), and a target walked again inside a look-back keeps that
 // value (L886), whichever field is resolved first.
@@ -922,6 +933,9 @@ test "resolve.a cycle gives the same values in either order" {
         .{ "e += ${?c}\n", "c = ${e}\n", "{\"e\":[],\"c\":[]}" },
         .{ "a = [${p}]\n", "p = 1\np = ${a}\n", "{\"a\":[1],\"p\":[1]}" },
         .{ "d { a = ${i.b} }\n", "i.b = 7\ni = ${d}\n", "{\"d\":{\"a\":7},\"i\":{\"b\":7,\"a\":7}}" },
+        // d.z looking back is on the cycle, so it cannot break it: ${?a.k} does
+        .{ "d { z = ${?a.k} }\nd.z += 5\n", "a += ${d}\n", "{\"d\":{\"z\":[5]},\"a\":[{\"z\":[5]}]}" },
+        .{ "d { z = ${?a.k} }\na += ${d}\n", "d.z += 5\n", "{\"d\":{\"z\":[5]},\"a\":[{\"z\":[5]}]}" },
     };
     for (pairs) |p| {
         var arena = std.heap.ArenaAllocator.init(testing.allocator);

@@ -4,10 +4,10 @@
   "version": "typesafe/config 1.4.9",
   "mode": "spec",
   "command": "conformance/adapters/oracle.sh hocon-java",
-  "ran_at": "2026-10-27T21:11:37Z",
-  "suite_digest": "2752bb3bb30b03fc",
-  "total": 586,
-  "passed": 478,
+  "ran_at": "2026-10-29T06:57:56Z",
+  "suite_digest": "d3ebfb2f13a116b1",
+  "total": 588,
+  "passed": 480,
   "percent": 81.6,
   "sections": {
     "array-and-object-concatenation": {
@@ -99,8 +99,8 @@
       "passed": 7
     },
     "plus-equals-field-separator": {
-      "total": 31,
-      "passed": 15
+      "total": 33,
+      "passed": 17
     },
     "self-referential-examples": {
       "total": 77,
@@ -483,6 +483,8 @@
     "plus-equals-field-separator/029-number-and-list-appending-each-other-optionally-other-order.conf": "fail",
     "plus-equals-field-separator/030-append-reached-again-through-a-list-appends-once.conf": "pass",
     "plus-equals-field-separator/031-append-reached-again-through-a-list-appends-once-other-order.conf": "pass",
+    "plus-equals-field-separator/032-append-reached-again-with-no-list-before-appends-once.conf": "pass",
+    "plus-equals-field-separator/033-append-reached-again-with-no-list-before-appends-once-other-order.conf": "pass",
     "self-referential-examples/001-isolated-self-reference-is-an-error.conf": "pass",
     "self-referential-examples/002-self-reference-resolves-to-earlier-merged-value.conf": "pass",
     "self-referential-examples/003-self-reference-before-any-value-is-undefined.conf": "pass",
@@ -1237,7 +1239,7 @@
     {
       "case": "duplicate-keys-and-object-merging/029-substituted-object-hides-earlier-scalar.conf",
       "spec": "HOCON.md#duplicate-keys-and-object-merging",
-      "rule": "${x} is x's merged object {q:2}; the 5 below it is x's history, not a's, so a's two objects merge into {p:1, q:2}. The same rule as 010–017 with a scalar instead of null; typesafe/config 1.4.9 lets the 5 cut a's merge",
+      "rule": "${x} is x's merged object {q:2}; the 5 below it is x's history, not a's, so a's two objects merge into {p:1, q:2}. The same rule as 010\u2013017 with a scalar instead of null; typesafe/config 1.4.9 lets the 5 cut a's merge",
       "expected": {
         "x": {
           "q": 2

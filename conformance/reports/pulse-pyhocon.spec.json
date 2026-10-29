@@ -4,11 +4,11 @@
   "version": "pulse-pyhocon 0.2.1",
   "mode": "spec",
   "command": "pulse_pyhocon.parse_file: AstekGroup/pulse-pyhocon 0.2.1 (Rust/PyO3, falls back to pyhocon 0.3.63), HOCONConverter.to_json",
-  "ran_at": "2026-10-28T22:07:21Z",
-  "suite_digest": "2752bb3bb30b03fc",
-  "total": 586,
+  "ran_at": "2026-10-29T07:08:39Z",
+  "suite_digest": "d3ebfb2f13a116b1",
+  "total": 588,
   "passed": 374,
-  "percent": 63.8,
+  "percent": 63.6,
   "sections": {
     "array-and-object-concatenation": {
       "total": 23,
@@ -99,7 +99,7 @@
       "passed": 7
     },
     "plus-equals-field-separator": {
-      "total": 31,
+      "total": 33,
       "passed": 0
     },
     "self-referential-examples": {
@@ -483,6 +483,8 @@
     "plus-equals-field-separator/029-number-and-list-appending-each-other-optionally-other-order.conf": "fail",
     "plus-equals-field-separator/030-append-reached-again-through-a-list-appends-once.conf": "fail",
     "plus-equals-field-separator/031-append-reached-again-through-a-list-appends-once-other-order.conf": "fail",
+    "plus-equals-field-separator/032-append-reached-again-with-no-list-before-appends-once.conf": "fail",
+    "plus-equals-field-separator/033-append-reached-again-with-no-list-before-appends-once-other-order.conf": "fail",
     "self-referential-examples/001-isolated-self-reference-is-an-error.conf": "pass",
     "self-referential-examples/002-self-reference-resolves-to-earlier-merged-value.conf": "pass",
     "self-referential-examples/003-self-reference-before-any-value-is-undefined.conf": "fail",
@@ -2796,6 +2798,60 @@
       }
     },
     {
+      "case": "plus-equals-field-separator/032-append-reached-again-with-no-list-before-appends-once.conf",
+      "spec": "HOCON.md#the--field-separator",
+      "rule": "as 030 with no a : [] before a += ${d}: a += ${d} is a = ${?a} [${d}], its ${?a} finding nothing, and ${?a.k} leading back to d.z through a is still nonexistent (L716), so d.z is [5] and a is [{z: [5]}], d written before a",
+      "expected": {
+        "d": {
+          "z": [
+            5
+          ]
+        },
+        "a": [
+          {
+            "z": [
+              5
+            ]
+          }
+        ]
+      },
+      "got": {
+        "d": {
+          "z": 5
+        },
+        "a": {
+          "z": 5
+        }
+      }
+    },
+    {
+      "case": "plus-equals-field-separator/033-append-reached-again-with-no-list-before-appends-once-other-order.conf",
+      "spec": "HOCON.md#the--field-separator",
+      "rule": "as 032 with a += ${d} between d and d.z += 5: d.z is [5] and a is [{z: [5]}]",
+      "expected": {
+        "d": {
+          "z": [
+            5
+          ]
+        },
+        "a": [
+          {
+            "z": [
+              5
+            ]
+          }
+        ]
+      },
+      "got": {
+        "d": {
+          "z": 5
+        },
+        "a": {
+          "z": 5
+        }
+      }
+    },
+    {
       "case": "self-referential-examples/003-self-reference-before-any-value-is-undefined.conf",
       "spec": "HOCON.md#examples-of-self-referential-substitutions",
       "rule": "if the self-referential foo:${foo} comes before foo has any value, the reference is undefined, exactly as if it named a path not found in the document, so it is an error even though foo is given a value afterward",
@@ -3259,7 +3315,7 @@
         "a": "null bar"
       },
       "got": {
-        "a": "<pyhocon.config_tree.NoneValue object at 0x101973800>bar"
+        "a": "<pyhocon.config_tree.NoneValue object at 0x10a7bb920>bar"
       }
     },
     {

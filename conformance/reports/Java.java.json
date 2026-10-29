@@ -5,10 +5,10 @@
   "mode": "java",
   "java_version": "1.4.9",
   "command": "conformance/adapters/oracle.sh hocon-java",
-  "ran_at": "2026-10-27T21:12:52Z",
-  "suite_digest": "2752bb3bb30b03fc",
-  "total": 586,
-  "passed": 586,
+  "ran_at": "2026-10-29T07:02:48Z",
+  "suite_digest": "d3ebfb2f13a116b1",
+  "total": 588,
+  "passed": 588,
   "percent": 100.0,
   "sections": {
     "array-and-object-concatenation": {
@@ -100,8 +100,8 @@
       "passed": 7
     },
     "plus-equals-field-separator": {
-      "total": 31,
-      "passed": 31
+      "total": 33,
+      "passed": 33
     },
     "self-referential-examples": {
       "total": 77,
@@ -484,6 +484,8 @@
     "plus-equals-field-separator/029-number-and-list-appending-each-other-optionally-other-order.conf": "pass",
     "plus-equals-field-separator/030-append-reached-again-through-a-list-appends-once.conf": "pass",
     "plus-equals-field-separator/031-append-reached-again-through-a-list-appends-once-other-order.conf": "pass",
+    "plus-equals-field-separator/032-append-reached-again-with-no-list-before-appends-once.conf": "pass",
+    "plus-equals-field-separator/033-append-reached-again-with-no-list-before-appends-once-other-order.conf": "pass",
     "self-referential-examples/001-isolated-self-reference-is-an-error.conf": "pass",
     "self-referential-examples/002-self-reference-resolves-to-earlier-merged-value.conf": "pass",
     "self-referential-examples/003-self-reference-before-any-value-is-undefined.conf": "pass",

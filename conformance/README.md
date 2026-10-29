@@ -110,11 +110,10 @@ Drop your own result into `reports/` and the local report picks it up.
 
 ## Not in the table
 
-The published table keeps pyhocon, every Python parser of its own above 60 % against the spec, and the best Rust one. These were measured too and left out:
+The published table keeps pyhocon, every Python parser of its own above 60 % against the spec, the best Rust one, and `hocon`, the Rust crate of that name, measured with its strict loader (the default one never fails); its repository is archived since 2023, and non-ASCII whitespace makes it panic. These were measured too and left out:
 
-- **hocon-rs 0.2.0** (Rust, mikai233/hocon-rs): 446/586 (76.1 %) against the spec, behind rs.hocon (77.5 %).
-- **hocon 0.9.0** (Rust, mockersf/hocon.rs): 381/586 (65.0 %) with its strict loader; the default one never fails; the repository is archived since 2023, and non-ASCII whitespace makes it panic.
-- **hocon_** (Rust, pepa65): a republished fork of hocon 0.9.0, not measured on its own.
+- **hocon-rs 0.2.0** (Rust, mikai233/hocon-rs): 448/588 (76.2 %) against the spec, behind rs.hocon (77.6 %).
+- **hocon_** (Rust, pepa65): a republished fork of `hocon` 0.9.0, not measured on its own.
 - **pyhocon-fix 0.0.4** (Python, 2018) and **dd-pyhocon 0.3.61** (Python, 2023): forks of pyhocon, within two cases of it on the 445-case suite of 2026-10-18 (316 and 314), not measured again; dd-pyhocon hangs on one merge-stack case.
 - Not parsers of their own: `hocon` 0.3.0, `hocon-validator`, `pytyped-hocon`, `pyhocon-dantic` and `dataconf` wrap pyhocon; `atomr` (Rust/PyO3) builds its `Config` from TOML or a dict and parses no HOCON; chris-martin/hocon-python (2015) is an unfinished port of typesafe/config.
 

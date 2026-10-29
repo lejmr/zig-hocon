@@ -5,11 +5,11 @@
   "mode": "java",
   "java_version": "1.4.9",
   "command": "pure Python, PyPI hocon2 0.6.3 (myjniak/hocon): parse the file, the tree as JSON",
-  "ran_at": "2026-10-28T22:08:41Z",
-  "suite_digest": "2752bb3bb30b03fc",
-  "total": 586,
+  "ran_at": "2026-10-29T07:09:51Z",
+  "suite_digest": "d3ebfb2f13a116b1",
+  "total": 588,
   "passed": 409,
-  "percent": 69.8,
+  "percent": 69.6,
   "sections": {
     "array-and-object-concatenation": {
       "total": 23,
@@ -100,7 +100,7 @@
       "passed": 7
     },
     "plus-equals-field-separator": {
-      "total": 31,
+      "total": 33,
       "passed": 9
     },
     "self-referential-examples": {
@@ -484,6 +484,8 @@
     "plus-equals-field-separator/029-number-and-list-appending-each-other-optionally-other-order.conf": "fail",
     "plus-equals-field-separator/030-append-reached-again-through-a-list-appends-once.conf": "fail",
     "plus-equals-field-separator/031-append-reached-again-through-a-list-appends-once-other-order.conf": "fail",
+    "plus-equals-field-separator/032-append-reached-again-with-no-list-before-appends-once.conf": "fail",
+    "plus-equals-field-separator/033-append-reached-again-with-no-list-before-appends-once-other-order.conf": "fail",
     "self-referential-examples/001-isolated-self-reference-is-an-error.conf": "pass",
     "self-referential-examples/002-self-reference-resolves-to-earlier-merged-value.conf": "pass",
     "self-referential-examples/003-self-reference-before-any-value-is-undefined.conf": "pass",
@@ -2301,6 +2303,64 @@
         ]
       },
       "got": "rejected (exit 1)"
+    },
+    {
+      "case": "plus-equals-field-separator/032-append-reached-again-with-no-list-before-appends-once.conf",
+      "spec": "HOCON.md#the--field-separator",
+      "rule": "as 030 with no a : [] before a += ${d}: a += ${d} is a = ${?a} [${d}], its ${?a} finding nothing, and ${?a.k} leading back to d.z through a is still nonexistent (L716), so d.z is [5] and a is [{z: [5]}], d written before a",
+      "expected": {
+        "d": {
+          "z": [
+            5
+          ]
+        },
+        "a": [
+          {
+            "z": [
+              5
+            ]
+          }
+        ]
+      },
+      "got": {
+        "d": {
+          "z": [
+            5
+          ]
+        },
+        "a": [
+          {}
+        ]
+      }
+    },
+    {
+      "case": "plus-equals-field-separator/033-append-reached-again-with-no-list-before-appends-once-other-order.conf",
+      "spec": "HOCON.md#the--field-separator",
+      "rule": "as 032 with a += ${d} between d and d.z += 5: d.z is [5] and a is [{z: [5]}]",
+      "expected": {
+        "d": {
+          "z": [
+            5
+          ]
+        },
+        "a": [
+          {
+            "z": [
+              5
+            ]
+          }
+        ]
+      },
+      "got": {
+        "d": {
+          "z": [
+            5
+          ]
+        },
+        "a": [
+          {}
+        ]
+      }
     },
     {
       "case": "self-referential-examples/015-list-hidden-by-substituted-object-is-never-evaluated.conf",
