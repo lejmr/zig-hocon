@@ -1,12 +1,12 @@
 {
   "suite": "hocon-conformance",
   "implementation": "zig-hocon",
-  "version": "zig-hocon code@d3af388",
+  "version": "zig-hocon code@e796dad",
   "mode": "java",
   "java_version": "1.4.9",
   "command": "conformance/adapters/zig-hocon.sh",
-  "ran_at": "2026-10-29T14:29:52Z",
-  "suite_digest": "784759bd15d73e25",
+  "ran_at": "2026-10-29T14:43:24Z",
+  "suite_digest": "9386b145bcf02f4c",
   "total": 588,
   "passed": 479,
   "percent": 81.5,
@@ -802,6 +802,7 @@
     "self-referential-examples/032-field-hidden-inside-object-concatenation.conf": "{\"base\":{},\"child\":{\"foo\":\"x\"}}",
     "self-referential-examples/036-alias-path-read-inside-a-look-back.conf": "{\"p\":\"x\",\"a\":\"x\"}",
     "self-referential-examples/042-optional-on-a-cycle-through-another-field.conf": "{\"o\":{\"h\":0},\"a\":{\"n\":{\"h\":0}},\"b\":{\"n\":{\"h\":0}}}",
+    "self-referential-examples/043-two-optionals-on-one-cycle.conf": "{\"f\":\"x\",\"a\":{\"t\":1},\"y\":{\"t\":1}}",
     "self-referential-examples/052-hidden-list-concatenation-with-an-undefined-path.conf": "{\"wrapper\":{\"a\":1}}",
     "self-referential-examples/053-hidden-list-concatenation-makes-no-cycle.conf": "{\"x\":{\"b\":true},\"k\":[{\"b\":true}]}",
     "self-referential-examples/055-undefined-optional-under-a-path-still-hides.conf": "{\"w\":{}}",
@@ -1717,7 +1718,7 @@
     {
       "case": "plus-equals-field-separator/024-alias-read-inside-an-append-look-back.conf",
       "spec": "HOCON.md#the--field-separator",
-      "rule": "e's last value reaches e again through c, so it is self-referential and looks back at the first e += ${?c}, whose own ${?c} leads back to e and is nonexistent: c is [] there, and keeps it, as a substitution is resolved once, so e is [[]]. Or c is an alias for the final e, every optional on the cycle nonexistent: [] both (also_valid), as in self-referential-examples/035 and 065",
+      "rule": "e's last value reaches e again through c, so it is self-referential and looks back at the first e += ${?c}, whose own ${?c} leads back to e and is nonexistent: c is [] there, and keeps it, as a substitution is resolved once, so e is [[]]. Or c is an alias for the final e, every optional on the cycle nonexistent: [] both (also_valid), as in self-referential-examples/035 and 065. The order the fields resolve in is undefined, so an error is allowed too (L866-881).",
       "expected": {
         "c": [],
         "e": []
@@ -1928,7 +1929,7 @@
     {
       "case": "self-referential-examples/059-alias-read-inside-a-layer-under-an-object.conf",
       "spec": "HOCON.md#examples-of-self-referential-substitutions",
-      "rule": "f's ${?a} is resolved to see whether it merges with the object over it, and reaches f again through a: from that layer f has nothing below (L659), so a's ${?f.z} finds nothing there, and keeps that, as a substitution is resolved once (L886): a is no field, as in 035 and 065. Or a is an alias for the final f.z, the object's 3 (also_valid)",
+      "rule": "f's ${?a} is resolved to see whether it merges with the object over it, and reaches f again through a: from that layer f has nothing below (L659), so a's ${?f.z} finds nothing there, and keeps that, as a substitution is resolved once (L886): a is no field, as in 035 and 065. Or a is an alias for the final f.z, the object's 3 (also_valid). The order the fields resolve in is undefined, so an error is allowed too (L866-881).",
       "expected": {
         "a": 3,
         "f": {
@@ -1962,7 +1963,7 @@
     {
       "case": "self-referential-examples/065-alias-read-inside-a-concatenation-look-back.conf",
       "spec": "HOCON.md#examples-of-self-referential-substitutions",
-      "rule": "e's last value reaches e again through c, so it is self-referential and looks back at e = x${?c}, whose own ${?c} leads back to e and is nonexistent: c is \"x\" there, and keeps it, as a substitution is resolved once, so e is \"xyx\". Or c is an alias for the final e, the optionals on the cycle nonexistent: \"xy\" both (also_valid), as in 035",
+      "rule": "e's last value reaches e again through c, so it is self-referential and looks back at e = x${?c}, whose own ${?c} leads back to e and is nonexistent: c is \"x\" there, and keeps it, as a substitution is resolved once, so e is \"xyx\". Or c is an alias for the final e, the optionals on the cycle nonexistent: \"xy\" both (also_valid), as in 035. The order the fields resolve in is undefined, so an error is allowed too (L866-881).",
       "expected": {
         "c": "xy",
         "e": "xy"

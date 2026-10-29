@@ -1,14 +1,14 @@
 {
   "suite": "hocon-conformance",
   "implementation": "zig-hocon",
-  "version": "zig-hocon code@d3af388",
+  "version": "zig-hocon code@e796dad",
   "mode": "spec",
   "command": "conformance/adapters/zig-hocon.sh",
-  "ran_at": "2026-10-29T14:29:47Z",
-  "suite_digest": "784759bd15d73e25",
+  "ran_at": "2026-10-29T14:43:19Z",
+  "suite_digest": "9386b145bcf02f4c",
   "total": 588,
-  "passed": 575,
-  "percent": 97.8,
+  "passed": 574,
+  "percent": 97.6,
   "sections": {
     "array-and-object-concatenation": {
       "total": 23,
@@ -104,7 +104,7 @@
     },
     "self-referential-examples": {
       "total": 77,
-      "passed": 74
+      "passed": 73
     },
     "self-referential-substitutions": {
       "total": 8,
@@ -527,7 +527,7 @@
     "self-referential-examples/040-optional-back-to-its-own-object-in-a-concatenation.conf": "pass",
     "self-referential-examples/041-optional-back-to-its-own-object-makes-no-field.conf": "pass",
     "self-referential-examples/042-optional-on-a-cycle-through-another-field.conf": "pass",
-    "self-referential-examples/043-two-optionals-on-one-cycle.conf": "pass",
+    "self-referential-examples/043-two-optionals-on-one-cycle.conf": "fail",
     "self-referential-examples/044-optional-on-a-cycle-makes-no-field.conf": "pass",
     "self-referential-examples/045-optional-in-a-concatenation-on-a-cycle.conf": "pass",
     "self-referential-examples/046-plus-equals-of-an-optional-on-a-cycle.conf": "pass",
@@ -801,6 +801,7 @@
     "self-referential-examples/032-field-hidden-inside-object-concatenation.conf": "{\"base\":{},\"child\":{\"foo\":\"x\"}}",
     "self-referential-examples/036-alias-path-read-inside-a-look-back.conf": "{\"p\":\"x\",\"a\":\"x\"}",
     "self-referential-examples/042-optional-on-a-cycle-through-another-field.conf": "{\"o\":{\"h\":0},\"a\":{\"n\":{\"h\":0}},\"b\":{\"n\":{\"h\":0}}}",
+    "self-referential-examples/043-two-optionals-on-one-cycle.conf": "{\"f\":\"x\",\"a\":{\"t\":1},\"y\":{\"t\":1}}",
     "self-referential-examples/052-hidden-list-concatenation-with-an-undefined-path.conf": "{\"wrapper\":{\"a\":1}}",
     "self-referential-examples/053-hidden-list-concatenation-makes-no-cycle.conf": "{\"x\":{\"b\":true},\"k\":[{\"b\":true}]}",
     "self-referential-examples/055-undefined-optional-under-a-path-still-hides.conf": "{\"w\":{}}",
@@ -951,6 +952,30 @@
         "c": [],
         "d": "1"
       }
+    },
+    {
+      "case": "self-referential-examples/043-two-optionals-on-one-cycle.conf",
+      "spec": "HOCON.md#examples-of-self-referential-substitutions",
+      "rule": "Resolving f first, a's ${?f} closes the cycle and is missing, so a is {t: 1} and f is a.t then x, \"1x\". Resolving a first, f's ${?a.t} closes it, f is \"x\", and a is the object {t: 1} followed by the text \"x\", an error (L373-374, L384-385). f = \"x\" together with a = {t: 1} needs both optionals missing at once, which no order gives: a cycle is broken by removing one of its links (L660-661), the optional that closes it (L714-716), and the order is undefined, so either result or an error is allowed (L866-881). typesafe/config gives f = \"x\", a = {t: 1}; in 044, the same cycle without the x, it gives f = 1",
+      "expected": {
+        "f": "1x",
+        "a": {
+          "t": 1
+        },
+        "y": {
+          "t": 1
+        }
+      },
+      "got": {
+        "f": "x",
+        "a": {
+          "t": 1
+        },
+        "y": {
+          "t": 1
+        }
+      },
+      "java": "diverges"
     },
     {
       "case": "self-referential-examples/057-optionals-leading-back-to-each-other-depend-on-the-order.conf",
