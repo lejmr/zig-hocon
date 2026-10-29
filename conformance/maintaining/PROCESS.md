@@ -68,7 +68,7 @@ So one suite answers two questions. Score a column against `expect` and it says 
 Invariants a row must satisfy, checked by `conformance/maintaining/fill-expected.py --check`:
 
 - `java_expect` / `java_error` appear only together with `java`.
-- without `java`, `expect` must equal what the oracle produces — otherwise someone edited a row by hand without declaring a divergence.
+- without `java`, the oracle must match `expect` or an entry of `also_valid` (including `"rejected"` for an error) — otherwise someone edited a row by hand without declaring a divergence. When the spec allows more than one answer, typesafe/config's result sits in `also_valid` and there is no `java` marker: that is not a divergence, it is one of the allowed readings (L866-881).
 
 ## Stage 3 cannot fill an unsupported row
 

@@ -360,10 +360,11 @@ pub fn resolveRef(state: *Resolver, r: Ref, on_top: bool) Error!?Value {
 // when a ref further on is the one that came round. `v { x = ${?r} }`,
 // `r = ${v}` is `v = {}` whichever field is resolved first.
 //
-// One that led back to the field it stands in, through a cycle another
-// optional on the way broke, is nonexistent as well (spec L716: "If ${?foo}
-// refers to itself then it's as if it referred to a nonexistent value"), so
-// `f = ${?a.t}x`, `a = ${?y}${?f}` is `f = "x"` whichever field goes first.
+// One that closes a cycle is nonexistent as well (L714-716), memoized per
+// instance (L884-888); the order two fields resolve in is undefined
+// (L866-881). `f = ${?a.t}x`, `a = ${?y}${?f}` is `f = "1x"` when f goes
+// first, an error when a does (043); both optionals missing at once
+// (`f = "x"`) comes from no order.
 noinline fn resolveOptional(state: *Resolver, r: Ref, on_top: bool) Error!?Value {
     // Outside the cycle it was found on, it stays nonexistent; while the
     // place that cycle closed at is being resolved again, following it

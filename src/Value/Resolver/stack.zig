@@ -315,10 +315,12 @@ pub fn seen(state: *Resolver, place: *Value, ref: Ref, whole: bool) Error!?*Valu
                     return again;
                 }
                 // An optional one is on the cycle too: it, and an optional
-                // that led here from the field, are nonexistent (spec L716),
-                // `a += ${?b}`, `b += ${?a}` is two empty lists. Inside the
-                // field's own look-back, only it: `c += ${y}`, `c += 2`,
-                // `y = [1, ${?c}]` is `c = [[1], 2]`, as for `.busy`.
+                // that led here from the field, are nonexistent (L714-716),
+                // memoized (L884-888). `a += ${?b}`, `b += ${?a}` is one
+                // order's result or the other (or an error), not both lists
+                // empty (026, 057). Inside the field's own look-back, only
+                // it: `c += ${y}`, `c += 2`, `y = [1, ${?c}]` is
+                // `c = [[1], 2]`, as for `.busy`.
                 if (ref.flags.optional) {
                     if (lookingBack(state, i)) {
                         state.cycles += 1;

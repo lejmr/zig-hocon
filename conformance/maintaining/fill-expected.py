@@ -23,6 +23,28 @@ import suite
 ORACLE = suite.ROOT / "tools" / "oracle" / "hocon-java"
 
 
+def same(got, want):
+    """JSON equality as run.sh scores it: bools stay bools, objects ignore key order."""
+    if isinstance(got, bool) or isinstance(want, bool):
+        return type(got) is type(want) and got == want
+    if isinstance(got, dict) and isinstance(want, dict):
+        return got.keys() == want.keys() and all(same(got[k], want[k]) for k in got)
+    if isinstance(got, list) and isinstance(want, list):
+        return len(got) == len(want) and all(map(same, got, want))
+    return got == want
+
+
+def oracle_among_allowed(answer, meta):
+    """True when the oracle's output is expect, an also_valid value, or a rejected slot."""
+    also = meta.get("also_valid", [])
+    if answer.startswith("ERROR"):
+        return "rejected" in also or ("error" in meta and "expect" not in meta)
+    if "expect" not in meta:
+        return False
+    got = json.loads(answer)
+    return same(got, meta["expect"]) or any(a != "rejected" and same(got, a) for a in also)
+
+
 def main(argv):
     check = "--check" in argv
     targets = [a for a in argv if not a.startswith("--")] or ["conformance"]
@@ -82,6 +104,10 @@ def main(argv):
                 want["java_error"] = answer[len("ERROR "):].split(":", 1)[0]
             else:
                 want["java_expect"] = json.loads(answer)
+        elif oracle_among_allowed(answer, meta):
+            # expect / also_valid already cover the oracle (order-undefined rows
+            # among them); leave stage 5's reading alone
+            pass
         elif answer.startswith("ERROR"):
             # the oracle refusing an input does not say whether the input is illegal
             # per spec or merely unimplemented — only a reader of the spec can tell
@@ -100,10 +126,13 @@ def main(argv):
         if "java" in want:
             kind, complaint = want["java"], None
             spec_value, java_value = "expect" in want, "java_expect" in want
+            also = [a for a in want.get("also_valid", []) if a != "rejected"]
             if kind == "diverges" and not (spec_value and java_value):
                 complaint = "java:diverges means both sides produce a value — one of them does not"
             elif kind == "diverges" and want["expect"] == want["java_expect"]:
                 complaint = "java:diverges but the two values are identical"
+            elif kind == "diverges" and java_value and any(same(want["java_expect"], a) for a in also):
+                complaint = "java:diverges but java_expect is already in also_valid — drop the java marker"
             elif kind == "unsupported" and not (spec_value and "java_error" in want):
                 complaint = "java:unsupported means the spec requires a value java refuses to produce"
             elif kind == "lenient" and not ("error" in want and java_value):
