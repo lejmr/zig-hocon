@@ -1,11 +1,11 @@
 {
   "suite": "hocon-conformance",
   "implementation": "zig-hocon",
-  "version": "zig-hocon code@98e3825",
+  "version": "zig-hocon code@563ee0c",
   "mode": "java",
   "java_version": "1.4.9",
   "command": "conformance/adapters/zig-hocon.sh",
-  "ran_at": "2026-10-29T08:42:08Z",
+  "ran_at": "2026-10-29T09:07:23Z",
   "suite_digest": "d3ebfb2f13a116b1",
   "total": 588,
   "passed": 474,

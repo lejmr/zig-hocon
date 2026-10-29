@@ -15,6 +15,8 @@ The modules are pyhocon's: ``config_parser`` (ConfigFactory), ``config_tree``
 (ConfigTree), ``exceptions``; and ``units`` for durations and sizes.
 """
 
+import importlib.metadata
+
 from .config_parser import KEEP, ConfigFactory
 from .config_tree import ConfigTree
 from .exceptions import (
@@ -41,3 +43,10 @@ __all__ = [
     "parse_int",
     "parse_period",
 ]
+
+try:
+    # What the build wrote into the package's metadata, a wheel's or pip's.
+    __version__ = importlib.metadata.version("zig-hocon")
+except importlib.metadata.PackageNotFoundError:
+    # python/ on the path, a checkout no build has gone through
+    __version__ = "0+checkout"
