@@ -4,7 +4,7 @@
     "include-semantics-substitution.1",
     "examples-of-self-referential-substitutions.6"
   ],
-  "why": "A self-reference looks back at the field's own earlier value (L747-749), here at its fixed-up path; the fallback to the original path is for an included file that \"might intend to refer to the application's root config\" (L1043-1047), which a field referring to itself does not. typesafe/config reads it so: b = ${?b} included in a has nothing below it at a.b, so it \"just disappears silently\" (L776), and the root's b {} is not taken: a is {}. lightbend/config#863 keeps a swallowed cycle from falling back to the root, so this row stays as it is.",
+  "why": "Settled (Readings, half b): a self-reference looks back at the fixed-up path only; the original-path fallback is for the application root (L1043-1047), which a field referring to itself does not — unlike 009/011/014, where an optional vanishes without a cycle and the root must still be tried. A self-reference looks back at the field's own earlier value (L747-749), here at its fixed-up path; the fallback to the original path is for an included file that \"might intend to refer to the application's root config\" (L1043-1047), which a field referring to itself does not. typesafe/config reads it so: b = ${?b} included in a has nothing below it at a.b, so it \"just disappears silently\" (L776), and the root's b {} is not taken: a is {}. lightbend/config#863 keeps a swallowed cycle from falling back to the root, so this row stays as it is.",
   "expect": {
     "a": {},
     "b": {}
