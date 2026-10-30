@@ -6,17 +6,15 @@
     "substitutions.17",
     "unquoted-strings.9"
   ],
-  "why": "as 028 with c written first: c is [], d is \"1\"",
+  "why": "028 with c written first: c [1] and d 1 when c is resolved first, an error when d is. c = [] together with d = 1 comes out of no order: the spec leaves the order two fields resolve in undefined and allows either result or an error (L866-881); a cycle is broken by removing one of its links (L660-661), the optional that closes it, which is then missing (L714-716), and its result is memoized (L884-888)",
   "expect": {
-    "c": [],
-    "d": "1"
-  },
-  "resolve": true,
-  "java": "diverges",
-  "java_expect": {
     "c": [
       1
     ],
     "d": 1
-  }
+  },
+  "resolve": true,
+  "also_valid": [
+    "rejected"
+  ]
 }

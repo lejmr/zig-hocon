@@ -1,7 +1,7 @@
 {
   "spec": "HOCON.md#include-semantics-substitution",
   "rule": "include-semantics-substitution.1",
-  "why": "an undefined ${?nope} means common.x.y is never created, so ${x.y} is not found at the fixed-up path and is looked up at the original path x.y. typesafe/config treats the vanished value as a miss that ends the lookup -- except in some root key orders (see 014); lightbend/config#863 falls back",
+  "why": "Settled (Readings): an undefined ${?nope} means common.x.y is never created, so ${x.y} is not found at the fixed-up path and must be looked up at the original path x.y (L1045-1049) — with root x.y = 0, a is 0. typesafe/config treats the vanished value as a miss that ends the lookup (UnresolvedSubstitution), and in some root key orders it even succeeds (see 014): a bug, not HOCON. lightbend/config#863 (open) retries the including root, matching this expect; self-ref/cycle rows 025–028 stay without that fallback.",
   "expect": {
     "common": {
       "x": {},

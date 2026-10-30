@@ -5,7 +5,7 @@
     "examples-of-self-referential-substitutions.22",
     "examples-of-self-referential-substitutions.27"
   ],
-  "why": "as 065 with c written first: c is \"x\", e is \"xyx\", or \"xy\" both (also_valid)",
+  "why": "as 065 with c written first: c is \"x\", e is \"xyx\", or \"xy\" both (also_valid). The order the fields resolve in is undefined, so an error is allowed too (L866-881), as on 065.",
   "expect": {
     "c": "x",
     "e": "xyx"
@@ -15,11 +15,7 @@
     {
       "c": "xy",
       "e": "xy"
-    }
-  ],
-  "java": "diverges",
-  "java_expect": {
-    "c": "xy",
-    "e": "xy"
-  }
+    },
+    "rejected"
+  ]
 }

@@ -5,17 +5,21 @@
     "self-referential-substitutions.13",
     "substitutions.17"
   ],
-  "why": "a's ${?b} leads back to a through b's ${?a}, and the other way round, so each is nonexistent (L716) whichever field is resolved first: both lists are empty, as for the list form in self-referential-examples/057. typesafe/config keeps the one it met second",
+  "why": "a += ${?b} is a = ${?a} [${?b}], b likewise. Resolving a first, b's ${?a} closes the cycle and is missing, so b is [] and a is [[]] (typesafe/config); resolving b first gives the mirror image. Both lists empty comes out of no order: the spec leaves the order two fields resolve in undefined and allows either result or an error (L866-881); a cycle is broken by removing one of its links (L660-661), the optional that closes it, which is then missing (L714-716), and its result is memoized (L884-888). The list form is self-referential-examples/057",
   "expect": {
-    "a": [],
-    "b": []
-  },
-  "resolve": true,
-  "java": "diverges",
-  "java_expect": {
     "a": [
       []
     ],
     "b": []
-  }
+  },
+  "resolve": true,
+  "also_valid": [
+    {
+      "a": [],
+      "b": [
+        []
+      ]
+    },
+    "rejected"
+  ]
 }

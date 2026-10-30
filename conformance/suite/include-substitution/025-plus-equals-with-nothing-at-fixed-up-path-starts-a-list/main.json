@@ -1,0 +1,20 @@
+{
+  "spec": "HOCON.md#include-semantics-substitution",
+  "rule": [
+    "include-semantics-substitution.6",
+    "the--field-separator.2",
+    "self-referential-substitutions.13"
+  ],
+  "why": "Settled (Readings, half b): a self-reference looks back at the fixed-up path only — the original-path fallback is for the application root (L1043-1047), not for a field referring to itself — unlike 009/011/014, where an optional vanishes without a cycle and the root must still be tried. typesafe/config reads it so: a += 2 included at k is k.a = ${?k.a} [2], k.a has no earlier value, and the root's unrelated a = [1] is not looked at: k.a is [2]. lightbend/config#863 keeps a swallowed cycle from falling back to the root, so this row stays as it is.",
+  "expect": {
+    "a": [
+      1
+    ],
+    "k": {
+      "a": [
+        2
+      ]
+    }
+  },
+  "resolve": true
+}

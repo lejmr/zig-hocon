@@ -1,0 +1,16 @@
+{
+  "spec": "HOCON.md#substitutions",
+  "rule": [
+    "substitutions.24",
+    "substitutions.18",
+    "string-value-concatenation.10"
+  ],
+  "why": "An undefined ${?x} next to one other value adds nothing: it becomes an empty string only \"as part of a value concatenation with another string\" (L636-637), \"a single value is never converted to a string\" (L376), and two undefined optionals make no field at all (L640-642), so what is left is the other value with its type, as typesafe/config reads it: [${?x}10, 1.50${?x}] is [10, 1.5].",
+  "expect": {
+    "a": [
+      10,
+      1.5
+    ]
+  },
+  "resolve": true
+}

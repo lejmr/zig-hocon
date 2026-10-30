@@ -122,7 +122,7 @@ flowchart TD
 
 - `absent` means "not in the document", and only that goes on to the environment. `gone` means an optional on a cycle: the field is in the document, so no variable is read.
 - A self-reference with nothing below it is `absent`, so it reads the variable of its own name (L767). An anchored path never does.
-- **Rule R** (`closed`): an optional whose resolution leads back to the field it stands in, directly or through other fields (L673), is nonexistent (L716), whichever field is resolved first. `f = ${?a.t}x`, `a = ${?y}${?f}` gives `f = "x"`; `b = [${?a}]`, `a = [${?b}]` gives two empty lists (057).
+- **Rule R** (`closed`): an optional that closes a cycle is nonexistent (L714-716), memoized per substitution instance (L884-888). The order two fields resolve in is undefined, so either order's result or an error is allowed (L866-881): resolving f first in `f = ${?a.t}x`, `a = ${?y}${?f}` gives `f = "1x"` (043); resolving a first is an error. `b = [${?a}]`, `a = [${?b}]` is `a = []`, `b = [[]]` or the mirror, not both lists empty (057). Both optionals missing at once comes from no order.
 
 ## 5 · lookup, seen and resolveTarget: a path and the cycles on it
 

@@ -1,7 +1,7 @@
 {
   "spec": "HOCON.md#include-semantics-substitution",
   "rule": "include-semantics-substitution.1",
-  "why": "an unrelated key that reads common.x must not change what common.a resolves to; in typesafe/config this input fails while the same input with the key named o24bbd resolves to 0 (lightbend/config#863)",
+  "why": "Settled (Readings): an unrelated key that reads common.x must not change what common.a resolves to — same fallback as 009 (L1045-1049). In typesafe/config 1.4.9 this input fails (UnresolvedSubstitution) while the same input with the observer key named o24bbd resolves to 0: key order decides the result. That is a bug; lightbend/config#863 makes every order give a = 0, as here.",
   "expect": {
     "common": {
       "x": {},

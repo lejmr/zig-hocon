@@ -5,7 +5,7 @@
     "substitutions.18",
     "unchanged-from-json.4"
   ],
-  "why": "${?n}01 is a concatenation of two parts, so it is a string (042), and 01 is no JSON number anyway: \"01\". typesafe/config and pyhocon drop the undefined part and read the number 1",
+  "why": "An undefined ${?n} next to one other value adds nothing (substitutions/039): ${?n}01 is 01 alone. Settled number-like reading (Readings): 01 is no JSON number, so it is the text \"01\" (unchanged-from-json/009), not an L272 error and not typesafe/config's lenient 1 (java: diverges — tokenizer biproduct, see lightbend/config#861 out of scope).",
   "expect": {
     "a": "01"
   },

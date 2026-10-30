@@ -5,16 +5,23 @@
     "self-referential-substitutions.13",
     "the--field-separator.5"
   ],
-  "why": "b.k.k's ${?e} leads to e.k, whose ${?b} leads back into b, the object holding b.k.k: both optionals are on the cycle and nonexistent (L716), so e.k is no field and e is {}, and b.k.k is ${?d} appended to nothing, []. Whichever field is resolved first (077). typesafe/config concatenates e's {} with the list and fails",
+  "why": "b.k.k's look-back ${?e} leads to e.k = ${?b}, back into b. Resolving e first, ${?e} closes the cycle and is missing, so b.k.k appends ${?d} to nothing, [], and e.k is b: e {k: {k: {k: []}}}. Resolving b first, ${?b} closes it: e.k is no field, e is {} (L523-526), and b.k.k is {} followed by a list, an error (L731-733), as typesafe/config reports. e = {} with b.k.k = [] comes out of no order: the spec leaves the order two fields resolve in undefined and allows either result or an error (L866-881); a cycle is broken by removing one of its links (L660-661), the optional that closes it, which is then missing (L714-716), and its result is memoized (L884-888)",
   "expect": {
+    "e": {
+      "k": {
+        "k": {
+          "k": []
+        }
+      }
+    },
     "b": {
       "k": {
         "k": []
       }
-    },
-    "e": {}
+    }
   },
   "resolve": true,
-  "java": "unsupported",
-  "java_error": "WrongType"
+  "also_valid": [
+    "rejected"
+  ]
 }

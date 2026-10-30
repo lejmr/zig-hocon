@@ -5,8 +5,22 @@
     "self-referential-substitutions.13",
     "examples-of-self-referential-substitutions.27"
   ],
-  "why": "each optional leads back to the field it stands in, ${?a.t} through a and ${?f} through f, so each is as if it referred to a nonexistent value, whichever field is resolved first: f is \"x\" and a is y's {t: 1}",
+  "why": "Resolving f first, a's ${?f} closes the cycle and is missing, so a is {t: 1} and f is a.t then x, \"1x\". Resolving a first, f's ${?a.t} closes it, f is \"x\", and a is the object {t: 1} followed by the text \"x\", an error (L373-374, L384-385). The order is undefined, so either result or an error is allowed (L866-881). typesafe/config 1.4.9 gives f = \"x\", a = {t: 1}: it takes a first, then silently drops the text next to the object — the same leniency as string-value-concatenation/010 and 015; lightbend/config#862 (on main) makes that a WrongType, which is the rejected outcome already in also_valid. In 044, the same cycle without the x, it gives f = 1",
   "expect": {
+    "f": "1x",
+    "a": {
+      "t": 1
+    },
+    "y": {
+      "t": 1
+    }
+  },
+  "resolve": true,
+  "also_valid": [
+    "rejected"
+  ],
+  "java": "diverges",
+  "java_expect": {
     "f": "x",
     "a": {
       "t": 1
@@ -15,5 +29,8 @@
       "t": 1
     }
   },
-  "resolve": true
+  "java_since": {
+    "version": "main",
+    "by": "lightbend/config#862"
+  }
 }

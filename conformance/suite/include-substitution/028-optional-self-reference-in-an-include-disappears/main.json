@@ -1,0 +1,13 @@
+{
+  "spec": "HOCON.md#include-semantics-substitution",
+  "rule": [
+    "include-semantics-substitution.1",
+    "examples-of-self-referential-substitutions.6"
+  ],
+  "why": "Settled (Readings, half b): a self-reference looks back at the fixed-up path only — unlike 009/011/014 (optional vanishes → still try the root). typesafe/config reads it so: b = ${?b} included in a has nothing below it at a.b, so it \"just disappears silently\" (L776), and the root's b {} is not taken: a is {}. lightbend/config#863 keeps a swallowed cycle from falling back to the root, so this row stays as it is.",
+  "expect": {
+    "a": {},
+    "b": {}
+  },
+  "resolve": true
+}

@@ -5,17 +5,21 @@
     "self-referential-substitutions.13",
     "substitutions.17"
   ],
-  "why": "as 026 with b written first: both []",
+  "why": "026 with b written first. Resolving b first, a's ${?b} closes the cycle and is missing, so a is [] and b is [[]]; resolving a first gives a [[]] and b [] (typesafe/config). Both lists empty comes out of no order: the spec leaves the order two fields resolve in undefined and allows either result or an error (L866-881); a cycle is broken by removing one of its links (L660-661), the optional that closes it, which is then missing (L714-716), and its result is memoized (L884-888)",
   "expect": {
-    "b": [],
+    "b": [
+      []
+    ],
     "a": []
   },
   "resolve": true,
-  "java": "diverges",
-  "java_expect": {
-    "a": [
-      []
-    ],
-    "b": []
-  }
+  "also_valid": [
+    {
+      "a": [
+        []
+      ],
+      "b": []
+    },
+    "rejected"
+  ]
 }

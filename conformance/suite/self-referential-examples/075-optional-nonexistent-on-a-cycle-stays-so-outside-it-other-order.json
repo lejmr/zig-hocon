@@ -5,7 +5,7 @@
     "self-referential-substitutions.13",
     "examples-of-self-referential-substitutions.27"
   ],
-  "why": "074 with f first: e is [y] and f is [y] again",
+  "why": "074 with f written first: e [y] and f [y] when f is resolved first, an error (typesafe/config) when e is: the spec leaves the order two fields resolve in undefined and allows either result or an error (L866-881); a cycle is broken by removing one of its links (L660-661), the optional that closes it, which is then missing (L714-716), and its result is memoized (L884-888)",
   "expect": {
     "e": [
       "y"
@@ -15,6 +15,7 @@
     ]
   },
   "resolve": true,
-  "java": "unsupported",
-  "java_error": "UnresolvedSubstitution"
+  "also_valid": [
+    "rejected"
+  ]
 }

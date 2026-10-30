@@ -5,7 +5,7 @@
     "path-expressions.10",
     "unquoted-strings.9"
   ],
-  "why": "a key is written as a value is, and 10.0foo is the path 10, 0foo: 1e+5.5 is the number 1e+5 then .5, so the path 1e+5, 5. typesafe/config and pyhocon reject the +",
+  "why": "Settled with the number-like reading (Readings): a key is written as a value is, and 10.0foo is the path 10, 0foo (L496-498). 1e+5.5 is the JSON number 1e+5 then .5, so the path 1e+5, 5. typesafe/config and pyhocon reject the + — the same lenient/forbidden-+ biproduct as path-expressions/024, not a different rule.",
   "expect": {
     "1e+5": {
       "5": 1

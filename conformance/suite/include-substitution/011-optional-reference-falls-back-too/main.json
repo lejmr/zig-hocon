@@ -1,7 +1,7 @@
 {
   "spec": "HOCON.md#include-semantics-substitution",
   "rule": "include-semantics-substitution.1",
-  "why": "the optional form of 009 falls back the same way; typesafe/config leaves a out instead (lightbend/config#863)",
+  "why": "Settled (Readings): the optional form of 009 — a = ${?x.y} — falls back the same way (L1045-1049): with root x.y = 0, a is 0. typesafe/config leaves a out instead (java: diverges). lightbend/config#863 fixes it to this reading; not the self-ref case (025–028), where falling back would be wrong.",
   "expect": {
     "common": {
       "x": {},
