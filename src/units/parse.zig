@@ -162,7 +162,7 @@ fn dumpSuiteFile(gpa: std.mem.Allocator, in: [:0]const u8) anyerror![]u8 {
 test "units.the suite's unit files, each key read as its unit" {
     try table.expectAll(&.{
         .ok("duration-format/001-bare-number-is-milliseconds.conf", "t=10000000"),
-        .ok("duration-format/002-uppercase-unit-is-illegal.conf", "t=UnknownUnit"),
+        .ok("duration-format/002-uppercase-unit-stays-a-string.conf", "t=UnknownUnit"),
         .ok("duration-format/003-nanoseconds-spellings.conf", "ns=5 nano=5 nanos=5 nanosecond=5 nanoseconds=5"),
         .ok("duration-format/004-microseconds-spellings.conf", "us=5000 micro=5000 micros=5000 microsecond=5000 microseconds=5000"),
         .ok("duration-format/005-milliseconds-spellings.conf", "ms=5000000 milli=5000000 millis=5000000 millisecond=5000000 milliseconds=5000000"),
@@ -171,7 +171,7 @@ test "units.the suite's unit files, each key read as its unit" {
         .ok("duration-format/008-hours-spellings.conf", "h=18000000000000 hour=18000000000000 hours=18000000000000"),
         .ok("duration-format/009-days-spellings.conf", "d=432000000000000 day=432000000000000 days=432000000000000"),
         .ok("period-format/001-bare-number-is-days.conf", "p=P10D"),
-        .ok("period-format/002-uppercase-unit-is-illegal.conf", "p=UnknownUnit"),
+        .ok("period-format/002-uppercase-unit-stays-a-string.conf", "p=UnknownUnit"),
         .ok("period-format/003-days-spellings.conf", "d=P5D day=P5D days=P5D"),
         .ok("period-format/004-weeks-spellings.conf", "w=P35D week=P35D weeks=P35D"),
         .ok("period-format/005-months-spellings.conf", "m=P5M mo=P5M month=P5M months=P5M"),
@@ -202,7 +202,7 @@ test "units.the suite's unit files, each key read as its unit" {
         .ok("units-format/003-string-with-unit-name-specifies-interpretation.conf", "t=10000000"),
         .ok("units-format/004-whitespace-optional-around-number-and-unit.conf", "t=10000000"),
         .ok("units-format/005-unit-name-must-be-letters-only.conf", "t=InvalidCharacter"),
-        .ok("units-format/006-unit-before-number-is-illegal.conf", "t=InvalidCharacter"),
+        .ok("units-format/006-unit-before-number-stays-a-string.conf", "t=InvalidCharacter"),
     }, .{ .dump = dumpSuiteFile });
 }
 
