@@ -495,16 +495,17 @@ noinline fn followRef(state: *Resolver, r: Ref, on_top: bool) Error!?Value {
             if (!mayVanish(val)) later.ref = r.from(path);
             // A self-reference, on top of its field or a `+=`, found the
             // layers below it. It does not fall back to the path as written
-            // (L1043-1047; 025): keep the fixed-up path under those layers
-            // so stringify round-trips without picking up an unrelated root key.
+            // (L1043-1047; 025). Keep the scoped ref under those layers: the
+            // scope stays so a later resolve still names the env var as
+            // written (L767), not `common.J` for an include under `common`.
             const self_ref = later.ref.scope_len > 0 and (on_top or r.flags.append);
             const field = if (self_ref) &state.fields.items[state.fields.items.len - 1] else null;
             if (field != null and field.?.merged != null and std.meta.eql(field.?.merged.?, val)) {
-                const under = try stacked(gpa, .{ .ref = r.from(r.path) }, val);
+                const under = try stacked(gpa, .{ .ref = r }, val);
                 // On top, it is just those layers.
                 if (on_top) return under;
                 field.?.merged = under;
-                later.ref = r.from(r.path);
+                later.ref = r;
             }
             return later;
         },
