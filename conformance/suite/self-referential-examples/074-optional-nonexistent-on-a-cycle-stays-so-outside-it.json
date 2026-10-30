@@ -5,12 +5,13 @@
     "self-referential-substitutions.13",
     "examples-of-self-referential-substitutions.27"
   ],
-  "why": "Resolving f first, e's ${?f.k} closes the cycle and is missing, memoized: e is [y] and f is ${e}, [y]. Resolving e first, f's ${?e} is missing but its ${e} is required and closes the cycle, an error, as typesafe/config reports: the spec leaves the order two fields resolve in undefined and allows either result or an error (L866-881); a cycle is broken by removing one of its links (L660-661), the optional that closes it, which is then missing (L714-716), and its result is memoized (L884-888)",
+  "why": "Same lines as 075, e written first. A cycle is broken by removing one link (L660-661): the optional that closes it is missing (L714-716) and memoized (L884-888), so the other optional is not. Resolving f first, that link is e's ${?f.k}: e is [y], f is ${?e}${e}, both parts [y], so [y, y]. Resolving e first, f's required ${e} still closes the cycle and is an error (typesafe/config); the order is undefined, so either [y, y] or that error is allowed (L866-881). Expecting f [y] would mean two links removed (${?e} and the outer ${?f.k}), which no order produces.",
   "expect": {
     "e": [
       "y"
     ],
     "f": [
+      "y",
       "y"
     ]
   },

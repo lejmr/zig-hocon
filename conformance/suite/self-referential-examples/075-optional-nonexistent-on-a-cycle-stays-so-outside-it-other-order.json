@@ -5,7 +5,7 @@
     "self-referential-substitutions.13",
     "examples-of-self-referential-substitutions.27"
   ],
-  "why": "074 with f written first. Resolving f first, e's ${?f.k} closes the cycle and is missing: e is [y], and f is ${?e}${e}, both parts [y], so [y, y] — one link broken (L660-661), not ${?e} as well. typesafe/config rejects (${e} on the cycle); the order is undefined, so that error is allowed too (L866-881). Resolving e first is 074's expect.",
+  "why": "Same lines as 074, f written first. One link removed (L660-661): resolving f first, e's ${?f.k} closes the cycle and is missing; e is [y], f is ${?e}${e}, both parts [y], so [y, y] — not ${?e} as well. typesafe/config rejects (${e} on the cycle); the order is undefined, so that error is allowed too (L866-881). Resolving e first is the same pair of outcomes as 074.",
   "expect": {
     "e": [
       "y"
