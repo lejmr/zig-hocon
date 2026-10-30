@@ -5,7 +5,7 @@
     "examples-of-self-referential-substitutions.22",
     "examples-of-self-referential-substitutions.27"
   ],
-  "why": "as 024 with c written first: c is [], e is [[]], or [] both (also_valid)",
+  "why": "as 024 with c written first: c is [], e is [[]], or [] both (also_valid). The order the fields resolve in is undefined, so an error is allowed too (L866-881), as on 024.",
   "expect": {
     "c": [],
     "e": [
@@ -17,6 +17,7 @@
     {
       "e": [],
       "c": []
-    }
+    },
+    "rejected"
   ]
 }

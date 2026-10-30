@@ -5,7 +5,7 @@
     "examples-of-self-referential-substitutions.22",
     "examples-of-self-referential-substitutions.27"
   ],
-  "why": "as 059 with a written first: a is no field, or 3 (also_valid)",
+  "why": "as 059 with a written first: a is no field, or 3 (also_valid). The order the fields resolve in is undefined, so an error is allowed too (L866-881), as on 059.",
   "expect": {
     "f": {
       "z": 3
@@ -18,6 +18,7 @@
         "z": 3
       },
       "a": 3
-    }
+    },
+    "rejected"
   ]
 }

@@ -1,15 +1,15 @@
 {
   "suite": "hocon-conformance",
   "implementation": "zig-hocon",
-  "version": "zig-hocon code@e796dad",
+  "version": "zig-hocon code@51f29aa",
   "mode": "java",
   "java_version": "1.4.9",
   "command": "conformance/adapters/zig-hocon.sh",
-  "ran_at": "2026-10-29T14:43:24Z",
-  "suite_digest": "9386b145bcf02f4c",
+  "ran_at": "2026-10-30T06:48:31Z",
+  "suite_digest": "87de593b816a45f7",
   "total": 588,
-  "passed": 479,
-  "percent": 81.5,
+  "passed": 485,
+  "percent": 82.5,
   "sections": {
     "array-and-object-concatenation": {
       "total": 23,
@@ -101,11 +101,11 @@
     },
     "plus-equals-field-separator": {
       "total": 33,
-      "passed": 15
+      "passed": 17
     },
     "self-referential-examples": {
       "total": 77,
-      "passed": 56
+      "passed": 60
     },
     "self-referential-substitutions": {
       "total": 8,
@@ -476,8 +476,8 @@
     "plus-equals-field-separator/021-appends-through-a-substituted-object.conf": "fail",
     "plus-equals-field-separator/022-required-element-stays-when-an-inner-optional-breaks-the-cycle.conf": "pass",
     "plus-equals-field-separator/023-required-element-stays-when-an-inner-optional-breaks-the-cycle-other-order.conf": "pass",
-    "plus-equals-field-separator/024-alias-read-inside-an-append-look-back.conf": "fail",
-    "plus-equals-field-separator/025-alias-read-inside-an-append-look-back-other-order.conf": "fail",
+    "plus-equals-field-separator/024-alias-read-inside-an-append-look-back.conf": "pass",
+    "plus-equals-field-separator/025-alias-read-inside-an-append-look-back-other-order.conf": "pass",
     "plus-equals-field-separator/026-two-fields-appending-each-other-optionally.conf": "fail",
     "plus-equals-field-separator/027-two-fields-appending-each-other-optionally-other-order.conf": "fail",
     "plus-equals-field-separator/028-number-and-list-appending-each-other-optionally.conf": "fail",
@@ -544,14 +544,14 @@
     "self-referential-examples/056-list-over-scalar-hidden-by-literal-object.conf": "fail",
     "self-referential-examples/057-optionals-leading-back-to-each-other-depend-on-the-order.conf": "fail",
     "self-referential-examples/058-object-field-read-inside-a-look-back.conf": "fail",
-    "self-referential-examples/059-alias-read-inside-a-layer-under-an-object.conf": "fail",
-    "self-referential-examples/060-alias-read-inside-a-layer-under-an-object-other-order.conf": "fail",
+    "self-referential-examples/059-alias-read-inside-a-layer-under-an-object.conf": "pass",
+    "self-referential-examples/060-alias-read-inside-a-layer-under-an-object-other-order.conf": "pass",
     "self-referential-examples/061-text-under-an-object-is-never-evaluated.conf": "pass",
     "self-referential-examples/062-text-under-an-object-is-never-evaluated-other-order.conf": "pass",
     "self-referential-examples/063-optional-alias-of-a-list-on-a-cycle-is-nonexistent.conf": "pass",
     "self-referential-examples/064-optional-alias-of-a-list-on-a-cycle-is-nonexistent-other-order.conf": "pass",
-    "self-referential-examples/065-alias-read-inside-a-concatenation-look-back.conf": "fail",
-    "self-referential-examples/066-alias-read-inside-a-concatenation-look-back-other-order.conf": "fail",
+    "self-referential-examples/065-alias-read-inside-a-concatenation-look-back.conf": "pass",
+    "self-referential-examples/066-alias-read-inside-a-concatenation-look-back-other-order.conf": "pass",
     "self-referential-examples/067-text-concatenation-under-an-object-is-never-evaluated.conf": "fail",
     "self-referential-examples/068-field-written-twice-seen-again-is-resolved-as-a-field.conf": "pass",
     "self-referential-examples/069-required-undefined-in-a-field-written-twice-seen-again.conf": "pass",
@@ -791,8 +791,6 @@
     "plus-equals-field-separator/018-errors-on-a-number-defined-in-object-concatenation.conf": "rejected",
     "plus-equals-field-separator/019-appends-twice-by-path-after-number-replaced-by-object.conf": "{\"a\":{\"b\":[\"x\",\"y\"]}}",
     "plus-equals-field-separator/021-appends-through-a-substituted-object.conf": "{\"x\":{\"e\":3},\"a\":{\"c\":[1,2],\"e\":3}}",
-    "plus-equals-field-separator/024-alias-read-inside-an-append-look-back.conf": "{\"e\":[[]],\"c\":[]}",
-    "plus-equals-field-separator/025-alias-read-inside-an-append-look-back-other-order.conf": "{\"c\":[],\"e\":[[]]}",
     "self-referential-examples/015-list-hidden-by-substituted-object-is-never-evaluated.conf": "{\"wrapper\":{},\"replacement\":{}}",
     "self-referential-examples/021-hidden-list-does-not-depend-on-key-order.conf": "{\"w\":{\"x\":1},\"r\":{\"x\":1},\"zzz\":1}",
     "self-referential-examples/027-self-reference-inside-object-concatenation.conf": "{\"d\":{\"x\":[0]},\"c\":{\"x\":[0,1,2]}}",
@@ -800,7 +798,6 @@
     "self-referential-examples/029-concatenated-object-refers-to-its-mixin.conf": "{\"mixin\":{\"hello\":\"world\"},\"a\":{\"hello\":\"world\",\"y\":\"world\"}}",
     "self-referential-examples/030-concatenated-object-sees-its-own-field.conf": "{\"x\":{\"n\":1},\"top\":{\"n\":2,\"seen\":2}}",
     "self-referential-examples/032-field-hidden-inside-object-concatenation.conf": "{\"base\":{},\"child\":{\"foo\":\"x\"}}",
-    "self-referential-examples/036-alias-path-read-inside-a-look-back.conf": "{\"p\":\"x\",\"a\":\"x\"}",
     "self-referential-examples/042-optional-on-a-cycle-through-another-field.conf": "{\"o\":{\"h\":0},\"a\":{\"n\":{\"h\":0}},\"b\":{\"n\":{\"h\":0}}}",
     "self-referential-examples/043-two-optionals-on-one-cycle.conf": "{\"f\":\"x\",\"a\":{\"t\":1},\"y\":{\"t\":1}}",
     "self-referential-examples/052-hidden-list-concatenation-with-an-undefined-path.conf": "{\"wrapper\":{\"a\":1}}",
@@ -808,10 +805,6 @@
     "self-referential-examples/055-undefined-optional-under-a-path-still-hides.conf": "{\"w\":{}}",
     "self-referential-examples/056-list-over-scalar-hidden-by-literal-object.conf": "{\"wrapper\":{\"b\":1}}",
     "self-referential-examples/058-object-field-read-inside-a-look-back.conf": "{\"b\":{\"f\":1},\"a\":{\"f\":1}}",
-    "self-referential-examples/059-alias-read-inside-a-layer-under-an-object.conf": "{\"f\":{\"z\":3}}",
-    "self-referential-examples/060-alias-read-inside-a-layer-under-an-object-other-order.conf": "{\"f\":{\"z\":3}}",
-    "self-referential-examples/065-alias-read-inside-a-concatenation-look-back.conf": "{\"e\":\"xyx\",\"c\":\"x\"}",
-    "self-referential-examples/066-alias-read-inside-a-concatenation-look-back-other-order.conf": "{\"c\":\"x\",\"e\":\"xyx\"}",
     "self-referential-examples/067-text-concatenation-under-an-object-is-never-evaluated.conf": "{\"a\":{\"helper\":0},\"r\":{\"y\":1}}",
     "self-referential-substitutions/008-object-field-referring-to-its-object-stays-a-cycle.conf": "rejected",
     "self-referential-substitutions/009-optional-over-a-field-referring-to-its-object.conf": "rejected",
@@ -1238,7 +1231,7 @@
     {
       "case": "include-substitution/009-undefined-optional-at-fixed-up-path-falls-back/main.conf",
       "spec": "HOCON.md#include-semantics-substitution",
-      "rule": "an undefined ${?nope} means common.x.y is never created, so ${x.y} is not found at the fixed-up path and is looked up at the original path x.y. typesafe/config treats the vanished value as a miss that ends the lookup -- except in some root key orders (see 014); lightbend/config#863 falls back",
+      "rule": "Settled (Readings): an undefined ${?nope} means common.x.y is never created, so ${x.y} is not found at the fixed-up path and must be looked up at the original path x.y (L1045-1049) — with root x.y = 0, a is 0. typesafe/config treats the vanished value as a miss that ends the lookup (UnresolvedSubstitution), and in some root key orders it even succeeds (see 014): a bug, not HOCON. lightbend/config#863 (open) retries the including root, matching this expect; self-ref/cycle rows 025–028 stay without that fallback.",
       "expected": "rejected",
       "got": "{\"common\":{\"x\":{},\"a\":0},\"x\":{\"y\":0}}",
       "java": "unsupported"
@@ -1246,7 +1239,7 @@
     {
       "case": "include-substitution/011-optional-reference-falls-back-too/main.conf",
       "spec": "HOCON.md#include-semantics-substitution",
-      "rule": "the optional form of 009 falls back the same way; typesafe/config leaves a out instead (lightbend/config#863)",
+      "rule": "Settled (Readings): the optional form of 009 — a = ${?x.y} — falls back the same way (L1045-1049): with root x.y = 0, a is 0. typesafe/config leaves a out instead (java: diverges). lightbend/config#863 fixes it to this reading; not the self-ref case (025–028), where falling back would be wrong.",
       "expected": {
         "common": {
           "x": {}
@@ -1269,7 +1262,7 @@
     {
       "case": "include-substitution/014-unrelated-key-does-not-change-the-result/main.conf",
       "spec": "HOCON.md#include-semantics-substitution",
-      "rule": "an unrelated key that reads common.x must not change what common.a resolves to; in typesafe/config this input fails while the same input with the key named o24bbd resolves to 0 (lightbend/config#863)",
+      "rule": "Settled (Readings): an unrelated key that reads common.x must not change what common.a resolves to — same fallback as 009 (L1045-1049). In typesafe/config 1.4.9 this input fails (UnresolvedSubstitution) while the same input with the observer key named o24bbd resolves to 0: key order decides the result. That is a bug; lightbend/config#863 makes every order give a = 0, as here.",
       "expected": "rejected",
       "got": "{\"common\":{\"x\":{},\"a\":0},\"x\":{\"y\":0},\"zzz\":{}}",
       "java": "unsupported"
@@ -1309,7 +1302,7 @@
     {
       "case": "include-substitution/025-plus-equals-with-nothing-at-fixed-up-path-starts-a-list/main.conf",
       "spec": "HOCON.md#include-semantics-substitution",
-      "rule": "A self-reference looks back at the field's own earlier value (L747-749), here at its fixed-up path; the fallback to the original path is for an included file that \"might intend to refer to the application's root config\" (L1043-1047), which a field referring to itself does not. typesafe/config reads it so: a += 2 included at k is k.a = ${?k.a} [2], k.a has no earlier value, and the root's unrelated a = [1] is not looked at: k.a is [2].",
+      "rule": "Settled (Readings, half b): a self-reference looks back at the fixed-up path only — the original-path fallback is for the application root (L1043-1047), not for a field referring to itself — unlike 009/011/014, where an optional vanishes without a cycle and the root must still be tried. typesafe/config reads it so: a += 2 included at k is k.a = ${?k.a} [2], k.a has no earlier value, and the root's unrelated a = [1] is not looked at: k.a is [2]. lightbend/config#863 keeps a swallowed cycle from falling back to the root, so this row stays as it is.",
       "expected": {
         "a": [
           1
@@ -1335,7 +1328,7 @@
     {
       "case": "include-substitution/027-plus-equals-does-not-fall-back-onto-text/main.conf",
       "spec": "HOCON.md#include-semantics-substitution",
-      "rule": "A self-reference looks back at the field's own earlier value (L747-749), here at its fixed-up path; the fallback to the original path is for an included file that \"might intend to refer to the application's root config\" (L1043-1047), which a field referring to itself does not. typesafe/config reads it so: a += 3 included at k looks back at k.a only, which has no earlier value, so the root's text a = \"\" is not appended to and k.a is [3], no error.",
+      "rule": "Settled (Readings, half b): a self-reference looks back at the fixed-up path only — unlike 009/011/014 (optional vanishes → still try the root). typesafe/config reads it so: a += 3 included at k looks back at k.a only, which has no earlier value, so the root's text a = \"\" is not appended to and k.a is [3], no error. lightbend/config#863 keeps a swallowed cycle from falling back to the root, so this row stays as it is.",
       "expected": {
         "a": "",
         "k": {
@@ -1349,7 +1342,7 @@
     {
       "case": "include-substitution/028-optional-self-reference-in-an-include-disappears/main.conf",
       "spec": "HOCON.md#include-semantics-substitution",
-      "rule": "A self-reference looks back at the field's own earlier value (L747-749), here at its fixed-up path; the fallback to the original path is for an included file that \"might intend to refer to the application's root config\" (L1043-1047), which a field referring to itself does not. typesafe/config reads it so: b = ${?b} included in a has nothing below it at a.b, so it \"just disappears silently\" (L776), and the root's b {} is not taken: a is {}.",
+      "rule": "Settled (Readings, half b): a self-reference looks back at the fixed-up path only — unlike 009/011/014 (optional vanishes → still try the root). typesafe/config reads it so: b = ${?b} included in a has nothing below it at a.b, so it \"just disappears silently\" (L776), and the root's b {} is not taken: a is {}. lightbend/config#863 keeps a swallowed cycle from falling back to the root, so this row stays as it is.",
       "expected": {
         "a": {},
         "b": {}
@@ -1412,7 +1405,7 @@
     {
       "case": "path-expressions/024-number-like-keys-before-plus-equals.conf",
       "spec": "HOCON.md#path-expressions",
-      "rule": "a key may start with a number and run into +=: 3 and 1e are keys, and += appends to nothing: {\"3\": [[]], \"1e\": [1]}; typesafe/config reads + as part of the number and rejects it, pyhocon drops the brackets",
+      "rule": "Settled with the number-like reading (Readings): a key is a path expression and always a string (L562-568), and += is the field separator (L720+). After the completed JSON number 3, or the non-number text 1e (no exponent digits), += begins — so the keys are \"3\" and \"1e\", and += onto nothing is {\"3\": [[]], \"1e\": [1]}. typesafe/config's Parse is the same lenient-number biproduct as 01→1: its tokenizer eats + as an exponent and fails; pyhocon drops the brackets. Not a separate HOCON hole.",
       "expected": "rejected",
       "got": "{\"3\":[[]],\"1e\":[1]}",
       "java": "unsupported"
@@ -1420,7 +1413,7 @@
     {
       "case": "path-expressions/025-plus-inside-a-number-in-a-key.conf",
       "spec": "HOCON.md#path-expressions",
-      "rule": "a key is written as a value is, and 10.0foo is the path 10, 0foo: 1e+5.5 is the number 1e+5 then .5, so the path 1e+5, 5. typesafe/config and pyhocon reject the +",
+      "rule": "Settled with the number-like reading (Readings): a key is written as a value is, and 10.0foo is the path 10, 0foo (L496-498). 1e+5.5 is the JSON number 1e+5 then .5, so the path 1e+5, 5. typesafe/config and pyhocon reject the + — the same lenient/forbidden-+ biproduct as path-expressions/024, not a different rule.",
       "expected": "rejected",
       "got": "{\"1e+5\":{\"5\":1}}",
       "java": "unsupported"
@@ -1716,38 +1709,6 @@
       "java": "diverges"
     },
     {
-      "case": "plus-equals-field-separator/024-alias-read-inside-an-append-look-back.conf",
-      "spec": "HOCON.md#the--field-separator",
-      "rule": "e's last value reaches e again through c, so it is self-referential and looks back at the first e += ${?c}, whose own ${?c} leads back to e and is nonexistent: c is [] there, and keeps it, as a substitution is resolved once, so e is [[]]. Or c is an alias for the final e, every optional on the cycle nonexistent: [] both (also_valid), as in self-referential-examples/035 and 065. The order the fields resolve in is undefined, so an error is allowed too (L866-881).",
-      "expected": {
-        "c": [],
-        "e": []
-      },
-      "got": {
-        "e": [
-          []
-        ],
-        "c": []
-      },
-      "java": "diverges"
-    },
-    {
-      "case": "plus-equals-field-separator/025-alias-read-inside-an-append-look-back-other-order.conf",
-      "spec": "HOCON.md#the--field-separator",
-      "rule": "as 024 with c written first: c is [], e is [[]], or [] both (also_valid)",
-      "expected": {
-        "c": [],
-        "e": []
-      },
-      "got": {
-        "c": [],
-        "e": [
-          []
-        ]
-      },
-      "java": "diverges"
-    },
-    {
       "case": "plus-equals-field-separator/026-two-fields-appending-each-other-optionally.conf",
       "spec": "HOCON.md#the--field-separator",
       "rule": "a += ${?b} is a = ${?a} [${?b}], b likewise. Resolving a first, b's ${?a} closes the cycle and is missing, so b is [] and a is [[]] (typesafe/config); resolving b first gives the mirror image. Both lists empty comes out of no order: the spec leaves the order two fields resolve in undefined and allows either result or an error (L866-881); a cycle is broken by removing one of its links (L660-661), the optional that closes it, which is then missing (L714-716), and its result is memoized (L884-888). The list form is self-referential-examples/057",
@@ -1925,68 +1886,6 @@
       "expected": "rejected",
       "got": "{\"b\":{\"f\":1},\"a\":{\"f\":1}}",
       "java": "unsupported"
-    },
-    {
-      "case": "self-referential-examples/059-alias-read-inside-a-layer-under-an-object.conf",
-      "spec": "HOCON.md#examples-of-self-referential-substitutions",
-      "rule": "f's ${?a} is resolved to see whether it merges with the object over it, and reaches f again through a: from that layer f has nothing below (L659), so a's ${?f.z} finds nothing there, and keeps that, as a substitution is resolved once (L886): a is no field, as in 035 and 065. Or a is an alias for the final f.z, the object's 3 (also_valid). The order the fields resolve in is undefined, so an error is allowed too (L866-881).",
-      "expected": {
-        "a": 3,
-        "f": {
-          "z": 3
-        }
-      },
-      "got": {
-        "f": {
-          "z": 3
-        }
-      },
-      "java": "diverges"
-    },
-    {
-      "case": "self-referential-examples/060-alias-read-inside-a-layer-under-an-object-other-order.conf",
-      "spec": "HOCON.md#examples-of-self-referential-substitutions",
-      "rule": "as 059 with a written first: a is no field, or 3 (also_valid)",
-      "expected": {
-        "a": 3,
-        "f": {
-          "z": 3
-        }
-      },
-      "got": {
-        "f": {
-          "z": 3
-        }
-      },
-      "java": "diverges"
-    },
-    {
-      "case": "self-referential-examples/065-alias-read-inside-a-concatenation-look-back.conf",
-      "spec": "HOCON.md#examples-of-self-referential-substitutions",
-      "rule": "e's last value reaches e again through c, so it is self-referential and looks back at e = x${?c}, whose own ${?c} leads back to e and is nonexistent: c is \"x\" there, and keeps it, as a substitution is resolved once, so e is \"xyx\". Or c is an alias for the final e, the optionals on the cycle nonexistent: \"xy\" both (also_valid), as in 035. The order the fields resolve in is undefined, so an error is allowed too (L866-881).",
-      "expected": {
-        "c": "xy",
-        "e": "xy"
-      },
-      "got": {
-        "e": "xyx",
-        "c": "x"
-      },
-      "java": "diverges"
-    },
-    {
-      "case": "self-referential-examples/066-alias-read-inside-a-concatenation-look-back-other-order.conf",
-      "spec": "HOCON.md#examples-of-self-referential-substitutions",
-      "rule": "as 065 with c written first: c is \"x\", e is \"xyx\", or \"xy\" both (also_valid)",
-      "expected": {
-        "c": "xy",
-        "e": "xy"
-      },
-      "got": {
-        "c": "x",
-        "e": "xyx"
-      },
-      "java": "diverges"
     },
     {
       "case": "self-referential-examples/067-text-concatenation-under-an-object-is-never-evaluated.conf",
@@ -2201,7 +2100,7 @@
     {
       "case": "substitutions/043-undefined-optional-before-a-leading-zero.conf",
       "spec": "HOCON.md#substitutions",
-      "rule": "An undefined ${?n} next to one other value adds nothing (substitutions/039): ${?n}01 is 01 alone, and 01 is no JSON number, so it is the text \"01\" (unchanged-from-json/009). typesafe/config reads 01 as the number 1",
+      "rule": "An undefined ${?n} next to one other value adds nothing (substitutions/039): ${?n}01 is 01 alone. Settled number-like reading (Readings): 01 is no JSON number, so it is the text \"01\" (unchanged-from-json/009), not an L272 error and not typesafe/config's lenient 1 (java: diverges — tokenizer biproduct, see lightbend/config#861 out of scope).",
       "expected": {
         "a": 1
       },
@@ -2224,7 +2123,7 @@
     {
       "case": "unchanged-from-json/009-leading-zero-run-is-text.conf",
       "spec": "HOCON.md#unchanged-from-json",
-      "rule": "JSON reads only the 0 of 01 as a number, a zero is not followed by digits; what follows is text after the number, as 10.0bar is the number 10.0 then bar (unquoted-strings.9), and a number keeps the text it was written with in a concatenation, so the value is the string \"01\". typesafe/config reads the number 1.",
+      "rule": "JSON reads only the 0 of 01 as a number, a zero is not followed by digits; what follows is text after the number, as 10.0bar is the number 10.0 then bar (unquoted-strings.9), and a number keeps the text it was written with in a concatenation, so the value is the string \"01\". typesafe/config reads the number 1. Settled number-like reading in Readings: JSON's number or text as written, not L272-as-error and not typesafe/config's lenient parser.",
       "expected": {
         "a": 1
       },
