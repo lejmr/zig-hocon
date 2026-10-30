@@ -380,6 +380,7 @@ noinline fn resolveOptional(state: *Resolver, r: Ref, on_top: bool) Error!?Value
     const fields = state.fields.items.len;
     const err_pos = state.err_pos.*;
     const outer = state.closed;
+    const cycles_before = state.cycles;
     state.closed = null;
     // What closed in here closed for the optionals around it too.
     defer if (outer) |o| {
@@ -388,6 +389,11 @@ noinline fn resolveOptional(state: *Resolver, r: Ref, on_top: bool) Error!?Value
     const val = state.followRef(r, on_top) catch |err| {
         state.looked_back = false;
         if (err != error.SubstitutionCycle or state.breaking != mark) return err;
+        // An inner optional already removed one link (L660-661; 074): the
+        // required ref that still closes the cycle is an error, not a second
+        // missing optional. Swallowing here made e [y], f [y] instead of an
+        // error or f [y, y].
+        if (state.cycles > cycles_before) return err;
         state.breaking = null;
         state.err_pos.* = err_pos;
         // The fields it was in the middle of are not any more.
@@ -981,6 +987,21 @@ test "resolve.an optional cycle depends on which field is written first" {
     try expectResolved(
         "f = ${?a.t}\na = ${?y}${?f}\ny { t = 1 }",
         "{\"f\":1,\"a\":{\"t\":1},\"y\":{\"t\":1}}",
+    );
+}
+
+// self-referential-examples/074–075 · java ⚠️ (rejects) · spec ✓ — one link
+// only (L660-661). f first: ${?f.k} is missing, f is [y, y]. e first: ${?e}
+// is missing, then required ${e} still closes the cycle — an error, not a
+// second missing optional swallowed by the outer ${?f.k} (that was f [y]).
+test "resolve.one optional on a cycle is missing, not an outer one as well" {
+    try expectResolved(
+        "f = ${?e}${e}\ne = [${?f.k}y]",
+        "{\"f\":[\"y\",\"y\"],\"e\":[\"y\"]}",
+    );
+    try expectResolveError(
+        "e = [${?f.k}y]\nf = ${?e}${e}",
+        error.SubstitutionCycle,
     );
 }
 
