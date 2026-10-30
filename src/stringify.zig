@@ -118,20 +118,36 @@ fn writeRef(ref: Ref, w: *Writer) Writer.Error!void {
 /// (spec L1048). Written as the key twice, `a = ${x}` under `a = ${?scope.x}`,
 /// the one below is what is left when the one on top finds nothing. The
 /// resolver keeps the scope only while the scoped path may find nothing
-/// (`Value.mayVanish`), and a self-reference, `+=` too, as its own layers
-/// over `${x}`.
+/// (`Value.mayVanish`). A self-reference is the fixed-up path alone (025),
+/// so a root key of the same name is not picked up on re-parse; `+=` is
+/// written `+=` again.
 // ponytail: what `${…}` cannot say, each needing an unusual input. Inside a
 // list or a concatenation other than `+=` the fallback is lost: the scoped
 // path alone is written. An object found at `scope.x` merges onto `${x}`,
 // which then has to resolve too. And a variable the original never reads:
-// `scope.x` when `${?scope.x}` finds nothing. A self-reference's `+=` that
-// finds nothing at the fixed-up path starts a list and is written `+=`
-// again (025); it does not fall back to the root. Upgrade if one shows up.
+// `scope.x` when `${?scope.x}` finds nothing. A self-reference stringified
+// as the fixed-up path names the env var that way on re-parse (`common.J`);
+// the kept tree still holds the scope, so resolve-after-keep reads `J` (L767).
+// Upgrade if one shows up.
 fn writeScopedRef(key: []const u8, ref: Ref, w: *Writer, indent: usize) Writer.Error!void {
+    // Self-ref to this field: fixed-up path only (025), no original-path
+    // fallback line that would read an unrelated root key on re-parse.
+    if (selfRefAt(key, ref)) {
+        try writeMember(key, Value{ .ref = ref.from(ref.path) }, w, indent);
+        return;
+    }
     try writeMember(key, Value{ .ref = ref.from(ref.path[ref.scope_len..]) }, w, indent);
     var scoped = ref.from(ref.path);
     scoped.flags.optional = true;
     try writeMember(key, Value{ .ref = scoped }, w, indent);
+}
+
+/// The ref's path as written is this field's key (one segment): an include
+/// self-reference or `+=` at `key` under the scope.
+fn selfRefAt(key: []const u8, ref: Ref) bool {
+    if (ref.flags.append) return true;
+    const as_written = ref.path[ref.scope_len..];
+    return as_written.len == 1 and std.mem.eql(u8, as_written[0].value, key);
 }
 
 /// What `a += b` added, when the layer is still that: `a = ${?a} [b]`, the ref
@@ -803,14 +819,14 @@ test "stringify.a kept ref from an include inside a block keeps its fallback" {
         .{ .inner = "x = { k = 1 }\nx = ${?FOO}\na = ${x}", .root = "x = { m = 2 }", .want = "common {\n  x {\n    k = 1\n  }\n  x = ${?FOO}\n  a = ${common.x}\n}\nx {\n  m = 2\n}\n" },
         .{ .inner = "x = ${FOO}\na = ${x}", .root = "x = 2", .want = "common {\n  x = ${FOO}\n  a = ${common.x}\n}\nx = 2\n" },
         // `+=` finds nothing at `common.a` and starts a list there: the root's
-        // `a` is unrelated (L1043-1047; include substitution/025).
+        // `a` is unrelated (include substitution/025; typesafe/config).
         .{ .inner = "a += x", .root = "a = ${?L[]}", .want = "common {\n  a += x\n}\na = ${?L[]}\n" },
         // Found only at the root: the path as written, whatever waits there.
         .{ .inner = "url = ${host}", .root = "host = ${HOST}", .want = "common {\n  url = ${host}\n}\nhost = ${HOST}\n" },
         .{ .inner = "a += 1", .root = "a = ${?L[]}\na += 0", .want = "common {\n  a += 1\n}\na = ${?L[]}\na += 0\n" },
         // A self-reference finds the layers below it at the fixed-up path
-        // only (L1043-1047; 025): stringify keeps that path so a root key
-        // of the same name is not picked up on re-parse.
+        // only (025): stringify keeps that path so a root key of the same
+        // name is not picked up on re-parse.
         .{ .inner = "a = ${?FOO}\na = ${a}", .root = "a = 7", .want = "common {\n  a = ${common.a}\n  a = ${?FOO}\n}\na = 7\n" },
         .{ .inner = "a = ${?nope}\na = ${?a}", .root = "a = ${?FOO}", .want = "common {\n  a = ${?common.a}\n  a = ${?nope}\n}\na = ${?FOO}\n" },
         .{ .inner = "path = ${?EXTRA}\npath = ${path}", .root = "", .want = "common {\n  path = ${common.path}\n  path = ${?EXTRA}\n}\n" },
@@ -831,11 +847,10 @@ test "stringify.a kept ref from an include inside a block keeps its fallback" {
     try some.put("L_0", "sleepy");
     try some.put("HOST", "burrow.example");
     try some.put("EXTRA", "/opt/burrow");
-    try some.put("J", "seven sleepy jays");
-    // Self-refs stringify as the fixed-up path (`${common.J}`); the same
-    // value under that name makes the round-trip match the include form,
-    // which reads the variable as written (`J`, L767).
-    try some.put("common.J", "seven sleepy jays");
+    // The J self-ref row takes its value from E (the layer below), not from
+    // env `J`: stringify writes the fixed-up path, and keep→resolve without
+    // stringify still reads env as written (Include.env, L767).
+    try some.put("E", "seven sleepy jays");
 
     for (rows) |row| {
         errdefer std.debug.print("failed on \"{s}\"\n", .{row.inner});

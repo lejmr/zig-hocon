@@ -1,0 +1,15 @@
+{
+  "spec": "HOCON.md#substitutions",
+  "rule": [
+    "substitutions.24",
+    "substitutions.18",
+    "string-value-concatenation.2"
+  ],
+  "why": "An undefined ${?x} next to one other value with no gap keeps that value's type (039, L376, L636-637): ${?x}42 is the number 42. A gap is value concatenation and the whitespace between values is kept (L331-333), so the result is a string: ${?x} 42 is \" 42\" and 42 ${?x} is \"42 \".",
+  "expect": {
+    "a": 42,
+    "b": " 42",
+    "c": "42 "
+  },
+  "resolve": true
+}

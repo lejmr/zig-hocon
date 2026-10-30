@@ -4,10 +4,18 @@
     "include-semantics-substitution.1",
     "examples-of-self-referential-substitutions.6"
   ],
-  "why": "Settled (Readings, half b): a self-reference looks back at the fixed-up path only — unlike 009/011/014 (optional vanishes → still try the root). typesafe/config reads it so: b = ${?b} included in a has nothing below it at a.b, so it \"just disappears silently\" (L776), and the root's b {} is not taken: a is {}. lightbend/config#863 keeps a swallowed cycle from falling back to the root, so this row stays as it is.",
+  "why": "L1047-1050 says the original path must be tried as well; it does not exempt a self-reference. typesafe/config and zig-hocon still look back at the fixed-up path only: b = ${?b} included in a has nothing below it at a.b, so it \"just disappears silently\" (L776), and the root's b {} is not taken: a is {}. The literal reading (fallback) is also_valid: a.b {}. Unlike 009/011/014 (optional vanishes → still try the root).",
   "expect": {
     "a": {},
     "b": {}
   },
+  "also_valid": [
+    {
+      "a": {
+        "b": {}
+      },
+      "b": {}
+    }
+  ],
   "resolve": true
 }

@@ -1,15 +1,15 @@
 {
   "suite": "hocon-conformance",
   "implementation": "zig-hocon",
-  "version": "zig-hocon code@73fed9b",
+  "version": "zig-hocon code@1477f40",
   "mode": "java",
   "java_version": "1.4.9",
   "command": "conformance/adapters/zig-hocon.sh",
-  "ran_at": "2026-10-30T07:56:43Z",
-  "suite_digest": "20db976130d323ec",
-  "total": 588,
-  "passed": 497,
-  "percent": 84.5,
+  "ran_at": "2026-10-30T08:36:21Z",
+  "suite_digest": "dcbca4e1b34ec3b2",
+  "total": 589,
+  "passed": 498,
+  "percent": 84.6,
   "sections": {
     "array-and-object-concatenation": {
       "total": 23,
@@ -124,8 +124,8 @@
       "passed": 8
     },
     "substitutions": {
-      "total": 41,
-      "passed": 40
+      "total": 42,
+      "passed": 41
     },
     "unchanged-from-json": {
       "total": 34,
@@ -646,6 +646,7 @@
     "substitutions/042-undefined-optional-next-to-numbers-keeps-them-numbers.conf": "pass",
     "substitutions/043-undefined-optional-before-a-leading-zero.conf": "fail",
     "substitutions/044-undefined-optional-with-boolean-keeps-the-boolean.conf": "pass",
+    "substitutions/045-undefined-optional-with-a-gap-is-string-concatenation.conf": "pass",
     "unchanged-from-json/001-quoted-string-json-format.conf": "pass",
     "unchanged-from-json/002-string-value-type.conf": "pass",
     "unchanged-from-json/003-number-value-type.conf": "pass",
