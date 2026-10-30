@@ -130,7 +130,7 @@ fn writeRef(ref: Ref, w: *Writer) Writer.Error!void {
 // the kept tree still holds the scope, so resolve-after-keep reads `J` (L767).
 // Upgrade if one shows up.
 fn writeScopedRef(key: []const u8, ref: Ref, w: *Writer, indent: usize) Writer.Error!void {
-    // Self-ref to this field: fixed-up path only (L1043-1047), no original-path
+    // Self-ref to this field: fixed-up path only (025), no original-path
     // fallback line that would read an unrelated root key on re-parse.
     if (selfRefAt(key, ref)) {
         try writeMember(key, Value{ .ref = ref.from(ref.path) }, w, indent);
@@ -819,14 +819,14 @@ test "stringify.a kept ref from an include inside a block keeps its fallback" {
         .{ .inner = "x = { k = 1 }\nx = ${?FOO}\na = ${x}", .root = "x = { m = 2 }", .want = "common {\n  x {\n    k = 1\n  }\n  x = ${?FOO}\n  a = ${common.x}\n}\nx {\n  m = 2\n}\n" },
         .{ .inner = "x = ${FOO}\na = ${x}", .root = "x = 2", .want = "common {\n  x = ${FOO}\n  a = ${common.x}\n}\nx = 2\n" },
         // `+=` finds nothing at `common.a` and starts a list there: the root's
-        // `a` is unrelated (L1043-1047; include substitution/025).
+        // `a` is unrelated (include substitution/025; typesafe/config).
         .{ .inner = "a += x", .root = "a = ${?L[]}", .want = "common {\n  a += x\n}\na = ${?L[]}\n" },
         // Found only at the root: the path as written, whatever waits there.
         .{ .inner = "url = ${host}", .root = "host = ${HOST}", .want = "common {\n  url = ${host}\n}\nhost = ${HOST}\n" },
         .{ .inner = "a += 1", .root = "a = ${?L[]}\na += 0", .want = "common {\n  a += 1\n}\na = ${?L[]}\na += 0\n" },
         // A self-reference finds the layers below it at the fixed-up path
-        // only (L1043-1047; 025): stringify keeps that path so a root key
-        // of the same name is not picked up on re-parse.
+        // only (025): stringify keeps that path so a root key of the same
+        // name is not picked up on re-parse.
         .{ .inner = "a = ${?FOO}\na = ${a}", .root = "a = 7", .want = "common {\n  a = ${common.a}\n  a = ${?FOO}\n}\na = 7\n" },
         .{ .inner = "a = ${?nope}\na = ${?a}", .root = "a = ${?FOO}", .want = "common {\n  a = ${?common.a}\n  a = ${?nope}\n}\na = ${?FOO}\n" },
         .{ .inner = "path = ${?EXTRA}\npath = ${path}", .root = "", .want = "common {\n  path = ${common.path}\n  path = ${?EXTRA}\n}\n" },

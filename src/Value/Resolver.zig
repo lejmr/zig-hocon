@@ -467,9 +467,10 @@ noinline fn followRef(state: *Resolver, r: Ref, on_top: bool) Error!?Value {
     var fell_back = false;
     // From an included file: nothing found with the scope in front,
     // so try the path as written — except a self-reference (look-back or
-    // `+=`), which uses the fixed-up path only (L1043-1047; include
-    // substitution/025, 027, 028). From a list element too, unless it is a
-    // `+=` there, which only looks at what its own field held.
+    // `+=`), which uses the fixed-up path only (include substitution/025,
+    // 027, 028; typesafe/config, not a spec exemption — L1047-1050 still
+    // says try the original path too). From a list element too, unless it
+    // is a `+=` there, which only looks at what its own field held.
     const self_look = state.looked_back and (on_top or r.flags.append);
     if (!self_look and (found == .absent or found == .gone) and (r.scope_len > 0 or (r.flags.anchor > 0 and !r.flags.append))) {
         const scoped = found;
@@ -495,8 +496,8 @@ noinline fn followRef(state: *Resolver, r: Ref, on_top: bool) Error!?Value {
             if (!mayVanish(val)) later.ref = r.from(path);
             // A self-reference, on top of its field or a `+=`, found the
             // layers below it. It does not fall back to the path as written
-            // (L1043-1047; 025). Keep the scoped ref under those layers: the
-            // scope stays so a later resolve still names the env var as
+            // (025; typesafe/config). Keep the scoped ref under those layers:
+            // the scope stays so a later resolve still names the env var as
             // written (L767), not `common.J` for an include under `common`.
             const self_ref = later.ref.scope_len > 0 and (on_top or r.flags.append);
             const field = if (self_ref) &state.fields.items[state.fields.items.len - 1] else null;
