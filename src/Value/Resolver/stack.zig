@@ -119,6 +119,9 @@ pub fn resolveStack(state: *Resolver, place: *Value, layers: []const Value) Erro
             // A list next to an object: a list, which hides what is below.
             if (!looksBack(top)) return try state.resolveValue(top);
             if (try resolveObjectAfterRef(state, place, top, below)) |val| return val;
+            // `{ … } ${?x}`: the object is first; resolve it as a layer so a
+            // self-reference inside (include substitution/027, 028) sees it.
+            if (try resolveObjectBeforeRest(state, place, top, below)) |val| return val;
             try state.fields.append(gpa, .{ .place = place, .below = below });
             const val = if (top == .ref) try state.resolveRef(top.ref, true) else try state.resolveValue(top);
             const field = state.fields.pop().?;
@@ -217,6 +220,24 @@ noinline fn resolveObjectAfterRef(state: *Resolver, place: *Value, top: Value, b
     return try objectOnto(state, place, split.object, layers, under);
 }
 
+// `{ … } ${?x}`: the object is first, then optional parts. Resolve the object
+// as a layer (paths into it see it) and join what remains; an undefined
+// optional leaves the object (include substitution/027, 028).
+noinline fn resolveObjectBeforeRest(state: *Resolver, place: *Value, top: Value, below: []const Value) Error!?Value {
+    const gpa = state.gpa;
+    const split = objectBeforeRest(top) orelse return null;
+    const under = if (mergeable(below)) try mergedBelow(state, place, below) else null;
+    const obj = try objectOnto(state, place, split.object, below, under) orelse return null;
+    var parts: std.ArrayList(Value.Part) = .empty;
+    const pos: Pos = .{ .file = 0, .offset = 0 };
+    try parts.append(gpa, .{ .value = obj, .pos = pos });
+    switch (split.rest) {
+        .pending => |rest| try parts.appendSlice(gpa, rest),
+        else => |rest| try parts.append(gpa, .{ .value = rest, .pos = pos }),
+    }
+    return try state.resolvePending(try parts.toOwnedSlice(gpa), false);
+}
+
 // `${x} { … }` as what is in front of the object and the object.
 fn objectAfterRef(top: Value) ?struct { front: Value, object: Value } {
     if (top != .pending) return null;
@@ -225,6 +246,23 @@ fn objectAfterRef(top: Value) ?struct { front: Value, object: Value } {
     if (object != .object or !looksBack(top)) return null;
     const front: Value = if (parts.len == 2) parts[0].value else .{ .pending = parts[0 .. parts.len - 1] };
     return .{ .front = front, .object = object };
+}
+
+// `{ … } ${?x}`: object first, then only gaps and optional refs (027, 028).
+// A required `${a}` after the object (019) stays a normal concatenation so the
+// self-reference still looks back at the layers below.
+fn objectBeforeRest(top: Value) ?struct { object: Value, rest: Value } {
+    if (top != .pending) return null;
+    const parts = top.pending;
+    if (parts.len < 2 or parts[0].value != .object or !looksBack(top)) return null;
+    for (parts[1..]) |part| {
+        if (part.value == .array or part.value == .object) return null;
+        if (part.value == .scalar and !part.value.isGap()) return null;
+        if (part.value == .ref and !part.value.ref.flags.optional) return null;
+        if (part.value == .pending) return null;
+    }
+    const rest: Value = if (parts.len == 2) parts[1].value else .{ .pending = parts[1..] };
+    return .{ .object = parts[0].value, .rest = rest };
 }
 
 // An object layer over what the layers below it resolved to, `under`.
@@ -390,8 +428,11 @@ pub fn seen(state: *Resolver, place: *Value, ref: Ref, whole: bool) Error!?*Valu
                 state.fields.items[i].progress = .done;
             },
         }
+        // Nothing below: a self-reference looks back at an empty stack
+        // (L767). Keep `looked_back` so the include fallback does not try
+        // the original path (025, 027, 028); a non-self path never lands here.
         const merged = state.fields.items[i].merged orelse {
-            state.looked_back = false;
+            state.looked_back = i + 1 == innermost;
             return null;
         };
         state.looked_back = i + 1 == innermost;
