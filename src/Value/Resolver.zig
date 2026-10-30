@@ -335,11 +335,11 @@ pub noinline fn resolvePending(state: *Resolver, parts: []const Part, element: b
     }
     if (kept.items.len > 0) return .{ .pending = try kept.toOwnedSlice(gpa) };
     var result = buffer orelse return null;
-    // Merged text is always string. An undefined optional next to one other
-    // value should leave that value's type (L376, L636-637; suite
-    // substitutions/039): ${?x}42 is the number 42. This path still quotes
-    // the remainder as a string; it starts where its first part past a gap is.
-    if (result == .scalar) {
+    // Joined text is always string. An undefined optional next to one other
+    // value adds nothing and that value keeps its type (L376, L636-637;
+    // substitutions/039): ${?x}42 is the number 42. Only when scalars were
+    // actually concatenated is the result quoted text.
+    if (result == .scalar and grown_text) {
         result.scalar.quoted = true;
         result.scalar.file = start.file;
         result.scalar.pos = @intCast(start.offset);
@@ -403,9 +403,14 @@ noinline fn resolveOptional(state: *Resolver, r: Ref, on_top: bool) Error!?Value
     const looked_back = state.looked_back;
     state.looked_back = false;
     if (val != null and looked_back) return val;
+    // Only the optional that closes the cycle is nonexistent (L660-661,
+    // L714-716): consume `closed` here so an outer optional that found a
+    // value keeps it. `a += ${?b}`, `b += ${?a}` is one order's result or
+    // the other, not both lists empty (026, 057).
     if (state.closed) |closed| if (closed < start) {
         state.cycles += 1;
         try state.nonexistent.put(state.gpa, refAt(r), state.visiting.items[closed]);
+        state.closed = null;
         return null;
     };
     return val;
@@ -455,10 +460,12 @@ noinline fn followRef(state: *Resolver, r: Ref, on_top: bool) Error!?Value {
     // Found, or not, at the path as written, from the document root.
     var fell_back = false;
     // From an included file: nothing found with the scope in front,
-    // so try the path as written.
-    // From a list element too, unless it is a `+=` there, which only looks
-    // at what its own field held.
-    if ((found == .absent or found == .gone) and (r.scope_len > 0 or (r.flags.anchor > 0 and !r.flags.append))) {
+    // so try the path as written — except a self-reference (look-back or
+    // `+=`), which uses the fixed-up path only (L1043-1047; include
+    // substitution/025, 027, 028). From a list element too, unless it is a
+    // `+=` there, which only looks at what its own field held.
+    const self_look = state.looked_back and (on_top or r.flags.append);
+    if (!self_look and (found == .absent or found == .gone) and (r.scope_len > 0 or (r.flags.anchor > 0 and !r.flags.append))) {
         const scoped = found;
         path = r.path[r.scope_len..];
         found = try state.follow(r.from(path), path);
@@ -481,14 +488,13 @@ noinline fn followRef(state: *Resolver, r: Ref, on_top: bool) Error!?Value {
             if (state.env != .keep or val.isResolved()) return val;
             if (!mayVanish(val)) later.ref = r.from(path);
             // A self-reference, on top of its field or a `+=`, found the
-            // layers below it, and falls back to the path as written only
-            // once they find nothing: that goes under them, and after it
-            // the variable, as for any path not in the document.
+            // layers below it. It does not fall back to the path as written
+            // (L1043-1047; 025): keep the fixed-up path under those layers
+            // so stringify round-trips without picking up an unrelated root key.
             const self_ref = later.ref.scope_len > 0 and (on_top or r.flags.append);
             const field = if (self_ref) &state.fields.items[state.fields.items.len - 1] else null;
             if (field != null and field.?.merged != null and std.meta.eql(field.?.merged.?, val)) {
-                const written = r.path[r.scope_len..];
-                const under = try stacked(gpa, .{ .ref = r.from(written) }, val);
+                const under = try stacked(gpa, .{ .ref = r.from(r.path) }, val);
                 // On top, it is just those layers.
                 if (on_top) return under;
                 field.?.merged = under;
@@ -502,8 +508,12 @@ noinline fn followRef(state: *Resolver, r: Ref, on_top: bool) Error!?Value {
         // names the element (`Ref.flags.anchor`).
         .absent => if (later.ref.flags.anchor == 0) switch (state.env) {
             .none => {},
-            .map => |map| if (try environment.fromEnv(gpa, map, r)) |val| return val,
-            // Absent with the scope too, so `later` has none.
+            // Env vars are named as written, without the include scope (L767).
+            // After a document fallback `later` is already that path; a self-look
+            // skipped the fallback, so take it from `r` (fromEnv strips the scope).
+            .map => |map| if (try environment.fromEnv(gpa, map, if (self_look) r else later.ref)) |val| return val,
+            // Keep the scoped ref: a later resolve still names the env var as
+            // written, and stringify writes `+=` from the append flag (025).
             .keep => return later,
         },
         .gone => {},
@@ -848,12 +858,13 @@ test "resolve.an undefined optional removes what it stands in" {
     try expectResolved("a = ${?nope}\nb = 1", "{\"b\":1}");
     try expectResolved("l = [1, ${?nope}, 2]", "{\"l\":[1,2]}");
 }
-// S13.18 · java ✓ · pyhocon ✓ · spec ✓ (suite) · zig ⚠️ — an undefined optional
-// next to one other value adds nothing and that value keeps its type (L376,
-// L636-637): ${?nope}42 is the number 42 (substitutions/039). This test locks
-// the string zig still produces until the resolver catches up.
-test "resolve.an undefined optional in a concatenation leaves a string" {
-    try expectResolved("a = ${?nope}42", "{\"a\":\"42\"}");
+// S13.18 · java ✓ · pyhocon ✓ · spec ✓ — an undefined optional next to one
+// other value adds nothing and that value keeps its type (L376, L636-637):
+// ${?nope}42 is the number 42 (substitutions/039), true${?nope} the boolean.
+test "resolve.an undefined optional next to a value keeps its type" {
+    try expectResolved("a = ${?nope}42", "{\"a\":42}");
+    try expectResolved("a = true${?nope}", "{\"a\":true}");
+    try expectResolved("a = [${?nope}10, 1.50${?nope}]", "{\"a\":[10,1.50]}");
 }
 // java ✓ · pyhocon ✓ · spec ✓ — a required ref with nothing behind it.
 test "resolve.a missing target is an error" {
@@ -922,17 +933,14 @@ test "resolve.+= in a list element sees the value it overrides there" {
     try expectResolveError("a = [ { b = 1, b += 2 } ]", error.UnsupportedConcatenation);
 }
 
-// self-referential-examples/040, 043, 045–048, plus-equals-field-separator/
-// 032–033 · java ✓ (all but the `f = ${?a.t}` row, where it gives f = 1) ·
-// pyhocon ⚠️ (`d.z` is 5, not [5], on the last two) · spec ✓ — the same lines in either
-// order give the same values: an optional that leads back to its own field is
-// nonexistent (L716), and a target walked again inside a look-back keeps that
-// value (L886), whichever field is resolved first.
+// self-referential-examples/040, 044–048, plus-equals-field-separator/
+// 032–033 · java ✓ · pyhocon ⚠️ (`d.z` is 5, not [5], on the last two) ·
+// spec ✓ — the same lines in either order give the same values: an optional
+// that leads back to its own field is nonexistent (L716), and a target walked
+// again inside a look-back keeps that value (L886), whichever field is first.
 test "resolve.a cycle gives the same values in either order" {
     const pairs = [_]struct { [:0]const u8, [:0]const u8, []const u8 }{
         .{ "o = ${a.n}\n", "a { n = { h = 0 } ${?a} }\n", "{\"o\":{\"h\":0},\"a\":{\"n\":{\"h\":0}}}" },
-        .{ "f = ${?a.t}x\n", "a = ${?y}${?f}\ny { t = 1 }\n", "{\"f\":\"x\",\"a\":{\"t\":1},\"y\":{\"t\":1}}" },
-        .{ "f = ${?a.t}\n", "a = ${?y}${?f}\ny { t = 1 }\n", "{\"a\":{\"t\":1},\"y\":{\"t\":1}}" },
         .{ "d = yes${?c}\n", "c = ${d}\n", "{\"d\":\"yes\",\"c\":\"yes\"}" },
         .{ "e += ${?c}\n", "c = ${e}\n", "{\"e\":[],\"c\":[]}" },
         .{ "a = [${p}]\n", "p = 1\np = ${a}\n", "{\"a\":[1],\"p\":[1]}" },
@@ -954,6 +962,26 @@ test "resolve.a cycle gives the same values in either order" {
             try testing.expect(sameJson(want, have));
         }
     }
+}
+
+// self-referential-examples/043, 057, plus-equals/026 · java ✓ (one order) ·
+// spec ✓ — break one optional link (L660-661); field order is undefined, so
+// either order's result is allowed (L866-881). Document order picks one.
+test "resolve.an optional cycle depends on which field is written first" {
+    try expectResolved(
+        "f = ${?a.t}x\na = ${?y}${?f}\ny { t = 1 }",
+        "{\"f\":\"1x\",\"a\":{\"t\":1},\"y\":{\"t\":1}}",
+    );
+    try expectResolveError(
+        "a = ${?y}${?f}\nf = ${?a.t}x\ny { t = 1 }",
+        error.UnsupportedConcatenation,
+    );
+    try expectResolved("b += ${?a}\na += ${?b}", "{\"b\":[[]],\"a\":[]}");
+    try expectResolved("a += ${?b}\nb += ${?a}", "{\"a\":[[]],\"b\":[]}");
+    try expectResolved(
+        "f = ${?a.t}\na = ${?y}${?f}\ny { t = 1 }",
+        "{\"f\":1,\"a\":{\"t\":1},\"y\":{\"t\":1}}",
+    );
 }
 
 // java ✓ · spec ✓ — a cycle is broken by looking back where that gives every

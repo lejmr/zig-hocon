@@ -63,7 +63,9 @@ flowchart TD
   LB -->|"no: a list next to an object"| RV3["resolveValue(top)"]
   LB -->|yes| OAR{"shape ${x} #123; … #125; ?"}
   OAR -->|yes| ROAR["resolveObjectAfterRef:<br/>the object as a layer over ${x} (L398)"]
-  OAR -->|no| PF["push Field(place, below)<br/>DOWN"]
+  OAR -->|no| OBR{"shape #123; … #125; ${?x} ?"}
+  OBR -->|yes| ROBR["resolveObjectBeforeRest:<br/>the object as a layer, then the rest (027, 028)"]
+  OBR -->|no| PF["push Field(place, below)<br/>DOWN"]
   PF --> RRT["resolveRef(top, on_top = true)<br/>or resolveValue(top)"]
   RRT --> POP["pop Field"]
   POP --> AGQ{"field.again resolved?"}
@@ -98,18 +100,18 @@ flowchart TD
   RO -.->|"closed below where it began:<br/>it led back to its own field"| ON2["null: refers to itself (L716)"]
   FR --> F1["follow(path with the include's scope)"]
   F1 --> FQ{"Found"}
-  FQ -->|"absent / gone, from an include<br/>or anchored, not +="| F2["follow(path as written)"]
+  FQ -->|"absent / gone, from an include<br/>or anchored, not +=,<br/>and not a self-look"| F2["follow(path as written)"]
   F2 --> FQ2{"Found"}
   FQ -->|value| KQ{"env = keep<br/>and the value waits?"}
   FQ2 -->|value| KQ
   KQ -->|no| RET["the value"]
-  KQ -->|yes| LATER["the ref stays in the tree<br/>(a self-ref: the layers below it<br/>over the path as written)"]
+  KQ -->|yes| LATER["the ref stays in the tree<br/>(a self-ref: the layers below it<br/>over the fixed-up path)"]
   FQ -->|waits| LATER
   FQ -->|absent| EQ{"anchored?"}
   FQ2 -->|absent| EQ
   EQ -->|"yes: nothing names the element"| MQ
   EQ -->|no| EV{"env"}
-  EV -->|map| FE["fromEnv: the variable<br/>named like the path (L1540)"]
+  EV -->|map| FE["fromEnv: the variable<br/>named like the path as written (L767)"]
   EV -->|keep| LATER
   EV -->|none| MQ
   FE -->|found| RET
@@ -121,8 +123,8 @@ flowchart TD
 ```
 
 - `absent` means "not in the document", and only that goes on to the environment. `gone` means an optional on a cycle: the field is in the document, so no variable is read.
-- A self-reference with nothing below it is `absent`, so it reads the variable of its own name (L767). An anchored path never does.
-- **Rule R** (`closed`): an optional that closes a cycle is nonexistent (L714-716), memoized per substitution instance (L884-888). The order two fields resolve in is undefined, so either order's result or an error is allowed (L866-881): resolving f first in `f = ${?a.t}x`, `a = ${?y}${?f}` gives `f = "1x"` (043); resolving a first is an error. `b = [${?a}]`, `a = [${?b}]` is `a = []`, `b = [[]]` or the mirror, not both lists empty (057). Both optionals missing at once comes from no order.
+- A self-reference with nothing below it is `absent`, so it reads the variable of its own name (L767). An anchored path never does. A self-look (`looked_back` on top or a `+=`) does not try the original path in the document (L1043-1047; include substitution/025, 027, 028); an optional that vanished without a cycle still does (009, 011, 014).
+- **Rule R** (`closed`): an optional that closes a cycle is nonexistent (L714-716), memoized per substitution instance (L884-888). `closed` is consumed there so an outer optional that found a value keeps it: only one link of the cycle is missing. The order two fields resolve in is undefined, so either order's result or an error is allowed (L866-881): resolving f first in `f = ${?a.t}x`, `a = ${?y}${?f}` gives `f = "1x"` (043); resolving a first is an error. `b = [${?a}]`, `a = [${?b}]` is `a = []`, `b = [[]]` or the mirror, not both lists empty (057).
 
 ## 5 · lookup, seen and resolveTarget: a path and the cycles on it
 

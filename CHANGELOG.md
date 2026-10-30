@@ -2,6 +2,14 @@
 
 What changed for someone using zig-hocon: the Zig package, the `hocon` command line tool, libhocon for C and the `zig-hocon` Python package, which are released together under one version. The technical detail is in the commits each release links to.
 
+## [Unreleased]
+
+### Fixed
+
+- An undefined optional next to one other value keeps that value's type (L376, L636-637): `a = ${?nope}42` is the number `42`, `true${?nope}` the boolean, where v0.6.0 joined them as text. substitutions/039 and the suite's other single-neighbour rows.
+- An optional that closes a cycle is the only missing link (L660-661, L714-716): `closed` is consumed so an outer optional that already found a value keeps it. `b += ${?a}`, `a += ${?b}` is one order's result or the other (026, 057), not both lists empty; `f = ${?a.t}x` before `a = ${?y}${?f}` is `f = "1x"` (043); 075 is `[y, y]` when f is written first.
+- A self-reference in an include (`+=` or a look-back) looks up the fixed-up path only (L1043-1047): it does not fall back to the same name at the document root, so `a += 2` included under `k` with a root `a = [1]` is `k.a = [2]` (include substitution/025, 027, 028). A path that is not a self-reference still falls back when an optional vanished (009, 011, 014), and a self-reference with nothing below still reads the environment variable of the name as written (L767). `{ … } ${?x}` resolves the object as a layer first so a self-reference inside sees it.
+
 ## [0.6.0] - 2026-10-29
 
 ### Changed

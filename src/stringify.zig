@@ -123,10 +123,10 @@ fn writeRef(ref: Ref, w: *Writer) Writer.Error!void {
 // ponytail: what `${…}` cannot say, each needing an unusual input. Inside a
 // list or a concatenation other than `+=` the fallback is lost: the scoped
 // path alone is written. An object found at `scope.x` merges onto `${x}`,
-// which then has to resolve too. And the variables the original never reads:
-// `scope.x` when `${?scope.x}` finds nothing, and `x` when a self-reference's
-// fallback, the root's `x`, vanishes (`a += 1` over the root's
-// `a = ${?L[]}`). Upgrade if one shows up.
+// which then has to resolve too. And a variable the original never reads:
+// `scope.x` when `${?scope.x}` finds nothing. A self-reference's `+=` that
+// finds nothing at the fixed-up path starts a list and is written `+=`
+// again (025); it does not fall back to the root. Upgrade if one shows up.
 fn writeScopedRef(key: []const u8, ref: Ref, w: *Writer, indent: usize) Writer.Error!void {
     try writeMember(key, Value{ .ref = ref.from(ref.path[ref.scope_len..]) }, w, indent);
     var scoped = ref.from(ref.path);
@@ -802,24 +802,24 @@ test "stringify.a kept ref from an include inside a block keeps its fallback" {
         // Never nothing: an object under the variable, a required variable.
         .{ .inner = "x = { k = 1 }\nx = ${?FOO}\na = ${x}", .root = "x = { m = 2 }", .want = "common {\n  x {\n    k = 1\n  }\n  x = ${?FOO}\n  a = ${common.x}\n}\nx {\n  m = 2\n}\n" },
         .{ .inner = "x = ${FOO}\na = ${x}", .root = "x = 2", .want = "common {\n  x = ${FOO}\n  a = ${common.x}\n}\nx = 2\n" },
-        // `+=` finds nothing at `common.a` and adds to the root's `a`: no `+=`
-        // in the block says that.
-        .{ .inner = "a += x", .root = "a = ${?L[]}", .want = "common {\n  a = ${?a}[x]\n}\na = ${?L[]}\n" },
+        // `+=` finds nothing at `common.a` and starts a list there: the root's
+        // `a` is unrelated (L1043-1047; include substitution/025).
+        .{ .inner = "a += x", .root = "a = ${?L[]}", .want = "common {\n  a += x\n}\na = ${?L[]}\n" },
         // Found only at the root: the path as written, whatever waits there.
         .{ .inner = "url = ${host}", .root = "host = ${HOST}", .want = "common {\n  url = ${host}\n}\nhost = ${HOST}\n" },
-        .{ .inner = "a += 1", .root = "a = ${?L[]}\na += 0", .want = "common {\n  a = ${?a}[1]\n}\na = ${?L[]}\na += 0\n" },
-        // A self-reference finds the layers below it, and only when they
-        // find nothing the path as written: that goes under them, and after
-        // it the variable, in the document or not.
-        .{ .inner = "a = ${?FOO}\na = ${a}", .root = "a = 7", .want = "common {\n  a = ${a}\n  a = ${?FOO}\n}\na = 7\n" },
-        .{ .inner = "a = ${?nope}\na = ${?a}", .root = "a = ${?FOO}", .want = "common {\n  a = ${?a}\n  a = ${?nope}\n}\na = ${?FOO}\n" },
-        .{ .inner = "path = ${?EXTRA}\npath = ${path}", .root = "", .want = "common {\n  path = ${path}\n  path = ${?EXTRA}\n}\n" },
-        .{ .inner = "J = ${?E}\nJ = ${?J}", .root = "", .want = "common {\n  J = ${?J}\n  J = ${?E}\n}\n" },
-        // The root's `a` reads `common.a` back: the fallback under the
-        // layers is not followed while compacting, so no cycle.
-        .{ .inner = "a = ${?FOO}\na = ${a}", .root = "a = ${?common.a}", .want = "common {\n  a = ${a}\n  a = ${?FOO}\n}\na = ${?common.a}\n" },
+        .{ .inner = "a += 1", .root = "a = ${?L[]}\na += 0", .want = "common {\n  a += 1\n}\na = ${?L[]}\na += 0\n" },
+        // A self-reference finds the layers below it at the fixed-up path
+        // only (L1043-1047; 025): stringify keeps that path so a root key
+        // of the same name is not picked up on re-parse.
+        .{ .inner = "a = ${?FOO}\na = ${a}", .root = "a = 7", .want = "common {\n  a = ${common.a}\n  a = ${?FOO}\n}\na = 7\n" },
+        .{ .inner = "a = ${?nope}\na = ${?a}", .root = "a = ${?FOO}", .want = "common {\n  a = ${?common.a}\n  a = ${?nope}\n}\na = ${?FOO}\n" },
+        .{ .inner = "path = ${?EXTRA}\npath = ${path}", .root = "", .want = "common {\n  path = ${common.path}\n  path = ${?EXTRA}\n}\n" },
+        .{ .inner = "J = ${?E}\nJ = ${?J}", .root = "", .want = "common {\n  J = ${?common.J}\n  J = ${?E}\n}\n" },
+        // The root's `a` reads `common.a` back: the self-ref stays on
+        // `common.a`, so compacting does not close a cycle through the root.
+        .{ .inner = "a = ${?FOO}\na = ${a}", .root = "a = ${?common.a}", .want = "common {\n  a = ${common.a}\n  a = ${?FOO}\n}\na = ${?common.a}\n" },
         // A `+=` is a self-reference too.
-        .{ .inner = "a = ${?L[]}\na += 1", .root = "a = [0]", .want = "common {\n  a = ${?a}\n  a = ${?L[]}\n  a += 1\n}\na = [0]\n" },
+        .{ .inner = "a = ${?L[]}\na += 1", .root = "a = [0]", .want = "common {\n  a = ${?common.a}\n  a = ${?L[]}\n  a += 1\n}\na = [0]\n" },
     };
     var arena: std.heap.ArenaAllocator = .init(testing.allocator);
     defer arena.deinit();
@@ -832,6 +832,10 @@ test "stringify.a kept ref from an include inside a block keeps its fallback" {
     try some.put("HOST", "burrow.example");
     try some.put("EXTRA", "/opt/burrow");
     try some.put("J", "seven sleepy jays");
+    // Self-refs stringify as the fixed-up path (`${common.J}`); the same
+    // value under that name makes the round-trip match the include form,
+    // which reads the variable as written (`J`, L767).
+    try some.put("common.J", "seven sleepy jays");
 
     for (rows) |row| {
         errdefer std.debug.print("failed on \"{s}\"\n", .{row.inner});
