@@ -266,7 +266,7 @@ converted to strings as follows (strings shown as quoted strings):</p>
    as it was written in the file.
  - <mark class="ok" title="string-value-concatenation.11 — string-value-concatenation/001-substitution-in-string-concatenation.conf, string-value-concatenation/023-substituted-number-keeps-its-text.conf">a substitution is replaced with its value which is then
    converted to a string as above.</mark>
- - <mark class="ok" title="string-value-concatenation.12 — concatenation-whitespace-and-substitutions/007-zero-width-space-between-list-substitutions-is-error.conf, string-value-concatenation/002-only-simple-values-participate.conf, string-value-concatenation/010-object-then-scalar-drops-the-scalar.conf, string-value-concatenation/011-array-then-scalar-drops-the-scalar.conf, string-value-concatenation/012-scalar-then-object-is-an-error.conf, string-value-concatenation/014-array-then-unquoted-text-without-space.conf, string-value-concatenation/015-object-then-unquoted-text-without-space.conf, string-value-concatenation/016-text-between-arrays-is-not-dropped.conf">it is invalid for arrays or objects to appear in a string value
+ - <mark class="ok" title="string-value-concatenation.12 — concatenation-whitespace-and-substitutions/007-zero-width-space-between-list-substitutions-is-error.conf, string-value-concatenation/002-only-simple-values-participate.conf, string-value-concatenation/010-object-then-scalar-is-an-error.conf, string-value-concatenation/011-array-then-scalar-is-an-error.conf, string-value-concatenation/012-scalar-then-object-is-an-error.conf, string-value-concatenation/014-array-then-unquoted-text-without-space.conf, string-value-concatenation/015-object-then-unquoted-text-without-space.conf, string-value-concatenation/016-text-between-arrays-is-not-dropped.conf">it is invalid for arrays or objects to appear in a string value
    concatenation.</mark></p>
 <p data-line="376"><mark class="ok" title="string-value-concatenation.13 — string-value-concatenation/009-single-boolean-not-converted-to-string.conf">A single value is never converted to a string.</mark> That is, it would
 be wrong to value concatenate `true` by itself; that should be
@@ -945,7 +945,7 @@ durations). The implementation should then interpret values as
 follows:</p>
 <p data-line="1283"> - <mark class="ok" title="units-format.1 — units-format/001-number-value-is-default-unit.conf">if the value is a number, it is taken to be a number in
    the default unit.</mark>
- - <mark class="ok" title="units-format.2 — units-format/004-whitespace-optional-around-number-and-unit.conf, units-format/006-unit-before-number-is-illegal.conf">if the value is a string, it is taken to be this sequence:</mark></p>
+ - <mark class="ok" title="units-format.2 — units-format/004-whitespace-optional-around-number-and-unit.conf, units-format/006-unit-before-number-stays-a-string.conf">if the value is a string, it is taken to be this sequence:</mark></p>
 <p data-line="1287">     - optional whitespace
      - a number
      - optional whitespace
@@ -962,7 +962,7 @@ similar for other time units).</p>
 <p data-line="1304"><mark class="ok" title="duration-format.1 — duration-format/001-bare-number-is-milliseconds.conf">This can use the general &quot;units format&quot; described above; bare
 numbers are taken to be in milliseconds already, while strings are
 parsed as a number plus an optional unit string.</mark></p>
-<p data-line="1308"><mark class="ok" title="duration-format.2 — duration-format/002-uppercase-unit-is-illegal.conf">The supported unit strings for duration are case-sensitive and
+<p data-line="1308"><mark class="ok" title="duration-format.2 — duration-format/002-uppercase-unit-stays-a-string.conf">The supported unit strings for duration are case-sensitive and
 must be lowercase.</mark> Exactly these strings are supported:</p>
 <p data-line="1311"> - <mark class="ok" title="duration-format.4 — duration-format/003-nanoseconds-spellings.conf">`ns`, `nano`, `nanos`, `nanosecond`, `nanoseconds`</mark>
  - <mark class="ok" title="duration-format.5 — duration-format/004-microseconds-spellings.conf">`us`, `micro`, `micros`, `microsecond`, `microseconds`</mark>
@@ -977,7 +977,7 @@ available for getting time units as a `java.time.Period`. </p>
 <p data-line="1324"><mark class="ok" title="period-format.1 — period-format/001-bare-number-is-days.conf">This can use the general &quot;units format&quot; described above; bare
 numbers are taken to be in days, while strings are
 parsed as a number plus an optional unit string.</mark></p>
-<p data-line="1328"><mark class="ok" title="period-format.2 — period-format/002-uppercase-unit-is-illegal.conf">The supported unit strings for period are case-sensitive and
+<p data-line="1328"><mark class="ok" title="period-format.2 — period-format/002-uppercase-unit-stays-a-string.conf">The supported unit strings for period are case-sensitive and
 must be lowercase.</mark> Exactly these strings are supported:</p>
 <p data-line="1331"> - <mark class="ok" title="period-format.4 — period-format/003-days-spellings.conf">`d`, `day`, `days`</mark>
  - <mark class="ok" title="period-format.5 — period-format/004-weeks-spellings.conf">`w`, `week`, `weeks`</mark>

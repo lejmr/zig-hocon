@@ -25,7 +25,7 @@ observable parse behaviour.
 | 444 | Arrays without commas or newlines | `arrays-without-commas-or-newlines` | ✅ 7 cases |
 | 472 | Path expressions | `path-expressions` | ✅ 22 cases |
 | 521 | Paths as keys | `paths-as-keys` | ✅ 11 cases |
-| 574 | Substitutions | `substitutions` | ✅ 41 cases |
+| 574 | Substitutions | `substitutions` | ✅ 42 cases |
 | 653 | Self-referential substitutions | `self-referential-substitutions` | ✅ 8 cases |
 | 719 | The += field separator | `plus-equals-field-separator` | ✅ 33 cases |
 | 738 | Examples of self-referential substitutions | `self-referential-examples` | ✅ 77 cases |
