@@ -6,7 +6,7 @@ This guide moves a project from pyhocon to zig_hocon. It is not an import swap: 
 
 ## Why move
 
-- **Correct.** zig_hocon passes all 588 tests in the [conformance suite](https://htmlpreview.github.io/?https://github.com/lejmr/zig-hocon/blob/main/conformance/report.html), pyhocon 359.
+- **Correct.** zig_hocon passes all 588 tests in the [conformance suite](https://htmlpreview.github.io/?https://github.com/lejmr/zig-hocon/blob/main/conformance/report.html), pyhocon 379.
 - **Fast.** A 1 MB config with substitutions loads in 13 ms, where pyhocon takes 8 s; a 10 MB one in 0.14 s, where pyhocon took 490 s ([BENCHMARK.md](BENCHMARK.md)).
 - **`+=` as written.** pyhocon stops with an `AttributeError` on `plugins += metrics` after `plugins = [auth]`, puts 2 in place of the list on `x += 2`, and keeps only some elements when a list is appended to in two files or inside a `{ }` block. zig_hocon gives `["auth", "metrics"]` and reads every append the file names.
 - **No silent guesses.** pyhocon accepts input the spec rejects and changes what you wrote. zig_hocon reports an error with its place:
