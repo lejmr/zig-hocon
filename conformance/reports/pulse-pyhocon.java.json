@@ -4,12 +4,12 @@
   "version": "pulse-pyhocon 0.2.1",
   "mode": "java",
   "java_version": "1.4.9",
-  "command": "pulse_pyhocon.parse_file: AstekGroup/pulse-pyhocon 0.2.1 (Rust/PyO3, falls back to pyhocon 0.3.63), HOCONConverter.to_json",
-  "ran_at": "2026-10-29T07:10:36Z",
-  "suite_digest": "d3ebfb2f13a116b1",
+  "command": "perl -e alarm 30; exec @ARGV zig-out/bench-py/bin/python tools/bench/bench.py pulse-pyhocon --json",
+  "ran_at": "2026-10-30T07:48:43Z",
+  "suite_digest": "87de593b816a45f7",
   "total": 588,
-  "passed": 348,
-  "percent": 59.2,
+  "passed": 360,
+  "percent": 61.2,
   "sections": {
     "array-and-object-concatenation": {
       "total": 23,
@@ -101,11 +101,11 @@
     },
     "plus-equals-field-separator": {
       "total": 33,
-      "passed": 0
+      "passed": 6
     },
     "self-referential-examples": {
       "total": 77,
-      "passed": 39
+      "passed": 45
     },
     "self-referential-substitutions": {
       "total": 8,
@@ -347,10 +347,10 @@
     "include-substitution/022-include-in-a-list-element-looks-up-its-own-root/main.conf": "pass",
     "include-substitution/023-include-under-plus-equals-looks-up-its-own-root/main.conf": "pass",
     "include-substitution/024-include-in-a-list-element-before-the-including-root/main.conf": "fail",
-    "include-substitution/025-plus-equals-with-nothing-at-fixed-up-path-falls-back/main.conf": "fail",
+    "include-substitution/025-plus-equals-with-nothing-at-fixed-up-path-starts-a-list/main.conf": "fail",
     "include-substitution/026-include-in-an-object-concatenated-with-an-optional/main.conf": "fail",
-    "include-substitution/027-plus-equals-falling-back-onto-text-is-an-error/main.conf": "fail",
-    "include-substitution/028-optional-self-reference-falling-back-to-the-root/main.conf": "fail",
+    "include-substitution/027-plus-equals-does-not-fall-back-onto-text/main.conf": "fail",
+    "include-substitution/028-optional-self-reference-in-an-include-disappears/main.conf": "fail",
     "include-syntax/001-include-later-in-key-is-literal.conf": "pass",
     "include-syntax/002-include-as-object-value-is-string.conf": "pass",
     "include-syntax/003-include-as-array-element-is-string.conf": "pass",
@@ -476,12 +476,12 @@
     "plus-equals-field-separator/021-appends-through-a-substituted-object.conf": "fail",
     "plus-equals-field-separator/022-required-element-stays-when-an-inner-optional-breaks-the-cycle.conf": "fail",
     "plus-equals-field-separator/023-required-element-stays-when-an-inner-optional-breaks-the-cycle-other-order.conf": "fail",
-    "plus-equals-field-separator/024-alias-read-inside-an-append-look-back.conf": "fail",
-    "plus-equals-field-separator/025-alias-read-inside-an-append-look-back-other-order.conf": "fail",
-    "plus-equals-field-separator/026-two-fields-appending-each-other-optionally.conf": "fail",
-    "plus-equals-field-separator/027-two-fields-appending-each-other-optionally-other-order.conf": "fail",
-    "plus-equals-field-separator/028-number-and-list-appending-each-other-optionally.conf": "fail",
-    "plus-equals-field-separator/029-number-and-list-appending-each-other-optionally-other-order.conf": "fail",
+    "plus-equals-field-separator/024-alias-read-inside-an-append-look-back.conf": "pass",
+    "plus-equals-field-separator/025-alias-read-inside-an-append-look-back-other-order.conf": "pass",
+    "plus-equals-field-separator/026-two-fields-appending-each-other-optionally.conf": "pass",
+    "plus-equals-field-separator/027-two-fields-appending-each-other-optionally-other-order.conf": "pass",
+    "plus-equals-field-separator/028-number-and-list-appending-each-other-optionally.conf": "pass",
+    "plus-equals-field-separator/029-number-and-list-appending-each-other-optionally-other-order.conf": "pass",
     "plus-equals-field-separator/030-append-reached-again-through-a-list-appends-once.conf": "fail",
     "plus-equals-field-separator/031-append-reached-again-through-a-list-appends-once-other-order.conf": "fail",
     "plus-equals-field-separator/032-append-reached-again-with-no-list-before-appends-once.conf": "fail",
@@ -529,7 +529,7 @@
     "self-referential-examples/041-optional-back-to-its-own-object-makes-no-field.conf": "pass",
     "self-referential-examples/042-optional-on-a-cycle-through-another-field.conf": "pass",
     "self-referential-examples/043-two-optionals-on-one-cycle.conf": "fail",
-    "self-referential-examples/044-optional-on-a-cycle-makes-no-field.conf": "fail",
+    "self-referential-examples/044-optional-on-a-cycle-makes-no-field.conf": "pass",
     "self-referential-examples/045-optional-in-a-concatenation-on-a-cycle.conf": "fail",
     "self-referential-examples/046-plus-equals-of-an-optional-on-a-cycle.conf": "fail",
     "self-referential-examples/047-path-into-a-self-referential-field-looks-back.conf": "fail",
@@ -542,16 +542,16 @@
     "self-referential-examples/054-look-back-inside-a-list-element.conf": "fail",
     "self-referential-examples/055-undefined-optional-under-a-path-still-hides.conf": "fail",
     "self-referential-examples/056-list-over-scalar-hidden-by-literal-object.conf": "fail",
-    "self-referential-examples/057-optionals-leading-back-to-each-other-are-both-missing.conf": "fail",
+    "self-referential-examples/057-optionals-leading-back-to-each-other-depend-on-the-order.conf": "pass",
     "self-referential-examples/058-object-field-read-inside-a-look-back.conf": "pass",
     "self-referential-examples/059-alias-read-inside-a-layer-under-an-object.conf": "pass",
     "self-referential-examples/060-alias-read-inside-a-layer-under-an-object-other-order.conf": "pass",
     "self-referential-examples/061-text-under-an-object-is-never-evaluated.conf": "pass",
     "self-referential-examples/062-text-under-an-object-is-never-evaluated-other-order.conf": "pass",
-    "self-referential-examples/063-optional-alias-of-a-list-on-a-cycle-is-nonexistent.conf": "fail",
-    "self-referential-examples/064-optional-alias-of-a-list-on-a-cycle-is-nonexistent-other-order.conf": "fail",
-    "self-referential-examples/065-alias-read-inside-a-concatenation-look-back.conf": "fail",
-    "self-referential-examples/066-alias-read-inside-a-concatenation-look-back-other-order.conf": "fail",
+    "self-referential-examples/063-optional-alias-of-a-list-on-a-cycle-is-nonexistent.conf": "pass",
+    "self-referential-examples/064-optional-alias-of-a-list-on-a-cycle-is-nonexistent-other-order.conf": "pass",
+    "self-referential-examples/065-alias-read-inside-a-concatenation-look-back.conf": "pass",
+    "self-referential-examples/066-alias-read-inside-a-concatenation-look-back-other-order.conf": "pass",
     "self-referential-examples/067-text-concatenation-under-an-object-is-never-evaluated.conf": "fail",
     "self-referential-examples/068-field-written-twice-seen-again-is-resolved-as-a-field.conf": "fail",
     "self-referential-examples/069-required-undefined-in-a-field-written-twice-seen-again.conf": "pass",
@@ -640,12 +640,12 @@
     "substitutions/036-empty-quoted-path-element.conf": "fail",
     "substitutions/037-path-into-a-list-element-is-undefined.conf": "pass",
     "substitutions/038-whitespace-after-question-mark.conf": "pass",
-    "substitutions/039-undefined-optional-with-number-is-a-string.conf": "fail",
+    "substitutions/039-undefined-optional-next-to-a-number-keeps-the-number.conf": "fail",
     "substitutions/040-null-blocks-environment-lookup.conf": "fail",
     "substitutions/041-undefined-optional-under-a-path-leaves-the-object.conf": "pass",
-    "substitutions/042-undefined-optional-next-to-number-is-a-string.conf": "fail",
+    "substitutions/042-undefined-optional-next-to-numbers-keeps-them-numbers.conf": "fail",
     "substitutions/043-undefined-optional-before-a-leading-zero.conf": "fail",
-    "substitutions/044-undefined-optional-with-boolean-is-a-string.conf": "fail",
+    "substitutions/044-undefined-optional-with-boolean-keeps-the-boolean.conf": "fail",
     "unchanged-from-json/001-quoted-string-json-format.conf": "fail",
     "unchanged-from-json/002-string-value-type.conf": "pass",
     "unchanged-from-json/003-number-value-type.conf": "pass",
@@ -770,9 +770,6 @@
     "include-substitution/022-include-in-a-list-element-looks-up-its-own-root/main.conf": "rejected",
     "include-substitution/023-include-under-plus-equals-looks-up-its-own-root/main.conf": "rejected",
     "include-substitution/024-include-in-a-list-element-before-the-including-root/main.conf": "{\"a\":[{\"x\":2,\"y\":1}],\"y\":2}",
-    "include-substitution/025-plus-equals-with-nothing-at-fixed-up-path-falls-back/main.conf": "{\"a\":[1],\"k\":{\"a\":2}}",
-    "include-substitution/027-plus-equals-falling-back-onto-text-is-an-error/main.conf": "{\"a\":\"\",\"k\":{\"a\":3}}",
-    "include-substitution/028-optional-self-reference-falling-back-to-the-root/main.conf": "{\"a\":{\"b\":{}},\"b\":{}}",
     "key-value-separator/007-object-after-omitted-separator-concatenates.conf": "rejected",
     "key-value-separator/008-substitution-after-omitted-separator-concatenates.conf": "rejected",
     "omit-root-braces/006-array-root-unaffected.conf": "[1,2,3]",
@@ -794,12 +791,6 @@
     "plus-equals-field-separator/018-errors-on-a-number-defined-in-object-concatenation.conf": "{\"x\":{},\"y\":{\"l\":2}}",
     "plus-equals-field-separator/019-appends-twice-by-path-after-number-replaced-by-object.conf": "rejected",
     "plus-equals-field-separator/021-appends-through-a-substituted-object.conf": "{\"x\":{\"e\":3},\"a\":{\"c\":2,\"e\":3}}",
-    "plus-equals-field-separator/024-alias-read-inside-an-append-look-back.conf": "rejected",
-    "plus-equals-field-separator/025-alias-read-inside-an-append-look-back-other-order.conf": "rejected",
-    "plus-equals-field-separator/026-two-fields-appending-each-other-optionally.conf": "rejected",
-    "plus-equals-field-separator/027-two-fields-appending-each-other-optionally-other-order.conf": "rejected",
-    "plus-equals-field-separator/028-number-and-list-appending-each-other-optionally.conf": "rejected",
-    "plus-equals-field-separator/029-number-and-list-appending-each-other-optionally-other-order.conf": "rejected",
     "self-referential-examples/015-list-hidden-by-substituted-object-is-never-evaluated.conf": "{\"wrapper\":{},\"replacement\":{}}",
     "self-referential-examples/021-hidden-list-does-not-depend-on-key-order.conf": "{\"w\":{\"x\":1},\"r\":{\"x\":1},\"zzz\":1}",
     "self-referential-examples/027-self-reference-inside-object-concatenation.conf": "{\"d\":{\"x\":[0]},\"c\":{\"x\":[0,1,2]}}",
@@ -807,26 +798,14 @@
     "self-referential-examples/029-concatenated-object-refers-to-its-mixin.conf": "{\"mixin\":{\"hello\":\"world\"},\"a\":{\"hello\":\"world\",\"y\":\"world\"}}",
     "self-referential-examples/030-concatenated-object-sees-its-own-field.conf": "{\"x\":{\"n\":1},\"top\":{\"n\":2,\"seen\":2}}",
     "self-referential-examples/032-field-hidden-inside-object-concatenation.conf": "{\"base\":{},\"child\":{\"foo\":\"x\"}}",
-    "self-referential-examples/036-alias-path-read-inside-a-look-back.conf": "{\"p\":\"x\",\"a\":\"x\"}",
     "self-referential-examples/042-optional-on-a-cycle-through-another-field.conf": "rejected",
-    "self-referential-examples/044-optional-on-a-cycle-makes-no-field.conf": "{\"a\":{\"t\":1},\"y\":{\"t\":1}}",
+    "self-referential-examples/043-two-optionals-on-one-cycle.conf": "rejected",
     "self-referential-examples/052-hidden-list-concatenation-with-an-undefined-path.conf": "{\"wrapper\":{\"a\":1}}",
     "self-referential-examples/053-hidden-list-concatenation-makes-no-cycle.conf": "{\"x\":{\"b\":true},\"k\":[{\"b\":true}]}",
     "self-referential-examples/055-undefined-optional-under-a-path-still-hides.conf": "{\"w\":{}}",
     "self-referential-examples/056-list-over-scalar-hidden-by-literal-object.conf": "{\"wrapper\":{\"b\":1}}",
-    "self-referential-examples/057-optionals-leading-back-to-each-other-are-both-missing.conf": "rejected",
     "self-referential-examples/058-object-field-read-inside-a-look-back.conf": "rejected",
-    "self-referential-examples/059-alias-read-inside-a-layer-under-an-object.conf": "{\"f\":{\"z\":3},\"a\":3}",
-    "self-referential-examples/060-alias-read-inside-a-layer-under-an-object-other-order.conf": "{\"a\":3,\"f\":{\"z\":3}}",
-    "self-referential-examples/063-optional-alias-of-a-list-on-a-cycle-is-nonexistent.conf": "rejected",
-    "self-referential-examples/064-optional-alias-of-a-list-on-a-cycle-is-nonexistent-other-order.conf": "rejected",
-    "self-referential-examples/065-alias-read-inside-a-concatenation-look-back.conf": "rejected",
-    "self-referential-examples/066-alias-read-inside-a-concatenation-look-back-other-order.conf": "rejected",
     "self-referential-examples/067-text-concatenation-under-an-object-is-never-evaluated.conf": "{\"a\":{\"helper\":0},\"r\":{\"y\":1}}",
-    "self-referential-examples/074-optional-nonexistent-on-a-cycle-stays-so-outside-it.conf": "{\"e\":[\"y\"],\"f\":[\"y\",\"y\"]}",
-    "self-referential-examples/075-optional-nonexistent-on-a-cycle-stays-so-outside-it-other-order.conf": "{\"f\":[\"y\",\"y\"],\"e\":[\"y\"]}",
-    "self-referential-examples/076-optional-into-an-object-holding-a-field-being-resolved.conf": "rejected",
-    "self-referential-examples/077-optional-into-an-object-holding-a-field-being-resolved-other-order.conf": "rejected",
     "self-referential-substitutions/008-object-field-referring-to-its-object-stays-a-cycle.conf": "{\"v\":{}}",
     "self-referential-substitutions/009-optional-over-a-field-referring-to-its-object.conf": "rejected",
     "string-value-concatenation/010-object-then-scalar-drops-the-scalar.conf": "rejected",
@@ -836,10 +815,7 @@
     "string-value-concatenation/016-text-between-arrays-is-not-dropped.conf": "rejected",
     "substitution-fallback-to-environment/009-self-reference-reads-env.conf": "{\"CONFORMANCE_HOME\":\"/from/env\"}",
     "substitution-fallback-to-environment/010-optional-self-reference-reads-env.conf": "{\"CONFORMANCE_HOME\":\"/from/env\"}",
-    "substitutions/039-undefined-optional-with-number-is-a-string.conf": "{\"a\":\"42\"}",
-    "substitutions/042-undefined-optional-next-to-number-is-a-string.conf": "{\"a\":[\"10\",\"1.50\"]}",
     "substitutions/043-undefined-optional-before-a-leading-zero.conf": "{\"a\":\"01\"}",
-    "substitutions/044-undefined-optional-with-boolean-is-a-string.conf": "{\"a\":\"true\"}",
     "unchanged-from-json/009-leading-zero-run-is-text.conf": "{\"a\":1}",
     "unchanged-from-json/010-signed-fraction-without-integer-part-is-text.conf": "{\"a\":-0.33}",
     "unchanged-from-json/011-plus-in-a-signed-fraction-is-illegal.conf": "{\"a\":-3.3}",
@@ -1701,7 +1677,7 @@
     {
       "case": "include-substitution/009-undefined-optional-at-fixed-up-path-falls-back/main.conf",
       "spec": "HOCON.md#include-semantics-substitution",
-      "rule": "an undefined ${?nope} means common.x.y is never created, so ${x.y} is not found at the fixed-up path and is looked up at the original path x.y. typesafe/config treats the vanished value as a miss that ends the lookup -- except in some root key orders (see 014); lightbend/config#863 falls back",
+      "rule": "Settled (Readings): an undefined ${?nope} means common.x.y is never created, so ${x.y} is not found at the fixed-up path and must be looked up at the original path x.y (L1045-1049) — with root x.y = 0, a is 0. typesafe/config treats the vanished value as a miss that ends the lookup (UnresolvedSubstitution), and in some root key orders it even succeeds (see 014): a bug, not HOCON. lightbend/config#863 (open) retries the including root, matching this expect; self-ref/cycle rows 025–028 stay without that fallback.",
       "expected": "rejected",
       "got": "{\"common\":{\"x\":{},\"a\":0},\"x\":{\"y\":0}}",
       "java": "unsupported"
@@ -1709,7 +1685,7 @@
     {
       "case": "include-substitution/011-optional-reference-falls-back-too/main.conf",
       "spec": "HOCON.md#include-semantics-substitution",
-      "rule": "the optional form of 009 falls back the same way; typesafe/config leaves a out instead (lightbend/config#863)",
+      "rule": "Settled (Readings): the optional form of 009 — a = ${?x.y} — falls back the same way (L1045-1049): with root x.y = 0, a is 0. typesafe/config leaves a out instead (java: diverges). lightbend/config#863 fixes it to this reading; not the self-ref case (025–028), where falling back would be wrong.",
       "expected": {
         "common": {
           "x": {}
@@ -1757,7 +1733,7 @@
     {
       "case": "include-substitution/014-unrelated-key-does-not-change-the-result/main.conf",
       "spec": "HOCON.md#include-semantics-substitution",
-      "rule": "an unrelated key that reads common.x must not change what common.a resolves to; in typesafe/config this input fails while the same input with the key named o24bbd resolves to 0 (lightbend/config#863)",
+      "rule": "Settled (Readings): an unrelated key that reads common.x must not change what common.a resolves to — same fallback as 009 (L1045-1049). In typesafe/config 1.4.9 this input fails (UnresolvedSubstitution) while the same input with the observer key named o24bbd resolves to 0: key order decides the result. That is a bug; lightbend/config#863 makes every order give a = 0, as here.",
       "expected": "rejected",
       "got": "{\"common\":{\"x\":{},\"a\":0},\"x\":{\"y\":0},\"zzz\":{}}",
       "java": "unsupported"
@@ -1840,9 +1816,9 @@
       "java": "unsupported"
     },
     {
-      "case": "include-substitution/025-plus-equals-with-nothing-at-fixed-up-path-falls-back/main.conf",
+      "case": "include-substitution/025-plus-equals-with-nothing-at-fixed-up-path-starts-a-list/main.conf",
       "spec": "HOCON.md#include-semantics-substitution",
-      "rule": "a += 2 in a file included at k is a = ${?a} [2], fixed up to ${?k.a}; looking back, k.a has no earlier value, so the original path a is looked up as well and k.a appends to it. typesafe/config lets the self-reference end the lookup, the same for the long form, though it falls back for b = ${?a} [2]",
+      "rule": "Settled (Readings, half b): a self-reference looks back at the fixed-up path only — the original-path fallback is for the application root (L1043-1047), not for a field referring to itself — unlike 009/011/014, where an optional vanishes without a cycle and the root must still be tried. typesafe/config reads it so: a += 2 included at k is k.a = ${?k.a} [2], k.a has no earlier value, and the root's unrelated a = [1] is not looked at: k.a is [2]. lightbend/config#863 keeps a swallowed cycle from falling back to the root, so this row stays as it is.",
       "expected": {
         "a": [
           1
@@ -1860,8 +1836,7 @@
         "k": {
           "a": 2
         }
-      },
-      "java": "diverges"
+      }
     },
     {
       "case": "include-substitution/026-include-in-an-object-concatenated-with-an-optional/main.conf",
@@ -1884,9 +1859,9 @@
       }
     },
     {
-      "case": "include-substitution/027-plus-equals-falling-back-onto-text-is-an-error/main.conf",
+      "case": "include-substitution/027-plus-equals-does-not-fall-back-onto-text/main.conf",
       "spec": "HOCON.md#include-semantics-substitution",
-      "rule": "a += 3 in child.conf looks for k.a first, which is not there, then for a from the root (L1010, as in 025): the text \"\", and += onto a value that is no list is an error (L731). typesafe/config treats the include's a as unrelated to the root's",
+      "rule": "Settled (Readings, half b): a self-reference looks back at the fixed-up path only — unlike 009/011/014 (optional vanishes → still try the root). typesafe/config reads it so: a += 3 included at k looks back at k.a only, which has no earlier value, so the root's text a = \"\" is not appended to and k.a is [3], no error. lightbend/config#863 keeps a swallowed cycle from falling back to the root, so this row stays as it is.",
       "expected": {
         "a": "",
         "k": {
@@ -1900,13 +1875,12 @@
         "k": {
           "a": 3
         }
-      },
-      "java": "lenient"
+      }
     },
     {
-      "case": "include-substitution/028-optional-self-reference-falling-back-to-the-root/main.conf",
+      "case": "include-substitution/028-optional-self-reference-in-an-include-disappears/main.conf",
       "spec": "HOCON.md#include-semantics-substitution",
-      "rule": "b = ${?b} in child.conf has nothing below it at a.b, so it is as if a.b were not in the document, and the path is looked up from the root next (L1010, as in 025): b is {}, and so is a.b. typesafe/config drops a.b",
+      "rule": "Settled (Readings, half b): a self-reference looks back at the fixed-up path only — unlike 009/011/014 (optional vanishes → still try the root). typesafe/config reads it so: b = ${?b} included in a has nothing below it at a.b, so it \"just disappears silently\" (L776), and the root's b {} is not taken: a is {}. lightbend/config#863 keeps a swallowed cycle from falling back to the root, so this row stays as it is.",
       "expected": {
         "a": {},
         "b": {}
@@ -1916,8 +1890,7 @@
           "b": {}
         },
         "b": {}
-      },
-      "java": "diverges"
+      }
     },
     {
       "case": "include-syntax/004-no-concatenation-on-include-argument.conf",
@@ -2159,7 +2132,7 @@
     {
       "case": "path-expressions/024-number-like-keys-before-plus-equals.conf",
       "spec": "HOCON.md#path-expressions",
-      "rule": "a key may start with a number and run into +=: 3 and 1e are keys, and += appends to nothing: {\"3\": [[]], \"1e\": [1]}; typesafe/config reads + as part of the number and rejects it, pyhocon drops the brackets",
+      "rule": "Settled with the number-like reading (Readings): a key is a path expression and always a string (L562-568), and += is the field separator (L720+). After the completed JSON number 3, or the non-number text 1e (no exponent digits), += begins — so the keys are \"3\" and \"1e\", and += onto nothing is {\"3\": [[]], \"1e\": [1]}. typesafe/config's Parse is the same lenient-number biproduct as 01→1: its tokenizer eats + as an exponent and fails; pyhocon drops the brackets. Not a separate HOCON hole.",
       "expected": "rejected",
       "got": "{\"3\":[],\"1e\":1}",
       "java": "unsupported"
@@ -2167,7 +2140,7 @@
     {
       "case": "path-expressions/025-plus-inside-a-number-in-a-key.conf",
       "spec": "HOCON.md#path-expressions",
-      "rule": "a key is written as a value is, and 10.0foo is the path 10, 0foo: 1e+5.5 is the number 1e+5 then .5, so the path 1e+5, 5. typesafe/config and pyhocon reject the +",
+      "rule": "Settled with the number-like reading (Readings): a key is written as a value is, and 10.0foo is the path 10, 0foo (L496-498). 1e+5.5 is the JSON number 1e+5 then .5, so the path 1e+5, 5. typesafe/config and pyhocon reject the + — the same lenient/forbidden-+ biproduct as path-expressions/024, not a different rule.",
       "expected": "rejected",
       "got": "{\"1e\":{\"5\":{\"5\":1}}}",
       "java": "unsupported"
@@ -2627,80 +2600,6 @@
       }
     },
     {
-      "case": "plus-equals-field-separator/024-alias-read-inside-an-append-look-back.conf",
-      "spec": "HOCON.md#the--field-separator",
-      "rule": "e's last value reaches e again through c, so it is self-referential and looks back at the first e += ${?c}, whose own ${?c} leads back to e and is nonexistent: c is [] there, and keeps it, as a substitution is resolved once, so e is [[]]. Or c is an alias for the final e, every optional on the cycle nonexistent: [] both (also_valid), as in self-referential-examples/035 and 065",
-      "expected": {
-        "c": [],
-        "e": []
-      },
-      "got": "rejected (exit 1)",
-      "java": "diverges"
-    },
-    {
-      "case": "plus-equals-field-separator/025-alias-read-inside-an-append-look-back-other-order.conf",
-      "spec": "HOCON.md#the--field-separator",
-      "rule": "as 024 with c written first: c is [], e is [[]], or [] both (also_valid)",
-      "expected": {
-        "c": [],
-        "e": []
-      },
-      "got": "rejected (exit 1)",
-      "java": "diverges"
-    },
-    {
-      "case": "plus-equals-field-separator/026-two-fields-appending-each-other-optionally.conf",
-      "spec": "HOCON.md#the--field-separator",
-      "rule": "a's ${?b} leads back to a through b's ${?a}, and the other way round, so each is nonexistent (L716) whichever field is resolved first: both lists are empty, as for the list form in self-referential-examples/057. typesafe/config keeps the one it met second",
-      "expected": {
-        "a": [
-          []
-        ],
-        "b": []
-      },
-      "got": "rejected (exit 1)",
-      "java": "diverges"
-    },
-    {
-      "case": "plus-equals-field-separator/027-two-fields-appending-each-other-optionally-other-order.conf",
-      "spec": "HOCON.md#the--field-separator",
-      "rule": "as 026 with b written first: both []",
-      "expected": {
-        "a": [
-          []
-        ],
-        "b": []
-      },
-      "got": "rejected (exit 1)",
-      "java": "diverges"
-    },
-    {
-      "case": "plus-equals-field-separator/028-number-and-list-appending-each-other-optionally.conf",
-      "spec": "HOCON.md#the--field-separator",
-      "rule": "d's ${?c} leads back to d through c's ${?d}, and the other way round, so both are nonexistent (L716): d is 1 next to nothing, the string \"1\" (substitutions/039), and c is []. typesafe/config resolves c's ${?d} to the number",
-      "expected": {
-        "c": [
-          1
-        ],
-        "d": 1
-      },
-      "got": "rejected (exit 1)",
-      "java": "diverges"
-    },
-    {
-      "case": "plus-equals-field-separator/029-number-and-list-appending-each-other-optionally-other-order.conf",
-      "spec": "HOCON.md#the--field-separator",
-      "rule": "as 028 with c written first: c is [], d is \"1\"",
-      "expected": {
-        "c": [
-          1
-        ],
-        "d": 1
-      },
-      "got": "rejected (exit 1)",
-      "java": "diverges"
-    },
-    {
       "case": "plus-equals-field-separator/030-append-reached-again-through-a-list-appends-once.conf",
       "spec": "HOCON.md#the--field-separator",
       "rule": "d.z += 5 is d.z = ${?d.z} [5], its ${?d.z} looking back at d.z's layer below, ${?a.k} (L719-745). That optional leads to a, whose a += ${d} leads back to d.z, so it is nonexistent (L716) and d.z is [5]. a copies d, so a is [{z: [5]}]: a substitution is resolved once (L884), and d.z is one value, the same in d and in a's copy of it, whichever field is resolved first",
@@ -2950,7 +2849,7 @@
     {
       "case": "self-referential-examples/043-two-optionals-on-one-cycle.conf",
       "spec": "HOCON.md#examples-of-self-referential-substitutions",
-      "rule": "each optional leads back to the field it stands in, ${?a.t} through a and ${?f} through f, so each is as if it referred to a nonexistent value, whichever field is resolved first: f is \"x\" and a is y's {t: 1}",
+      "rule": "Resolving f first, a's ${?f} closes the cycle and is missing, so a is {t: 1} and f is a.t then x, \"1x\". Resolving a first, f's ${?a.t} closes it, f is \"x\", and a is the object {t: 1} followed by the text \"x\", an error (L373-374, L384-385). The order is undefined, so either result or an error is allowed (L866-881). typesafe/config 1.4.9 gives f = \"x\", a = {t: 1}: it takes a first, then silently drops the text next to the object — the same leniency as string-value-concatenation/010 and 015; lightbend/config#862 (on main) makes that a WrongType, which is the rejected outcome already in also_valid. In 044, the same cycle without the x, it gives f = 1",
       "expected": {
         "f": "x",
         "a": {
@@ -2960,29 +2859,7 @@
           "t": 1
         }
       },
-      "got": "rejected (exit 1)"
-    },
-    {
-      "case": "self-referential-examples/044-optional-on-a-cycle-makes-no-field.conf",
-      "spec": "HOCON.md#examples-of-self-referential-substitutions",
-      "rule": "as 043 without the x: ${?a.t} leads back to f, so it is nonexistent and f is not created; ${?f} leads back to a and is nonexistent too, so a is {t: 1}. typesafe/config gives f = 1 here, though in 043 it reads ${?a.t} as nonexistent",
-      "expected": {
-        "a": {
-          "t": 1
-        },
-        "f": 1,
-        "y": {
-          "t": 1
-        }
-      },
-      "got": {
-        "a": {
-          "t": 1
-        },
-        "y": {
-          "t": 1
-        }
-      },
+      "got": "rejected (exit 1)",
       "java": "diverges"
     },
     {
@@ -3100,63 +2977,6 @@
       "java": "unsupported"
     },
     {
-      "case": "self-referential-examples/057-optionals-leading-back-to-each-other-are-both-missing.conf",
-      "spec": "HOCON.md#examples-of-self-referential-substitutions",
-      "rule": "b's ${?a} leads back to b through a = [${?b}], and a's ${?b} back to a through b, so each optional is as if it referred to a nonexistent value (L673, L716), whichever field is resolved first: both lists are empty. typesafe/config keeps the one it met second",
-      "expected": {
-        "a": [
-          []
-        ],
-        "b": []
-      },
-      "got": "rejected (exit 1)",
-      "java": "diverges"
-    },
-    {
-      "case": "self-referential-examples/063-optional-alias-of-a-list-on-a-cycle-is-nonexistent.conf",
-      "spec": "HOCON.md#examples-of-self-referential-substitutions",
-      "rule": "d's ${?c} leads back to d through c, and c's ${?d} back to c through d, so both are nonexistent (L716) whichever field is resolved first: d is [] and c, an optional with nothing behind it, is no field. typesafe/config keeps c as []",
-      "expected": {
-        "c": [],
-        "d": []
-      },
-      "got": "rejected (exit 1)",
-      "java": "diverges"
-    },
-    {
-      "case": "self-referential-examples/064-optional-alias-of-a-list-on-a-cycle-is-nonexistent-other-order.conf",
-      "spec": "HOCON.md#examples-of-self-referential-substitutions",
-      "rule": "as 063 with c written first: d is [], c is no field",
-      "expected": {
-        "c": [],
-        "d": []
-      },
-      "got": "rejected (exit 1)",
-      "java": "diverges"
-    },
-    {
-      "case": "self-referential-examples/065-alias-read-inside-a-concatenation-look-back.conf",
-      "spec": "HOCON.md#examples-of-self-referential-substitutions",
-      "rule": "e's last value reaches e again through c, so it is self-referential and looks back at e = x${?c}, whose own ${?c} leads back to e and is nonexistent: c is \"x\" there, and keeps it, as a substitution is resolved once, so e is \"xyx\". Or c is an alias for the final e, the optionals on the cycle nonexistent: \"xy\" both (also_valid), as in 035",
-      "expected": {
-        "c": "xy",
-        "e": "xy"
-      },
-      "got": "rejected (exit 1)",
-      "java": "diverges"
-    },
-    {
-      "case": "self-referential-examples/066-alias-read-inside-a-concatenation-look-back-other-order.conf",
-      "spec": "HOCON.md#examples-of-self-referential-substitutions",
-      "rule": "as 065 with c written first: c is \"x\", e is \"xyx\", or \"xy\" both (also_valid)",
-      "expected": {
-        "c": "xy",
-        "e": "xy"
-      },
-      "got": "rejected (exit 1)",
-      "java": "diverges"
-    },
-    {
       "case": "self-referential-examples/067-text-concatenation-under-an-object-is-never-evaluated.conf",
       "spec": "HOCON.md#examples-of-self-referential-substitutions",
       "rule": "${r}x has text in it, so it is text or an error, never an object (L384): the object over it hides it, and it is never evaluated (L776), although r is an object and the concatenation would be an error. typesafe/config merges r into a",
@@ -3215,18 +3035,46 @@
     {
       "case": "self-referential-examples/074-optional-nonexistent-on-a-cycle-stays-so-outside-it.conf",
       "spec": "HOCON.md#examples-of-self-referential-substitutions",
-      "rule": "e's ${?f.k} leads back to e through f's ${e}, and f's ${?e} back to f through e's ${?f.k}: both are nonexistent (L716) whichever field is resolved first, so e is [y] and f is ${e}, [y]. A substitution is resolved once (L884-886): f's ${?e}, found nonexistent while e was resolved, stays nonexistent when f is resolved afterwards. typesafe/config calls the cycle an error",
-      "expected": "rejected",
-      "got": "{\"e\":[\"y\"],\"f\":[\"y\",\"y\"]}",
-      "java": "unsupported"
+      "rule": "Resolving f first, e's ${?f.k} closes the cycle and is missing, memoized: e is [y] and f is ${e}, [y]. Resolving e first, f's ${?e} is missing but its ${e} is required and closes the cycle, an error, as typesafe/config reports: the spec leaves the order two fields resolve in undefined and allows either result or an error (L866-881); a cycle is broken by removing one of its links (L660-661), the optional that closes it, which is then missing (L714-716), and its result is memoized (L884-888)",
+      "expected": {
+        "e": [
+          "y"
+        ],
+        "f": [
+          "y"
+        ]
+      },
+      "got": {
+        "e": [
+          "y"
+        ],
+        "f": [
+          "y",
+          "y"
+        ]
+      }
     },
     {
       "case": "self-referential-examples/075-optional-nonexistent-on-a-cycle-stays-so-outside-it-other-order.conf",
       "spec": "HOCON.md#examples-of-self-referential-substitutions",
-      "rule": "074 with f first: e is [y] and f is [y] again",
-      "expected": "rejected",
-      "got": "{\"f\":[\"y\",\"y\"],\"e\":[\"y\"]}",
-      "java": "unsupported"
+      "rule": "074 with f written first: e [y] and f [y] when f is resolved first, an error (typesafe/config) when e is: the spec leaves the order two fields resolve in undefined and allows either result or an error (L866-881); a cycle is broken by removing one of its links (L660-661), the optional that closes it, which is then missing (L714-716), and its result is memoized (L884-888)",
+      "expected": {
+        "e": [
+          "y"
+        ],
+        "f": [
+          "y"
+        ]
+      },
+      "got": {
+        "f": [
+          "y",
+          "y"
+        ],
+        "e": [
+          "y"
+        ]
+      }
     },
     {
       "case": "self-referential-substitutions/007-plus-equals-of-the-parent-object.conf",
@@ -3289,7 +3137,7 @@
         "a": "null bar"
       },
       "got": {
-        "a": "<pyhocon.config_tree.NoneValue object at 0x103d73830>bar"
+        "a": "<pyhocon.config_tree.NoneValue object at 0x101dcf8f0>bar"
       }
     },
     {
@@ -3468,16 +3316,15 @@
       "got": "rejected (exit 1)"
     },
     {
-      "case": "substitutions/039-undefined-optional-with-number-is-a-string.conf",
+      "case": "substitutions/039-undefined-optional-next-to-a-number-keeps-the-number.conf",
       "spec": "HOCON.md#substitutions",
-      "rule": "${?x}42 is a concatenation of two parts, so it is value-concatenated to form a string (substitutions.24): the undefined optional becomes empty and the number keeps its written form; typesafe/config instead drops the undefined part and keeps the lone number as a number",
+      "rule": "An undefined ${?x} next to one other value adds nothing: it becomes an empty string only \"as part of a value concatenation with another string\" (L636-637), \"a single value is never converted to a string\" (L376), and two undefined optionals make no field at all (L640-642), so what is left is the other value with its type, as typesafe/config reads it: ${?x}42 is the number 42.",
       "expected": {
         "a": 42
       },
       "got": {
         "a": "42"
-      },
-      "java": "diverges"
+      }
     },
     {
       "case": "substitutions/040-null-blocks-environment-lookup.conf",
@@ -3492,9 +3339,9 @@
       }
     },
     {
-      "case": "substitutions/042-undefined-optional-next-to-number-is-a-string.conf",
+      "case": "substitutions/042-undefined-optional-next-to-numbers-keeps-them-numbers.conf",
       "spec": "HOCON.md#substitutions",
-      "rule": "each element is a concatenation of two values, not a lone substitution, so the undefined ${?x} becomes \"\" and the element is a string, the number kept as written: [\"10\", \"1.50\"]; typesafe/config and pyhocon keep the numbers",
+      "rule": "An undefined ${?x} next to one other value adds nothing: it becomes an empty string only \"as part of a value concatenation with another string\" (L636-637), \"a single value is never converted to a string\" (L376), and two undefined optionals make no field at all (L640-642), so what is left is the other value with its type, as typesafe/config reads it: [${?x}10, 1.50${?x}] is [10, 1.5].",
       "expected": {
         "a": [
           10,
@@ -3506,13 +3353,12 @@
           "10",
           "1.50"
         ]
-      },
-      "java": "diverges"
+      }
     },
     {
       "case": "substitutions/043-undefined-optional-before-a-leading-zero.conf",
       "spec": "HOCON.md#substitutions",
-      "rule": "${?n}01 is a concatenation of two parts, so it is a string (042), and 01 is no JSON number anyway: \"01\". typesafe/config and pyhocon drop the undefined part and read the number 1",
+      "rule": "An undefined ${?n} next to one other value adds nothing (substitutions/039): ${?n}01 is 01 alone. Settled number-like reading (Readings): 01 is no JSON number, so it is the text \"01\" (unchanged-from-json/009), not an L272 error and not typesafe/config's lenient 1 (java: diverges — tokenizer biproduct, see lightbend/config#861 out of scope).",
       "expected": {
         "a": 1
       },
@@ -3522,23 +3368,22 @@
       "java": "diverges"
     },
     {
-      "case": "substitutions/044-undefined-optional-with-boolean-is-a-string.conf",
+      "case": "substitutions/044-undefined-optional-with-boolean-keeps-the-boolean.conf",
       "spec": "HOCON.md#substitutions",
-      "rule": "true${?x} is a concatenation of two parts, so it is value-concatenated to form a string (substitutions.24): the undefined optional becomes empty and true becomes \"true\" (string-value-concatenation.7); typesafe/config instead drops the undefined part and keeps the lone true as a boolean",
+      "rule": "An undefined ${?x} next to one other value adds nothing: it becomes an empty string only \"as part of a value concatenation with another string\" (L636-637), \"a single value is never converted to a string\" (L376), and two undefined optionals make no field at all (L640-642), so what is left is the other value with its type, as typesafe/config reads it: true${?x} is the boolean true.",
       "expected": {
         "a": true
       },
       "got": {
         "a": "true"
-      },
-      "java": "diverges"
+      }
     },
     {
       "case": "unchanged-from-json/001-quoted-string-json-format.conf",
       "spec": "HOCON.md#unchanged-from-json",
       "rule": "quoted strings are in the same format as JSON strings, so JSON escapes like \\n, \\t, \\\", \\\\ and \\u unicode escapes are honored",
       "expected": {
-        "a": "line1\nline2\t\"quoted\"\\backslash\u00e9"
+        "a": "line1\nline2\t\"quoted\"\\backslashé"
       },
       "got": {
         "a": "line1\nline2\t\"quoted\"\\backslash\\u00e9"
@@ -3600,7 +3445,7 @@
       "spec": "HOCON.md#unchanged-from-json",
       "rule": "JSON writes a character outside the BMP as two \\u escapes forming a surrogate pair, which decode to one character",
       "expected": {
-        "a": "\ud83d\ude00"
+        "a": "😀"
       },
       "got": {
         "a": "\\ud83d\\ude00"
@@ -3653,7 +3498,7 @@
         "a": "A"
       },
       "got": {
-        "a": "\\u\u0660\u0660\u0664\u0661"
+        "a": "\\u٠٠٤١"
       },
       "java": "lenient"
     },
@@ -3811,7 +3656,7 @@
         "a": 1
       },
       "got": {
-        "\ufeffa": 1
+        "﻿a": 1
       }
     },
     {
@@ -3884,7 +3729,7 @@
         "a": 1
       },
       "got": {
-        "a\ufeff": "\ufeff1"
+        "a﻿": "﻿1"
       }
     },
     {
@@ -3892,7 +3737,7 @@
       "spec": "HOCON.md#whitespace",
       "rule": "U+0085 (NEL) is a Cc control, neither a Zs/Zl/Zp separator nor one of the listed ASCII controls, so it is not whitespace and stays part of the unquoted key",
       "expected": {
-        "a\u0085": 1
+        "a": 1
       },
       "got": "rejected (exit 1)"
     }
