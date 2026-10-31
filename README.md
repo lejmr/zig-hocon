@@ -1,12 +1,28 @@
 <p align="center">
   <img src="docs/brand/zig-Hocon-badge-master-1650x500.png" width="600" alt="zig-hocon">
 </p>
-
-Read [HOCON](https://github.com/lightbend/config/blob/main/HOCON.md) config files into your own Zig structs, the way `std.json` reads JSON: includes, substitutions, merging, environment variables, durations and sizes. No dependencies beyond the standard library. The same core also ships as the `hocon` command line tool, a C library and a Python package.
+<p align="center">
+  Read <a href="https://github.com/lightbend/config/blob/main/HOCON.md">HOCON</a> config files into your own Zig structs, the way <code>std.json</code> reads JSON.
+  <br />
+  Includes, substitutions, merging, environment variables, durations and sizes; no dependencies beyond the standard library.
+  <br />
+  The same core also ships as the <code>hocon</code> command line tool, a C library and a Python package.
+  <br />
+  <br />
+  <a href="#install">Install</a>
+  ·
+  <a href="#use">Use</a>
+  ·
+  <a href="#before-you-ship">Before you ship</a>
+  ·
+  <a href="#also-from">Command line &amp; C</a>
+  ·
+  <a href="python/README.md">Python</a>
+  ·
+  <a href="#conformance">Conformance</a>
+</p>
 
 **Beta**, with one maintainer: the API can still change before 1.0 ([CHANGELOG.md](CHANGELOG.md)). Most of the code is written with AI and reviewed by the maintainer ([how](docs/ai-disclosure.md)).
-
-Not writing Zig? Python: `pip install zig-hocon`, then [python/README.md](python/README.md). The `hocon` command, C and typesafe/config: [Also from](#also-from).
 
 ## Install
 
