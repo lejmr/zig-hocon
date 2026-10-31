@@ -32,7 +32,7 @@ conformance/run.sh --java -- ./my-adapter.sh   # what typesafe/config 1.4.9 does
 conformance/run.sh --java-version main -- ./my-adapter.sh   # what its unreleased main does
 ```
 
-They ask the same question on every row but the 115 that carry a `java` kind — the ones where the specification and the reference implementation genuinely part ways. Aim at `--spec` if you want to be correct, at `--java` if you need configs that parse in the JVM world today to keep parsing. `maintaining/PROCESS.md` explains the difference and lists every row where it matters.
+They ask the same question on every row but the 91 that carry a `java` kind — the ones where the specification and the reference implementation genuinely part ways. Aim at `--spec` if you want to be correct, at `--java` if you need configs that parse in the JVM world today to keep parsing. `maintaining/PROCESS.md` explains the difference and lists every row where it matters.
 
 `--only <text>` narrows a run to matching paths, which is how you work through one section at a time.
 
@@ -121,7 +121,7 @@ Drop your own result into `reports/` and the local report picks it up.
 
 The published table keeps pyhocon, every Python parser of its own above 60 % against the spec, the best Rust one, and `hocon`, the Rust crate of that name, measured with its strict loader (the default one never fails); its repository is archived since 2023, and non-ASCII whitespace makes it panic. These were measured too and left out:
 
-- **hocon-rs 0.2.0** (Rust, mikai233/hocon-rs): 448/588 (76.2 %) against the spec, behind rs.hocon (77.6 %).
+- **hocon-rs 0.2.0** (Rust, mikai233/hocon-rs): 448/588 (76.2 %) against the spec, behind rs.hocon (463/588, 78.7 %).
 - **hocon_** (Rust, pepa65): a republished fork of `hocon` 0.9.0, not measured on its own.
 - **pyhocon-fix 0.0.4** (Python, 2018) and **dd-pyhocon 0.3.61** (Python, 2023): forks of pyhocon, within two cases of it on the 445-case suite of 2026-10-18 (316 and 314), not measured again; dd-pyhocon hangs on one merge-stack case.
 - Not parsers of their own: `hocon` 0.3.0, `hocon-validator`, `pytyped-hocon`, `pyhocon-dantic` and `dataconf` wrap pyhocon; `atomr` (Rust/PyO3) builds its `Config` from TOML or a dict and parses no HOCON; chris-martin/hocon-python (2015) is an unfinished port of typesafe/config.

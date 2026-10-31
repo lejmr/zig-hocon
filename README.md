@@ -7,28 +7,16 @@
   The primary goal is to follow the HOCON specification: includes (all but <code>classpath(…)</code>), substitutions, merging and environment variables are implemented.
   <br />
   In Zig it reads config files into your own structs, the way <code>std.json</code> reads JSON.
-  <br />
-  <br />
-  <a href="#install">Install</a>
-  ·
-  <a href="#use-from-zig">Zig</a>
-  ·
-  <a href="python/README.md">Python</a>
-  ·
-  <a href="#command-line">Command line</a>
-  ·
-  <a href="#conformance">Conformance</a>
-  ·
-  <a href="#coming-from-typesafeconfig">Coming from typesafe/config</a>
 </p>
 
 Where to read on, by what you use:
 
 - **Python**: `pip install zig-hocon`, then [python/README.md](python/README.md). Wheels for Python 3.10 and later on Linux (x86_64, aarch64; glibc and musl), macOS and Windows. Coming from pyhocon: [python/MIGRATING.md](python/MIGRATING.md) lists every difference, and `zig-hocon-migrate` shows which of them your configs hit.
-- **Zig**: this page, from [Install](#install) on.
+- **Zig**: [Install](#install), then [Use from Zig](#use-from-zig).
 - **C**: libhocon and [`c/hocon.h`](c/hocon.h), whose comments are its documentation.
 - **Shell and CI**: the [`hocon` command](#command-line).
 - **The JVM**: [Coming from typesafe/config](#coming-from-typesafeconfig) says where zig-hocon reads a config differently.
+- **How correct it is**: [Conformance](#conformance); **before production**: [defaults](#defaults-that-matter-in-production) and [gotchas](#gotchas).
 
 HOCON is JSON made for people: comments, no quotes needed, units like `30s` and `512MiB`, files that include other files, later settings that merge over earlier ones, and values taken from other keys or from environment variables. One base file, one small file per environment on top.
 
@@ -99,16 +87,16 @@ The rest of this page reads these two files.
 
 ## Conformance
 
-[`conformance/`](conformance) turns the spec into data: every sentence of it that says what a config means is a `.conf` file and the value it must give. The maintainer of zig-hocon wrote the suite as well as the parser. Expected values were seeded from typesafe/config 1.4.9, the Java reference implementation, and then checked by hand against the sentence of the spec. Where the two disagree, the case follows the spec and records what typesafe/config does next to it. Where the spec leaves room, the suite takes one reading and lists it in [conformance/README.md](conformance/README.md#readings-the-suite-takes). So "100 % against the spec" means that zig-hocon agrees with this suite's reading of the spec.
+[`conformance/`](conformance) turns the spec into data: each case is one sentence of the spec, written as a `.conf` file and the value it must give. The maintainer of zig-hocon wrote the suite as well as the parser. Expected values were seeded from typesafe/config 1.4.9, the Java reference implementation, and checked by hand against the spec; where the spec leaves room, the suite takes one reading and [lists it](conformance/README.md#readings-the-suite-takes). So "100 %" means zig-hocon agrees with this suite's reading of the spec.
 
-**zig-hocon differs from typesafe/config 1.4.9 in 91 of the 589 cases.** These are exactly the cases where the suite's reading of the spec and typesafe/config part ways. They are listed in [the conformance report](https://htmlpreview.github.io/?https://github.com/lejmr/zig-hocon/blob/main/conformance/report.html) when you switch it to scoring against typesafe/config, and each case's `.json` file says which way the two differ. Measured on the 588 cases it was last run on, typesafe/config falls short of the spec's reading in the same 91:
+**zig-hocon differs from typesafe/config 1.4.9 in 91 of the 589 cases**: the ones where the suite's reading and typesafe/config part ways, listed in [the conformance report](https://htmlpreview.github.io/?https://github.com/lejmr/zig-hocon/blob/main/conformance/report.html) when you switch it to typesafe/config. Why typesafe/config differs in them, as measured on 588 cases:
 
-- **12 are how numbers are read.** The spec says the "allowed number formats matches JSON" (L120), and the suite takes that literally: `01`, `1.` and `127.0.0.1` are the text they were written as. typesafe/config reads `01` as the number `1`, so someone coming from Java sees a difference here.
-- **16 are fixed upstream** on lightbend/config main ([#861](https://github.com/lightbend/config/pull/861), [#862](https://github.com/lightbend/config/pull/862), [#864](https://github.com/lightbend/config/pull/864)), not in a release yet. <!-- VERIFY: merged upstream? -->
-- **19 are bugs reported upstream**: the case links the lightbend/config issue or pull request.
-- **44 have no upstream reference.** In 27 of them typesafe/config refuses valid input: some are internal errors such as `BugOrBroken`, some are things it does not support by design, such as an array as the root of the document. In 9 it gives a different value, and in 8 it accepts input the spec forbids.
+- **12 are numbers.** The spec says "allowed number formats matches JSON" (L120), so `01`, `1.` and `127.0.0.1` stay text; typesafe/config reads `01` as `1`.
+- **16 have a fix in an upstream pull request** ([#861](https://github.com/lightbend/config/pull/861), [#862](https://github.com/lightbend/config/pull/862), [#864](https://github.com/lightbend/config/pull/864)); none of it is in a typesafe/config release yet.
+- **19 are bugs reported upstream**; the case links the issue or pull request.
+- **44 are not reported upstream yet.** In 27 typesafe/config refuses valid input (some are internal errors such as `BugOrBroken`, some are by design, such as an array as the document root), in 9 it gives a different value, and in 8 it accepts input the spec forbids.
 
-To check whether another parser reads configs the way your JVM services do, score it with `conformance/run.sh --java`, which compares it with typesafe/config 1.4.9 instead of the spec.
+`conformance/run.sh --java` scores any parser against typesafe/config instead of the spec, through an adapter of about ten lines ([conformance/README.md](conformance/README.md)).
 
 <!-- conformance:start -->
 <!-- generated by conformance/maintaining/report.py — do not edit by hand -->
@@ -126,22 +114,9 @@ To check whether another parser reads configs the way your JVM services do, scor
 
 ¹ Measured on an older version of the suite, with 588 cases (it has 589 now), and scored out of the cases it had then.
 
-Besides typesafe/config and zig-hocon, the table has pyhocon, every other Python parser of its own that scores above 60 % against the spec, the best-scoring Rust parser, and `hocon`, the Rust crate of that name. The others measured, and why they are left out: [conformance/README.md](conformance/README.md#not-in-the-table).
+Besides typesafe/config and zig-hocon, the table has pyhocon, each other Python library that parses HOCON itself, rather than wrapping pyhocon, and scores above 60 % against the spec, the best-scoring Rust parser, and `hocon`, the Rust crate of that name. The others measured, and why they are left out: [conformance/README.md](conformance/README.md#not-in-the-table).
 
 <!-- conformance:end -->
-
-Every case, and what each implementation printed, is in **[the conformance report](https://htmlpreview.github.io/?https://github.com/lejmr/zig-hocon/blob/main/conformance/report.html)**. Any HOCON parser can be scored on it through an adapter of about ten lines: [conformance/README.md](conformance/README.md) shows how.
-
-## Coming from typesafe/config
-
-zig-hocon reads the same format, but not always the same way, and it leaves out what belongs to the JVM rather than to HOCON ([docs/spec.md](docs/spec.md)). What you are most likely to run into:
-
-- **A number is a number only as JSON writes it.** `01`, `1.`, `08` and `127.0.0.1` stay text, where typesafe/config reads `01` as `1`; an integer getter or struct field refuses such text. In a duration, `.5 s` and `01 s`, which typesafe/config takes, are errors.
-- **`1.5` read as an integer is an error**, not a silent `1`.
-- **`include classpath(…)` is not supported**: it is an error. Files, `file()`, `required()` and http(s) URLs are, as `.conf`, `.json` or `.properties`.
-- **No JVM conventions**: no system property overrides, no mapping from Java properties beyond the `.properties` lines [docs/spec.md](docs/spec.md) lists, and no conventional file names, so nothing loads `application.conf` or a `reference.conf` from every jar on its own.
-- **No `withFallback`.** There is no way to merge two configs that are already loaded, or a config built in code, the way `withFallback` and the `reference.conf` layering do. What there is: layers in files, a file that includes the defaults and then overrides them, as `prod.conf` above does with `app.conf`; text made of `include` lines read from a directory, when the layers are chosen at run time (`parseFromSliceInDirLeaky` in Zig, `include_dir` in C, `parse_string(…, basedir=…)` in Python); and in Zig, defaults as the struct's field defaults, which a key missing from the file takes.
-- **91 cases of the conformance suite read differently** ([above](#conformance)). `hocon` prints what zig-hocon reads, which in those cases is not what a JVM service loads.
 
 ## Install
 
@@ -239,14 +214,6 @@ $ hocon --json prod.conf
 
 A `${…}` that the file does not answer reads the process environment; `--env=none` turns that off. `--env-file=prod.env` reads the `KEY=value` lines of a file, the way docker compose and python-dotenv read them, and puts them over the environment. A file written for a shell's `source`, with `export` and quotes, works as it is. With several env files, a later one goes over an earlier one, and with `--env=none` the env files are the only variables there are. So `hocon check --env=none --env-file=prod.env prod.conf` checks a deployment against its own variables and nothing from your shell.
 
-```sh
-# prod.env
-DB_HOST=db.internal
-DB_POOL=16
-# a line written for `source` reads the same
-export LOG_LEVEL="warn"
-```
-
 `--env=keep` writes the one file to deploy: includes and overrides worked out, the variables left for the server:
 
 ```sh
@@ -262,35 +229,18 @@ cache = 512MiB
 debug = false
 ```
 
-**get** prints one value, for a shell script:
+**get** prints one value, for a shell script, and with `--json` an object as JSON. **diff** compares two files as they resolve, path by path (`~ path: old → new`, `+` and `-`). It exits 0 when they say the same, as the deploy file does, 1 when they differ and 2 when one cannot be read:
 
 ```sh
 $ hocon get db.host prod.conf
 db.example.org
-$ hocon get db --json prod.conf
-{"host":"db.example.org","pool":4}
-```
-
-**diff** compares two files as they resolve, path by path (`~ path: old → new`, `+` and `-`). It exits 0 when they say the same, as the deploy file does, 1 when they differ and 2 when one cannot be read:
-
-```sh
 $ hocon diff prod.conf deploy.conf; echo $?
 0
 ```
 
 **check** reads each file and says which fail and where. With `--schema` it also reads them into your struct, so a value of the wrong type fails as it would in your program. It compiles the struct with the `zig` on your `PATH`, so the file may import `std` and `hocon` and nothing else. It skips a key the struct has no field for, whatever your program does ([Gotchas](#gotchas)).
 
-```sh
-$ hocon check --schema config.zig:Config prod.conf
-prod.conf: ok
-$ DB_POOL=eight hocon check --schema config.zig:Config prod.conf
-prod.conf:4:11: error: InvalidCharacter at db.pool: expected u16
-db.pool = ${?DB_POOL}   # only when DB_POOL is set
-          ^
-1 of 1 failed
-```
-
-`config.zig` there holds the `Config` struct from the top of this page, declared `pub`.
+With `config.zig` holding the `Config` struct from the top of this page, declared `pub`, `DB_POOL=eight hocon check --schema config.zig:Config prod.conf` prints the error shown under [Use from Zig](#use-from-zig), then `1 of 1 failed`.
 
 Every command exits 1 when something is wrong, except `diff`, which exits 2 because 1 means the files differ. What went wrong, and where, goes to stderr. `hocon` with no arguments lists the commands and their flags.
 
@@ -306,6 +256,16 @@ check.addFileArg(b.path("deploy/prod.conf"));
 b.step("check-config", "Check the config against Config").dependOn(&check.step);
 ```
 
+## Coming from typesafe/config
+
+zig-hocon reads the same format, but not always the same way. [docs/spec.md](docs/spec.md) goes through the spec section by section and says where it differs from typesafe/config; [docs/internals.md](docs/internals.md) says how it is built and which reference implementations settle disputes. What you are most likely to run into:
+
+- **A number is a number only as JSON writes it.** `01`, `1.`, `08` and `127.0.0.1` stay text, where typesafe/config reads `01` as `1`; an integer getter or struct field refuses such text. In a duration, `.5 s` and `01 s`, which typesafe/config takes, are errors.
+- **`1.5` read as an integer is an error**, not a silent `1`.
+- **Not supported:** `include classpath(…)`, URL schemes other than http, https and file, and the JVM conventions: system property overrides, Java properties mapping beyond plain `.properties` lines, and conventional file names, so nothing loads `application.conf` or `reference.conf` on its own.
+- **No `withFallback`.** Configs that are already loaded, or built in code, cannot be merged; layer files instead, with a file that includes the defaults and then overrides them, as `prod.conf` does with `app.conf`. In Zig, a struct's field defaults fill in what the file leaves out.
+- **`hocon` prints what zig-hocon reads**, which in the [91 cases](#conformance) is not what a JVM service loads.
+
 ## Defaults that matter in production
 
 | | Zig | `hocon` | C | Python |
@@ -313,29 +273,21 @@ b.step("check-config", "Check the config against Config").dependOn(&check.step);
 | a `${X}` not in the file reads | nothing: `.env = .none`; pass `.{ .map = init.environ_map }` for the process environment | the process environment; `--env=none` for nothing | the process environment (`HOCON_ENV_PROCESS`, also with `NULL` options); `HOCON_ENV_NONE` for nothing | `os.environ`; `env=None` for nothing |
 | an http(s) include | fetched, 30 s per fetch; `.http_timeout` | fetched, 30 s per fetch; no flag to change it | fetched; `http_timeout_ms`, 0 is 30 s | fetched; `http_timeout=`, 30 s by default |
 
-- **http(s) includes cannot be turned off.** No surface has an option for it: a file that includes a URL fetches it, during the parse. The only way to read with no includes at all is to read the text yourself and parse it as text: `parseFromSlice` in Zig, `hocon_parse_string` with `include_dir` left `NULL` in C, `parse_string` without `basedir` in Python. Each of them refuses every include, files too. The command line tool reads only files.
+- **http(s) includes cannot be turned off.** No surface has an option for it: a file that includes a URL fetches it, during the parse. The only way to read with no includes at all is to read the text yourself and parse it as text: `parseFromSlice` in Zig, `hocon_parse_string` with `include_dir` left `NULL` in C, `parse_string` without `basedir` in Python. Each of them refuses every include, files too. `hocon` has no such mode: it reads files, and fetches the http(s) URLs they include.
 - **Everything is resolved inside the parse call.** Includes are read first, then the substitutions resolve once over the whole document, against the environment as it is at that moment. Keep mode (`.keep`, `--env=keep`, `HOCON_ENV_KEEP`, `env=KEEP`) and reading without resolving (`resolve = false`) leave the `${…}` in, for later.
 
 ## Gotchas
 
 - **Variables go last.** A later setting hides an earlier one, and that includes a `${?…}`. If `app.conf` has `workers = ${?WORKERS}` and `prod.conf` sets `workers = 8` after its `include`, `workers` is 8 whatever `WORKERS` says. Put a setting the environment overrides where nothing comes after it, as `prod.conf` does with `${?DB_POOL}`, or in a file that every environment includes last.
-- **Zig reads no environment unless you pass it**, while `hocon`, C and Python read the process environment by default ([the table above](#defaults-that-matter-in-production)).
 - **`hocon check --schema` skips unknown keys.** It reads with the default options, so a key the struct has no field for is skipped, as `parseFromFile` does by default. A program that sets `.ignore_unknown_fields = false` refuses that key, so a file `check` passes can still stop that program; `check` has no flag for it.
-
-## What is in, what is out
-
-[docs/spec.md](docs/spec.md) goes through the spec section by section: what is done, how, and where it differs from typesafe/config. Not supported: `include classpath(…)`, and URL schemes other than http, https and file. Left out on purpose: the JVM conventions (properties mapping, system property overrides, conventional file names) and merging two loaded configs in code (`withFallback`); [Coming from typesafe/config](#coming-from-typesafeconfig) says what to do instead.
-
-How it is built, and the reference implementations disputes are settled with: [docs/internals.md](docs/internals.md).
 
 ## Status
 
 - **Beta until 1.0.** The API can still change; each change is in [CHANGELOG.md](CHANGELOG.md), and what a version may change is in [CONTRIBUTING.md](CONTRIBUTING.md#versions).
 - **Releases.** Ten so far, from v0.1.0 on 2026-10-15 to v0.6.1 on 2026-10-30, each with its section in [CHANGELOG.md](CHANGELOG.md). One release is one tag for the Zig package, libhocon and the Python package at once. Only the Release workflow makes one, after every test has passed on Linux, macOS and Windows and every wheel on each Python ([CONTRIBUTING.md](CONTRIBUTING.md#releasing)).
 - **Zig versions.** Built and tested with Zig 0.16.0. A weekly CI job builds against Zig master to show early what breaks; it is informational and blocks nothing.
-- **Tests.** CI runs `zig build test` on Linux (x86_64, aarch64), macOS (arm64, x86_64) and Windows, which includes the C library's tests; the Python package's tests on every wheel; and a few minutes of fuzzing on every pull request. The tests in `c/tests/` and `python/tests/` stand for users' code, and only the maintainer changes them. Before a push, a git hook runs the conformance suite on the code being pushed and commits the result ([CONTRIBUTING.md](CONTRIBUTING.md#local-setup)). A weekly job opens an issue when the spec changes upstream.
+- **Tests.** CI runs the Zig, C and Python tests on Linux, macOS and Windows and fuzzes every pull request; a pre-push hook runs the conformance suite ([CONTRIBUTING.md](CONTRIBUTING.md#local-setup)).
 - **One maintainer; more are welcome** ([CONTRIBUTING.md](CONTRIBUTING.md)).
-- **Yours to build.** Zig 0.16 and `zig build` give the library, libhocon for C and the command line tool; the conformance suite shows what a fork changed.
 
 ## AI disclosure
 
