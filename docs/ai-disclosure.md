@@ -1,5 +1,0 @@
-# AI disclosure
-
-I started this project to learn Zig, and because I was tired of deciding how to do configuration in every language I work in; HOCON is usually my first choice. I wrote the first working version by hand. The whole spec turned out to be much more, so from then on I switched to AI-augmented development: I broke the product into features, had them implemented one by one, and reviewed each at its end. I did not write that code. I had my say in the test scenarios, the readability of the code and how the files are organised, so that all of it stays checkable by a human. CHANGELOG.md gives the share of `src/` written by hand for each release from v0.1.0 to v0.4.0. I use this library for my own services, and it will be maintained.
-
-More on how it was made: [What I learned writing a HOCON parser as my first Zig project](https://pubs.miloskozak.cz/posts/hocon-tokenizer-and-parser/), [I built a HOCON conformance suite. It found bugs in the reference implementation.](https://pubs.miloskozak.cz/posts/hocon-conformance-suite/) and [All I wanted was to see inside an ArrayList](https://pubs.miloskozak.cz/posts/zig-debugging-in-zed/) (Zig debugging in Zed).

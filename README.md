@@ -126,6 +126,12 @@ db.pool = ${?DB_POOL}   # only when DB_POOL is set
 
 zig-hocon passes all 589 cases of [its conformance suite](conformance/README.md), each one sentence of the spec. The maintainer wrote the suite as well as the parser, seeding it from typesafe/config 1.4.9 and checking each case by hand against the spec, so 100 % means agreement with [this suite's reading](conformance/README.md#readings-the-suite-takes). Against typesafe/config itself zig-hocon differs in 91 cases; [why](docs/typesafe-config.md#the-91-cases). How other parsers score: [conformance/README.md](conformance/README.md#published-results); every case: [the report](https://htmlpreview.github.io/?https://github.com/lejmr/zig-hocon/blob/main/conformance/report.html).
 
+## AI disclosure
+
+I started this project to learn Zig, and because I was tired of deciding how to do configuration in every language I work in; HOCON is usually my first choice. I wrote the first working version by hand. The whole spec turned out to be much more, so from then on I switched to AI-augmented development: I broke the product into features, had them implemented one by one, and reviewed each at its end. I did not write that code. I had my say in the test scenarios, the readability of the code and how the files are organised, so that all of it stays checkable by a human. CHANGELOG.md gives the share of `src/` written by hand for each release from v0.1.0 to v0.4.0. I use this library for my own services, and it will be maintained.
+
+More on how it was made: [What I learned writing a HOCON parser as my first Zig project](https://pubs.miloskozak.cz/posts/hocon-tokenizer-and-parser/), [I built a HOCON conformance suite. It found bugs in the reference implementation.](https://pubs.miloskozak.cz/posts/hocon-conformance-suite/) and [All I wanted was to see inside an ArrayList](https://pubs.miloskozak.cz/posts/zig-debugging-in-zed/) (Zig debugging in Zed).
+
 ## Contributing
 
 A failing test that shows what you need is the fastest way to get it; [CONTRIBUTING.md](CONTRIBUTING.md) has the workflow. BSD 3-Clause, see [LICENSE](LICENSE).
