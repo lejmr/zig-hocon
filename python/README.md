@@ -36,7 +36,7 @@ The rest of this page reads these two files. **Variables go last.** A later sett
 
 ## Why zig-hocon
 
-- **Correct.** Passes all 588 tests in the [conformance suite](https://htmlpreview.github.io/?https://github.com/lejmr/zig-hocon/blob/main/conformance/report.html): each checks one sentence of the spec, and together they cover 276 of its 290 rules.
+- **Correct.** Passes all 589 tests in the [conformance suite](https://htmlpreview.github.io/?https://github.com/lejmr/zig-hocon/blob/main/conformance/report.html): each checks one sentence of the spec, and together they cover 276 of its 290 rules.
 - **Fast.** Orders of magnitude faster than what Python usually has.\*
 - **Clear errors.** File, line, column, and a caret under the mistake.
 - **No dependencies.** A thin ctypes layer over one bundled library.
@@ -169,7 +169,7 @@ db.host = ${DB_HOST}
 1 of 2 failed
 ```
 
-Each exits 1 when something is wrong (`diff` 2, as 1 is a difference), with the place on stderr; `hocon` alone lists the commands and their flags. (The `hocon` of a release also has `check --schema`, which reads a file into a Zig struct; it needs zig, and the wheel's leaves it out.)
+Each exits 1 when something is wrong (`diff` 2, as 1 is a difference), with the place on stderr; `hocon` alone lists the commands and their flags. (The `hocon` of a release also has `check --schema`, which reads a file into a Zig struct; it needs zig, and the one in the wheel leaves it out.)
 
 ## Coming from pyhocon
 
