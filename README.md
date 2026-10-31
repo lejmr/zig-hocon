@@ -4,7 +4,7 @@
 <p align="center">
   Reads <a href="https://github.com/lightbend/config/blob/main/HOCON.md">HOCON</a> config files into your own Zig structs, the way <code>std.json</code> reads JSON.
   <br />
-  The primary goal is to follow the HOCON specification: includes, substitutions, merging and environment variables are fully implemented.
+  The primary goal is to follow the HOCON specification: includes, substitutions, merging and environment variables are all implemented.
   <br />
   On top of it: a command line tool, a C library and a Python package.
   <br />
@@ -66,7 +66,7 @@ The rest of this page reads these two files. **Variables go last.** A later sett
 
 ## Why zig-hocon
 
-- **Correct.** Passes all 588 tests in the [conformance suite](https://htmlpreview.github.io/?https://github.com/lejmr/zig-hocon/blob/main/conformance/report.html): each checks one sentence of the spec, and together they cover 276 of its 290 rules.
+- **Correct.** Passes all 589 tests in the [conformance suite](https://htmlpreview.github.io/?https://github.com/lejmr/zig-hocon/blob/main/conformance/report.html): each checks one sentence of the spec, and together they cover 276 of its 290 rules.
 - **Your schema is a Zig struct.** HOCON is only what sits on disk; the struct says what it holds, with defaults, optionals, enums, durations and sizes.
 - **Fast.** A 10 MB config in a quarter of a second.\*
 - **Clear errors.** File, line, column and a caret, also for a value of the wrong type.
@@ -265,7 +265,7 @@ Every case, and what each implementation printed, is in **[the conformance repor
 ## Status
 
 - **Beta until 1.0.** The API can still change; each change is in [CHANGELOG.md](CHANGELOG.md), and what a version may change is in [CONTRIBUTING.md](CONTRIBUTING.md#versions).
-- **One maintainer, held by tests; more are welcome** ([CONTRIBUTING.md](CONTRIBUTING.md)). Every change runs the 588 cases of the conformance suite, each checking one sentence of the spec, the tests the C header and the Python package are held to, which only the maintainer edits, and a fuzzer over the parser.
+- **One maintainer, held by tests; more are welcome** ([CONTRIBUTING.md](CONTRIBUTING.md)). Every change runs the 589 cases of the conformance suite, each checking one sentence of the spec, the tests the C header and the Python package are held to, which only the maintainer edits, and a fuzzer over the parser.
 - **Yours to build.** Zig 0.16 and `zig build` give the library, libhocon for C and the command line tool; the suite says what a fork changed.
 
 ## What is in, what is out
