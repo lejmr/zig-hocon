@@ -119,7 +119,7 @@ The `hocon` command, C and Python read the process environment by default, where
 
 ## Conformance
 
-zig-hocon passes all 589 cases of [its conformance suite](conformance/README.md), each one sentence of the spec. The maintainer wrote the suite as well as the parser, seeding it from typesafe/config 1.4.9 and checking each case by hand against the spec, so 100 % means agreement with [this suite's reading](conformance/README.md#readings-the-suite-takes). Against typesafe/config itself zig-hocon differs in 91 cases; [docs/spec.md](docs/spec.md) says, section by section, where it reads a config differently. How other parsers score: [conformance/README.md](conformance/README.md#published-results); every case: [the report](https://htmlpreview.github.io/?https://github.com/lejmr/zig-hocon/blob/main/conformance/report.html).
+zig-hocon passes all 589 cases of [its conformance suite](conformance/README.md), each one sentence of the spec. The maintainer wrote the suite as well as the parser, seeding it from typesafe/config 1.4.9 and checking each case against the spec, so 100 % means agreement with [this suite's reading](conformance/README.md#readings-the-suite-takes). Against typesafe/config itself zig-hocon differs in 91 cases; [docs/spec.md](docs/spec.md) says, section by section, where it reads a config differently. How other parsers score: [conformance/README.md](conformance/README.md#published-results); every case: [the report](https://htmlpreview.github.io/?https://github.com/lejmr/zig-hocon/blob/main/conformance/report.html).
 
 ## AI disclosure
 
