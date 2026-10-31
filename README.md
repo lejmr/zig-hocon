@@ -104,63 +104,7 @@ The same package has the other three:
 
 `parseFromFile` reads the file and what it includes; `parseFromSlice(T, gpa, text, .{})` reads text, which can include nothing. Both return `Parsed(T)`: an arena that owns everything in `.value`, freed by one `deinit`. The `Leaky` twins, `parseFromFileLeaky` and `parseFromSliceLeaky`, take your arena and return the plain value.
 
-What the options do, each set to something other than its default:
-
-```zig
-.{
-    .env = .{ .map = init.environ_map }, // where ${DB_POOL} looks; default .none, no variables; or .keep
-    .resolve = false,                    // default true; false keeps every ${…} as written, for hocon.Value
-    .ignore_unknown_fields = false,      // default true, a key the struct has no field for is skipped; false makes it an error
-    .diagnostics = &diag,                // default null; where an error is, see below
-    .http_timeout = .fromSeconds(5),     // default 30 s; for an include of an http(s) URL
-}
-```
-
-**Errors** are plain Zig errors. To know where, pass `Diagnostics`:
-
-```zig
-var diag: hocon.Diagnostics = .{};
-defer diag.deinit(init.gpa);
-const parsed = hocon.parseFromFile(Config, init.gpa, init.io, "prod.conf", .{
-    .env = .{ .map = init.environ_map },
-    .diagnostics = &diag,
-}) catch |err| {
-    var buffer: [1024]u8 = undefined;
-    var stderr = std.Io.File.stderr().writerStreaming(init.io, &buffer);
-    try diag.render(&stderr.interface); // any *std.Io.Writer
-    try stderr.interface.flush();
-    return err;
-};
-```
-
-With `DB_POOL=eight` in the environment it prints what the zig compiler would, pointing at where the value comes from:
-
-```
-prod.conf:4:11: error: InvalidCharacter at db.pool: expected u16
-db.pool = ${?DB_POOL}   # only when DB_POOL is set
-          ^
-```
-
-`diag.location` has the same `path`, `line`, `column` and the line itself, `diag.key_path` and `diag.expected` the rest, for a message of your own.
-
-**Durations, periods and sizes** are read in any unit the spec lists, a bare number in the default one:
-
-```zig
-config.timeout.whole(.ms)      // 30000; .as(.minutes) gives an f64, .toIo() a std.Io.Duration
-config.cache.whole(.B)         // 536870912; "512MB" counts by 1000, "512MiB" by 1024
-period.months                  // hocon.Period: years, months, days, as java.time.Period
-```
-
-The units are `.ns`, `.us`, `.ms`, `.s`, `.min`, `.h`, `.d` and `.w` for a duration, `.B`, `.kB`, `.MB`, `.GB`, `.TB`, `.PB`, `.EB` and `.KiB` … `.EiB` for a size. A `Duration` holds its nanoseconds exactly, in an i96 (`.nanoseconds`); `whole` gives an i64, so past 292 years `whole(.ns)` is the largest i64 rather than the value.
-
-**Without a struct**, when the keys are not known ahead of time, ask for `hocon.Value`: the whole tree of objects, lists and values, to walk with a `switch`. `std.json.Stringify` prints it as JSON:
-
-```zig
-const parsed = try hocon.parseFromFile(hocon.Value, gpa, io, "prod.conf", .{});
-try std.json.Stringify.value(parsed.value, .{}, writer);
-```
-
-**Writing HOCON**: `hocon.stringify(value, .{}, writer)` writes a struct or a `hocon.Value`, so a program can write its defaults once and let each environment include them; `stringifyAlloc` returns the text.
+The options, errors, durations, periods and sizes, a config without a struct and writing HOCON: [docs/zig.md](docs/zig.md).
 
 ## Command line
 
@@ -171,74 +115,7 @@ $ hocon --json prod.conf
 {"db":{"host":"db.example.org","pool":4},"timeout":"30s","cache":"512MiB","debug":false}
 ```
 
-A `${…}` the file does not answer reads the environment; `--env=none` reads none. `--env-file=prod.env` puts the `KEY=value` lines of a file over it, as docker compose and python-dotenv read them; a file written for a shell's `source`, with `export` and quotes, works as it is. A later file goes over an earlier one, and with `--env=none` they are all there is: `hocon check --env=none --env-file=prod.env prod.conf` checks a deployment against its own variables and nothing from your shell.
-
-```sh
-# prod.env
-DB_HOST=db.internal
-DB_POOL=16
-# a line written for `source` reads the same
-export LOG_LEVEL="warn"
-```
-
-`--env=keep` writes the one file to deploy: includes and overrides worked out, the variables left for the server:
-
-```sh
-$ hocon --env=keep prod.conf > deploy.conf
-$ cat deploy.conf
-db {
-  host = db.example.org
-  pool = 4
-  pool = ${?DB_POOL}
-}
-timeout = 30s
-cache = 512MiB
-debug = false
-```
-
-**get** prints one value, for a shell script:
-
-```sh
-$ hocon get db.host prod.conf
-db.example.org
-$ hocon get db --json prod.conf
-{"host":"db.example.org","pool":4}
-```
-
-**diff** compares two files as they resolve, path by path (`~ path: old → new`, `+` and `-`), and exits 0 when they say the same, as the deploy file does, 1 when they differ and 2 when one cannot be read:
-
-```sh
-$ hocon diff prod.conf deploy.conf; echo $?
-0
-```
-
-**check** reads files, and with `--schema` into your struct, so a value of the wrong type fails as it would in your program. A key the struct has no field for is skipped, as `parseFromFile` does by default; a program with `.ignore_unknown_fields = false` refuses it where `check` does not. It compiles the struct with the `zig` on your `PATH`, so the file may import `std` and `hocon` and nothing else:
-
-```sh
-$ hocon check --schema config.zig:Config prod.conf
-prod.conf: ok
-$ DB_POOL=eight hocon check --schema config.zig:Config prod.conf
-prod.conf:4:11: error: InvalidCharacter at db.pool: expected u16
-db.pool = ${?DB_POOL}   # only when DB_POOL is set
-          ^
-1 of 1 failed
-```
-
-`config.zig` there is the `Config` struct from the top of this page, `pub`.
-
-Each exits 1 when something is wrong (`diff` 2, as 1 is a difference), with the place on stderr; `hocon` alone lists the commands and their flags.
-
-From `build.zig`, run the binary of the dependency. Here `zig build check-config` checks `deploy/prod.conf` against `Config`:
-
-```zig
-const hocon = b.dependency("hocon", .{ .target = target, .optimize = optimize });
-const check = std.Build.Step.Run.create(b, "check config");
-check.addFileArg(hocon.namedLazyPath("cli"));
-check.addArgs(&.{ "check", "--schema", b.fmt("{s}:Config", .{b.pathFromRoot("src/config.zig")}) });
-check.addFileInput(b.path("src/config.zig"));
-check.addFileArg(b.path("deploy/prod.conf"));
-b.step("check-config", "Check the config against Config").dependOn(&check.step);
-```
+The environment and env files, `get`, `diff`, `check` with a schema, and running it from `build.zig`: [docs/cli.md](docs/cli.md).
 
 ## Conformance
 
