@@ -1,23 +1,26 @@
 <p align="center">
-  <img src="docs/brand/zig-Hocon-badge-master-1650x500.png" width="600" alt="zig-Hocon">
-</p>
-<p align="center">
-  A <a href="https://github.com/lightbend/config/blob/main/HOCON.md">HOCON</a> parser written in Zig: one core, used from Zig, from the command line, from C and from Python.
-  <br />
-  The primary goal is to follow the HOCON specification: includes of files and http(s) URLs (not <code>classpath(…)</code>), substitutions, merging and environment variables are implemented.
+  <img src="docs/brand/zig-Hocon-badge-master-1650x500.png" width="600" alt="zig-hocon">
 </p>
 
-Where to read on, by what you use:
+Read [HOCON](https://github.com/lightbend/config/blob/main/HOCON.md) config files into your own Zig structs, the way `std.json` reads JSON: includes, substitutions, merging, environment variables, durations and sizes. No dependencies beyond the standard library. The same core also ships as the `hocon` command line tool, a C library and a Python package.
 
-- **Python**: `pip install zig-hocon`, then [python/README.md](python/README.md). Against the suite's reading of the spec pyhocon scores 64.5 % and zig-hocon 100 % ([table](#conformance)). Wheels for Python 3.10 and later on Linux (x86_64, aarch64; glibc and musl), macOS and Windows. Coming from pyhocon: [python/MIGRATING.md](python/MIGRATING.md) lists every difference, and `zig-hocon-migrate` shows which of them your configs hit.
-- **Zig**: [Install](#install), then [Use from Zig](#use-from-zig).
-- **C**: libhocon and [`c/hocon.h`](c/hocon.h), whose comments are its documentation; **shell and CI**: the [`hocon` command](#command-line).
-- **The JVM**: [Coming from typesafe/config](#coming-from-typesafeconfig) says where zig-hocon reads a config differently.
-- **How correct it is**: [Conformance](#conformance); **before production**: [defaults](#defaults-that-matter-in-production) and [gotchas](#gotchas).
+**Beta**, with one maintainer: the API can still change before 1.0 ([CHANGELOG.md](CHANGELOG.md)). Most of the code is written with AI and reviewed by the maintainer ([how](docs/ai-disclosure.md)).
 
-**Maturity:** beta, with one maintainer and the first release on 2026-10-15 ([Status](#status)); most of the code is written with AI and reviewed by the maintainer ([AI disclosure](#ai-disclosure)); an http(s) include in a config is fetched during the parse, and that cannot be turned off ([defaults](#defaults-that-matter-in-production)).
+## Install
 
-HOCON is JSON made for people: comments, no quotes needed, units like `30s` and `512MiB`, files that include other files, later settings that merge over earlier ones, and values taken from other keys or from environment variables. One base file, one small file per environment on top.
+Requires Zig 0.16.
+
+```sh
+zig fetch --save https://github.com/lejmr/zig-hocon/archive/refs/tags/v0.6.1.tar.gz
+```
+
+```zig
+// build.zig
+const hocon = b.dependency("hocon", .{ .target = target, .optimize = optimize });
+exe.root_module.addImport("hocon", hocon.module("hocon"));
+```
+
+## Use
 
 ```hocon
 # app.conf
@@ -27,7 +30,6 @@ db {
 }
 timeout = 30s
 cache = 512MiB
-debug = false
 ```
 
 ```hocon
@@ -36,8 +38,6 @@ include "app.conf"
 db.host = db.example.org
 db.pool = ${?DB_POOL}   # only when DB_POOL is set
 ```
-
-In Zig:
 
 ```zig
 const std = @import("std");
@@ -61,39 +61,34 @@ pub fn main(init: std.process.Init) !void {
 }
 ```
 
-In Python ([python/README.md](python/README.md)):
+`Parsed(T)` owns everything in `.value` until `deinit`. A field can be any integer, float, `bool`, string, slice, array, struct (with defaults), enum, optional, tagged union, `hocon.Duration`, `hocon.Size`, `hocon.Period`, or `hocon.Value` for a tree you walk yourself. `parseFromSlice` reads text instead of a file (`[:0]const u8`), the `…Leaky` variants allocate into your arena, and `hocon.stringify` writes a struct or a `Value` back as HOCON. Every option is documented where it is declared, in [src/Config.zig](src/Config.zig).
 
-```python
-from zig_hocon import ConfigFactory
+## Before you ship
 
-conf = ConfigFactory.parse_file("prod.conf")
-conf.get_string("db.host")   # "db.example.org"
-conf.get_int("db.pool")      # 4, or $DB_POOL when it is set
+- **No environment by default.** `.env` is `.none`, so `${DB_POOL}` finds nothing unless you pass `.{ .map = init.environ_map }` as above, or `.keep` to leave the variables in for the server.
+- **Unknown keys are skipped**, unlike `std.json`: `.ignore_unknown_fields` defaults to `true`. Set it to `false` and a misspelled key is `error.UnknownField`.
+- **Variables go last.** A later setting hides an earlier `${?…}`: with `workers = ${?WORKERS}` in `app.conf` and `workers = 8` after the include in `prod.conf`, `workers` is 8 whatever `WORKERS` says.
+- **An http(s) include is fetched during the parse**, 30 s per fetch (`.http_timeout`), and no option turns that off. `parseFromSlice` refuses every include, files too.
+- **Errors are plain Zig errors.** To see where, pass `.diagnostics = &diag` (a `hocon.Diagnostics`, freed with `diag.deinit(gpa)`); `diag.render(writer)` prints it the way the compiler would. With `DB_POOL=eight`:
+
+```
+prod.conf:4:11: error: InvalidCharacter at db.pool: expected u16
+db.pool = ${?DB_POOL}   # only when DB_POOL is set
+          ^
 ```
 
-The rest of this page reads these two files.
+The same defaults on the other surfaces, and what is resolved when: [docs/production.md](docs/production.md).
 
-## Why zig-hocon
+## Also from
 
-- **Follows the spec, by its own suite.** Passes all 589 cases of its [conformance suite](#conformance). Each case checks one sentence of the spec, and together they cover 276 of its 290 rules. The suite is the maintainer's own reading of the spec; the next section says what that means and where zig-hocon differs from typesafe/config.
-- **Your schema is a Zig struct**, read the way `std.json` reads JSON. HOCON is only what sits on disk; the struct says what it holds, with defaults, optionals, enums, durations and sizes. In Python a pydantic or msgspec model does the same job ([python/README.md](python/README.md#into-a-model)).
-- **Fast.** A 1 MB config with substitutions parses and resolves in 12.6 ms, in Zig and through Python, where pyhocon takes 8 s ([python/BENCHMARK.md](python/BENCHMARK.md) has how it was measured).
-- **Clear errors.** File, line, column and a caret, also for a value of the wrong type.
-- **One file to deploy.** Includes and overrides are worked out ahead of time, and the environment variables are left for the server.
-- **No dependencies.** The Zig standard library and nothing else; in Python, a thin ctypes layer over one bundled library.
+- **Shell and CI:** `pip install zig-hocon` puts `hocon` on your `PATH`, or `zig build -Doptimize=ReleaseSafe` builds it into `zig-out/bin`. It prints, gets, checks and diffs resolved configs, and `hocon check --schema config.zig:Config prod.conf` reads them into your struct, also as a step in your `build.zig`: [docs/cli.md](docs/cli.md).
+- **C:** libhocon for Linux, macOS and Windows on the [releases page](https://github.com/lejmr/zig-hocon/releases), or `zig build lib`; [`c/hocon.h`](c/hocon.h) is its documentation.
+- **Python:** `pip install zig-hocon`, see [python/README.md](python/README.md); from pyhocon, [python/MIGRATING.md](python/MIGRATING.md).
+- **From typesafe/config:** [docs/typesafe-config.md](docs/typesafe-config.md) says where zig-hocon reads a config differently, and what it leaves out.
 
 ## Conformance
 
-[`conformance/`](conformance) turns the spec into data: each case is one sentence of the spec, written as a `.conf` file and the value it must give. The maintainer of zig-hocon wrote the suite as well as the parser. Expected values were seeded from typesafe/config 1.4.9, the Java reference implementation, and checked by hand against the spec; where the spec leaves room, the suite takes one reading and [lists it](conformance/README.md#readings-the-suite-takes). So "100 %" means zig-hocon agrees with this suite's reading of the spec.
-
-**zig-hocon differs from typesafe/config 1.4.9 in 91 cases**: the ones where the suite's reading and typesafe/config part ways, listed in [the conformance report](https://htmlpreview.github.io/?https://github.com/lejmr/zig-hocon/blob/main/conformance/report.html) when you switch it to typesafe/config. Why they differ:
-
-- **12 are numbers.** The spec says "allowed number formats matches JSON" (L120), so `01`, `1.` and `08080` stay text. typesafe/config reads them as 1, 1 and 8080, a leniency it keeps on purpose for compatibility: [#861](https://github.com/lightbend/config/pull/861) leaves leading zeros and trailing dots out of scope.
-- **16 have a fix in an upstream pull request** ([#861](https://github.com/lightbend/config/pull/861), [#862](https://github.com/lightbend/config/pull/862), [#864](https://github.com/lightbend/config/pull/864)); none of it is in a typesafe/config release yet.
-- **19 are reported upstream**, as an issue or a pull request the case links, [#863](https://github.com/lightbend/config/pull/863) among them.
-- **44 are not reported upstream yet.** In 27 typesafe/config refuses input the spec allows: some are internal errors such as `BugOrBroken`, others are things it does not support by design, such as an array as the document root. In 9 it gives a different value, and in 8 it accepts input the spec forbids.
-
-`conformance/run.sh --java` scores any parser against typesafe/config instead of the spec, through an adapter of about ten lines ([conformance/README.md](conformance/README.md)).
+zig-hocon passes all 589 cases of [its conformance suite](conformance/README.md), each one sentence of the spec. The maintainer wrote the suite as well as the parser, seeding it from typesafe/config 1.4.9 and checking each case by hand against the spec, so 100 % means agreement with [this suite's reading](conformance/README.md#readings-the-suite-takes). Against typesafe/config itself zig-hocon differs in 91 cases; [why](docs/typesafe-config.md#the-91-cases), and every case in [the report](https://htmlpreview.github.io/?https://github.com/lejmr/zig-hocon/blob/main/conformance/report.html).
 
 <!-- conformance:start -->
 <!-- generated by conformance/maintaining/report.py — do not edit by hand -->
@@ -122,202 +117,6 @@ The others measured, and why they are left out: [conformance/README.md](conforma
 
 <!-- conformance:end -->
 
-## Install
-
-Requires Zig 0.16.
-
-```sh
-zig fetch --save https://github.com/lejmr/zig-hocon/archive/refs/tags/v0.6.1.tar.gz
-```
-
-That records the dependency in `build.zig.zon`, pinned by its content hash. Then hand the module to your program in `build.zig`:
-
-```zig
-const hocon = b.dependency("hocon", .{ .target = target, .optimize = optimize });
-exe.root_module.addImport("hocon", hocon.module("hocon"));
-```
-
-The same package also builds the other three:
-
-| | |
-|---|---|
-| command line tool | `zig build -Doptimize=ReleaseSafe` in a checkout gives `zig-out/bin/hocon`; `pip install zig-hocon` also puts `hocon` on the path, without `check --schema` |
-| Python | `pip install zig-hocon`, see [python/README.md](python/README.md) |
-| C library | `zig build lib -Doptimize=ReleaseSafe` gives `libhocon` and [`hocon.h`](c/hocon.h), whose comments are its documentation |
-
-## Use from Zig
-
-| function | reads | includes | returns |
-|---|---|---|---|
-| `parseFromFile(T, gpa, io, path, options)` | a file | next to the file, and http(s) URLs | `Parsed(T)` |
-| `parseFromFileLeaky(T, arena, io, path, options)` | a file | next to the file, and http(s) URLs | `T`, in your arena |
-| `parseFromSlice(T, gpa, text, options)` | text, `[:0]const u8` | none: an `include` is an error | `Parsed(T)` |
-| `parseFromSliceLeaky(T, arena, text, options)` | text, `[:0]const u8` | none: an `include` is an error | `T`, in your arena |
-| `parseFromSliceInDirLeaky(T, arena, io, dir, text, options)` | text, `[:0]const u8` | in `dir`, and http(s) URLs | `T`, in your arena |
-
-`Parsed(T)` is an arena that owns everything in `.value`, strings included, until its one `deinit`. A field of `T` can be an integer, a float, a `bool`, a string (`[]const u8` or `[:0]const u8`), a slice or an array, a struct (field defaults included), an enum, an optional, a tagged union, `hocon.Duration`, `hocon.Size`, `hocon.Period` or `hocon.Value`.
-
-**Unknown keys are skipped by default.** `.ignore_unknown_fields` is `true`, the opposite of `std.json`, so a misspelled key in the file is skipped without a word; set it to `false` to make that `error.UnknownField`.
-
-What the options do, each set to something other than its default:
-
-```zig
-const options: hocon.ParseOptions = .{
-    .env = .{ .map = init.environ_map }, // where ${DB_POOL} looks; default .none, no variables; or .keep
-    .resolve = false,                    // default true; false keeps every ${…} as written, for hocon.Value
-    .ignore_unknown_fields = false,      // default true, a key the struct has no field for is skipped; false makes it an error
-    .diagnostics = &diag,                // default null; where an error is, see below
-    .http_timeout = .fromSeconds(5),     // default 30 s; for an include of an http(s) URL
-};
-```
-
-**Errors** are plain Zig errors. To know where, pass `Diagnostics`; in `main` above, the parse becomes:
-
-```zig
-var diag: hocon.Diagnostics = .{};
-defer diag.deinit(init.gpa);
-const parsed = hocon.parseFromFile(Config, init.gpa, init.io, "prod.conf", .{
-    .env = .{ .map = init.environ_map },
-    .diagnostics = &diag,
-}) catch |err| {
-    var buffer: [1024]u8 = undefined;
-    var stderr = std.Io.File.stderr().writerStreaming(init.io, &buffer);
-    try diag.render(&stderr.interface); // any *std.Io.Writer
-    try stderr.interface.flush();
-    return err;
-};
-defer parsed.deinit();
-```
-
-With `DB_POOL=eight` in the environment it prints what the zig compiler would, pointing at where the value comes from:
-
-```
-prod.conf:4:11: error: InvalidCharacter at db.pool: expected u16
-db.pool = ${?DB_POOL}   # only when DB_POOL is set
-          ^
-```
-
-For a message of your own, `diag.location` has the same `path`, `line` and `column` and the text of the line, `diag.key_path` the key, and `diag.expected` the type that was wanted.
-
-**Durations, periods and sizes** are read in any unit the spec lists. A number without a unit is in the spec's default unit: milliseconds for a duration, bytes for a size, days for a period. The units are `.ns`, `.us`, `.ms`, `.s`, `.min`, `.h`, `.d` and `.w` for a duration, and `.B`, `.kB`, `.MB`, `.GB`, `.TB`, `.PB`, `.EB` and `.KiB` … `.EiB` for a size; how large either can be, in Zig, C and Python, is in [docs/spec.md](docs/spec.md). In `main` above:
-
-```zig
-const ms = config.timeout.whole(.ms);    // 30000; .as(.minutes) gives an f64, .toIo() a std.Io.Duration
-const bytes = config.cache.whole(.B);    // 536870912; "512MB" counts by 1000, "512MiB" by 1024
-const r = try hocon.parseFromSlice(struct { retention: hocon.Period }, init.gpa, "retention = 3 months", .{});
-defer r.deinit();
-const months = r.value.retention.months; // 3; a hocon.Period has years, months and days, as java.time.Period
-```
-
-**Without a struct**, when the keys are not known ahead of time, ask for `hocon.Value`: the whole tree of objects, lists and values, to walk with a `switch`. `std.json.Stringify` prints it as JSON:
-
-```zig
-const tree = try hocon.parseFromFile(hocon.Value, init.gpa, init.io, "prod.conf", .{});
-defer tree.deinit();
-var buffer: [4096]u8 = undefined;
-var stdout = std.Io.File.stdout().writerStreaming(init.io, &buffer);
-try std.json.Stringify.value(tree.value, .{}, &stdout.interface);
-try stdout.interface.flush();
-```
-
-**Writing HOCON**: `hocon.stringify(value, .{}, writer)` writes a struct or a `hocon.Value`, so a program can write its defaults once and let each environment include them; `stringifyAlloc` returns the text.
-
-## Command line
-
-`hocon` prints a file resolved, as HOCON or with `--json` as JSON:
-
-```sh
-$ hocon --json prod.conf
-{"db":{"host":"db.example.org","pool":4},"timeout":"30s","cache":"512MiB","debug":false}
-```
-
-A `${…}` that the file does not answer reads the process environment; `--env=none` turns that off. `--env-file=prod.env` reads the `KEY=value` lines of a file, the way docker compose and python-dotenv read them, and puts them over the environment. A file written for a shell's `source`, with `export` and quotes, works as it is. With several env files, a later one goes over an earlier one, and with `--env=none` the env files are the only variables there are. So `hocon check --env=none --env-file=prod.env prod.conf` checks a deployment against its own variables and nothing from your shell.
-
-`--env=keep` writes the one file to deploy: includes and overrides worked out, the variables left for the server. `pool = 4` followed by `pool = ${?DB_POOL}` means the server's `DB_POOL` wins when it is set, and 4 stays when it is not:
-
-```sh
-$ hocon --env=keep prod.conf > deploy.conf
-$ cat deploy.conf
-db {
-  host = db.example.org
-  pool = 4
-  pool = ${?DB_POOL}
-}
-timeout = 30s
-cache = 512MiB
-debug = false
-```
-
-**get** prints one value, for a shell script, and with `--json` an object as JSON. **diff** compares two files as they resolve, path by path (`~ path: old → new`, `+` and `-`); the deploy file says the same as `prod.conf`:
-
-```sh
-$ hocon get db.host prod.conf
-db.example.org
-$ hocon diff prod.conf deploy.conf; echo $?
-0
-```
-
-**check** reads each file and says which fail and where. With `--schema` it also reads them into your struct, so a value of the wrong type fails as it would in your program. It compiles the struct with the `zig` on your `PATH`, so the file may import `std` and `hocon` and nothing else. It skips a key the struct has no field for, whatever your program does ([Gotchas](#gotchas)).
-
-With `config.zig` holding the `Config` struct from the top of this page, declared `pub`, and `const hocon = @import("hocon");`, `DB_POOL=eight hocon check --schema config.zig:Config prod.conf` prints the error shown under [Use from Zig](#use-from-zig), then `1 of 1 failed`.
-
-**Exit codes**: 0 is success. `hocon`, `get` and `check` exit 1 when something is wrong; `diff` exits 1 when the files differ and 2 when one cannot be read. What went wrong, and where, goes to stderr. `hocon` with no arguments lists the commands and their flags.
-
-From `build.zig`, run the binary of the dependency, built for the machine the build runs on. Next to the [Install](#install) lines, `zig build check-config` then checks `deploy/prod.conf` against `Config`; `--schema` runs the `zig` on its `PATH`, here the one running the build:
-
-```zig
-const hocon_cli = b.dependency("hocon", .{ .target = b.graph.host, .optimize = .ReleaseSafe });
-const check = std.Build.Step.Run.create(b, "check config");
-check.addFileArg(hocon_cli.namedLazyPath("cli"));
-check.addArgs(&.{ "check", "--schema", b.fmt("{s}:Config", .{b.pathFromRoot("src/config.zig")}) });
-check.addFileInput(b.path("src/config.zig"));
-check.addFileArg(b.path("deploy/prod.conf"));
-check.setEnvironmentVariable("PATH", std.fs.path.dirname(b.graph.zig_exe).?);
-b.step("check-config", "Check the config against Config").dependOn(&check.step);
-```
-
-## Coming from typesafe/config
-
-zig-hocon reads the same format, but not always the same way. [docs/spec.md](docs/spec.md) goes through the spec section by section and says where it differs from typesafe/config; [docs/internals.md](docs/internals.md) says how it is built and which reference implementations settle disputes. What you are most likely to run into:
-
-- **A number is a number only as JSON writes it.** `01`, `1.` and `08` stay text, where typesafe/config reads `01` as `1`; an integer getter or struct field refuses such text. A duration's number is read the same JSON way, so `.5 s` and `01 s`, which typesafe/config takes, are errors.
-- **`1.5` read as an integer is an error**, not a silent `1`.
-- **Not supported:** `include classpath(…)`, URL schemes other than http, https and file, and the JVM conventions: system property overrides, Java properties mapping beyond plain `.properties` lines, and conventional file names, so nothing loads `application.conf` or `reference.conf` on its own.
-- **No `withFallback`.** typesafe/config's model, where every library ships a `reference.conf` and the application's config falls back to them, has no equivalent: configs that are already loaded, or built in code, cannot be merged. Layer files instead, with a file that includes the defaults and then overrides them, as `prod.conf` does with `app.conf`. In Zig, a struct's field defaults fill in what the file leaves out.
-- **`hocon` prints what zig-hocon reads**, which in the [91 cases](#conformance) is not what a JVM service loads.
-
-## Defaults that matter in production
-
-| | Zig | `hocon` | C | Python |
-|---|---|---|---|---|
-| a `${X}` not in the file reads | nothing: `.env = .none`; pass `.{ .map = init.environ_map }` for the process environment | the process environment; `--env=none` for nothing | the process environment (`HOCON_ENV_PROCESS`, also with `NULL` options); `HOCON_ENV_NONE` for nothing | `os.environ`; `env=None` for nothing |
-| an http(s) include | fetched, 30 s per fetch; `.http_timeout` | fetched, 30 s per fetch; no flag to change it | fetched; `http_timeout_ms`, 0 is 30 s | fetched; `http_timeout=`, 30 s by default |
-
-- **http(s) includes cannot be turned off.** No surface has an option for it: a file that includes a URL fetches it, during the parse. The only way to read with no includes at all is to read the text yourself and parse it as text: `parseFromSlice` in Zig, `hocon_parse_string` with `include_dir` left `NULL` in C, `parse_string` without `basedir` in Python. Each of them refuses every include, files too. `hocon` has no such mode: it reads files, and fetches the http(s) URLs they include.
-- **Everything is resolved inside the parse call.** Includes are read first, then the substitutions resolve once over the whole document, against the environment as it is at that moment. Keep mode (`.keep`, `--env=keep`, `HOCON_ENV_KEEP`, `env=KEEP`) and reading without resolving (`resolve = false`) leave the `${…}` in, for later.
-
-## Gotchas
-
-- **Variables go last.** A later setting hides an earlier one, and that includes a `${?…}`. If `app.conf` has `workers = ${?WORKERS}` and `prod.conf` sets `workers = 8` after its `include`, `workers` is 8 whatever `WORKERS` says. Put a setting the environment overrides where nothing comes after it, as `prod.conf` does with `${?DB_POOL}`, or in a file that every environment includes last.
-- **Unknown keys are skipped.** `.ignore_unknown_fields` defaults to `true`, unlike `std.json`, so a misspelled key is skipped without a word; set it to `false` to catch it. `hocon check --schema` always reads with the default, and has no flag for it: a program that sets `.ignore_unknown_fields = false` refuses such a key, so a file `check` passes can still stop that program.
-
-## Status
-
-- **Beta until 1.0, with one maintainer; more are welcome.** The API can still change; each change is in [CHANGELOG.md](CHANGELOG.md), and what a version may change is in [CONTRIBUTING.md](CONTRIBUTING.md#versions).
-- **Releases.** Ten so far, from v0.1.0 on 2026-10-15 to v0.6.1 on 2026-10-30, each with its section in [CHANGELOG.md](CHANGELOG.md). One release is one tag for the Zig package, libhocon and the Python package at once. Only the Release workflow makes one, after every test has passed on Linux, macOS and Windows and every wheel on each Python ([CONTRIBUTING.md](CONTRIBUTING.md#releasing)).
-- **Zig versions.** Built and tested with Zig 0.16.0. A weekly CI job builds against Zig master to show early what breaks; it is informational and blocks nothing.
-- **Tests.** CI runs the Zig, C and Python tests on Linux, macOS and Windows and fuzzes every pull request; a pre-push hook runs the conformance suite ([CONTRIBUTING.md](CONTRIBUTING.md#local-setup)).
-
-## AI disclosure
-
-I started this project to learn Zig, and because I was tired of deciding how to do configuration in every language I work in; HOCON is usually my first choice. I wrote the first working version by hand. The whole spec turned out to be much more, so from then on I switched to AI-augmented development: I broke the product into features, had them implemented one by one, and reviewed each at its end. I did not write that code. I had my say in the test scenarios, the readability of the code and how the files are organised, so that all of it stays checkable by a human. CHANGELOG.md gives the share of `src/` written by hand for each release from v0.1.0 to v0.4.0. I use this library for my own services, and it will be maintained.
-
-More on how it was made: [What I learned writing a HOCON parser as my first Zig project](https://pubs.miloskozak.cz/posts/hocon-tokenizer-and-parser/), [I built a HOCON conformance suite. It found bugs in the reference implementation.](https://pubs.miloskozak.cz/posts/hocon-conformance-suite/) and [All I wanted was to see inside an ArrayList](https://pubs.miloskozak.cz/posts/zig-debugging-in-zed/) (Zig debugging in Zed).
-
 ## Contributing
 
-If you need a HOCON feature that is not there, open a pull request; a failing test that shows what you need is the fastest way to get it prioritized. [CONTRIBUTING.md](CONTRIBUTING.md) has the workflow.
-
-## License
-
-BSD 3-Clause, see [LICENSE](LICENSE).
+A failing test that shows what you need is the fastest way to get it; [CONTRIBUTING.md](CONTRIBUTING.md) has the workflow. BSD 3-Clause, see [LICENSE](LICENSE).
