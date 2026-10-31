@@ -88,7 +88,7 @@ These are the Zig library's defaults; the `hocon` command, C and Python read the
 - **No environment by default.** `.env` is `.none`, so `${DB_POOL}` finds nothing unless you pass `.{ .map = init.environ_map }` as above, or `.keep` to leave the `${…}` in, for whatever reads the file on the machine it is deployed to.
 - **Unknown keys are skipped**, unlike `std.json`: `.ignore_unknown_fields` defaults to `true`. Set it to `false` and a misspelled key is `error.UnknownField`.
 - **Put `${?…}` overrides last.** A later setting hides an earlier one, a `${?…}` too: with `workers = ${?WORKERS}` in `app.conf` and `workers = 8` after the include in `prod.conf`, `workers` is 8 whatever `WORKERS` says.
-- **An http(s) include is fetched during the parse**, 30 s per fetch (`.http_timeout`), and no option turns that off. `parseFromSlice` refuses every include, files too.
+- **An http(s) include is downloaded during the parse.** `include "https://…"` is fetched inside the `parseFromFile` call; each download times out after 30 s by default, set by `.http_timeout`. No option skips them: to read a config with no includes at all, pass its text to `parseFromSlice`, which rejects every include, file includes too.
 - **Errors are plain Zig errors.** To see where, pass `.diagnostics = &diag` (a `hocon.Diagnostics`, freed with `diag.deinit(gpa)`); `diag.render(writer)` prints it the way the compiler would:
 
 ```zig
