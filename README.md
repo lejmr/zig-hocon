@@ -113,7 +113,7 @@ db.pool = ${?DB_POOL}   # only when DB_POOL is set
 
 ## Beyond Zig
 
-- **Shell and CI:** `pip install zig-hocon` puts `hocon` on your `PATH`, or `zig build -Doptimize=ReleaseSafe` builds it into `zig-out/bin`. It prints, gets, checks and diffs resolved configs: [docs/cli.md](docs/cli.md).
+- **Command line:** `hocon` prints a config resolved, writes the one file to deploy with the variables left for the server, gets one value for a script, checks files against your struct, and diffs two configs as they resolve: [docs/cli.md](docs/cli.md).
 - **C:** libhocon for Linux, macOS and Windows on the [releases page](https://github.com/lejmr/zig-hocon/releases), or `zig build lib`; [`c/hocon.h`](c/hocon.h) is its documentation.
 - **Python:** `pip install zig-hocon`, see [python/README.md](python/README.md); from pyhocon, [python/MIGRATING.md](python/MIGRATING.md).
 - **From typesafe/config:** [docs/spec.md](docs/spec.md) says, section by section, where zig-hocon reads a config differently.
