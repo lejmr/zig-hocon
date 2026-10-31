@@ -113,7 +113,7 @@ db.pool = ${?DB_POOL}   # only when DB_POOL is set
 
 - **Command line:** `hocon` prints a config resolved, writes one deployable file with the `${…}` left to resolve at run time, gets one value for a script, checks files against a Zig struct (`--schema`), and diffs two configs as they resolve: [docs/cli.md](docs/cli.md).
 - **C:** libhocon for Linux, macOS and Windows on the [releases page](https://github.com/lejmr/zig-hocon/releases), or `zig build lib`; [`c/hocon.h`](c/hocon.h) is its documentation.
-- **Python:** `pip install zig-hocon`, see [python/README.md](python/README.md); from pyhocon, [python/MIGRATING.md](python/MIGRATING.md).
+- **Python:** `pip install zig-hocon`, see [python/README.md](python/README.md).
 
 The `hocon` command, C and Python read the process environment by default, where the Zig library reads none: [docs/production.md](docs/production.md) has the defaults of each.
 
