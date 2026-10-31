@@ -20,8 +20,6 @@
   <a href="#conformance">Conformance</a>
 </p>
 
-**Next to typesafe/config**, the JVM's HOCON library the spec was written against: where the two part ways, the spec wins. zig-hocon reads 498 of the suite's 589 cases as typesafe/config 1.4.9 does; each of the other 91 is a case the suite marks as one where typesafe/config parts from the spec, and the [conformance report](https://htmlpreview.github.io/?https://github.com/lejmr/zig-hocon/blob/main/conformance/report.html) lists them.
-
 HOCON is JSON made for people: comments, no quotes needed, units like `30s` and `512MiB`, files that include other files, later settings that merge over earlier ones, and values taken from other keys or from environment variables. One base file, one small file per environment on top.
 
 ```hocon
