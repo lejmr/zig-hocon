@@ -37,7 +37,7 @@ $ hocon diff prod.conf deploy.conf; echo $?
 
 **check** reads each file and says which fail and where. With `--schema` it also reads them into your struct, so a value of the wrong type fails as it would in your program. It compiles the struct with the `zig` on your `PATH`, so the file may import `std` and `hocon` and nothing else. It skips a key the struct has no field for, whatever your program does ([Gotchas](production.md#gotchas)).
 
-With `config.zig` holding the `Config` struct from the top of this page, declared `pub`, and `const hocon = @import("hocon");`, `DB_POOL=eight hocon check --schema config.zig:Config prod.conf` prints the error shown under [the README](../README.md#before-you-ship), then `1 of 1 failed`.
+With `config.zig` holding the `Config` struct from the top of this page, declared `pub`, and `const hocon = @import("hocon");`, `DB_POOL=eight hocon check --schema config.zig:Config prod.conf` prints the error shown under [the README](../README.md#errors), then `1 of 1 failed`.
 
 **Exit codes**: 0 is success. `hocon`, `get` and `check` exit 1 when something is wrong; `diff` exits 1 when the files differ and 2 when one cannot be read. What went wrong, and where, goes to stderr. `hocon` with no arguments lists the commands and their flags.
 
