@@ -79,7 +79,7 @@ pub fn main(init: std.process.Init) !void {
 }
 ```
 
-A field can be any integer, float, `bool`, string, slice, array, struct (with defaults), enum, optional, tagged union, `hocon.Duration`, `hocon.Size`, `hocon.Period`, or `hocon.Value` for a tree you walk yourself. `parseFromSlice` reads text instead of a file (`[:0]const u8`), the `…Leaky` variants allocate into your arena, and `hocon.stringify` writes a struct or a `Value` back as HOCON. Every option is documented where it is declared, in [src/Config.zig](src/Config.zig).
+A field can be any integer, float, `bool`, string, slice, array, struct (with defaults), enum, optional, tagged union, `hocon.Duration`, `hocon.Size`, `hocon.Period`.
 
 ## Before you ship
 
