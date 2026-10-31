@@ -290,9 +290,13 @@ def main(argv):
                                                     " | ".join(score(i, m) for m in java_modes))
            for i in impls]
         + footnote
-        + ["", "Besides typesafe/config and zig-hocon, the table has pyhocon, each other Python library that parses "
-               "HOCON itself, rather than wrapping pyhocon, and scores above 60 % against the spec, the best-scoring "
-               "Rust parser, and `hocon`, the Rust crate of that name. The others measured, and why they are left out: "
+        + ["", "Which parsers the table has:", "",
+           "- typesafe/config and zig-hocon",
+           "- pyhocon",
+           "- every other Python library with a HOCON parser of its own, not a wrapper around pyhocon, "
+           "above 60 % against the spec",
+           "- the best-scoring Rust parser, and `hocon`, the Rust crate of that name",
+           "", "The others measured, and why they are left out: "
                "[conformance/README.md](conformance/README.md#not-in-the-table).", "", END])
     text = README.read_text()
     if START not in text or END not in text:
