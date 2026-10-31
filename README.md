@@ -165,7 +165,6 @@ I am happy with the result: it does everything I need to run and develop my serv
 
 References:
 
-- [Linus Torvalds on the kernel mailing list](https://lore.kernel.org/lkml/CAHk-=whTs09_ozN+e09GU68N1wPP56MUzDjrg9rnKxQUa0A_4Q@mail.gmail.com/), October 2026, on writing code with AI: "the people I respect and call intelligent are not the ones that shy away from using new and interesting tools". The other half, in the same thread: he expects people "to understand what they are doing", whatever tool wrote the code, and the kernel keeps the person who sends it fully responsible for it.
 - [What I learned writing a HOCON parser as my first Zig project](https://pubs.miloskozak.cz/posts/hocon-tokenizer-and-parser/)
 - [I built a HOCON conformance suite. It found bugs in the reference implementation.](https://pubs.miloskozak.cz/posts/hocon-conformance-suite/)
 - [All I wanted was to see inside an ArrayList](https://pubs.miloskozak.cz/posts/zig-debugging-in-zed/), Zig debugging in Zed
