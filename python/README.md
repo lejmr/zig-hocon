@@ -1,6 +1,21 @@
-<img src="https://raw.githubusercontent.com/lejmr/zig-hocon/main/docs/brand/zig-Hocon-badge-master-1650x500.png" width="600" alt="zig-hocon">
-
-Read [HOCON](https://github.com/lightbend/config/blob/main/HOCON.md) config files in Python, to the spec. Fast, because the parser is written in Zig.
+<p align="center">
+  <img src="https://raw.githubusercontent.com/lejmr/zig-hocon/main/docs/brand/zig-Hocon-badge-master-1650x500.png" width="600" alt="zig-hocon">
+</p>
+<p align="center">
+  Read <a href="https://github.com/lightbend/config/blob/main/HOCON.md">HOCON</a> config files in Python, to the spec.
+  <br />
+  Fast, because the parser is written in Zig.
+  <br />
+  <a href="https://github.com/lejmr/zig-hocon/blob/main/python/README.md#install">Install</a>
+  ·
+  <a href="https://github.com/lejmr/zig-hocon/blob/main/python/README.md#use">Use</a>
+  ·
+  <a href="https://github.com/lejmr/zig-hocon/blob/main/python/MIGRATING.md">Coming from pyhocon</a>
+  ·
+  <a href="https://github.com/lejmr/zig-hocon/blob/main/python/examples">Examples</a>
+  ·
+  <a href="https://github.com/lejmr/zig-hocon/blob/main/CHANGELOG.md">Changelog</a>
+</p>
 
 HOCON is JSON made for people: comments, no quotes needed, units like `30s` and `512MiB`, files that include other files, later settings that merge over earlier ones, and values taken from other keys or from environment variables. One base file, one small file per environment on top.
 
