@@ -4,7 +4,7 @@
 <p align="center">
   Reads <a href="https://github.com/lightbend/config/blob/main/HOCON.md">HOCON</a> config files into your own Zig structs, the way <code>std.json</code> reads JSON.
   <br />
-  All of HOCON, as the spec says: includes, substitutions, merging and environment variables.
+  The primary goal is to follow the HOCON specification: includes, substitutions, merging and environment variables are fully implemented.
   <br />
   On top of it: a command line tool, a C library and a Python package.
   <br />
