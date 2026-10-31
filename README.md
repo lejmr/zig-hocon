@@ -22,7 +22,7 @@
   <a href="#conformance">Conformance</a>
 </p>
 
-**Beta**, with one maintainer: the API can still change before 1.0 ([CHANGELOG.md](CHANGELOG.md)). Most of the code is written with AI and reviewed by the maintainer ([how](docs/ai-disclosure.md)).
+**Beta**: the API can change before 1.0 ([CHANGELOG.md](CHANGELOG.md)).
 
 ## Install
 
