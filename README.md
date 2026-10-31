@@ -66,7 +66,7 @@ The rest of this page reads these two files. **Variables go last.** A later sett
 
 ## Why zig-hocon
 
-- **To the spec.** Passes all 589 tests of this project's [conformance suite](https://htmlpreview.github.io/?https://github.com/lejmr/zig-hocon/blob/main/conformance/report.html), written from the spec's sentences (276 of its 290 rules) and from fuzzing, each with the value the spec gives and the sentence it rests on; typesafe/config, the reference, passes 497 of them.
+- **To the spec.** Passes all 589 tests of this project's [conformance suite](https://htmlpreview.github.io/?https://github.com/lejmr/zig-hocon/blob/main/conformance/report.html), written from the spec's sentences (276 of its 290 rules) and from fuzzing, each with the value the spec gives and the sentence it rests on.
 - **Your schema is a Zig struct.** HOCON is only what sits on disk; the struct says what it holds, with defaults, optionals, enums, durations and sizes.
 - **Fast.** A 10 MB config in a quarter of a second.\*
 - **Clear errors.** File, line, column and a caret, also for a value of the wrong type.
