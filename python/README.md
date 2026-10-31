@@ -106,90 +106,6 @@ Path("deploy.conf").write_text(ConfigFactory.parse_file("prod.conf", env=KEEP).t
 
 **From the shell**, [`hocon`](#the-hocon-command) prints the file resolved, and more; `python -m zig_hocon [--json] [--env=process|none|keep] prod.conf` does the first through the package.
 
-## The hocon command
-
-`pip install zig-hocon` puts `hocon` on the path: the same tool as a release of zig-hocon has, built for your platform. It prints a file resolved, as HOCON or with `--json` as JSON:
-
-```sh
-$ hocon --json prod.conf
-{"db":{"host":"db.example.org","pool":4},"timeout":"30s","cache":"512MiB","retention":"3 months","debug":false,"ratio":0.75}
-```
-
-A `${…}` the file does not answer reads the environment; `--env=none` reads none. `--env-file=prod.env` puts the `KEY=value` lines of a file over it, as docker compose and python-dotenv read them; a file written for a shell's `source`, with `export` and quotes, works as it is. A later file goes over an earlier one, and with `--env=none` they are all there is: `hocon check --env=none --env-file=prod.env prod.conf` checks a deployment against its own variables and nothing from your shell.
-
-```sh
-# prod.env
-DB_HOST=db.internal
-DB_POOL=16
-# a line written for `source` reads the same
-export LOG_LEVEL="warn"
-```
-
-`--env=keep` writes the one file to deploy: includes and overrides worked out, the variables left for the server:
-
-```sh
-$ hocon --env=keep prod.conf > deploy.conf
-$ cat deploy.conf
-db {
-  host = db.example.org
-  pool = 4
-  pool = ${?DB_POOL}
-}
-timeout = 30s
-cache = 512MiB
-retention = 3 months
-debug = false
-ratio = 0.75
-```
-
-**get** prints one value, for a shell script:
-
-```sh
-$ hocon get db.host prod.conf
-db.example.org
-$ hocon get db --json prod.conf
-{"host":"db.example.org","pool":4}
-```
-
-**diff** compares two files as they resolve, path by path (`~ path: old → new`, `+` and `-`), and exits 0 when they say the same, as the deploy file does, 1 when they differ and 2 when one cannot be read:
-
-```sh
-$ hocon diff prod.conf deploy.conf; echo $?
-0
-```
-
-**check** reads each file and says which fail and where, for CI:
-
-```sh
-$ hocon check prod.conf staging.conf
-prod.conf: ok
-staging.conf:2:11: error: Unresolved
-db.host = ${DB_HOST}
-          ^
-1 of 2 failed
-```
-
-Each exits 1 when something is wrong (`diff` 2, as 1 is a difference), with the place on stderr; `hocon` alone lists the commands and their flags. (The `hocon` of a release also has `check --schema`, which reads a file into a Zig struct; it needs zig, and the one in the wheel leaves it out.)
-
-## Coming from pyhocon
-
-Moving over is a rewrite of the code that works with the tree, not a change of import. What carries over: `ConfigFactory.parse_file` and `parse_string`, the typed getters (`get_string`, `get_int`, `get_float`, `get_bool`, `get_config`) and the exception names. What does not:
-
-- **The tree is not a dict**, and `get`, `get_list`, `with_fallback` and `put` are not there: a typed getter, `conf.as_dict()` or an include does the job.
-- **A list has no getters.** Read it through your model (`list[str]`), which checks the type as `get_list` did; `conf.as_dict()` gives whatever is there, a string from the environment too.
-- **Durations stay text.** `30s` is `"30s"` in `as_dict()` until a getter or a model reads it.
-- **`+=` appends one element.** `x += [a]`, the form pyhocon takes, adds the list `[a]` as one element; `x = ${x} [a]` extends it.
-- **Values from the environment are text**, read as numbers and booleans only as written: `08` or `True` stop `get_int` and `get_bool`. Check your secret store first.
-- **Strict syntax**, and no `include package(...)`.
-
-`zig-hocon-migrate`, which pip installs with zig-hocon, reads your configs with pyhocon and with zig-hocon and shows what differs:
-
-```sh
-zig-hocon-migrate conf/prod.conf --env-file env/prod.env
-```
-
-[MIGRATING.md](https://github.com/lejmr/zig-hocon/blob/main/python/MIGRATING.md) has every difference, what to write instead, and how to run the check for each deployment in CI.
-
 ## Into a model
 
 The package hands over a dict (`as_dict()`) or JSON bytes (`to_json()`); a model library does the checking. The same `prod.conf` into the three usual ones.
@@ -298,6 +214,36 @@ class Settings(BaseModel):
 ```
 
 The range stays the model's (`Field`). With msgspec, the same calls go in `dec_hook`, for types of their own as `Duration` above. Text is the other way round: unquoted `password = 12345` is the text `"12345"` to a Zig `[]const u8` field and to `get_string`, but a number to `as_dict()`, where `1.50` is also `1.5`, so a model's `str` field cannot see what was written. Quote a value meant as text that looks like a number, `password = "12345"`, and both sides read the same text.
+
+## Coming from pyhocon
+
+Moving over is a rewrite of the code that works with the tree, not a change of import. What carries over: `ConfigFactory.parse_file` and `parse_string`, the typed getters (`get_string`, `get_int`, `get_float`, `get_bool`, `get_config`) and the exception names. What does not:
+
+- **The tree is not a dict**, and `get`, `get_list`, `with_fallback` and `put` are not there: a typed getter, `conf.as_dict()` or an include does the job.
+- **A list has no getters.** Read it through your model (`list[str]`), which checks the type as `get_list` did; `conf.as_dict()` gives whatever is there, a string from the environment too.
+- **Durations stay text.** `30s` is `"30s"` in `as_dict()` until a getter or a model reads it.
+- **`+=` appends one element.** `x += [a]`, the form pyhocon takes, adds the list `[a]` as one element; `x = ${x} [a]` extends it.
+- **Values from the environment are text**, read as numbers and booleans only as written: `08` or `True` stop `get_int` and `get_bool`. Check your secret store first.
+- **Strict syntax**, and no `include package(...)`.
+
+`zig-hocon-migrate`, which pip installs with zig-hocon, reads your configs with pyhocon and with zig-hocon and shows what differs:
+
+```sh
+zig-hocon-migrate conf/prod.conf --env-file env/prod.env
+```
+
+[MIGRATING.md](https://github.com/lejmr/zig-hocon/blob/main/python/MIGRATING.md) has every difference, what to write instead, and how to run the check for each deployment in CI.
+
+## The hocon command
+
+`pip install zig-hocon` puts `hocon` on the path: the same tool as a release of zig-hocon has, built for your platform. It prints a file resolved, as HOCON or with `--json` as JSON:
+
+```sh
+$ hocon --json prod.conf
+{"db":{"host":"db.example.org","pool":4},"timeout":"30s","cache":"512MiB","retention":"3 months","debug":false,"ratio":0.75}
+```
+
+The environment and env files, `get`, `diff` and `check`: [docs/cli.md](https://github.com/lejmr/zig-hocon/blob/main/docs/cli.md). Each exits 1 when something is wrong (`diff` 2, as 1 is a difference), with the place on stderr; `hocon` alone lists the commands and their flags. (The `hocon` of a release also has `check --schema`, which reads a file into a Zig struct; it needs zig, and the one in the wheel leaves it out.)
 
 ## Building from source
 
