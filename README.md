@@ -1,6 +1,24 @@
-<img src="docs/brand/zig-Hocon-badge-master-1650x500.png" width="600" alt="zig-Hocon">
-
-zig-hocon reads [HOCON](https://github.com/lightbend/config/blob/main/HOCON.md) config files into your own Zig structs, the way `std.json` reads JSON. All of HOCON, as the spec says: includes, substitutions, merging and environment variables. On top of it: a command line tool, a C library and a Python package.
+<p align="center">
+  <img src="docs/brand/zig-Hocon-badge-master-1650x500.png" width="600" alt="zig-Hocon">
+</p>
+<p align="center">
+  Reads <a href="https://github.com/lightbend/config/blob/main/HOCON.md">HOCON</a> config files into your own Zig structs, the way <code>std.json</code> reads JSON.
+  <br />
+  The primary goal is to follow the HOCON specification: includes, substitutions, merging and environment variables are fully implemented.
+  <br />
+  On top of it: a command line tool, a C library and a Python package.
+  <br />
+  <br />
+  <a href="#install">Install</a>
+  ·
+  <a href="#use">Use</a>
+  ·
+  <a href="#command-line">Command line</a>
+  ·
+  <a href="python/README.md">Python</a>
+  ·
+  <a href="#conformance">Conformance</a>
+</p>
 
 HOCON is JSON made for people: comments, no quotes needed, units like `30s` and `512MiB`, files that include other files, later settings that merge over earlier ones, and values taken from other keys or from environment variables. One base file, one small file per environment on top.
 
@@ -236,7 +254,7 @@ b.step("check-config", "Check the config against Config").dependOn(&check.step);
 | py.hocon <sub>hocon-parser 1.14.2 (Python)</sub> | 79.1% (466/589) | 79.5% (468/589) |
 | pyhocon <sub>pyhocon 0.3.63</sub> | 64.3% (379/589) | 60.1% (354/589) |
 | rs.hocon <sub>hocon-parser 1.14.2 (Rust)</sub> | 78.6% (463/589) | 78.8% (464/589) |
-| zig-hocon <sub>zig-hocon code@37e6441</sub> | 100% (589/589) | 84.6% (498/589) |
+| zig-hocon <sub>zig-hocon code@d8010c4</sub> | 100% (589/589) | 84.6% (498/589) |
 
 The table keeps the best parsers; the others measured, and why they are not in it: [conformance/README.md](conformance/README.md#not-in-the-table).
 
