@@ -13,7 +13,7 @@
   ·
   <a href="#use">Use</a>
   ·
-  <a href="#before-you-ship">Before you ship</a>
+  <a href="#errors">Errors</a>
   ·
   <a href="#beyond-zig">Command line &amp; C</a>
   ·
@@ -81,15 +81,11 @@ pub fn main(init: std.process.Init) !void {
 
 A field can be any integer, float, `bool`, string, slice, array, struct (with defaults), enum, optional, tagged union, `hocon.Duration`, `hocon.Size`, `hocon.Period`.
 
-## Before you ship
+Unlike `std.json`, unknown keys are skipped; set `.ignore_unknown_fields = false` to catch a misspelled key.
 
-These are the Zig library's defaults; the `hocon` command, C and Python read the process environment by default ([docs/production.md](docs/production.md) has every surface, and what is resolved when).
+## Errors
 
-- **No environment by default.** `.env` is `.none`, so `${DB_POOL}` finds nothing unless you pass `.{ .map = init.environ_map }` as above, or `.keep` to leave the `${…}` in, for whatever reads the file on the machine it is deployed to.
-- **Unknown keys are skipped**, unlike `std.json`: `.ignore_unknown_fields` defaults to `true`. Set it to `false` and a misspelled key is `error.UnknownField`.
-- **Put `${?…}` overrides last.** A later setting hides an earlier one, a `${?…}` too: with `workers = ${?WORKERS}` in `app.conf` and `workers = 8` after the include in `prod.conf`, `workers` is 8 whatever `WORKERS` says.
-- **An http(s) include is downloaded during the parse**, with a 30 s timeout by default (`.http_timeout`).
-- **Errors are plain Zig errors.** To see where, pass `.diagnostics = &diag` (a `hocon.Diagnostics`, freed with `diag.deinit(gpa)`); `diag.render(writer)` prints it the way the compiler would:
+They are plain Zig errors. To see where, pass `.diagnostics = &diag`, and `diag.render(writer)` prints it the way the compiler would:
 
 ```zig
 var diag: hocon.Diagnostics = .{};
@@ -121,6 +117,8 @@ db.pool = ${?DB_POOL}   # only when DB_POOL is set
 - **C:** libhocon for Linux, macOS and Windows on the [releases page](https://github.com/lejmr/zig-hocon/releases), or `zig build lib`; [`c/hocon.h`](c/hocon.h) is its documentation.
 - **Python:** `pip install zig-hocon`, see [python/README.md](python/README.md); from pyhocon, [python/MIGRATING.md](python/MIGRATING.md).
 - **From typesafe/config:** [docs/typesafe-config.md](docs/typesafe-config.md) says where zig-hocon reads a config differently, and what it leaves out.
+
+The `hocon` command, C and Python read the process environment by default, where the Zig library reads none: [docs/production.md](docs/production.md) has the defaults of each.
 
 ## Conformance
 
