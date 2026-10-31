@@ -83,7 +83,7 @@ A field can be any integer, float, `bool`, string, slice, array, struct (with de
 
 Unlike `std.json`, unknown keys are skipped; set `.ignore_unknown_fields = false` to catch a misspelled key.
 
-## Errors
+### Errors
 
 They are plain Zig errors. To see where, pass `.diagnostics = &diag`, and `diag.render(writer)` prints it the way the compiler would:
 
