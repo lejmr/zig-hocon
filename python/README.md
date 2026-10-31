@@ -1,6 +1,6 @@
 <img src="https://raw.githubusercontent.com/lejmr/zig-hocon/main/docs/brand/zig-Hocon-badge-master-1650x500.png" width="600" alt="zig-hocon">
 
-Read [HOCON](https://github.com/lightbend/config/blob/main/HOCON.md) config files in Python, to the spec. A pyhocon replacement, with a check that shows what changes for your configs when you switch.
+Read [HOCON](https://github.com/lightbend/config/blob/main/HOCON.md) config files in Python, to the spec. An alternative to pyhocon that follows the spec, with a check that shows what changes for your configs when you switch.
 
 ```hocon
 # app.conf
@@ -59,7 +59,7 @@ conf = ConfigFactory.parse_file("prod.conf", http_timeout=5)       # an http(s) 
 conf = ConfigFactory.parse_string('include "prod.conf"', basedir=".")  # text, includes from basedir
 
 conf.get_string("db.host")      # "db.example.org"
-conf.get_int("db.pool")         # 4
+conf.get_int("db.pool")         # 4, or $DB_POOL
 conf.get_float("ratio")         # 0.75
 conf.get_bool("debug")          # False: true/yes/on, false/no/off
 conf.get_duration("timeout")    # timedelta(seconds=30)
@@ -103,7 +103,7 @@ Moving over is a rewrite of the code that works with the tree, not a change of i
 - **A list has no getters.** Read it through your model (`list[str]`), which checks the type as `get_list` did.
 - **Durations stay text.** `30s` is `"30s"` in `as_dict()` until a getter or a model reads it.
 - **`+=` appends one element.** `x += [a]`, the form pyhocon takes, adds the list `[a]` as one element; `x = ${x} [a]` extends it.
-- **Values from the environment are text**, read as numbers and booleans only as written: `08` or `True` stop `get_int` and `get_bool`. Check your secret store first.
+- **Values from the environment are text**, read as numbers and booleans only as written: `08` or a capitalised `True` makes `get_int` and `get_bool` raise `ConfigWrongTypeException`. Check your secret store first.
 - **Strict syntax**, and no `include package(...)`.
 
 `zig-hocon-migrate` reads your configs with pyhocon and with zig-hocon and shows what differs:
@@ -141,7 +141,17 @@ settings = Settings.model_validate(zig_hocon.ConfigFactory.parse_file("prod.conf
 
 `zig_hocon.parse_bytes` and `parse_period` do the same for sizes and periods. The [examples](https://github.com/lejmr/zig-hocon/tree/main/python/examples) do it with msgspec and dataclasses too, as tests, with layered environments, errors and one-file deploys.
 
-A model's rules for a number or a boolean are its own: from the environment, pydantic takes `"08"` as 8, where `get_int` refuses it. To read exactly as the getters do, use `zig_hocon.parse_int` and `zig_hocon.parse_bool` as validators ([MIGRATING.md](https://github.com/lejmr/zig-hocon/blob/main/python/MIGRATING.md)).
+### Strict, as the Zig side reads it
+
+A model's rules for a number or a boolean are not the library's, and a value from the environment is always text: `${DB_POOL}` with `08` in it is `"08"`.
+
+| text | `get_int` / `get_bool`, a Zig struct | pydantic | msgspec, `strict=False` |
+|---|---|---|---|
+| `"08"`, `"+9000"`, `"9_000"`, `" 48"` | refused | 8, 9000, 9000, 48 | refused |
+| `"True"`, `"1"` | refused | `True` | `True` |
+| `"yes"`, `"on"` | `True` | `True` | refused |
+
+`zig_hocon.parse_int` and `zig_hocon.parse_bool` read as `get_int` and `get_bool` do; as validators they make a model take exactly what the Zig side takes ([MIGRATING.md](https://github.com/lejmr/zig-hocon/blob/main/python/MIGRATING.md)).
 
 ## Command line
 
