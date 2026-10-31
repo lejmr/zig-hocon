@@ -20,7 +20,7 @@
   <a href="#conformance">Conformance</a>
 </p>
 
-**Next to typesafe/config**, the JVM's HOCON library the spec was written against: where the two part ways, the spec wins. zig-hocon reads 498 of the suite's 589 cases as typesafe/config 1.4.9 does; each of the other 91 is a case the suite marks as one where typesafe/config parts from the spec, and the [conformance report](https://htmlpreview.github.io/?https://github.com/lejmr/zig-hocon/blob/main/conformance/report.html) lists them.
+**Next to typesafe/config**, the JVM's HOCON library the spec was written against: where the two part ways, the spec wins. zig-hocon reads 498 of the suite's 589 cases as typesafe/config 1.4.9 does; each of the other 91 is a case the suite marks as one where typesafe/config parts from the spec: [docs/typesafe-config.md](docs/typesafe-config.md) has what they are, and how to check your configs.
 
 HOCON is JSON made for people: comments, no quotes needed, units like `30s` and `512MiB`, files that include other files, later settings that merge over earlier ones, and values taken from other keys or from environment variables. One base file, one small file per environment on top.
 
@@ -149,7 +149,7 @@ Every case, and what each implementation printed, is in **[the conformance repor
 
 ## What is in, what is out
 
-[docs/spec.md](docs/spec.md) goes through the spec section by section: what is done, how, and where it differs from typesafe/config. Not supported: `include classpath(…)`, and URL schemes other than http, https and file. Left out on purpose: the JVM conventions (properties mapping, system property overrides), and merging two loaded configs in code (`withFallback`), which an `include` in the file does.
+[docs/spec.md](docs/spec.md) goes through the spec section by section: what is done, how, and where it differs from typesafe/config. [docs/typesafe-config.md](docs/typesafe-config.md) is the short version, for a team on the JVM. Not supported: `include classpath(…)`, and URL schemes other than http, https and file. Left out on purpose: the JVM conventions (properties mapping, system property overrides), and merging two loaded configs in code (`withFallback`), which an `include` in the file does.
 
 How it is built, and the reference implementations disputes are settled with: [docs/internals.md](docs/internals.md).
 
