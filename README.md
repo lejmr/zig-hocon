@@ -50,7 +50,7 @@ cache = 512MiB
 
 ```hocon
 # prod.conf
-include "app.conf"
+include required("app.conf")
 db.host = db.example.org
 db.pool = ${?DB_POOL}   # only when DB_POOL is set
 ```
@@ -111,7 +111,7 @@ db.pool = ${?DB_POOL}   # only when DB_POOL is set
 
 ## Beyond Zig
 
-- **Command line:** `hocon` prints a config resolved, writes the one file to deploy with the variables left for the server, gets one value for a script, checks files against your struct, and diffs two configs as they resolve: [docs/cli.md](docs/cli.md).
+- **Command line:** `hocon` prints a config resolved, writes one deployable file with the `${…}` left to resolve at run time, gets one value for a script, checks files against a Zig struct (`--schema`), and diffs two configs as they resolve: [docs/cli.md](docs/cli.md).
 - **C:** libhocon for Linux, macOS and Windows on the [releases page](https://github.com/lejmr/zig-hocon/releases), or `zig build lib`; [`c/hocon.h`](c/hocon.h) is its documentation.
 - **Python:** `pip install zig-hocon`, see [python/README.md](python/README.md); from pyhocon, [python/MIGRATING.md](python/MIGRATING.md).
 
@@ -119,9 +119,9 @@ The `hocon` command, C and Python read the process environment by default, where
 
 ## Conformance
 
-HOCON had no shared test suite, the way JSON has [JSONTestSuite](https://github.com/nst/JSONTestSuite) and TOML [toml-test](https://github.com/toml-lang/toml-test), so this repository carries one, meant as a reference for any HOCON implementation: cases derived from the sentences of the prose spec, each a config file, with its includes and environment, and the JSON it must resolve to, or a rejection. It checks end to end, text in and resolved value out, so any parser can be scored through a ten-line adapter. Where the spec leaves room, the suite takes one reading and [says so](conformance/README.md#readings-the-suite-takes).
+HOCON had no shared, implementation-neutral test suite, the way JSON has [JSONTestSuite](https://github.com/nst/JSONTestSuite) and TOML [toml-test](https://github.com/toml-lang/toml-test), so this repository carries one, meant as a reference for any HOCON implementation: cases derived from the sentences of the prose spec, each a config file, with its includes and environment, and the JSON it must resolve to, or a rejection. It checks end to end, text in and resolved value out, so any parser can be scored through a ten-line adapter. Where the spec leaves room, the suite takes one reading and [says so](conformance/README.md#readings-the-suite-takes).
 
-zig-hocon is the first parser built against it, and passes all of them. Not even lightbend/config, the reference implementation, passes all of them: in some cases it has bugs, several reported upstream, and in others it is more lenient than the spec. Each such case records what lightbend/config does, so `conformance/run.sh --java` scores a parser against it instead. How other parsers score: [conformance/README.md](conformance/README.md#published-results); every case: [the report](https://htmlpreview.github.io/?https://github.com/lejmr/zig-hocon/blob/main/conformance/report.html).
+zig-hocon is the first parser built against it, and passes all of them. lightbend/config, the reference implementation, departs from the spec in places, through bugs (several reported upstream), deliberate choices and leniency; each such case records what it does, so `conformance/run.sh --java` scores a parser against lightbend/config instead. How other parsers score: [conformance/README.md](conformance/README.md#published-results); every case: [the report](https://htmlpreview.github.io/?https://github.com/lejmr/zig-hocon/blob/main/conformance/report.html).
 
 ## AI disclosure
 
