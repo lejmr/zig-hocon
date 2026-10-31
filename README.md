@@ -15,7 +15,7 @@
   ·
   <a href="#before-you-ship">Before you ship</a>
   ·
-  <a href="#also-from">Command line &amp; C</a>
+  <a href="#beyond-zig">Command line &amp; C</a>
   ·
   <a href="python/README.md">Python</a>
   ·
@@ -115,7 +115,7 @@ db.pool = ${?DB_POOL}   # only when DB_POOL is set
           ^
 ```
 
-## Also from
+## Beyond Zig
 
 - **Shell and CI:** `pip install zig-hocon` puts `hocon` on your `PATH`, or `zig build -Doptimize=ReleaseSafe` builds it into `zig-out/bin`. It prints, gets, checks and diffs resolved configs, and `hocon check --schema config.zig:Config prod.conf` reads them into your struct, also as a step in your `build.zig`: [docs/cli.md](docs/cli.md).
 - **C:** libhocon for Linux, macOS and Windows on the [releases page](https://github.com/lejmr/zig-hocon/releases), or `zig build lib`; [`c/hocon.h`](c/hocon.h) is its documentation.
