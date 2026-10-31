@@ -2,16 +2,30 @@
 
 `pip install zig-hocon` puts `hocon` on your `PATH`; in a checkout, `zig build -Doptimize=ReleaseSafe` builds it into `zig-out/bin`. The examples read `app.conf` and `prod.conf` from the [README](../README.md#use).
 
+## Print a file resolved
+
 `hocon` prints a file resolved, as HOCON or with `--json` as JSON:
 
 ```sh
 $ hocon --json prod.conf
-{"db":{"host":"db.example.org","pool":4},"timeout":"30s","cache":"512MiB","debug":false}
+{"db":{"host":"db.example.org","pool":4},"timeout":"30s","cache":"512MiB"}
 ```
 
-A `${…}` that the file does not answer reads the process environment; `--env=none` turns that off. `--env-file=prod.env` reads the `KEY=value` lines of a file, the way docker compose and python-dotenv read them, and puts them over the environment. A file written for a shell's `source`, with `export` and quotes, works as it is. With several env files, a later one goes over an earlier one, and with `--env=none` the env files are the only variables there are. So `hocon check --env=none --env-file=prod.env prod.conf` checks a deployment against its own variables and nothing from your shell.
+## Environment variables
 
-`--env=keep` writes the one file to deploy: includes and overrides worked out, the variables left for the server. `pool = 4` followed by `pool = ${?DB_POOL}` means the server's `DB_POOL` wins when it is set, and 4 stays when it is not:
+A `${…}` the file does not answer reads the environment; `--env=none` reads none. `--env-file=prod.env` puts the `KEY=value` lines of a file over it, as docker compose and python-dotenv read them; a file written for a shell's `source`, with `export` and quotes, works as it is. A later file goes over an earlier one, and with `--env=none` they are all there is: `hocon check --env=none --env-file=prod.env prod.conf` checks a deployment against its own variables and nothing from your shell.
+
+```sh
+# prod.env
+DB_HOST=db.internal
+DB_POOL=16
+# a line written for `source` reads the same
+export LOG_LEVEL="warn"
+```
+
+## One file to deploy
+
+`--env=keep` writes the one file to deploy: includes and overrides worked out, the variables left for the server:
 
 ```sh
 $ hocon --env=keep prod.conf > deploy.conf
@@ -23,25 +37,51 @@ db {
 }
 timeout = 30s
 cache = 512MiB
-debug = false
 ```
 
-**get** prints one value, for a shell script, and with `--json` an object as JSON. **diff** compares two files as they resolve, path by path (`~ path: old → new`, `+` and `-`); the deploy file says the same as `prod.conf`:
+## get
+
+`hocon get` prints one value, for a shell script:
 
 ```sh
 $ hocon get db.host prod.conf
 db.example.org
+$ hocon get db --json prod.conf
+{"host":"db.example.org","pool":4}
+```
+
+## diff
+
+`hocon diff` compares two files as they resolve, path by path (`~ path: old → new`, `+` and `-`), and exits 0 when they say the same, as the deploy file does, 1 when they differ and 2 when one cannot be read:
+
+```sh
 $ hocon diff prod.conf deploy.conf; echo $?
 0
 ```
 
-**check** reads each file and says which fail and where. With `--schema` it also reads them into your struct, so a value of the wrong type fails as it would in your program. It compiles the struct with the `zig` on your `PATH`, so the file may import `std` and `hocon` and nothing else. It skips a key the struct has no field for, whatever your program does ([Gotchas](production.md#gotchas)).
+## check
 
-With `config.zig` holding the `Config` struct from the top of this page, declared `pub`, and `const hocon = @import("hocon");`, `DB_POOL=eight hocon check --schema config.zig:Config prod.conf` prints the error shown under [the README](../README.md#errors), then `1 of 1 failed`.
+`hocon check` reads files, and with `--schema` into your struct, so a value of the wrong type fails as it would in your program. A key the struct has no field for is skipped, as `parseFromFile` does by default; a program with `.ignore_unknown_fields = false` refuses it where `check` does not. It compiles the struct with the `zig` on your `PATH`, so the file may import `std` and `hocon` and nothing else:
 
-**Exit codes**: 0 is success. `hocon`, `get` and `check` exit 1 when something is wrong; `diff` exits 1 when the files differ and 2 when one cannot be read. What went wrong, and where, goes to stderr. `hocon` with no arguments lists the commands and their flags.
+```sh
+$ hocon check --schema config.zig:Config prod.conf
+prod.conf: ok
+$ DB_POOL=eight hocon check --schema config.zig:Config prod.conf
+prod.conf:4:11: error: InvalidCharacter at db.pool: expected u16
+db.pool = ${?DB_POOL}   # only when DB_POOL is set
+          ^
+1 of 1 failed
+```
 
-From `build.zig`, run the binary of the dependency, built for the machine the build runs on. Next to the [Install](../README.md#install) lines, `zig build check-config` then checks `deploy/prod.conf` against `Config`; `--schema` runs the `zig` on its `PATH`, here the one running the build:
+`config.zig` there is the `Config` struct from the [README](../README.md#use), declared `pub`, with `const hocon = @import("hocon");`.
+
+## Exit codes
+
+Each exits 1 when something is wrong, with the place on stderr (`diff` as above); `hocon` alone lists the commands and their flags.
+
+## In build.zig
+
+From `build.zig`, run the binary of the dependency, built for the machine the build runs on; `--schema` runs the `zig` on its `PATH`, here the one running the build. Next to the [Install](../README.md#install) lines, `zig build check-config` checks `deploy/prod.conf` against `Config`:
 
 ```zig
 const hocon_cli = b.dependency("hocon", .{ .target = b.graph.host, .optimize = .ReleaseSafe });
