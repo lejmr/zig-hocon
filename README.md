@@ -119,9 +119,9 @@ The `hocon` command, C and Python read the process environment by default, where
 
 ## Conformance
 
-The repository carries a conformance suite meant as a reference for any HOCON implementation: 589 cases derived from the sentences of the prose spec, each a config file, with its includes and environment, and the JSON it must resolve to, or a rejection. It checks end to end, text in and resolved value out, so any parser can be scored through a ten-line adapter. Where the spec leaves room, the suite takes one reading and [says so](conformance/README.md#readings-the-suite-takes). It does not yet check what a duration or size means, which error a rejection is, or http(s) includes.
+The repository carries a conformance suite meant as a reference for any HOCON implementation: cases derived from the sentences of the prose spec, each a config file, with its includes and environment, and the JSON it must resolve to, or a rejection. It checks end to end, text in and resolved value out, so any parser can be scored through a ten-line adapter. Where the spec leaves room, the suite takes one reading and [says so](conformance/README.md#readings-the-suite-takes). It does not yet check what a duration or size means, which error a rejection is, or http(s) includes.
 
-zig-hocon is the first parser built against it, by the same maintainer, and passes all 589. typesafe/config 1.4.9 differs in 91; [docs/spec.md](docs/spec.md) says, section by section, where zig-hocon reads a config differently. How other parsers score: [conformance/README.md](conformance/README.md#published-results); every case: [the report](https://htmlpreview.github.io/?https://github.com/lejmr/zig-hocon/blob/main/conformance/report.html).
+zig-hocon is the first parser built against it, by the same maintainer, and passes all of them. Where typesafe/config 1.4.9 reads a case differently, the case records what it does; [docs/spec.md](docs/spec.md) says, section by section, where zig-hocon reads a config differently. How other parsers score: [conformance/README.md](conformance/README.md#published-results); every case: [the report](https://htmlpreview.github.io/?https://github.com/lejmr/zig-hocon/blob/main/conformance/report.html).
 
 ## AI disclosure
 
