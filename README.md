@@ -13,8 +13,6 @@
   ·
   <a href="#use">Use</a>
   ·
-  <a href="#errors">Errors</a>
-  ·
   <a href="#beyond-zig">Command line &amp; C</a>
   ·
   <a href="python/README.md">Python</a>
