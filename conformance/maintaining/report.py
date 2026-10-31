@@ -3,7 +3,7 @@
     python3 conformance/maintaining/report.py [--check]
 
 Reads every conformance/reports/*.json — the output of `conformance/run.sh` —
-and writes conformance/report.html plus a one-table summary in the README, which
+and writes conformance/report.html plus a one-table summary in conformance/README.md, which
 links to the page. An implementation
 appears because its result file is committed; leaving a file out is how a
 column stays off the published page.
@@ -21,7 +21,7 @@ import suite
 
 ROOT, SUITE, REPORTS = suite.ROOT, suite.SUITE, suite.REPORTS
 PAGE = ROOT / "conformance" / "report.html"
-README = ROOT / "README.md"
+README = ROOT / "conformance" / "README.md"
 START, END = "<!-- conformance:start -->", "<!-- conformance:end -->"
 COVERAGE = ROOT / "conformance" / "maintaining" / "COVERAGE.md"
 SPEC_PAGE = ROOT / "conformance" / "maintaining" / "COVERAGE.html"
@@ -297,10 +297,10 @@ def main(argv):
            "above 60 % against the spec",
            "- the best-scoring Rust parser, and `hocon`, the Rust crate of that name",
            "", "The others measured, and why they are left out: "
-               "[conformance/README.md](conformance/README.md#not-in-the-table).", "", END])
+               "[below](#not-in-the-table).", "", END])
     text = README.read_text()
     if START not in text or END not in text:
-        sys.exit("README.md has no {} … {} block to fill".format(START, END))
+        sys.exit("conformance/README.md has no {} … {} block to fill".format(START, END))
     readme = text[:text.index(START)] + summary + text[text.index(END) + len(END):]
 
     html_sections = [{"name": n, "rows": sections[n]} for n in sorted(sections)]
