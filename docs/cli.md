@@ -61,15 +61,12 @@ $ hocon get db --json prod.conf
 
 ## diff
 
-`hocon diff` compares two files as they resolve, path by path (`~ path: old → new`, `+` and `-`), and exits 0 when they say the same, as the deploy file does, 1 when they differ and 2 when one cannot be read:
+`hocon diff` compares two files as they resolve, path by path (`~ path: old → new`, `+` and `-`), and exits 0 when they say the same, 1 when they differ and 2 when one cannot be read:
 
 ```sh
-$ DB_POOL=16 hocon diff app.conf prod.conf; echo $?
+$ hocon diff --env=none app.conf prod.conf; echo $?
 ~ db.host: "localhost" → "db.example.org"
-~ db.pool: 4 → "16"
 1
-$ hocon diff prod.conf deploy.conf; echo $?
-0
 ```
 
 ## check
