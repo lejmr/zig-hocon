@@ -21,8 +21,8 @@
 Disputed behaviour is settled by running it, not by reading the spec from memory. `tools/oracle/` holds two reference implementations behind one interface:
 
 ```sh
-printf 'a = grumpy wombat\n' | tools/oracle/hocon-java   # Lightbend typesafe/config
+printf 'a = grumpy wombat\n' | tools/oracle/hocon-java   # lightbend/config
 printf 'a = grumpy wombat\n' | tools/oracle/hocon-py     # pyhocon
 ```
 
-The spec is the authority; `hocon-java` (typesafe/config, which the spec was written against) is the first witness, and where it disagrees with the spec the spec wins. `hocon-py` shows what the implementation this project replaces would do. See [tools/oracle/README.md](../tools/oracle/README.md) for the input format and the list of confirmed divergences between the two.
+The spec is the authority; `hocon-java` (lightbend/config, which the spec was written against) is the first witness, and where it disagrees with the spec the spec wins. `hocon-py` shows what the implementation this project replaces would do. See [tools/oracle/README.md](../tools/oracle/README.md) for the input format and the list of confirmed divergences between the two.

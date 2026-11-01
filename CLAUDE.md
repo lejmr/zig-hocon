@@ -37,6 +37,6 @@ When asked to rebase an agent branch onto another one:
 1. Back up the old tip as `backup/<issue>-before-<what>`. Rebase a copy branch in a scratch worktree, so the agent's worktree and its uncommitted files stay as they are.
 2. Uncommitted agent work gets committed first — one commit per conformance suite section where it splits cleanly. `.idea/` and stray files like `test.conf` stay out.
 3. Resolve conflicts by keeping the lower branch's logic and porting the upper branch's feature onto it. Code the lower branch made obsolete goes; tests it made wrong are rewritten to the new behaviour, with the reason in a comment.
-4. Generated files (`conformance/reports/`, the `conformance:start` block in `README.md`, `conformance/report.html`) take the lower branch's version on conflict. Regenerate them by running `sh tools/hooks/pre-push` after committing; it measures HEAD and amends the results in.
+4. Generated files (`conformance/reports/`, the `conformance:start` block in `conformance/README.md`, `conformance/report.html`) take the lower branch's version on conflict. Regenerate them by running `sh tools/hooks/pre-push` after committing; it measures HEAD and amends the results in.
 5. Done when: `zig build test` is green, `zig fmt --check src` is clean, `conformance/run.sh --spec` and `--java` are at least the lower branch's score, and every error the stack introduces has a caret test.
 6. Move the agent's branch onto the result with `git -C <agent worktree> reset --keep <new tip>`, then remove the scratch worktree and the copy branch.

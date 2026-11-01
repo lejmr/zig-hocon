@@ -84,6 +84,10 @@ print("|---|---|")
 for name, _ in PARTS:
     print(f"| {name} | {share(*counts[name])} |")
 print(f"| all of `src/` | {share(*total)} of {sum(total)} lines |")
-# The suite's score against the spec, as the README's generated table has it.
-passed, cases = re.search(r"^\| zig-hocon .*? \| \d+% \((\d+)/(\d+)\)", git("show", f"{ref}:README.md"), re.M).groups()
+# The suite's score against the spec, as the generated table has it: in
+# conformance/README.md now, in the top-level README.md before it moved there.
+table = r"^\| zig-hocon .*? \| \d+% \((\d+)/(\d+)\)"
+found = next(m for m in (re.search(table, git("show", f"{ref}:{path}", check=False) or "", re.M)
+                         for path in ("conformance/README.md", "README.md")) if m)
+passed, cases = found.groups()
 print(f"| conformance to the spec | {share(int(passed), int(cases) - int(passed))} ({passed} of {cases} tests) |")

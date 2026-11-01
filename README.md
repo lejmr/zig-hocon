@@ -1,26 +1,42 @@
 <p align="center">
-  <img src="docs/brand/zig-Hocon-badge-master-1650x500.png" width="600" alt="zig-Hocon">
+  <img src="docs/brand/zig-Hocon-badge-master-1650x500.png" width="600" alt="zig-hocon">
 </p>
 <p align="center">
-  Reads <a href="https://github.com/lightbend/config/blob/main/HOCON.md">HOCON</a> config files into your own Zig structs, the way <code>std.json</code> reads JSON.
+  Read <a href="https://github.com/lightbend/config/blob/main/HOCON.md">HOCON</a> config files into your own Zig structs, the way <code>std.json</code> reads JSON.
   <br />
-  The primary goal is to follow the HOCON specification: includes, substitutions, merging and environment variables are all implemented.
+  Includes, substitutions, merging, environment variables, durations and sizes; no dependencies beyond the standard library.
   <br />
-  On top of it: a command line tool, a C library and a Python package.
+  The same core also ships as the <code>hocon</code> command line tool, a C library and a Python package.
   <br />
   <br />
   <a href="#install">Install</a>
   ·
   <a href="#use">Use</a>
   ·
-  <a href="#command-line">Command line</a>
+  <a href="#beyond-zig">Command line &amp; C</a>
   ·
   <a href="python/README.md">Python</a>
   ·
   <a href="#conformance">Conformance</a>
 </p>
 
-HOCON is JSON made for people: comments, no quotes needed, units like `30s` and `512MiB`, files that include other files, later settings that merge over earlier ones, and values taken from other keys or from environment variables. One base file, one small file per environment on top.
+**Beta**: the API can change before 1.0 ([CHANGELOG.md](CHANGELOG.md)).
+
+## Install
+
+Requires Zig 0.16.
+
+```sh
+zig fetch --save https://github.com/lejmr/zig-hocon/archive/refs/tags/v0.6.1.tar.gz
+```
+
+```zig
+// build.zig
+const hocon = b.dependency("hocon", .{ .target = target, .optimize = optimize });
+exe.root_module.addImport("hocon", hocon.module("hocon"));
+```
+
+## Use
 
 ```hocon
 # app.conf
@@ -30,12 +46,11 @@ db {
 }
 timeout = 30s
 cache = 512MiB
-debug = false
 ```
 
 ```hocon
 # prod.conf
-include "app.conf"
+include required("app.conf")
 db.host = db.example.org
 db.pool = ${?DB_POOL}   # only when DB_POOL is set
 ```
@@ -62,59 +77,13 @@ pub fn main(init: std.process.Init) !void {
 }
 ```
 
-The rest of this page reads these two files. **Variables go last.** A later setting hides an earlier one, a `${?…}` too: `workers = ${?WORKERS}` in `app.conf` under `workers = 8` in `prod.conf` is 8 whatever `WORKERS` says. Put what the environment overrides where nothing comes after it, as `prod.conf` here does with `${?DB_POOL}`, or in a file every environment includes last.
+A field can be any integer, float, `bool`, string, slice, array, struct (with defaults), enum, optional, tagged union, `hocon.Duration`, `hocon.Size`, `hocon.Period`.
 
-## Why zig-hocon
+Unlike `std.json`, unknown keys are skipped; set `.ignore_unknown_fields = false` to catch a misspelled key.
 
-- **Correct.** Passes all 589 tests in the [conformance suite](https://htmlpreview.github.io/?https://github.com/lejmr/zig-hocon/blob/main/conformance/report.html): each checks one sentence of the spec, and together they cover 276 of its 290 rules.
-- **Your schema is a Zig struct.** HOCON is only what sits on disk; the struct says what it holds, with defaults, optionals, enums, durations and sizes.
-- **Fast.** A 10 MB config in a quarter of a second.\*
-- **Clear errors.** File, line, column and a caret, also for a value of the wrong type.
-- **One file to deploy.** Includes and overrides worked out ahead of time, the environment variables left for the server.
-- **No dependencies.** The standard library and nothing else.
+### Errors
 
-\* Read and written out as JSON by the command line tool, on an Apple M4 Pro.
-
-## Install
-
-Requires Zig 0.16.
-
-```sh
-zig fetch --save https://github.com/lejmr/zig-hocon/archive/refs/tags/v0.6.1.tar.gz
-```
-
-That records the dependency in `build.zig.zon`, pinned by its content hash. Then hand the module to your program in `build.zig`:
-
-```zig
-const hocon = b.dependency("hocon", .{ .target = target, .optimize = optimize });
-exe.root_module.addImport("hocon", hocon.module("hocon"));
-```
-
-The same package has the other three:
-
-| | |
-|---|---|
-| command line tool | `zig build -Doptimize=ReleaseSafe` in a checkout: `zig-out/bin/hocon` |
-| Python | `pip install zig-hocon`, see [python/README.md](python/README.md) |
-| C library | `zig build lib -Doptimize=ReleaseSafe`: `libhocon` and [`hocon.h`](c/hocon.h), whose comments are its documentation |
-
-## Use
-
-`parseFromFile` reads the file and what it includes; `parseFromSlice(T, gpa, text, .{})` reads text, which can include nothing. Both return `Parsed(T)`: an arena that owns everything in `.value`, freed by one `deinit`. The `Leaky` twins, `parseFromFileLeaky` and `parseFromSliceLeaky`, take your arena and return the plain value.
-
-What the options do, each set to something other than its default:
-
-```zig
-.{
-    .env = .{ .map = init.environ_map }, // where ${DB_POOL} looks; default .none, no variables; or .keep
-    .resolve = false,                    // default true; false keeps every ${…} as written, for hocon.Value
-    .ignore_unknown_fields = false,      // default true, a key the struct has no field for is skipped; false makes it an error
-    .diagnostics = &diag,                // default null; where an error is, see below
-    .http_timeout = .fromSeconds(5),     // default 30 s; for an include of an http(s) URL
-}
-```
-
-**Errors** are plain Zig errors. To know where, pass `Diagnostics`:
+They are plain Zig errors. To see where, pass `.diagnostics = &diag`, and `diag.render(writer)` prints it the way the compiler would:
 
 ```zig
 var diag: hocon.Diagnostics = .{};
@@ -125,13 +94,14 @@ const parsed = hocon.parseFromFile(Config, init.gpa, init.io, "prod.conf", .{
 }) catch |err| {
     var buffer: [1024]u8 = undefined;
     var stderr = std.Io.File.stderr().writerStreaming(init.io, &buffer);
-    try diag.render(&stderr.interface); // any *std.Io.Writer
+    try diag.render(&stderr.interface);
     try stderr.interface.flush();
     return err;
 };
+defer parsed.deinit();
 ```
 
-With `DB_POOL=eight` in the environment it prints what the zig compiler would, pointing at where the value comes from:
+With `DB_POOL=eight`:
 
 ```
 prod.conf:4:11: error: InvalidCharacter at db.pool: expected u16
@@ -139,162 +109,24 @@ db.pool = ${?DB_POOL}   # only when DB_POOL is set
           ^
 ```
 
-`diag.location` has the same `path`, `line`, `column` and the line itself, `diag.key_path` and `diag.expected` the rest, for a message of your own.
+## Beyond Zig
 
-**Durations, periods and sizes** are read in any unit the spec lists, a bare number in the default one:
+- **Command line:** `hocon` prints a config resolved, writes one deployable file with the `${…}` left to resolve at run time, gets one value for a script, checks files against a Zig struct (`--schema`), and diffs two configs as they resolve: [docs/cli.md](docs/cli.md).
+- **C:** libhocon for Linux, macOS and Windows on the [releases page](https://github.com/lejmr/zig-hocon/releases), or `zig build lib`; [`c/hocon.h`](c/hocon.h) is its documentation.
+- **Python:** `pip install zig-hocon`, see [python/README.md](python/README.md).
 
-```zig
-config.timeout.whole(.ms)      // 30000; .as(.minutes) gives an f64, .toIo() a std.Io.Duration
-config.cache.whole(.B)         // 536870912; "512MB" counts by 1000, "512MiB" by 1024
-period.months                  // hocon.Period: years, months, days, as java.time.Period
-```
-
-The units are `.ns`, `.us`, `.ms`, `.s`, `.min`, `.h`, `.d` and `.w` for a duration, `.B`, `.kB`, `.MB`, `.GB`, `.TB`, `.PB`, `.EB` and `.KiB` … `.EiB` for a size. A `Duration` holds its nanoseconds exactly, in an i96 (`.nanoseconds`); `whole` gives an i64, so past 292 years `whole(.ns)` is the largest i64 rather than the value.
-
-**Without a struct**, when the keys are not known ahead of time, ask for `hocon.Value`: the whole tree of objects, lists and values, to walk with a `switch`. `std.json.Stringify` prints it as JSON:
-
-```zig
-const parsed = try hocon.parseFromFile(hocon.Value, gpa, io, "prod.conf", .{});
-try std.json.Stringify.value(parsed.value, .{}, writer);
-```
-
-**Writing HOCON**: `hocon.stringify(value, .{}, writer)` writes a struct or a `hocon.Value`, so a program can write its defaults once and let each environment include them; `stringifyAlloc` returns the text.
-
-## Command line
-
-`hocon` prints a file resolved, as HOCON or with `--json` as JSON:
-
-```sh
-$ hocon --json prod.conf
-{"db":{"host":"db.example.org","pool":4},"timeout":"30s","cache":"512MiB","debug":false}
-```
-
-A `${…}` the file does not answer reads the environment; `--env=none` reads none. `--env-file=prod.env` puts the `KEY=value` lines of a file over it, as docker compose and python-dotenv read them; a file written for a shell's `source`, with `export` and quotes, works as it is. A later file goes over an earlier one, and with `--env=none` they are all there is: `hocon check --env=none --env-file=prod.env prod.conf` checks a deployment against its own variables and nothing from your shell.
-
-```sh
-# prod.env
-DB_HOST=db.internal
-DB_POOL=16
-# a line written for `source` reads the same
-export LOG_LEVEL="warn"
-```
-
-`--env=keep` writes the one file to deploy: includes and overrides worked out, the variables left for the server:
-
-```sh
-$ hocon --env=keep prod.conf > deploy.conf
-$ cat deploy.conf
-db {
-  host = db.example.org
-  pool = 4
-  pool = ${?DB_POOL}
-}
-timeout = 30s
-cache = 512MiB
-debug = false
-```
-
-**get** prints one value, for a shell script:
-
-```sh
-$ hocon get db.host prod.conf
-db.example.org
-$ hocon get db --json prod.conf
-{"host":"db.example.org","pool":4}
-```
-
-**diff** compares two files as they resolve, path by path (`~ path: old → new`, `+` and `-`), and exits 0 when they say the same, as the deploy file does, 1 when they differ and 2 when one cannot be read:
-
-```sh
-$ hocon diff prod.conf deploy.conf; echo $?
-0
-```
-
-**check** reads files, and with `--schema` into your struct, so a value of the wrong type fails as it would in your program. A key the struct has no field for is skipped, as `parseFromFile` does by default; a program with `.ignore_unknown_fields = false` refuses it where `check` does not. It compiles the struct with the `zig` on your `PATH`, so the file may import `std` and `hocon` and nothing else:
-
-```sh
-$ hocon check --schema config.zig:Config prod.conf
-prod.conf: ok
-$ DB_POOL=eight hocon check --schema config.zig:Config prod.conf
-prod.conf:4:11: error: InvalidCharacter at db.pool: expected u16
-db.pool = ${?DB_POOL}   # only when DB_POOL is set
-          ^
-1 of 1 failed
-```
-
-`config.zig` there is the `Config` struct from the top of this page, `pub`.
-
-Each exits 1 when something is wrong (`diff` 2, as 1 is a difference), with the place on stderr; `hocon` alone lists the commands and their flags.
-
-From `build.zig`, run the binary of the dependency. Here `zig build check-config` checks `deploy/prod.conf` against `Config`:
-
-```zig
-const hocon = b.dependency("hocon", .{ .target = target, .optimize = optimize });
-const check = std.Build.Step.Run.create(b, "check config");
-check.addFileArg(hocon.namedLazyPath("cli"));
-check.addArgs(&.{ "check", "--schema", b.fmt("{s}:Config", .{b.pathFromRoot("src/config.zig")}) });
-check.addFileInput(b.path("src/config.zig"));
-check.addFileArg(b.path("deploy/prod.conf"));
-b.step("check-config", "Check the config against Config").dependOn(&check.step);
-```
+The `hocon` command, C and Python read the process environment by default, where the Zig library reads none: [docs/production.md](docs/production.md) has the defaults of each.
 
 ## Conformance
 
-[`conformance/`](conformance) turns the spec into data: every sentence of it that says what a config means is a `.conf` file and the value it must give. Expected values are seeded from typesafe/config, the Java reference, and checked by hand against the sentence; where the two disagree, the spec wins.
+HOCON had no shared, implementation-neutral test suite, the way JSON has [JSONTestSuite](https://github.com/nst/JSONTestSuite) and TOML [toml-test](https://github.com/toml-lang/toml-test), so this repository carries one, meant as a reference for any HOCON implementation: cases derived from the sentences of the prose spec, each a config file, with its includes and environment, and the JSON it must resolve to, or a rejection. It checks end to end, text in and resolved value out, so any parser can be scored through a ten-line adapter. Where the spec leaves room, the suite takes one reading and [says so](conformance/README.md#readings-the-suite-takes).
 
-<!-- conformance:start -->
-<!-- generated by conformance/maintaining/report.py — do not edit by hand -->
-
-| implementation | against the spec | against typesafe/config 1.4.9 |
-|---|---|---|
-| Java <sub>typesafe/config 1.4.9</sub> | 84.4% (497/589) | 99.8% (588/589) |
-| hocon.rs <sub>hocon 0.9.0 (Rust)</sub> | 64.7% (381/589) | 65.9% (388/589) |
-| hocon2 <sub>hocon2 0.6.3</sub> | 80.8% (476/589) | 71.1% (419/589) |
-| pulse-pyhocon <sub>pulse-pyhocon 0.2.1</sub> | 65.2% (384/589) | 61.1% (360/589) |
-| py.hocon <sub>hocon-parser 1.14.2 (Python)</sub> | 79.1% (466/589) | 79.5% (468/589) |
-| pyhocon <sub>pyhocon 0.3.63</sub> | 64.3% (379/589) | 60.1% (354/589) |
-| rs.hocon <sub>hocon-parser 1.14.2 (Rust)</sub> | 78.6% (463/589) | 78.8% (464/589) |
-| zig-hocon <sub>zig-hocon code@d8010c4</sub> | 100% (589/589) | 84.6% (498/589) |
-
-The table keeps the best parsers; the others measured, and why they are not in it: [conformance/README.md](conformance/README.md#not-in-the-table).
-
-<!-- conformance:end -->
-
-Every case, and what each implementation printed, is in **[the conformance report](https://htmlpreview.github.io/?https://github.com/lejmr/zig-hocon/blob/main/conformance/report.html)**. Any HOCON parser can be scored on it through a ten-line adapter: [conformance/README.md](conformance/README.md) shows how.
-
-## Status
-
-- **Beta until 1.0.** The API can still change; each change is in [CHANGELOG.md](CHANGELOG.md), and what a version may change is in [CONTRIBUTING.md](CONTRIBUTING.md#versions).
-- **One maintainer, held by tests; more are welcome** ([CONTRIBUTING.md](CONTRIBUTING.md)). Every change runs the 589 cases of the conformance suite, each checking one sentence of the spec, the tests the C header and the Python package are held to, which only the maintainer edits, and a fuzzer over the parser.
-- **Yours to build.** Zig 0.16 and `zig build` give the library, libhocon for C and the command line tool; the suite says what a fork changed.
-
-## What is in, what is out
-
-[docs/spec.md](docs/spec.md) goes through the spec section by section: what is done, how, and where it differs from typesafe/config. Not supported: `include classpath(…)`, and URL schemes other than http, https and file. Left out on purpose: the JVM conventions (properties mapping, system property overrides), and merging two loaded configs in code (`withFallback`), which an `include` in the file does.
-
-How it is built, and the reference implementations disputes are settled with: [docs/internals.md](docs/internals.md).
+zig-hocon is the first parser built against it, and passes all of them. lightbend/config, the reference implementation, departs from the spec in places, through bugs (several reported upstream), deliberate choices and leniency; each such case records what it does, so `conformance/run.sh --java` scores a parser against lightbend/config instead. How other parsers score: [conformance/README.md](conformance/README.md#published-results); every case: [the report](https://htmlpreview.github.io/?https://github.com/lejmr/zig-hocon/blob/main/conformance/report.html).
 
 ## AI disclosure
 
-I started this project because I was tired of deciding, in every language I work in, how to do configuration. JSON (naah), YAML (ehmm), TOML (works...), but I always end up with environments and overrides soon enough. PKL and HOCON are the only two that meet my needs, and HOCON is usually my first choice because it is simpler. I also wanted to learn Zig, and a HOCON parser was the obvious project. I learned a lot about data structures, error propagation and memory arenas, and I got to the point where HOCON worked, and I was happy.
-
-The real world is more complicated once you read the whole spec, and each feature would have cost several evenings. So I made the obvious choice and switched to AI-augmented development. I used every development skill I have, but I did not write the code: I broke the product of my dreams into features, had them implemented one by one, and reviewed each at its end. I had my say in the test scenarios, the readability of the code and how the files are organised, so that all of it stays checkable by a human. The changelog says how much of each release is written by hand.
-
-A lot can change and break over time, so the tests go through what a user touches: the conformance suite, the command line, the C API and the Python package, checking what a user would see and how each is meant to be used.
-
-I am happy with the result: it does everything I need to run and develop my services. In other words, this is a library I use myself, and it will be maintained.
-
-References:
-
-- [Linus Torvalds on the kernel mailing list](https://lore.kernel.org/lkml/CAHk-=whTs09_ozN+e09GU68N1wPP56MUzDjrg9rnKxQUa0A_4Q@mail.gmail.com/), October 2026, on writing code with AI: "the people I respect and call intelligent are not the ones that shy away from using new and interesting tools". The other half, in the same thread: he expects people "to understand what they are doing", whatever tool wrote the code, and the kernel keeps the person who sends it fully responsible for it.
-- [What I learned writing a HOCON parser as my first Zig project](https://pubs.miloskozak.cz/posts/hocon-tokenizer-and-parser/)
-- [I built a HOCON conformance suite. It found bugs in the reference implementation.](https://pubs.miloskozak.cz/posts/hocon-conformance-suite/)
-- [All I wanted was to see inside an ArrayList](https://pubs.miloskozak.cz/posts/zig-debugging-in-zed/), Zig debugging in Zed
+I wrote the first working version by hand. The whole spec turned out to be much more, so from then on I switched to AI-augmented development: I broke the product into features, had them implemented one by one, and reviewed each. I use this library for my own services, and it will be maintained. More in [What I learned writing a HOCON parser as my first Zig project](https://pubs.miloskozak.cz/posts/hocon-tokenizer-and-parser/).
 
 ## Contributing
 
-If you need a HOCON feature that is not there, open a pull request; a failing test that shows what you need is the fastest way to get it prioritized. [CONTRIBUTING.md](CONTRIBUTING.md) has the workflow.
-
-## License
-
-BSD 3-Clause, see [LICENSE](LICENSE).
+A failing test that shows what you need is the fastest way to get it; [CONTRIBUTING.md](CONTRIBUTING.md) has the workflow. BSD 3-Clause, see [LICENSE](LICENSE).
