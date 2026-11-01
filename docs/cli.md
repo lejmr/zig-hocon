@@ -1,6 +1,6 @@
 # The `hocon` command
 
-`pip install zig-hocon` puts `hocon` on your `PATH`; in a checkout, `zig build -Doptimize=ReleaseSafe` builds it into `zig-out/bin`. The examples read `app.conf` and `prod.conf` from the [README](../README.md#use).
+In a checkout, `zig build -Doptimize=ReleaseSafe` builds `hocon` into `zig-out/bin`. From Python, `pip install zig-hocon` puts it on your `PATH`. The examples read `app.conf` and `prod.conf` from the [README](../README.md#use).
 
 ## Print a file resolved
 
@@ -13,7 +13,7 @@ $ hocon --json prod.conf
 
 ## Environment variables
 
-A `${…}` the file does not answer reads the environment; `--env=none` reads none. `--env-file=prod.env` puts the `KEY=value` lines of a file over it, as docker compose and python-dotenv read them; a file written for a shell's `source`, with `export` and quotes, works as it is. A later file goes over an earlier one, and with `--env=none` they are all there is: `hocon check --env=none --env-file=prod.env prod.conf` checks a deployment against its own variables and nothing from your shell.
+A `${…}` that the file leaves open comes from the environment. To see what a deployment will get, keep its variables in a file and pass it with `--env-file`. The file has the `KEY=value` lines docker compose and python-dotenv read, and a file written for a shell's `source`, with `export` and quotes, works as it is:
 
 ```sh
 # prod.env
@@ -22,6 +22,15 @@ DB_POOL=16
 # a line written for `source` reads the same
 export LOG_LEVEL="warn"
 ```
+
+The env file goes over your shell's variables. Add `--env=none` and your shell is left out, so a variable the file forgot is missing here too, as it will be on the server:
+
+```sh
+$ hocon --json --env=none --env-file=prod.env prod.conf
+{"db":{"host":"db.example.org","pool":"16"},"timeout":"30s","cache":"512MiB"}
+```
+
+A variable is text, `"16"`; a getter or a struct reads it as the number. With several env files, a later one goes over an earlier one.
 
 ## One file to deploy
 
@@ -55,6 +64,10 @@ $ hocon get db --json prod.conf
 `hocon diff` compares two files as they resolve, path by path (`~ path: old → new`, `+` and `-`), and exits 0 when they say the same, as the deploy file does, 1 when they differ and 2 when one cannot be read:
 
 ```sh
+$ DB_POOL=16 hocon diff app.conf prod.conf; echo $?
+~ db.host: "localhost" → "db.example.org"
+~ db.pool: 4 → "16"
+1
 $ hocon diff prod.conf deploy.conf; echo $?
 0
 ```
