@@ -21,6 +21,11 @@ public class Oracle {
     public static void main(String[] args) throws Exception {
         BufferedReader in = new BufferedReader(
                 new InputStreamReader(System.in, StandardCharsets.UTF_8));
+        // stdout in UTF-8 whatever the locale: run.sh calls the oracle through
+        // env -i, which drops LANG, and Java then writes ASCII, so a NEL or any
+        // character outside it would come back as '?' (from Waldemar Wosinski's
+        // adapter in #66)
+        System.setOut(new PrintStream(new FileOutputStream(FileDescriptor.out), true, StandardCharsets.UTF_8));
         String line;
         while ((line = in.readLine()) != null) {
             if (line.isEmpty()) continue;

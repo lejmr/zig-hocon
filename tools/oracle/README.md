@@ -9,6 +9,12 @@ printf 'a = b\na = the cat sat on the keyboard\n' | tools/oracle/hocon-py
 
 Both scripts bootstrap themselves on first run: `hocon-java` downloads `config-1.4.9.jar` (or the release `HOCON_JAVA_VERSION` names) from Maven Central and compiles `Oracle.java`, `hocon-py` creates a venv and installs `pyhocon`. None of that is committed — see `.gitignore`.
 
+To score a typesafe/config that is not a release, an unreleased branch of lightbend/config or a fork, point `HOCON_JAVA_JAR` at its jar, a file or an http(s) URL; a URL is downloaded once into `tools/oracle/jar-<hash>.jar`, and `--version` names the jar and the start of its sha256, so a report says which build it scored. Waldemar Wosinski proposed this in [#66](https://github.com/lejmr/zig-hocon/pull/66) to score his lightbend/config fixes against the suite, and his adapter also showed why the oracle now writes UTF-8 whatever the locale.
+
+```sh
+HOCON_JAVA_JAR=../config/target/config.jar conformance/run.sh --java-version main -- conformance/adapters/oracle.sh hocon-java
+```
+
 ## Format
 
 One test case per line on stdin, with `\n`, `\t`, `\"` escapes:
