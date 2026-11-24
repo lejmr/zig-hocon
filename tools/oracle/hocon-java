@@ -5,10 +5,41 @@
 set -e
 DIR=$(cd "$(dirname "$0")" && pwd)
 # override to compare releases: HOCON_JAVA_VERSION=1.4.5 tools/oracle/hocon-java
-VERSION=${HOCON_JAVA_VERSION:-1.4.9}
-JAR="$DIR/config-$VERSION.jar"
+# or to score a jar you built yourself, an unreleased branch of lightbend/config
+# or a fork of it, from a file or an http(s) URL:
+#   HOCON_JAVA_JAR=/path/to/config.jar tools/oracle/hocon-java
+#   HOCON_JAVA_JAR=https://example.org/builds/config.jar tools/oracle/hocon-java
+# (the idea and its first version are Waldemar Wosinski's, #66)
+if [ -n "${HOCON_JAVA_JAR:-}" ]; then
+    case "$HOCON_JAVA_JAR" in
+    http://*|https://*)
+        # downloaded once and kept under a name made from the URL, since every
+        # case runs the oracle anew; a URL whose content changes (a CI artifact
+        # of a branch) is fetched again only after `rm tools/oracle/jar-*.jar`
+        KEY=$(printf '%s' "$HOCON_JAVA_JAR" | (sha256sum 2>/dev/null || shasum -a 256) | cut -c 1-16)
+        JAR="$DIR/jar-$KEY.jar"
+        if [ ! -f "$JAR" ]; then
+            curl -sSLf -o "$JAR.part" "$HOCON_JAVA_JAR" ||
+                { rm -f "$JAR.part"; echo "HOCON_JAVA_JAR: cannot download $HOCON_JAVA_JAR" >&2; exit 2; }
+            mv "$JAR.part" "$JAR"
+        fi
+        NAME=$(basename "${HOCON_JAVA_JAR%%\?*}") ;;
+    *)
+        JAR=$HOCON_JAVA_JAR
+        [ -f "$JAR" ] || { echo "HOCON_JAVA_JAR: no file at $JAR" >&2; exit 2; }
+        NAME=$(basename "$JAR") ;;
+    esac
+    # a local build has no release number: its name and the start of its sha256
+    # tell one build from another in a report
+    SUM=$( (sha256sum "$JAR" 2>/dev/null || shasum -a 256 "$JAR") | cut -c 1-12)
+    LABEL="typesafe/config $NAME ($SUM)"
+else
+    VERSION=${HOCON_JAVA_VERSION:-1.4.9}
+    JAR="$DIR/config-$VERSION.jar"
+    LABEL="typesafe/config $VERSION"
+fi
 
-[ "${1:-}" = "--version" ] && { echo "typesafe/config $VERSION"; exit 0; }
+[ "${1:-}" = "--version" ] && { echo "$LABEL"; exit 0; }
 
 # /usr/bin/java is only Apple's stub; the real JDK lives in the Homebrew prefix.
 if ! java -version >/dev/null 2>&1; then

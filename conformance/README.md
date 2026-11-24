@@ -30,6 +30,7 @@ Your adapter is called with one argument, the path to a `.conf` file. It prints 
 conformance/run.sh --spec -- ./my-adapter.sh   # default: what HOCON requires
 conformance/run.sh --java -- ./my-adapter.sh   # what lightbend/config 1.4.9 does
 conformance/run.sh --java-version main -- ./my-adapter.sh   # what its unreleased main does
+HOCON_JAVA_JAR=config.jar conformance/run.sh --java-version main -- conformance/adapters/oracle.sh hocon-java   # a lightbend/config build of your own
 ```
 
 They ask the same question on every row but the 91 that carry a `java` kind — the ones where the specification and the reference implementation genuinely part ways. Aim at `--spec` if you want to be correct, at `--java` if you need configs that parse in the JVM world today to keep parsing. `maintaining/PROCESS.md` explains the difference and lists every row where it matters.

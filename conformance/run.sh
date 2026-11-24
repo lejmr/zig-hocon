@@ -110,7 +110,7 @@ for k, v in json.load(open(sys.argv[1])).get("env", {}).items():
             run_file=$(python3 -c 'import pathlib, sys; sys.path.insert(0, sys.argv[1]); import suite; print(suite.materialize(pathlib.Path(sys.argv[2]), cleanup=False))' "$DIR/../maintaining" "$case_file")
         fi ;;
     esac
-    if out=$(env -i PATH="$PATH" HOME="$HOME" ${HOCON_BIN:+HOCON_BIN="$HOCON_BIN"} ${HOCON_JAVA_VERSION:+HOCON_JAVA_VERSION="$HOCON_JAVA_VERSION"} \
+    if out=$(env -i PATH="$PATH" HOME="$HOME" ${HOCON_BIN:+HOCON_BIN="$HOCON_BIN"} ${HOCON_JAVA_VERSION:+HOCON_JAVA_VERSION="$HOCON_JAVA_VERSION"} ${HOCON_JAVA_JAR:+HOCON_JAVA_JAR="$HOCON_JAVA_JAR"} \
         $vars "$@" "$run_file" 2>/dev/null); then status=0; else status=$?; fi
     [ "$run_file" = "$case_file" ] || rm -rf "$(dirname "$run_file")"
     printf '%s\037%s\037%s\036' "$case_file" "$status" "$out" >> "$RESULTS"

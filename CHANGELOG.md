@@ -2,6 +2,16 @@
 
 What changed for someone using zig-hocon: the Zig package, the `hocon` command line tool, libhocon for C and the `zig-hocon` Python package, which are released together under one version. The technical detail is in the commits each release links to.
 
+## [Unreleased]
+
+### Added
+
+- Conformance: `HOCON_JAVA_JAR` points the lightbend/config oracle at any jar, a file or an http(s) URL, so a build of an unreleased branch or a fork is scored the way a release is (`tools/oracle/README.md`). Proposed, with a first implementation, by Waldemar Wosinski in #66.
+
+### Fixed
+
+- Conformance: the lightbend/config oracle writes UTF-8 whatever the locale. Under `run.sh`, which drops `LANG`, it wrote ASCII on a machine without a UTF-8 default, and four cases with characters outside it (`unchanged-from-json/001`, `024`, `026`, `whitespace/014`) failed for the oracle's output, not for lightbend/config. Found through Waldemar Wosinski's adapter in #66.
+
 ## [0.6.1] - 2026-10-30
 
 ### Fixed
